@@ -1,15 +1,23 @@
 package art.arcane.wormholes.clientgametest;
 
+import com.mojang.logging.LogUtils;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.Screenshot;
 import net.minecraft.client.gui.screens.LevelLoadingScreen;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Vector3fc;
+import org.slf4j.Logger;
+
+import jdk.jfr.Event;
+import jdk.jfr.Label;
+import jdk.jfr.Name;
+import jdk.jfr.StackTrace;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -19,6 +27,7 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public final class TravelTap {
+    private static final Logger LOGGER = LogUtils.getLogger();
     private static final List<Frame> FRAMES = new ArrayList<>();
     private static final Set<UUID> ADDED = new HashSet<>();
     private static final AtomicInteger ACCEPTS = new AtomicInteger();
@@ -31,11 +40,16 @@ public final class TravelTap {
     private static boolean unloaded;
     private static long tickStarted;
     private static long gameTicks;
+    private static int captureSequence;
+    private static int captureFramesRemaining;
+    private static ClientFrameEvent profileFrame;
+    private static ClientRenderEvent profileRender;
 
     private TravelTap() {
     }
 
     public static synchronized void reset() {
+        SeamlessTurningTap.close();
         FRAMES.clear();
         ADDED.clear();
         RESPAWN_FRAMES.clear();
@@ -46,6 +60,9 @@ public final class TravelTap {
         positions = 0;
         loadingScreen = false;
         unloaded = false;
+        captureFramesRemaining = 0;
+        profileFrame = null;
+        profileRender = null;
     }
 
     public static synchronized void respawn() {
@@ -80,6 +97,11 @@ public final class TravelTap {
 
     public static void gameTick() {
         gameTicks++;
+        SeamlessTurningTap.gameTick();
+    }
+
+    static long gameTickIndex() {
+        return gameTicks;
     }
 
     public static void tickStarted() {
@@ -94,6 +116,7 @@ public final class TravelTap {
     }
 
     public static synchronized void frame(Minecraft minecraft) {
+        finishProfileRender(minecraft);
         Camera camera = minecraft.gameRenderer.mainCamera();
         ClientPacketListener connection = minecraft.getConnection();
         loadingScreen |= minecraft.gui.screen() instanceof LevelLoadingScreen;
@@ -101,12 +124,64 @@ public final class TravelTap {
         if (!camera.isInitialized() || minecraft.level == null || minecraft.player == null) {
             return;
         }
+        SeamlessTurningTap.rendered(minecraft);
+        CrossingCompositionTap.frame(minecraft);
+        NetherCrossingCompositionTap.frame(minecraft);
+        captureCrossingFrames(minecraft, camera);
         FRAMES.add(new Frame(FRAMES.size(), camera.position(), camera.yRot(), camera.xRot(),
             minecraft.level.dimension().identifier().toString(), System.identityHashCode(minecraft.level),
             System.identityHashCode(minecraft.player), gameTicks + minecraft.getDeltaTracker().getGameTimeDeltaPartialTick(true),
             minecraft.player.position().distanceTo(new Vec3(minecraft.player.xo, minecraft.player.yo, minecraft.player.zo)),
             Mth.wrapDegrees(minecraft.player.getYRot() - minecraft.player.yHeadRot), 0L, vector(camera.forwardVector()), vector(camera.upVector()),
             minecraft.player.getAttributeValue(Attributes.SCALE), System.nanoTime()));
+        profileFrame(FRAMES.getLast());
+    }
+
+    public static void frameStarted(Minecraft minecraft) {
+        if (Boolean.getBoolean("wormholes.clientgametest.profileFrames") && minecraft.level != null) {
+            profileRender = new ClientRenderEvent();
+            profileRender.frame = frameIndex();
+            profileRender.begin();
+        }
+        NetherCrossingCompositionTap.beforeFrame(minecraft);
+    }
+
+    private static void finishProfileRender(Minecraft minecraft) {
+        if (profileRender == null) {
+            return;
+        }
+        profileRender.end();
+        if (minecraft.level != null) {
+            profileRender.dimension = minecraft.level.dimension().identifier().toString();
+            profileRender.level = System.identityHashCode(minecraft.level);
+            profileRender.commit();
+        }
+        profileRender = null;
+    }
+
+    private static void captureCrossingFrames(Minecraft minecraft, Camera camera) {
+        if (!Boolean.getBoolean("wormholes.clientgametest.captureCrossingFrames")) {
+            return;
+        }
+        if (!FRAMES.isEmpty()) {
+            Frame previous = FRAMES.getLast();
+            if (previous.level() != System.identityHashCode(minecraft.level)
+                || previous.camera().distanceTo(camera.position()) > 4.0D) {
+                captureSequence++;
+                captureFramesRemaining = 4;
+            }
+        }
+        if (captureFramesRemaining <= 0) {
+            return;
+        }
+        String name = "crossing-frame-" + captureSequence + "-" + (4 - captureFramesRemaining) + ".png";
+        captureFramesRemaining--;
+        Screenshot.grab(minecraft.gameDirectory, name, minecraft.gameRenderer.mainRenderTarget(), 1,
+            message -> LOGGER.info("Crossing capture: {}", message.getString()));
+    }
+
+    public static synchronized int frameIndex() {
+        return FRAMES.size();
     }
 
     public static synchronized List<Frame> frames() {
@@ -159,6 +234,24 @@ public final class TravelTap {
         return -1;
     }
 
+    private static void profileFrame(Frame frame) {
+        if (!Boolean.getBoolean("wormholes.clientgametest.profileFrames")) {
+            return;
+        }
+        if (profileFrame != null) {
+            profileFrame.end();
+            profileFrame.frame = frame.index();
+            profileFrame.dimension = frame.dimension();
+            profileFrame.level = frame.level();
+            profileFrame.cameraX = frame.camera().x;
+            profileFrame.cameraY = frame.camera().y;
+            profileFrame.cameraZ = frame.camera().z;
+            profileFrame.commit();
+        }
+        profileFrame = new ClientFrameEvent();
+        profileFrame.begin();
+    }
+
     private static Vec3 vector(Vector3fc vector) {
         return new Vec3(vector.x(), vector.y(), vector.z());
     }
@@ -178,6 +271,27 @@ public final class TravelTap {
         Frame withTickNanos(long nanos) {
             return new Frame(index, camera, yaw, pitch, dimension, level, player, clock, tickSpeed, headLag, nanos, forward, up, scale, wallNanos);
         }
+    }
+
+    @Name("wormholes.ClientFrame")
+    @Label("Client frame interval")
+    @StackTrace(false)
+    private static final class ClientFrameEvent extends Event {
+        int frame;
+        String dimension;
+        int level;
+        double cameraX;
+        double cameraY;
+        double cameraZ;
+    }
+
+    @Name("wormholes.ClientRender")
+    @Label("GameRenderer render phase")
+    @StackTrace(false)
+    private static final class ClientRenderEvent extends Event {
+        int frame;
+        String dimension;
+        int level;
     }
 
     public record ScalePacket(int frame, double before) {

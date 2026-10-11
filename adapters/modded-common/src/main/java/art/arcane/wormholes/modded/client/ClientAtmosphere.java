@@ -58,7 +58,8 @@ public final class ClientAtmosphere {
         return received == null ? 0 : received.atmosphere.skyDarken();
     }
 
-    public void tick(double eyeX, double eyeY, double eyeZ, IntFunction<ClientPortal> lookup, ClientMeshSections meshes, boolean particles) {
+    public void tick(double eyeX, double eyeY, double eyeZ, IntFunction<ClientPortal> lookup, ClientMeshSections meshes,
+                     boolean particles, boolean localDominance) {
         clientTick++;
         observeLocalWeather();
         int next = 0;
@@ -79,7 +80,8 @@ public final class ClientAtmosphere {
                     meshWeather(portal.geometry(), mesh, atmosphere, eyeX, eyeY, eyeZ);
                 }
             }
-            if ((atmosphere.flags() & (ViewStreamMessage.Atmosphere.FLAG_TIME | ViewStreamMessage.Atmosphere.FLAG_WEATHER)) == 0) {
+            if (!localDominance
+                || (atmosphere.flags() & (ViewStreamMessage.Atmosphere.FLAG_TIME | ViewStreamMessage.Atmosphere.FLAG_WEATHER)) == 0) {
                 continue;
             }
             double distance = Math.abs(portal.geometry().signedDistance(eyeX, eyeY, eyeZ));

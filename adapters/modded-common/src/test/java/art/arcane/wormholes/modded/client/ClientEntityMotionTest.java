@@ -7,8 +7,6 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Display;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.InterpolationHandler;
-import net.minecraft.core.PositionAndRotation;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.world.InteractionHand;
@@ -25,7 +23,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertSame;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyFloat;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.mock;
@@ -48,10 +45,10 @@ public class ClientEntityMotionTest extends MinecraftTestBase {
             Display display = displays[i];
             when(level.getEntity(i)).thenReturn(display);
             scene.tick(i, 7, false);
-            verify(display, never()).commonTick();
+            NativeClientClock.verifyTick(display, never());
             verify(display, never()).tick();
             scene.tick(i, 7, true);
-            verify(display).commonTick();
+            NativeClientClock.verifyTick(display, times(1));
             verify(display).tick();
         }
         verify(level, never()).getBlockState(any());
@@ -64,8 +61,7 @@ public class ClientEntityMotionTest extends MinecraftTestBase {
         when(level.isClientSide()).thenReturn(true);
         LivingEntity living = mock(LivingEntity.class);
         when(living.level()).thenReturn(level);
-        when(living.getInterpolation()).thenReturn(InterpolationHandler.NO_OP);
-        doCallRealMethod().when(living).commonTick();
+        NativeClientClock.stub(living);
         when(level.getEntity(42)).thenReturn(living);
         ClientLevelScene scene = new ClientLevelScene(level, () -> null);
         for (int i = 0; i < 20; i++) {
@@ -73,7 +69,7 @@ public class ClientEntityMotionTest extends MinecraftTestBase {
         }
         assertEquals(20, living.tickCount);
         assertTrue(living.noPhysics);
-        verify(living, times(20)).commonTick();
+        NativeClientClock.verifyTick(living, times(20));
         verify(living, times(20)).tick();
         scene.tick(42, 7, false);
         assertEquals(20, living.tickCount);
@@ -86,7 +82,7 @@ public class ClientEntityMotionTest extends MinecraftTestBase {
     public void itemSnapshotsInterpolateWithoutLocalPhysicsAndStopAtTheLastSample() {
         ClientLevel level = mock(ClientLevel.class);
         when(level.isClientSide()).thenReturn(true);
-        ItemEntity item = item(level);
+        ItemEntity item = NativeClientClock.item(level);
         item.setPos(1000, 64, 2000);
         item.setOldPosAndRot();
         ClientItemMotion motion = new ClientItemMotion(item);
@@ -115,7 +111,7 @@ public class ClientEntityMotionTest extends MinecraftTestBase {
     public void itemTeleportCancelsTheOldPathAndResetsTheRenderOrigin() {
         ClientLevel level = mock(ClientLevel.class);
         when(level.isClientSide()).thenReturn(true);
-        ItemEntity item = item(level);
+        ItemEntity item = NativeClientClock.item(level);
         item.setPos(1000, 64, 2000);
         ClientItemMotion motion = new ClientItemMotion(item);
         EntitySnapshot start = visual(1000, 64, 0, 0);
@@ -219,35 +215,6 @@ public class ClientEntityMotionTest extends MinecraftTestBase {
     private static EntitySnapshot usingVisual(UUID id, int flags) {
         return EntitySnapshot.full(id, "minecraft:zombie", 0, 64, 0, 1.95D, 0, 0, 1, 0, 0, 0, 0, 0, true,
             "", "", "", null, null, new byte[] {(byte) flags}, new byte[] {(byte) (flags == 0 ? 0 : 1)}, 0);
-    }
-
-    private static ItemEntity item(ClientLevel level) {
-        ItemEntity item = mock(ItemEntity.class);
-        AtomicReference<Vec3> position = new AtomicReference<>(Vec3.ZERO);
-        when(item.level()).thenReturn(level);
-        when(item.getInterpolation()).thenReturn(InterpolationHandler.NO_OP);
-        when(item.position()).thenAnswer(ignored -> position.get());
-        when(item.getX()).thenAnswer(ignored -> position.get().x);
-        when(item.getY()).thenAnswer(ignored -> position.get().y);
-        when(item.getZ()).thenAnswer(ignored -> position.get().z);
-        when(item.storePositionAndRotation()).thenAnswer(ignored -> PositionAndRotation.of(position.get(), 0, 0));
-        doAnswer(call -> {
-            position.set(call.getArgument(0));
-            return null;
-        }).when(item).setPos(any(Vec3.class));
-        doAnswer(call -> {
-            position.set(new Vec3(call.getArgument(0), call.getArgument(1), call.getArgument(2)));
-            return null;
-        }).when(item).setPos(anyDouble(), anyDouble(), anyDouble());
-        doAnswer(ignored -> {
-            Vec3 previous = position.get();
-            item.xOld = previous.x;
-            item.yOld = previous.y;
-            item.zOld = previous.z;
-            return null;
-        }).when(item).setOldPosAndRot();
-        doCallRealMethod().when(item).commonTick();
-        return item;
     }
 
     private static EntitySnapshot visual(double x, double y, float bodyYaw, float headYaw) {

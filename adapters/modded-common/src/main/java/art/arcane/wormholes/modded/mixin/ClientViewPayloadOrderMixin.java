@@ -33,7 +33,7 @@ public abstract class ClientViewPayloadOrderMixin {
         callback.cancel();
         WormholesModRuntime runtime = WormholesModRuntime.forServer(server);
         if (runtime != null) {
-            runtime.clientViews().receivePlay(game.player, payload.data());
+            runtime.clientViews().receivePlayAt(game.player, payload.data(), payload.receivedNanos());
         }
     }
 }

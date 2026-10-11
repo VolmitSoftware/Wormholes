@@ -15,6 +15,7 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.chunk.LevelChunk;
 import org.slf4j.LoggerFactory;
 
 import java.util.UUID;
@@ -78,10 +79,31 @@ final class MinecraftPlateCaptureGameTest {
                 helper.assertTrue(plate.destinationWorldId().equals(view.worldId()), "Captured plate lost its destination world");
                 helper.assertTrue(projections.plates().size() >= 1 && projections.plates().bytes() > 0L,
                     "Plate stats did not account for the captured plate");
+                assertNativeInvalidation(helper, runtime, view, base.offset(2, 2, 2));
                 projections.plates().invalidate(key);
                 fill(level, base, 5, Blocks.AIR.defaultBlockState());
                 LoggerFactory.getLogger("WormholesGameTest").info("WORMHOLES_GAME_TEST_PASS projection_plate_capture_runtime queued_capture server_thread_snapshot worker_build level_parity");
             }).thenSucceed();
+    }
+
+    private static void assertNativeInvalidation(GameTestHelper helper, WormholesModRuntime runtime, MinecraftProjectionWorldView view, BlockPos marker) {
+        ServerLevel level = helper.getLevel();
+        int chunkX = marker.getX() >> 4;
+        int chunkZ = marker.getZ() >> 4;
+        MinecraftPlateCaptureSource source = new MinecraftPlateCaptureSource(runtime, MinecraftPlateCaptureSource.Options.column(view.worldId(), true));
+        MinecraftPlateCaptureSource.CapturedChunk before = source.capture(level, chunkX, chunkZ);
+        helper.assertTrue(source.cached(level, chunkX, chunkZ) == before, "The native mutation fixture did not prime its snapshot cache");
+        long version = runtime.projections().changes().currentVersion();
+        LevelChunk chunk = level.getChunkSource().getChunkNow(chunkX, chunkZ);
+        chunk.setBlockState(marker, Blocks.DIAMOND_BLOCK.defaultBlockState(), 0);
+        helper.assertTrue(runtime.projections().changes().currentVersion() > version, "The direct native mutation did not stamp its projection world");
+        helper.assertTrue(source.cached(level, chunkX, chunkZ) == null, "The direct native mutation reused a stale captured snapshot");
+        MinecraftPlateCaptureSource.CapturedChunk after = source.capture(level, chunkX, chunkZ);
+        int section = (marker.getY() >> 4) - after.minSectionY();
+        helper.assertTrue(after.sections()[section].get(marker.getX() & 15, marker.getY() & 15, marker.getZ() & 15).is(Blocks.DIAMOND_BLOCK),
+            "The fresh snapshot did not contain the direct native edit");
+        helper.assertTrue(before.sections()[section].get(marker.getX() & 15, marker.getY() & 15, marker.getZ() & 15).is(Blocks.GOLD_BLOCK),
+            "The applied edit mutated a snapshot already supplied to a capture worker");
     }
 
     private static void fill(ServerLevel level, BlockPos base, int size, BlockState state) {

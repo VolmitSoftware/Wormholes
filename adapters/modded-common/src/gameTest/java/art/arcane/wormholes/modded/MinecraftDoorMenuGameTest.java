@@ -213,7 +213,7 @@ public final class MinecraftDoorMenuGameTest {
                 for (Object packet : strangerChannel.outboundMessages()) {
                     if (packet instanceof ClientboundRemoveEntitiesPacket destroy) {
                         for (int id : displays) {
-                            if (destroy.entityIds().contains(id)) {
+                            if (MinecraftGameTestAccess.removed(destroy).contains(id)) {
                                 removed.add(id);
                             }
                         }

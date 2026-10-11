@@ -49,7 +49,7 @@ public class StraddleTrackerTest extends MinecraftTestBase {
     }
 
     @Test
-    public void straddleKeepsTheEyeSideAndExcludesOnlyShapesFullyBehindThePlane() {
+    public void straddleKeepsTheEyeSideAndRetainsSourceCollisionInFrontOfThePlane() {
         ApertureCells source = aperture(0, 64, 0);
         ApertureCells destination = aperture(100, 64, 100);
         StraddleTracker.Straddle straddle = StraddleTracker.create(new StraddleTracker.Endpoint(source, NORTH, source.getApertureCenter(), null),
@@ -93,8 +93,8 @@ public class StraddleTrackerTest extends MinecraftTestBase {
             new StraddleTracker.Endpoint(source, NORTH, source.getApertureCenter(), null), null, new Vec3d(0.5D, 65.6D, -0.4D), 1.0D);
 
         assertTrue(straddle.frontSide());
-        assertTrue(straddle.excludes(0, 64, 1, 1, 65, 2));
-        assertFalse(straddle.excludes(0, 64, -1, 1, 65, 0));
+        assertFalse(StraddleCollision.thisSide(List.of(Shapes.block().move(0, 64, 1)), straddle).iterator().hasNext());
+        assertTrue(StraddleCollision.thisSide(List.of(Shapes.block().move(0, 64, -1)), straddle).iterator().hasNext());
     }
 
     @Test

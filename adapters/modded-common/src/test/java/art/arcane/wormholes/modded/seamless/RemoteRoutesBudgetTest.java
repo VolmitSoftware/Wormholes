@@ -11,6 +11,34 @@ import static org.junit.Assert.assertTrue;
 
 public class RemoteRoutesBudgetTest extends MinecraftTestBase {
     @Test
+    public void appliedDirectAndBiomeEditsRemainDirtyWhenTheTickingTrackerStampArrives() {
+        RouteWindow window = new RouteWindow(0, 0, 1);
+        RouteStream stream = new RouteStream(window);
+        LongList keys = window.keys();
+        for (int index = 0; index < keys.size(); index++) {
+            stream.markDelivered(keys.getLong(index));
+            stream.live(keys.getLong(index), true);
+        }
+        long first = ChunkPos.pack(0, 0);
+        long second = ChunkPos.pack(1, 0);
+        stream.changed(first);
+        stream.changed(first);
+        stream.changed(second);
+        stream.observed(first, true);
+        stream.observed(second, true);
+
+        assertFalse(stream.live(first));
+        assertFalse(stream.live(second));
+        LongList plan = stream.plan(1);
+        assertEquals(1, plan.size());
+        assertEquals(first, plan.getLong(0));
+        assertEquals(2, stream.markDelivered(first));
+        assertEquals(second, stream.plan(1).getLong(0));
+        assertEquals(2, stream.markDelivered(second));
+        assertTrue(stream.plan(1).isEmpty());
+    }
+
+    @Test
     public void planTakesTheNearestUndeliveredColumnsWithinTheChunkBudget() {
         RouteStream stream = new RouteStream(new RouteWindow(0, 0, 3));
 

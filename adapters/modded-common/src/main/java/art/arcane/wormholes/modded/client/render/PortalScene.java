@@ -8,6 +8,7 @@ import net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
 import net.minecraft.client.renderer.culling.Frustum;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
+import net.minecraft.client.multiplayer.ClientLevel;
 
 import java.util.List;
 import java.util.function.Predicate;
@@ -15,6 +16,14 @@ import java.util.function.ObjLongConsumer;
 
 public interface PortalScene {
     ApertureDescriptor geometry();
+
+    default ClientLevel sourceLevel() {
+        return null;
+    }
+
+    default boolean sourceExpired() {
+        return false;
+    }
 
     default boolean fullWorld() {
         return false;

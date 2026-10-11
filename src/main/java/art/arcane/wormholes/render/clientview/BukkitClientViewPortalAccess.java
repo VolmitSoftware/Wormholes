@@ -23,6 +23,10 @@ import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.stream.BrickLightSource;
 import art.arcane.optics.stream.SectionBiomes;
 import art.arcane.optics.stream.SessionPalette;
+import art.arcane.optics.stream.ViewStreamMessage;
+import art.arcane.wormholes.network.client.ClientViewExtensions;
+import art.arcane.wormholes.network.client.RootSource;
+import art.arcane.wormholes.network.client.RootSourceExtension;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.render.ClientViewPortalSource;
 import art.arcane.optics.aperture.ApertureDescriptor;
@@ -74,7 +78,22 @@ public final class BukkitClientViewPortalAccess implements ViewStreamEndpoints<C
     @Override
     public ApertureDescriptor geometry(ClientViewObserver observer, UUID portal, SessionPalette palette) {
         ClientViewPortalSource source = source(observer, portal);
-        return source == null ? null : source.geometry(palette, identitySalt.getAsLong());
+        Player player = observer.player();
+        return source == null || player == null || source.portal().getWorld() != player.getWorld()
+            ? null : source.geometry(palette, identitySalt.getAsLong());
+    }
+
+    @Override
+    public GeometryMetadata geometryMetadata(ClientViewObserver observer, UUID portalId, GeometryMetadataContext context) {
+        if ((context.caps() & ClientViewExtensions.ROOT_SOURCE) == 0L || context.geometry().parentPortalKey() != 0) {
+            return GeometryMetadata.NONE;
+        }
+        ILocalPortal portal = portal(observer, portalId);
+        if (portal == null) {
+            return GeometryMetadata.NONE;
+        }
+        String sourceWorld = portal.getWorld().getKey().toString();
+        return revision -> List.of(RootSourceExtension.INSTANCE.wrap(new RootSource(context.portalKey(), revision, sourceWorld)));
     }
 
     @Override

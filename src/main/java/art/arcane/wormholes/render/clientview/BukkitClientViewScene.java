@@ -93,6 +93,19 @@ final class BukkitClientViewScene implements EntityScenes<ClientViewObserver>, C
     }
 
     @Override
+    public boolean observerVisible(ClientViewObserver observer, UUID portalId) {
+        ClientViewObserver.NestedContext context = observer.nestedContext(portalId);
+        if (observer.meshDepth() <= 0 || context == null || context.source().portal().getId().equals(portalId)) {
+            return false;
+        }
+        ViewWindow frame = context.source().transformFrame();
+        Location destinationEye = observer.reflectedEye(portalId);
+        Location eye = observer.eye();
+        return frame != null && !frame.mirror() && eye != null && destinationEye != null && destinationEye.getWorld() != null
+            && Objects.equals(destinationEye.getWorld(), eye.getWorld()) && eye.distanceSquared(destinationEye) > 1.0D;
+    }
+
+    @Override
     public List<FxMessage.FxEmitter> emitters(ClientViewObserver observer, UUID portalId, long tick) {
         ILocalPortal portal = portals.portal(observer, portalId);
         if (portal == null) {

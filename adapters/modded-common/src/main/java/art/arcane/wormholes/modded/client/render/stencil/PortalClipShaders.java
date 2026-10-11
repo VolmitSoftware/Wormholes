@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded.client.render.stencil;
 
+import art.arcane.wormholes.modded.client.render.dh.DhBlazeClipTransformation;
 import art.arcane.wormholes.modded.client.render.sodium.SodiumClipShaders;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.logging.LogUtils;
@@ -61,6 +62,10 @@ public final class PortalClipShaders {
 
     public static String shader(Identifier location, ShaderType type, String contents) {
         if (!loading || type != ShaderType.VERTEX) {
+            return contents;
+        }
+        if ("distanthorizons".equals(location.getNamespace())
+            && DhBlazeClipTransformation.owns(type.idConverter().fileToId(location).getPath())) {
             return contents;
         }
         return ClipShaderTransformation.vertex(type.idConverter().fileToId(location).toString(), contents).orElse(contents);

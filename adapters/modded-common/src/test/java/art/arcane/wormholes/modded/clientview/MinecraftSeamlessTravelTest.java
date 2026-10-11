@@ -1,11 +1,13 @@
 package art.arcane.wormholes.modded.clientview;
 
 import art.arcane.optics.crossing.ArrivalOrientation;
+import art.arcane.optics.aperture.ApertureCells;
 import art.arcane.optics.crossing.PlaneCrossing;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.math.Angles;
 import art.arcane.optics.math.Face;
 import art.arcane.optics.math.Vec3d;
+import art.arcane.optics.shape.ShapeDescriptor;
 import art.arcane.optics.plate.ChunkLeaseRegistry;
 import art.arcane.wormholes.modded.MinecraftDoorService;
 import art.arcane.wormholes.modded.MinecraftPortal;
@@ -131,29 +133,125 @@ public class MinecraftSeamlessTravelTest extends MinecraftTestBase {
 
     @Test
     public void changedDoorCollisionMetadataInvalidatesAnOtherwiseIdenticalArm() throws Exception {
-        MinecraftPortal source = mock(MinecraftPortal.class);
-        MinecraftPortal destination = mock(MinecraftPortal.class);
-        ServerLevel level = mock(ServerLevel.class);
-        RemoteRoute route = new RemoteRoute(new RemoteRoute.Key(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID()), level,
-            new Vec3d(4, 70, 9), new RouteWindow(0, 0, 2), 3);
-        TravelMessage.DoorCollisionTarget target = new TravelMessage.DoorCollisionTarget(4, 70, 9, true);
-        TravelMessage.TravelBegin begin = mock(TravelMessage.TravelBegin.class);
-        when(begin.doorCollision()).thenReturn(target);
-        Class<?> armType = Class.forName(MinecraftSeamlessTravel.class.getName() + "$Arm");
-        Constructor<?> constructor = armType.getDeclaredConstructor(MinecraftPortal.class, MinecraftPortal.class, ServerLevel.class,
-            boolean.class, long.class, int.class, TravelMessage.TravelBegin.class);
-        constructor.setAccessible(true);
-        Object arm = constructor.newInstance(source, destination, level, true, 7L, 3, begin);
-        Method matches = armType.getDeclaredMethod("matches", MinecraftPortal.class, MinecraftPortal.class, RemoteRoute.class,
-            boolean.class, long.class, TravelMessage.DoorCollisionTarget.class);
-        matches.setAccessible(true);
+        ArmFixture fixture = new ArmFixture();
+        assertTrue(fixture.matches(fixture.target));
+        assertFalse(fixture.matches(new TravelMessage.DoorCollisionTarget(4, 70, 9, false)));
+        assertFalse(fixture.matches(new TravelMessage.DoorCollisionTarget(5, 70, 9, true)));
+        assertFalse(fixture.matches(null));
+    }
 
-        assertTrue((boolean) matches.invoke(arm, source, destination, route, true, 7L, target));
-        assertFalse((boolean) matches.invoke(arm, source, destination, route, true, 7L,
-            new TravelMessage.DoorCollisionTarget(4, 70, 9, false)));
-        assertFalse((boolean) matches.invoke(arm, source, destination, route, true, 7L,
-            new TravelMessage.DoorCollisionTarget(5, 70, 9, true)));
-        assertFalse((boolean) matches.invoke(arm, source, destination, route, true, 7L, null));
+    @Test
+    public void spinningTheSameSourceObjectInvalidatesItsCapturedArm() throws Exception {
+        ArmFixture fixture = new ArmFixture();
+        Frame rotated = fixture.source.getFrame().rotateClockwise();
+        when(fixture.source.getFrame()).thenReturn(rotated);
+        assertFalse(fixture.matches(fixture.target));
+    }
+
+    @Test
+    public void spinningTheSameDestinationObjectInvalidatesTheCapturedMapping() throws Exception {
+        ArmFixture fixture = new ArmFixture();
+        Frame rotated = fixture.destination.getFrame().rotateClockwise();
+        when(fixture.destination.getFrame()).thenReturn(rotated);
+        assertFalse(fixture.matches(fixture.target));
+    }
+
+    @Test
+    public void movingEitherSamePortalObjectInvalidatesItsCapturedArm() throws Exception {
+        ArmFixture source = new ArmFixture();
+        Vec3d movedSource = source.source.getOrigin().add(Vec3d.UNIT_X);
+        when(source.source.getOrigin()).thenReturn(movedSource);
+        assertFalse(source.matches(source.target));
+        ArmFixture destination = new ArmFixture();
+        Vec3d movedDestination = destination.destination.getOrigin().add(Vec3d.UNIT_Y);
+        when(destination.destination.getOrigin()).thenReturn(movedDestination);
+        assertFalse(destination.matches(destination.target));
+    }
+
+    @Test
+    public void changingCellsInPlaceInvalidatesBothEndpointSnapshots() throws Exception {
+        ArmFixture source = new ArmFixture();
+        ApertureCells sourceCells = source.source.getGeometry();
+        sourceCells.restore(sourceCells.getArea(), List.of(new Vec3d(4, 70, 9)));
+        assertFalse(source.matches(source.target));
+        ArmFixture destination = new ArmFixture();
+        ApertureCells destinationCells = destination.destination.getGeometry();
+        destinationCells.restore(destinationCells.getArea(), List.of(new Vec3d(4, 70, 9)));
+        assertFalse(destination.matches(destination.target));
+    }
+
+    @Test
+    public void changingAnExactShapeWithTheSameCellsInvalidatesTheArm() throws Exception {
+        ArmFixture source = new ArmFixture();
+        when(source.source.getApertureShape()).thenReturn(ShapeDescriptor.parse("circle"));
+        assertFalse(source.matches(source.target));
+        ArmFixture destination = new ArmFixture();
+        when(destination.destination.getApertureShape()).thenReturn(ShapeDescriptor.parse("circle"));
+        assertFalse(destination.matches(destination.target));
+    }
+
+    @Test
+    public void replacingEffectiveCellsWithTheSameRevisionStillInvalidatesTheArm() throws Exception {
+        ArmFixture fixture = new ArmFixture();
+        ApertureCells replacement = ArmFixture.cells();
+        assertEquals(fixture.source.getGeometry().getRevision(), replacement.getRevision());
+        when(fixture.source.getGeometry()).thenReturn(replacement);
+        assertFalse(fixture.matches(fixture.target));
+    }
+
+    @Test
+    public void equalImmutableFrameAndOriginValuesDoNotChurnTheArm() throws Exception {
+        ArmFixture fixture = new ArmFixture();
+        when(fixture.source.getFrame()).thenReturn(Frame.fromNormalUp(Face.N, Face.U));
+        when(fixture.source.getOrigin()).thenReturn(new Vec3d(4.5D, 70.5D, 9.5D));
+        assertTrue(fixture.matches(fixture.target));
+    }
+
+    private static final class ArmFixture {
+        private final MinecraftPortal source = mock(MinecraftPortal.class);
+        private final MinecraftPortal destination = mock(MinecraftPortal.class);
+        private final TravelMessage.DoorCollisionTarget target = new TravelMessage.DoorCollisionTarget(4, 70, 9, true);
+        private final RemoteRoute route;
+        private final Object arm;
+        private final Method matches;
+
+        private ArmFixture() throws ReflectiveOperationException {
+            configure(source);
+            configure(destination);
+            ServerLevel level = mock(ServerLevel.class);
+            route = new RemoteRoute(new RemoteRoute.Key(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID()), level,
+                new Vec3d(4, 70, 9), new RouteWindow(0, 0, 2), 3);
+            TravelMessage.TravelBegin begin = mock(TravelMessage.TravelBegin.class);
+            when(begin.doorCollision()).thenReturn(target);
+            Class<?> stateType = Class.forName(MinecraftSeamlessTravel.class.getName() + "$PortalState");
+            Method capture = stateType.getDeclaredMethod("capture", MinecraftPortal.class);
+            capture.setAccessible(true);
+            Class<?> armType = Class.forName(MinecraftSeamlessTravel.class.getName() + "$Arm");
+            Constructor<?> constructor = armType.getDeclaredConstructor(MinecraftPortal.class, MinecraftPortal.class, ServerLevel.class,
+                boolean.class, long.class, int.class, TravelMessage.TravelBegin.class, stateType, stateType);
+            constructor.setAccessible(true);
+            arm = constructor.newInstance(source, destination, level, true, 7L, 3, begin, capture.invoke(null, source), capture.invoke(null, destination));
+            matches = armType.getDeclaredMethod("matches", MinecraftPortal.class, MinecraftPortal.class, RemoteRoute.class,
+                boolean.class, long.class, TravelMessage.DoorCollisionTarget.class);
+            matches.setAccessible(true);
+        }
+
+        private boolean matches(TravelMessage.DoorCollisionTarget next) throws ReflectiveOperationException {
+            return (boolean) matches.invoke(arm, source, destination, route, true, 7L, next);
+        }
+
+        private static void configure(MinecraftPortal portal) {
+            when(portal.getFrame()).thenReturn(Frame.canonical(Face.N));
+            when(portal.getOrigin()).thenReturn(new Vec3d(4.5D, 70.5D, 9.5D));
+            when(portal.getGeometry()).thenReturn(cells());
+            when(portal.getApertureShape()).thenReturn(ShapeDescriptor.FULL);
+        }
+
+        private static ApertureCells cells() {
+            ApertureCells cells = new ApertureCells();
+            cells.setBlocks(List.of(new Vec3d(4, 70, 9), new Vec3d(5, 70, 9), new Vec3d(4, 71, 9), new Vec3d(5, 71, 9)));
+            return cells;
+        }
     }
 
     private static final class Fixture {

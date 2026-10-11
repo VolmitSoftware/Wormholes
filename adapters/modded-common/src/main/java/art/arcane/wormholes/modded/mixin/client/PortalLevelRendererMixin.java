@@ -11,6 +11,7 @@ import com.mojang.renderpearl.api.commands.CommandEncoder;
 import com.mojang.renderpearl.api.commands.RenderPass;
 import com.mojang.renderpearl.api.textures.GpuTexture;
 import net.minecraft.client.renderer.LevelRenderer;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.chunk.ChunkSectionsToRender;
 import net.minecraft.client.renderer.chunk.SectionRenderDispatcher;
 import net.minecraft.client.renderer.feature.FeatureRenderDispatcher;
@@ -35,10 +36,18 @@ public abstract class PortalLevelRendererMixin {
     private void wormholes$prepare(GpuBufferSlice fog, boolean improvedTransparency, ChunkSectionsToRender sections,
                                   FeatureRenderDispatcher.PreparedFrame frame, boolean outlines, boolean panorama,
                                   CallbackInfo callback) {
-        PortalStencilRenderer.instance().renderPortals((LevelRenderer) (Object) this, levelRenderState.cameraRenderState);
+        PortalStencilRenderer.instance().prepareFrame((LevelRenderer) (Object) this, levelRenderState.cameraRenderState);
         if (wormholes$meshViews()) {
             ClientPortalRenderer.instance().prepare(levelRenderState.cameraRenderState, fog);
+        } else if (!PortalStencilRenderer.instance().nested()) {
+            ClientPortalRenderer.instance().discardFrame();
         }
+    }
+
+    @Inject(method = "lambda$addMainPass$0", at = @At(value = "INVOKE",
+        target = "Lnet/minecraft/client/renderer/LevelRenderer;prepareTranslucents()V", shift = At.Shift.AFTER))
+    private void wormholes$renderPortals(CallbackInfo callback) {
+        PortalStencilRenderer.instance().renderPortals(levelRenderState.cameraRenderState);
     }
 
     @Inject(method = "render", at = @At("RETURN"))
@@ -91,6 +100,7 @@ public abstract class PortalLevelRendererMixin {
     @Unique
     private static boolean wormholes$meshViews() {
         WormholesClient client = WormholesClient.instance();
-        return !PortalStencilRenderer.instance().nested() && (client == null || !client.seamlessTravel().view().active());
+        return !PortalStencilRenderer.instance().nested() && (client == null
+            || client.viewsAttachedTo(Minecraft.getInstance().level) && !client.seamlessTravel().view().active());
     }
 }

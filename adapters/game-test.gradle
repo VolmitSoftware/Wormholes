@@ -1,6 +1,3 @@
-Properties gameTestProperties = new Properties()
-file('../../gradle.properties').withInputStream { InputStream stream -> gameTestProperties.load(stream) }
-
 sourceSets {
     gameTest {
         java.srcDir('../modded-common/src/gameTest/java')
@@ -16,9 +13,9 @@ tasks.named('check').configure {
 
 tasks.named('processGameTestResources').configure {
     inputs.property('version', project.version)
-    inputs.property('minecraftVersion', gameTestProperties.getProperty('minecraftVersion'))
+    inputs.property('minecraftVersion', project.ext.minecraftTargetVersion)
     filesMatching(['fabric.mod.json', 'META-INF/mods.toml', 'META-INF/neoforge.mods.toml']) {
-        expand('version': project.version, 'minecraftVersion': gameTestProperties.getProperty('minecraftVersion'))
+        expand(project.ext.minecraftMetadata)
     }
 }
 

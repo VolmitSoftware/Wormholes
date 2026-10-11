@@ -9,7 +9,6 @@ import org.bukkit.Particle;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Player;
 
-import com.github.retrooper.packetevents.PacketEvents;
 import com.github.retrooper.packetevents.protocol.world.chunk.LightData;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerUpdateLight;
 
@@ -22,6 +21,7 @@ import art.arcane.optics.light.LightOverlay;
 import art.arcane.optics.math.CellKeys;
 import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.Wormholes;
+import art.arcane.wormholes.platform.BukkitOpticsScheduler;
 import art.arcane.wormholes.render.acoustics.SoundPacketSink;
 import art.arcane.wormholes.render.atmosphere.ChunkBiomesPacketSink;
 import art.arcane.wormholes.render.blockentity.BlockEntityPacketSink;
@@ -52,6 +52,11 @@ public final class BukkitProjectionOutput implements WorldOutput<Player> {
 
     public ProjectionChunkVisibility visibility() {
         return visibility;
+    }
+
+    boolean scheduleBlockRepair(Player observer, Runnable repair) {
+        BukkitOpticsScheduler scheduler = BukkitOpticsScheduler.active();
+        return scheduler != null && scheduler.runForObserver(observer, repair);
     }
 
     public LightOverlay<Player, BlockData, ProjectionWorldView> lighting() {
@@ -114,7 +119,7 @@ public final class BukkitProjectionOutput implements WorldOutput<Player> {
     }
 
     private static void sendLight(Player observer, LightPacket packet) {
-        PacketEvents.getAPI().getPlayerManager().sendPacket(observer, new WrapperPlayServerUpdateLight(packet.chunkX(), packet.chunkZ(), packet.data()));
+        ProjectionPacketOrigin.send(observer, new WrapperPlayServerUpdateLight(packet.chunkX(), packet.chunkZ(), packet.data()));
     }
 
     @FunctionalInterface

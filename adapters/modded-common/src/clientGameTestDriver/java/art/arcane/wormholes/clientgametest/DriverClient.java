@@ -1,5 +1,6 @@
 package art.arcane.wormholes.clientgametest;
 
+import io.netty.channel.Channel;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractButton;
 import net.minecraft.client.gui.components.events.ContainerEventHandler;
@@ -14,6 +15,7 @@ import net.minecraft.world.level.chunk.status.ChunkStatus;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -32,11 +34,8 @@ final class DriverClient implements SeamlessClient {
     private final Minecraft minecraft;
     private final Object tickLock = new Object();
     private final BlockingQueue<String> replies = new LinkedBlockingQueue<>();
-    private final Object cursorLock = new Object();
+    private volatile Lockstep activeLockstep;
     private long ticks;
-    private long cursorTick;
-    private double cursorX;
-    private double cursorY;
 
     DriverClient(Minecraft minecraft) {
         this.minecraft = minecraft;
@@ -56,33 +55,24 @@ final class DriverClient implements SeamlessClient {
 
     @Override
     public void waitTicks(int count) {
-        synchronized (tickLock) {
-            long target = ticks + count;
-            long deadline = System.currentTimeMillis() + STALL_MILLIS;
-            while (ticks < target) {
-                long remaining = deadline - System.currentTimeMillis();
-                if (remaining <= 0L) {
-                    throw new AssertionError("the client stopped ticking for " + STALL_MILLIS + " ms");
-                }
-                try {
-                    tickLock.wait(remaining);
-                } catch (InterruptedException interrupted) {
-                    Thread.currentThread().interrupt();
-                    throw new AssertionError("interrupted while waiting for client ticks", interrupted);
-                }
+        Lockstep lockstep = activeLockstep;
+        if (lockstep != null) {
+            for (int tick = 0; tick < count; tick++) {
+                lockstep.step(client -> null);
             }
+            return;
         }
+        awaitClientTicks(count);
     }
 
     @Override
     public void waitFor(Predicate<Minecraft> condition, int timeoutTicks) {
-        for (int tick = 0; tick <= timeoutTicks; tick++) {
-            if (computeOnClient(condition::test)) {
-                return;
-            }
-            waitTicks(1);
+        try {
+            awaitCondition(condition, timeoutTicks);
+        } catch (RuntimeException | Error failure) {
+            closeLockstep();
+            throw failure;
         }
-        throw new AssertionError("condition not met within " + timeoutTicks + " ticks");
     }
 
     @Override
@@ -125,10 +115,7 @@ final class DriverClient implements SeamlessClient {
 
     @Override
     public void moveCursor(double deltaX, double deltaY) {
-        synchronized (cursorLock) {
-            cursorX += deltaX;
-            cursorY += deltaY;
-        }
+        NativeSeamlessInput.moveCursor(this, deltaX, deltaY);
     }
 
     @Override
@@ -138,36 +125,30 @@ final class DriverClient implements SeamlessClient {
 
     @Override
     public TickStepper lockstep() {
-        ServerPacketDelivery.Channels channels = computeOnClient(ServerPacketDelivery::channels);
-        DriverLockstep.activate();
-        return new Lockstep(this, channels);
+        Lockstep previous = activeLockstep;
+        if (previous != null) {
+            if (computeOnClient(client -> DriverLockstep.isActive(previous.lease))) {
+                throw new AssertionError("the client already has a lockstep lease");
+            }
+            previous.close();
+        }
+        Thread owner = Thread.currentThread();
+        Lockstep lockstep = computeOnClient(client -> new Lockstep(ServerPacketDelivery.channels(client), DriverLockstep.createLease(client, owner)));
+        DriverLockstep.activate(lockstep.lease);
+        activeLockstep = lockstep;
+        return lockstep;
     }
 
     void ticked() {
         synchronized (tickLock) {
             ticks++;
+            DriverLockstep.afterClientTick();
             tickLock.notifyAll();
         }
     }
 
     void cursorFrame() {
-        double deltaX;
-        double deltaY;
-        synchronized (tickLock) {
-            if (ticks == cursorTick) {
-                return;
-            }
-            cursorTick = ticks;
-        }
-        synchronized (cursorLock) {
-            deltaX = cursorX;
-            deltaY = cursorY;
-            cursorX = 0.0D;
-            cursorY = 0.0D;
-        }
-        if ((deltaX != 0.0D || deltaY != 0.0D) && minecraft.player != null) {
-            minecraft.player.turn(deltaX, deltaY);
-        }
+        NativeSeamlessInput.frame(minecraft);
     }
 
     void systemMessage(String text) {
@@ -177,6 +158,58 @@ final class DriverClient implements SeamlessClient {
     }
 
     String command(String command, String reply, int timeoutTicks) {
+        try {
+            return awaitCommand(command, reply, timeoutTicks);
+        } catch (RuntimeException | Error failure) {
+            closeLockstep();
+            throw failure;
+        }
+    }
+
+    void clickButton(String translationKey) {
+        String text = Component.translatable(translationKey).getString();
+        runOnClient(client -> {
+            Screen screen = client.gui.screen();
+            if (screen == null || !press(screen, text)) {
+                throw new AssertionError("no '" + text + "' button on " + (screen == null ? "no screen" : screen.getClass().getName()));
+            }
+        });
+    }
+
+    private void awaitClientTicks(int count) {
+        synchronized (tickLock) {
+            long target = ticks + count;
+            long deadline = System.currentTimeMillis() + STALL_MILLIS;
+            while (ticks < target) {
+                long remaining = deadline - System.currentTimeMillis();
+                if (remaining <= 0L) {
+                    throw new AssertionError("the client stopped ticking for " + STALL_MILLIS + " ms");
+                }
+                try {
+                    tickLock.wait(remaining);
+                } catch (InterruptedException interrupted) {
+                    Thread.currentThread().interrupt();
+                    throw new AssertionError("interrupted while waiting for client ticks", interrupted);
+                }
+            }
+        }
+    }
+
+    private void awaitCondition(Predicate<Minecraft> condition, int timeoutTicks) {
+        for (int tick = 0; tick <= timeoutTicks; tick++) {
+            if (computeOnClient(condition::test)) {
+                return;
+            }
+            waitTicks(1);
+        }
+        throw new AssertionError("condition not met within " + timeoutTicks + " ticks");
+    }
+
+    private String awaitCommand(String command, String reply, int timeoutTicks) {
+        Lockstep lockstep = activeLockstep;
+        if (lockstep != null) {
+            DriverLockstep.requireOwner(lockstep.lease);
+        }
         replies.clear();
         runOnClient(client -> client.getConnection().sendCommand(command));
         for (int tick = 0; tick <= timeoutTicks; tick++) {
@@ -195,14 +228,24 @@ final class DriverClient implements SeamlessClient {
         throw new AssertionError("/" + command + " got no '" + reply + "' reply within " + timeoutTicks + " ticks");
     }
 
-    void clickButton(String translationKey) {
-        String text = Component.translatable(translationKey).getString();
-        runOnClient(client -> {
-            Screen screen = client.gui.screen();
-            if (screen == null || !press(screen, text)) {
-                throw new AssertionError("no '" + text + "' button on " + (screen == null ? "no screen" : screen.getClass().getName()));
+    private void awaitClientTick(DriverLockstep.Lease lease, long target) {
+        long deadline = System.currentTimeMillis() + STALL_MILLIS;
+        synchronized (tickLock) {
+            while (DriverLockstep.clientTicks(lease) < target) {
+                DriverLockstep.requireOwner(lease);
+                long remaining = deadline - System.currentTimeMillis();
+                if (remaining <= 0L) {
+                    throw new AssertionError("the client stopped ticking for " + STALL_MILLIS + " ms");
+                }
+                try {
+                    tickLock.wait(Math.min(remaining, 50L));
+                } catch (InterruptedException interrupted) {
+                    Thread.currentThread().interrupt();
+                    throw new AssertionError("interrupted while waiting for client ticks", interrupted);
+                }
             }
-        });
+        }
+        DriverLockstep.requireOwner(lease);
     }
 
     private static boolean chunksLoaded(Minecraft client) {
@@ -235,9 +278,13 @@ final class DriverClient implements SeamlessClient {
         return false;
     }
 
-    private static void awaitServerTick(long before) {
+    private static void awaitServerTick(DriverLockstep.Lease lease, long before) {
         long deadline = System.currentTimeMillis() + STALL_MILLIS;
-        while (DriverLockstep.serverTicks() <= before) {
+        while (DriverLockstep.serverTicks(lease) <= before) {
+            DriverLockstep.requireOwner(lease);
+            if (Thread.currentThread().isInterrupted()) {
+                throw new AssertionError("interrupted while waiting for the integrated server tick");
+            }
             if (System.currentTimeMillis() > deadline) {
                 throw new AssertionError("the integrated server did not tick within " + STALL_MILLIS + " ms");
             }
@@ -245,9 +292,12 @@ final class DriverClient implements SeamlessClient {
         }
     }
 
-    private static <T> T await(CompletableFuture<T> future) {
+    private <T> T await(CompletableFuture<T> future) {
+        boolean completed = false;
         try {
-            return future.get(STALL_MILLIS, TimeUnit.MILLISECONDS);
+            T result = future.get(STALL_MILLIS, TimeUnit.MILLISECONDS);
+            completed = true;
+            return result;
         } catch (ExecutionException failure) {
             Throwable cause = failure.getCause();
             if (cause instanceof AssertionError assertion) {
@@ -262,25 +312,89 @@ final class DriverClient implements SeamlessClient {
         } catch (InterruptedException interrupted) {
             Thread.currentThread().interrupt();
             throw new AssertionError("interrupted while waiting for the client", interrupted);
+        } finally {
+            if (!completed) {
+                if (activeLockstep != null) {
+                    future.cancel(false);
+                }
+                closeLockstep();
+            }
         }
     }
 
-    private record Lockstep(DriverClient client, ServerPacketDelivery.Channels channels) implements TickStepper {
+    private void closeLockstep() {
+        Lockstep lockstep = activeLockstep;
+        if (lockstep != null) {
+            lockstep.close();
+        }
+    }
+
+    private static void drain(Channel first, Channel second) {
+        awaitPacketDelivery(first.eventLoop().submit(() -> { }));
+        awaitPacketDelivery(second.eventLoop().submit(() -> { }));
+    }
+
+    private static void awaitPacketDelivery(Future<?> future) {
+        try {
+            future.get(STALL_MILLIS, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException failure) {
+            throw new AssertionError("lockstep packet delivery failed", failure.getCause());
+        } catch (TimeoutException stalled) {
+            throw new AssertionError("lockstep packet delivery did not complete within " + STALL_MILLIS + " ms", stalled);
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+            throw new AssertionError("interrupted while waiting for lockstep packet delivery", interrupted);
+        }
+    }
+
+    private final class Lockstep implements TickStepper {
+        private final ServerPacketDelivery.Channels channels;
+        private final DriverLockstep.Lease lease;
+        private boolean stepping;
+
+        private Lockstep(ServerPacketDelivery.Channels channels, DriverLockstep.Lease lease) {
+            this.channels = channels;
+            this.lease = lease;
+        }
+
         @Override
         public <T> T step(Function<Minecraft, T> sample) {
-            ServerPacketDelivery.drain(channels.client(), channels.server());
-            long served = DriverLockstep.serverTicks();
-            DriverLockstep.permitServerTick();
-            awaitServerTick(served);
-            ServerPacketDelivery.drain(channels.server(), channels.client());
-            DriverLockstep.permitClientTick();
-            client.waitTicks(1);
-            return client.computeOnClient(sample);
+            try {
+                DriverLockstep.requireOwner(lease);
+                if (stepping) {
+                    throw new AssertionError("a lockstep tick is already in progress");
+                }
+                stepping = true;
+                computeOnClient(client -> {
+                    DriverLockstep.requireWorld(lease);
+                    return null;
+                });
+                drain(channels.client(), channels.server());
+                long served = DriverLockstep.serverTicks(lease);
+                DriverLockstep.permitServerTick(lease);
+                awaitServerTick(lease, served);
+                drain(channels.server(), channels.client());
+                long target = DriverLockstep.clientTicks(lease) + 1;
+                DriverLockstep.permitClientTick(lease);
+                awaitClientTick(lease, target);
+                return computeOnClient(client -> {
+                    DriverLockstep.requireWorld(lease);
+                    return sample.apply(client);
+                });
+            } catch (RuntimeException | Error failure) {
+                close();
+                throw failure;
+            } finally {
+                stepping = false;
+            }
         }
 
         @Override
         public void close() {
-            DriverLockstep.deactivate();
+            DriverLockstep.deactivate(lease);
+            if (activeLockstep == this) {
+                activeLockstep = null;
+            }
         }
     }
 }

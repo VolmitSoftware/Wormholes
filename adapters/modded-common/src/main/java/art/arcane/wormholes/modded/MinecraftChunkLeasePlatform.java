@@ -5,14 +5,18 @@ import art.arcane.wormholes.modded.mixin.SeamlessChunkMapAccess;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ChunkHolder;
 import net.minecraft.server.level.ChunkLevel;
+import net.minecraft.server.level.ChunkResult;
+import net.minecraft.server.level.GenerationChunkHolder;
 import net.minecraft.server.level.ServerChunkCache;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.TicketType;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.status.ChunkStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
@@ -61,6 +65,7 @@ public final class MinecraftChunkLeasePlatform implements ChunkLeasePlatform<Ser
     @Override
     public CompletionStage<Boolean> remove(ServerLevel world, int chunkX, int chunkZ) {
         return CompletableFuture.supplyAsync(() -> {
+            requests.cancel(world, chunkX, chunkZ);
             world.getChunkSource().removeTicketWithRadius(PORTAL_VIEW, new ChunkPos(chunkX, chunkZ), 0);
             return true;
         }, server);
@@ -99,16 +104,37 @@ public final class MinecraftChunkLeasePlatform implements ChunkLeasePlatform<Ser
         }
 
         @Override
-        public CompletionStage<Boolean> load(ServerLevel world, int chunkX, int chunkZ) {
+        public CompletionStage<Boolean> load(ChunkLoadRequests.Request<ServerLevel> request) {
+            ServerLevel world = request.world();
+            int chunkX = request.chunkX();
+            int chunkZ = request.chunkZ();
             ServerChunkCache chunks = world.getChunkSource();
-            SeamlessChunkMapAccess map = (SeamlessChunkMapAccess) chunks.chunkMap;
-            return map.wormholesChunkRangeFuture(holder(world, chunkX, chunkZ), 0, distance -> ChunkStatus.FULL)
-                .thenApplyAsync(ignored -> {
-                    if (chunks.getChunkNow(chunkX, chunkZ) == null) {
-                        throw new IllegalStateException("Portal view chunk did not load: " + chunkX + ", " + chunkZ);
-                    }
-                    return true;
-                }, server);
+            return holder(world, chunkX, chunkZ).scheduleChunkGenerationTask(ChunkStatus.FULL, chunks.chunkMap)
+                .thenApplyAsync(result -> finishLoad(request, chunks, result), server);
+        }
+
+        @Override
+        public void reportFailure(Throwable failure) {
+            LOGGER.error("Wormholes chunk lease failed", failure);
+        }
+
+        private static boolean finishLoad(ChunkLoadRequests.Request<ServerLevel> request, ServerChunkCache chunks,
+                                          ChunkResult<ChunkAccess> result) {
+            int chunkX = request.chunkX();
+            int chunkZ = request.chunkZ();
+            if (result == GenerationChunkHolder.UNLOADED_CHUNK) {
+                throw new CancellationException("Portal view chunk load cancelled: " + chunkX + ", " + chunkZ);
+            }
+            if (!result.isSuccess()) {
+                throw new IllegalStateException("Portal view chunk load failed: " + chunkX + ", " + chunkZ + ": " + result.getError());
+            }
+            if (request.cancelled()) {
+                throw new CancellationException("Portal view chunk request released: " + chunkX + ", " + chunkZ);
+            }
+            if (chunks.getChunkNow(chunkX, chunkZ) == null) {
+                throw new IllegalStateException("Portal view chunk did not load: " + chunkX + ", " + chunkZ);
+            }
+            return true;
         }
 
         private static ChunkHolder holder(ServerLevel world, int chunkX, int chunkZ) {

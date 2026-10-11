@@ -21,7 +21,7 @@ public final class ClientFxRunner {
 
     private final ClientSceneWorld world;
     private final Int2ObjectOpenHashMap<PortalFx> portals;
-    private final List<PortalAnimation<Object>> animations;
+    private final List<Animation> animations;
     private final AnimationHost host;
     private int clientTick;
     private long fired;
@@ -53,7 +53,9 @@ public final class ClientFxRunner {
                 portal = lookup.apply(fx.portalKey());
                 resolved = true;
             }
-            fire(new Active(emitter), portal);
+            if (fx.portalKey() == FxMessage.WORLD_FX_KEY || portal != null) {
+                fire(new Active(emitter), portal, fx.portalKey());
+            }
         }
         if (fx.portalKey() == FxMessage.WORLD_FX_KEY && continuous.isEmpty()) {
             return;
@@ -64,7 +66,11 @@ public final class ClientFxRunner {
     public void tick(IntFunction<ClientPortal> lookup) {
         clientTick++;
         for (int index = animations.size() - 1; index >= 0; index--) {
-            if (!animations.get(index).tick()) {
+            Animation animation = animations.get(index);
+            if (animation.portalKey() != FxMessage.WORLD_FX_KEY && lookup.apply(animation.portalKey()) == null) {
+                continue;
+            }
+            if (!animation.running().tick()) {
                 animations.remove(index);
             }
         }
@@ -72,6 +78,9 @@ public final class ClientFxRunner {
         while (iterator.hasNext()) {
             Int2ObjectMap.Entry<PortalFx> entry = iterator.next();
             ClientPortal portal = lookup.apply(entry.getIntKey());
+            if (portal == null && entry.getIntKey() != FxMessage.WORLD_FX_KEY) {
+                continue;
+            }
             List<Active> active = entry.getValue().active;
             for (int index = 0; index < active.size(); index++) {
                 Active emitter = active.get(index);
@@ -79,13 +88,18 @@ public final class ClientFxRunner {
                 if (ticks <= 0 || Math.floorMod(clientTick + index, ticks) != 0) {
                     continue;
                 }
-                fire(emitter, portal);
+                fire(emitter, portal, entry.getIntKey());
             }
         }
     }
 
     public void drop(int portalKey) {
         portals.remove(portalKey);
+        for (int index = animations.size() - 1; index >= 0; index--) {
+            if (animations.get(index).portalKey() == portalKey) {
+                animations.remove(index).running().close();
+            }
+        }
     }
 
     public void clear() {
@@ -121,7 +135,7 @@ public final class ClientFxRunner {
         return fired;
     }
 
-    private void fire(Active active, ClientPortal portal) {
+    private void fire(Active active, ClientPortal portal, int portalKey) {
         FxMessage.FxEmitter emitter = active.emitter;
         if (!particlesActive && emitter.kind() != FxMessage.FxKind.SOUND) {
             if (emitter.kind() == FxMessage.FxKind.SURFACE) {
@@ -141,7 +155,7 @@ public final class ClientFxRunner {
                 ClientViewEmitters.soundClass(emitter));
             case DOOR_ANIM -> world.particle(emitter.key(), emitter.x(), emitter.y(), emitter.z(), emitter.paramA(), emitter.paramB(),
                 Math.max(1, emitter.flags()));
-            case ANIMATION -> animate(emitter);
+            case ANIMATION -> animate(emitter, portalKey);
             case BURST -> world.burst(emitter.key(), emitter.x(), emitter.y(), emitter.z(), emitter.paramA(), emitter.paramB(),
                 ClientViewEmitters.burstSpeed(emitter), Math.max(1, emitter.ticks()));
         }
@@ -150,7 +164,7 @@ public final class ClientFxRunner {
 
     private void clearAnimations() {
         for (int index = 0; index < animations.size(); index++) {
-            animations.get(index).close();
+            animations.get(index).running().close();
         }
         animations.clear();
     }
@@ -173,7 +187,7 @@ public final class ClientFxRunner {
         portals.put(portalKey, next);
     }
 
-    private void animate(FxMessage.FxEmitter emitter) {
+    private void animate(FxMessage.FxEmitter emitter, int portalKey) {
         ClientViewEmitters.Animation animation = ClientViewEmitters.animation(emitter);
         if (animation == null || animations.size() >= MAX_ANIMATIONS) {
             return;
@@ -181,7 +195,7 @@ public final class ClientFxRunner {
         PortalAnimation<Object> running = new PortalAnimation<>(new PortalAnimation.Options(animation.mode(), animation.center(), animation.size(),
             animation.quality(), true, 0.0D, () -> true, () -> false, List.of()), host);
         if (running.tick()) {
-            animations.add(running);
+            animations.add(new Animation(portalKey, running));
         }
     }
 
@@ -228,6 +242,9 @@ public final class ClientFxRunner {
         @Override
         public void remove(Object display) {
         }
+    }
+
+    private record Animation(int portalKey, PortalAnimation<Object> running) {
     }
 
     private static final class PortalFx {

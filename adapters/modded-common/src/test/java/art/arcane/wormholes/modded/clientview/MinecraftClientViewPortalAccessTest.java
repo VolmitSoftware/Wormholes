@@ -1,6 +1,10 @@
 package art.arcane.wormholes.modded.clientview;
 
 import art.arcane.optics.math.Vec3d;
+import art.arcane.optics.stream.ViewStreamEndpoints;
+import art.arcane.optics.stream.ViewStreamMessage;
+import art.arcane.wormholes.network.client.ClientViewExtensions;
+import art.arcane.wormholes.network.client.RootSource;
 import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.config.WormholesSettings;
 import art.arcane.wormholes.config.toml.MainConfig;
@@ -453,6 +457,7 @@ public class MinecraftClientViewPortalAccessTest extends MinecraftTestBase {
         portals.prepareNested(fixture.peer(), branch, root, mirror.getId());
         assertEquals(parentEye, fixture.peer().nestedContext(branch).sourceEye());
         assertEquals(mirror, portals.portal(fixture.peer(), branch));
+        assertNull(portals.geometry(fixture.peer(), mirror.getId(), new SessionPalette()));
         assertNotNull(portals.nestedGeometry(fixture.peer(), root, mirror.getId(), new SessionPalette()));
         Vec3d firstEye = portals.nestedEye(fixture.peer(), branch);
         portals.prepareNested(fixture.peer(), secondBranch, branch, mirror.getId());
@@ -595,6 +600,46 @@ public class MinecraftClientViewPortalAccessTest extends MinecraftTestBase {
             "", "", null, null, EntitySnapshot.EMPTY, EntitySnapshot.EMPTY, 0);
     }
 
+    @Test
+    public void graceRetainedRootsRejectTheWrongWorldForBothMeshAndPlateModes() {
+        for (PortalType type : List.of(PortalType.PORTAL, PortalType.RTP)) {
+            Fixture fixture = fixture(type);
+            MinecraftClientViewPortalAccess portals = new MinecraftClientViewPortalAccess(fixture.runtime());
+            for (int depth : new int[]{0, 128, 208}) {
+                fixture.peer().meshDepth(depth);
+                assertNotNull(portals.geometry(fixture.peer(), fixture.source().getId(), new SessionPalette()));
+            }
+            ServerLevel nether = mock(ServerLevel.class);
+            when(nether.dimension()).thenReturn(Level.NETHER);
+            when(fixture.player().level()).thenReturn(nether);
+            for (int graceTick = 0; graceTick < 20; graceTick++) {
+                for (int depth : new int[]{0, 128, 208}) {
+                    fixture.peer().meshDepth(depth);
+                    assertNull(portals.geometry(fixture.peer(), fixture.source().getId(), new SessionPalette()));
+                }
+            }
+        }
+    }
+
+    @Test
+    public void rootMetadataUsesThePortalSourceEvenAfterTheObserverChangesWorld() {
+        Fixture fixture = fixture(PortalType.PORTAL);
+        fixture.peer().meshDepth(208);
+        MinecraftClientViewPortalAccess portals = new MinecraftClientViewPortalAccess(fixture.runtime());
+        ApertureDescriptor geometry = portals.geometry(fixture.peer(), fixture.source().getId(), new SessionPalette());
+        ServerLevel nether = mock(ServerLevel.class);
+        when(nether.dimension()).thenReturn(Level.NETHER);
+        when(fixture.player().level()).thenReturn(nether);
+        List<ViewStreamMessage> metadata = portals.geometryMetadata(fixture.peer(), fixture.source().getId(),
+            new ViewStreamEndpoints.GeometryMetadataContext(7, geometry, ClientViewExtensions.ROOT_SOURCE)).messages(3);
+        assertEquals(1, metadata.size());
+        assertEquals(new RootSource(7, 3, "minecraft:overworld"), ((ViewStreamMessage.Extension) metadata.getFirst()).payload());
+        assertTrue(portals.geometryMetadata(fixture.peer(), fixture.source().getId(),
+            new ViewStreamEndpoints.GeometryMetadataContext(7, geometry, 0)).messages(3).isEmpty());
+        assertTrue(portals.geometryMetadata(fixture.peer(), fixture.source().getId(),
+            new ViewStreamEndpoints.GeometryMetadataContext(8, geometry.withParent(7), ClientViewExtensions.ROOT_SOURCE)).messages(3).isEmpty());
+    }
+
     private static Fixture fixture(PortalType type) {
         WormholesModRuntime runtime = mock(WormholesModRuntime.class);
         WormholesModConfiguration configuration = mock(WormholesModConfiguration.class);
@@ -606,6 +651,7 @@ public class MinecraftClientViewPortalAccessTest extends MinecraftTestBase {
         MinecraftServer server = mock(MinecraftServer.class);
         PlayerList players = mock(PlayerList.class);
         ServerLevel world = mock(ServerLevel.class);
+        when(world.dimension()).thenReturn(Level.OVERWORLD);
         when(runtime.server()).thenReturn(server);
         when(server.getPlayerList()).thenReturn(players);
         when(players.getViewDistance()).thenReturn(8);

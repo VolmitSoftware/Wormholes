@@ -173,7 +173,7 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
         }
         Vec3 direction = look == null ? new Vec3(0, 0, -1) : look;
         Face normal = PortalConstruction.derivePortalNormal(xDepth, yDepth, zDepth, direction.x, direction.y, direction.z);
-        Frame frame = Frame.fromDirectionAndLook(normal, vector(direction));
+        Frame frame = Frame.canonical(normal);
         UUID id = UUID.randomUUID();
         String typeName = type.name().toLowerCase(Locale.ROOT);
         String name = Character.toUpperCase(typeName.charAt(0)) + typeName.substring(1) + " " + id.toString().substring(0, 4);
@@ -864,9 +864,9 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
         for (Entity member : rig) {
             Vec3d position = vector(member.position());
             if (toward.isRigid() && toward.rigid().isTranslation()) {
-                member.getInterpolation().applyPredictedMovement(vector(toward.point(position).subtract(position)));
+                MinecraftTransitInterpolation.translate(member, vector(toward.point(position).subtract(position)));
             } else {
-                member.getInterpolation().interpolationTracker().clear();
+                MinecraftTransitInterpolation.clear(member);
             }
             runtime.clientViews().entityCrossed(member, crossing, toward.rigid(), velocity);
         }

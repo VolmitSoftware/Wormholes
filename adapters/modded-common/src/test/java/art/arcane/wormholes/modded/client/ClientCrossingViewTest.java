@@ -85,6 +85,72 @@ public class ClientCrossingViewTest extends MinecraftTestBase {
     }
 
     @Test
+    public void anArrivalReturnSurfaceKeepsBobbingStoppedBeforeTheNewWorldIsArmed() {
+        Vec3 eye = new Vec3(0.5D, 71.62D, -39.499911199206885D);
+        try (Scene scene = new Scene(eye)) {
+            PortalView returning = scene.returning(Similarity.of(OpticTransform.of(AxisPermutation.IDENTITY, 0, 70, -40), 1.0D));
+            TravelMessage.TravelBegin stale = mock(TravelMessage.TravelBegin.class);
+            when(stale.sourceWorld()).thenReturn(Level.NETHER.identifier().toString());
+            when(scene.player.getEyePosition(1.0F)).thenReturn(eye);
+            when(scene.camera.yRot()).thenReturn(75.0F);
+            scene.view.update(scene.camera, scene.tracker, List.of(stale), returning);
+            assertEquals(0.0D, scene.view.bobFactor(), 0.0D);
+            assertFalse(scene.view.active());
+            scene.view.update(scene.camera, scene.tracker, List.of(stale), returning);
+            assertEquals(0.0D, scene.view.bobFactor(), 0.0D);
+            verify(scene.pose, never()).wormholes$position(any());
+        }
+    }
+
+    @Test
+    public void bobbingRecoversAfterLeavingThePlacedReturnOpening() {
+        Vec3 eye = new Vec3(0.5D, 71.62D, -39.499911199206885D);
+        try (Scene scene = new Scene(eye)) {
+            PortalView returning = scene.returning(Similarity.of(OpticTransform.of(AxisPermutation.IDENTITY, 0, 70, -40), 1.0D));
+            when(scene.player.getEyePosition(1.0F)).thenReturn(eye);
+            scene.view.update(scene.camera, scene.tracker, List.of(), returning);
+            Vec3 far = new Vec3(0.5D, 71.62D, -36.5D);
+            when(scene.player.getEyePosition(1.0F)).thenReturn(far);
+            when(scene.camera.position()).thenReturn(far);
+            scene.view.update(scene.camera, scene.tracker, List.of(), returning);
+            assertEquals(0.1D, scene.view.bobFactor(), 1.0E-9D);
+            assertFalse(scene.view.active());
+        }
+    }
+
+    @Test
+    public void aReturnSurfaceFromAnotherWorldDoesNotSuppressBobbing() {
+        try (Scene scene = new Scene(EYE)) {
+            PortalView returning = scene.returning(Similarity.IDENTITY);
+            when(returning.source()).thenReturn(mock(ClientLevel.class));
+            scene.view.update(scene.camera, scene.tracker, List.of(), returning);
+            assertEquals(1.0D, scene.view.bobFactor(), 0.0D);
+            assertFalse(scene.view.active());
+        }
+    }
+
+    @Test
+    public void aScaledReturnUsesPlaneDistanceForIntermediateBobbingRecovery() {
+        Vec3 eye = new Vec3(2.0D, 71.62D, -37.9999D);
+        try (Scene scene = new Scene(eye)) {
+            PortalView returning = scene.returning(Similarity.of(OpticTransform.of(AxisPermutation.IDENTITY, 0, 70, -40), 4.0D));
+            when(scene.player.getEyePosition(1.0F)).thenReturn(eye);
+            scene.view.update(scene.camera, scene.tracker, List.of(), returning);
+            assertEquals(0.0D, scene.view.bobFactor(), 0.0D);
+            Vec3 intermediate = new Vec3(2.0D, 71.62D, -36.5D);
+            when(scene.player.getEyePosition(1.0F)).thenReturn(intermediate);
+            when(scene.camera.position()).thenReturn(intermediate);
+            scene.view.update(scene.camera, scene.tracker, List.of(), returning);
+            assertEquals(0.05D, scene.view.bobFactor(), 1.0E-9D);
+            Vec3 far = new Vec3(2.0D, 71.62D, -35.6D);
+            when(scene.player.getEyePosition(1.0F)).thenReturn(far);
+            when(scene.camera.position()).thenReturn(far);
+            scene.view.update(scene.camera, scene.tracker, List.of(), returning);
+            assertEquals(0.145D, scene.view.bobFactor(), 1.0E-9D);
+        }
+    }
+
+    @Test
     public void aCameraBehindTheReturnViewRendersTheDepartedWorldBeforeTheArrivalPortalIsArmed() {
         try (Scene scene = new Scene(new Vec3(0.5D, 1.62D, 0.7D))) {
             ClientLevel departed = mock(ClientLevel.class);
@@ -132,6 +198,13 @@ public class ClientCrossingViewTest extends MinecraftTestBase {
             when(pose.wormholes$cullingProjection()).thenReturn(new Matrix4f());
             access = mockStatic(Minecraft.class);
             access.when(Minecraft::getInstance).thenReturn(minecraft);
+        }
+
+        private PortalView returning(Similarity placement) {
+            PortalView returning = mock(PortalView.class);
+            when(returning.source()).thenReturn(level);
+            when(returning.surface()).thenReturn(PortalSurface.of(ClientTravelTestFixtures.geometry()).through(placement));
+            return returning;
         }
 
         @Override

@@ -117,7 +117,7 @@ public class MinecraftPocketRulesTest extends MinecraftTestBase {
         assertTrue(fixture.rules.retainHealth(fixture.player, -4F));
         verify(fixture.player).setHealth(2F);
         verify(fixture.player).clearFire();
-        verify(fixture.player).setInvulnerableTime(40);
+        MinecraftTestAccess.assertRescueCooldown(fixture.player);
         assertTrue(fixture.rules.rescuing(fixture.player.getUUID()));
         verify(fixture.runtime).schedule(any(Runnable.class), eq(1L));
         fixture.rules.close();

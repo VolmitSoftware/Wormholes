@@ -61,6 +61,16 @@ final class CommandSeamlessServer implements SeamlessServer {
     }
 
     @Override
+    public void startFallLoop() {
+        client.command("wormholesqa startfallloop", "fallloopstarted", REPLY_TIMEOUT_TICKS);
+    }
+
+    @Override
+    public void releaseFallers(SeamlessFallLoop.Loop loop) {
+        client.command("wormholesqa releasefallers " + RouteCodec.ids(loop.fallers()), "fallersreleased", REPLY_TIMEOUT_TICKS);
+    }
+
+    @Override
     public void removeFallLoop(SeamlessFallLoop.Loop loop) {
         client.command("wormholesqa remove " + String.join(" ", loop.portals().stream().map(UUID::toString).toList()), "removed",
             REPLY_TIMEOUT_TICKS);

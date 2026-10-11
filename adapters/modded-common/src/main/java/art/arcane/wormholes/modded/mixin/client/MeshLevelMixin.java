@@ -8,10 +8,13 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.AABB;
 import java.util.function.Predicate;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.LightLayer;
+import net.minecraft.world.level.lighting.LevelLightEngine;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.FluidState;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
@@ -19,6 +22,19 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(Level.class)
 public abstract class MeshLevelMixin {
+    @Shadow
+    public abstract LevelLightEngine getLightEngine();
+
+    public int getBrightness(LightLayer layer, BlockPos position) {
+        ClientMeshEntities scene = ClientMeshEntities.active(this);
+        return scene != null ? scene.brightness(layer, position) : getLightEngine().getLayerListener(layer).getLightValue(position);
+    }
+
+    public int getRawBrightness(BlockPos position, int skyDarken) {
+        ClientMeshEntities scene = ClientMeshEntities.active(this);
+        return scene != null ? scene.rawBrightness(position, skyDarken) : getLightEngine().getRawBrightness(position, skyDarken);
+    }
+
     @ModifyVariable(method = "getEntities(Lnet/minecraft/world/entity/Entity;Lnet/minecraft/world/phys/AABB;Ljava/util/function/Predicate;)Ljava/util/List;",
         at = @At("HEAD"), argsOnly = true)
     private Predicate<? super Entity> wormholesWorldEntities(Predicate<? super Entity> selector, Entity source, AABB bounds, Predicate<? super Entity> originalSelector) {

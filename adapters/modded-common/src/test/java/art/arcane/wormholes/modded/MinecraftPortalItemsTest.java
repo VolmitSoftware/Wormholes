@@ -12,7 +12,6 @@ import net.minecraft.core.HolderLookup;
 import net.minecraft.core.component.DataComponentPatch;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.data.registries.VanillaRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.Style;
@@ -52,7 +51,7 @@ public class MinecraftPortalItemsTest {
             for (Item item : List.of(Items.PRISMARINE, Items.DARK_PRISMARINE)) {
                 item.builtInRegistryHolder().bindComponents(DataComponents.COMMON_ITEM_COMPONENTS);
             }
-            registries = VanillaRegistries.createWorldLookup();
+            registries = MinecraftTestAccess.registries();
             english = new MinecraftPortalItems(registries, snapshot(List.of()));
         }
         return english;

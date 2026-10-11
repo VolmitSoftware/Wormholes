@@ -26,6 +26,9 @@ import net.minecraft.SharedConstants;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.ChunkPos;
+import art.arcane.wormholes.modded.mixin.SeamlessChunkMapAccess;
+import net.minecraft.server.level.ChunkHolder;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -46,6 +49,7 @@ public final class MinecraftNetworkService implements AutoCloseable {
 
     private final WormholesModRuntime runtime;
     private final RemotePortalRegistry remotePortals = new RemotePortalRegistry();
+    private final AppliedColumnChanges<ServerLevel> appliedChanges = new AppliedColumnChanges<>();
     private MinecraftServer server;
     private NetworkManager network;
     private PortalSyncService<MinecraftPortal> portalSync;
@@ -141,6 +145,11 @@ public final class MinecraftNetworkService implements AutoCloseable {
 
     public void tick() {
         runtime.requireServerThread();
+        appliedChanges.drain((level, column) -> {
+            if (!level.getServer().isStopped() && level.getServer().getLevel(level.dimension()) == level) {
+                runtime.remoteRoutes().columnChanged(level, ChunkPos.getX(column), ChunkPos.getZ(column));
+            }
+        });
         viewServer.tick();
         handoffs.tick();
         entityTransfers.tick();
@@ -202,7 +211,49 @@ public final class MinecraftNetworkService implements AutoCloseable {
     }
 
     public void blockChanged(ServerLevel level, BlockPos position) {
+        runtime.requireServerThread();
         runtime.projections().blockChanged(level, position);
+        if (viewServer != null) {
+            viewServer.blockChanged(level, position);
+        }
+        long column = ChunkPos.pack(position.getX() >> 4, position.getZ() >> 4);
+        ChunkHolder holder = ((SeamlessChunkMapAccess) level.getChunkSource().chunkMap).wormholesVisibleChunk(column);
+        if (holder != null && holder.getTickingChunk() != null) {
+            appliedChanges.notified(level, column, position.asLong());
+        }
+    }
+
+    public void blockMutated(ServerLevel level, BlockPos position) {
+        runtime.requireServerThread();
+        runtime.projections().blockChanged(level, position);
+        if (viewServer != null) {
+            viewServer.blockChanged(level, position);
+        }
+        if (runtime.remoteRoutes().residentLevel(level)) {
+            appliedChanges.block(level, ChunkPos.pack(position.getX() >> 4, position.getZ() >> 4), position.asLong());
+        }
+    }
+
+    public void metadataChanged(ServerLevel level, BlockPos position) {
+        runtime.requireServerThread();
+        runtime.projections().blockChanged(level, position);
+        if (viewServer != null) {
+            viewServer.metadataChanged(level, position);
+        }
+        if (runtime.remoteRoutes().residentLevel(level)) {
+            appliedChanges.column(level, ChunkPos.pack(position.getX() >> 4, position.getZ() >> 4));
+        }
+    }
+
+    public void columnMutated(ServerLevel level, int chunkX, int chunkZ) {
+        runtime.requireServerThread();
+        columnChanged(level, chunkX, chunkZ);
+        if (runtime.remoteRoutes().residentLevel(level)) {
+            appliedChanges.column(level, ChunkPos.pack(chunkX, chunkZ));
+        }
+        if (viewServer != null) {
+            viewServer.biomesChanged(level, chunkX, chunkZ);
+        }
     }
 
     public void columnChanged(ServerLevel level, int chunkX, int chunkZ) {
@@ -236,39 +287,48 @@ public final class MinecraftNetworkService implements AutoCloseable {
 
     @Override
     public void close() {
+        appliedChanges.clear();
         if (server != null) {
             SERVICES.remove(server, this);
         }
-        if (handoffs != null) {
-            handoffs.close();
-            handoffs = null;
+        RuntimeException failure = null;
+        for (Runnable cleanup : new Runnable[] {
+            () -> { if (handoffs != null) { handoffs.close(); } },
+            () -> { if (entityTransfers != null) { entityTransfers.close(); } },
+            () -> { if (viewServer != null) { viewServer.close(); } },
+            () -> { if (portalSync != null) { portalSync.shutdown(); } },
+            () -> {
+                if (network != null) {
+                    NetworkManager activeNetwork = network;
+                    network = null;
+                    SERVERS.remove(server, activeNetwork);
+                    activeNetwork.stop();
+                }
+            },
+            () -> { if (views != null) { views.clear(); } },
+            () -> { remotePortals.setListener(null); remotePortals.clear(); }
+        }) {
+            try {
+                cleanup.run();
+            } catch (RuntimeException error) {
+                if (failure == null) {
+                    failure = error;
+                } else if (failure != error) {
+                    failure.addSuppressed(error);
+                }
+            }
         }
-        if (entityTransfers != null) {
-            entityTransfers.close();
-            entityTransfers = null;
-        }
-        if (viewServer != null) {
-            viewServer.close();
-            viewServer = null;
-        }
-        if (portalSync != null) {
-            portalSync.shutdown();
-            portalSync = null;
-        }
-        if (network != null) {
-            SERVERS.remove(server, network);
-            network.stop();
-            network = null;
-        }
-        if (views != null) {
-            views.clear();
-            views = null;
-        }
+        handoffs = null;
+        entityTransfers = null;
+        viewServer = null;
+        portalSync = null;
+        views = null;
         subscriptions = null;
-        remotePortals.setListener(null);
-        remotePortals.clear();
         server = null;
         ticks = 0;
+        if (failure != null) {
+            throw failure;
+        }
     }
 
     private void receive(String peer, WireMessage message) {

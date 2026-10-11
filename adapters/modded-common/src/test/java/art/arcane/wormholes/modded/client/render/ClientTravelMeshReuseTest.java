@@ -23,6 +23,7 @@ import com.mojang.renderpearl.api.buffers.GpuBuffer;
 import com.mojang.renderpearl.api.device.GpuDevice;
 import com.mojang.renderpearl.api.pipeline.PrimitiveTopology;
 import org.mockito.MockedStatic;
+import org.mockito.MockedConstruction;
 import org.junit.Test;
 
 import java.lang.reflect.Constructor;
@@ -49,10 +50,14 @@ import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.mockConstruction;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
@@ -338,6 +343,103 @@ public class ClientTravelMeshReuseTest extends MinecraftTestBase {
             for (GpuBuffer buffer : gpu.buffers.subList(2, gpu.buffers.size())) {
                 verify(buffer, never()).close();
             }
+        }
+    }
+
+    @Test
+    public void sceneClearAndModelInvalidationRetainProgramsWhileResourceReloadClosesOnce() throws Exception {
+        ClientPortalRenderer renderer = ClientPortalRenderer.instance();
+        PortalPipelines previous = (PortalPipelines) field(renderer, "pipelines");
+        PortalPipelines bank = mock(PortalPipelines.class);
+        renderer.clear();
+        set(renderer, "pipelines", bank);
+        try {
+            renderer.clear();
+            assertSame(bank, field(renderer, "pipelines"));
+            Method invalidation = ClientPortalRenderer.class.getDeclaredMethod("invalidateMeshes");
+            invalidation.setAccessible(true);
+            invalidation.invoke(renderer);
+            assertSame(bank, field(renderer, "pipelines"));
+            verify(bank, never()).close();
+            renderer.resourceReload();
+            assertNull(field(renderer, "pipelines"));
+            renderer.resourceReload();
+            verify(bank, times(1)).close();
+        } finally {
+            set(renderer, "pipelines", previous);
+        }
+    }
+
+    @Test
+    public void shutdownClosesRetainedProgramsOnceBeforeDeviceShutdown() throws Exception {
+        ClientPortalRenderer renderer = ClientPortalRenderer.instance();
+        PortalPipelines previous = (PortalPipelines) field(renderer, "pipelines");
+        PortalPipelines bank = mock(PortalPipelines.class);
+        renderer.clear();
+        set(renderer, "pipelines", bank);
+        try (MockedStatic<RenderSystem> renderSystem = mockStatic(RenderSystem.class)) {
+            renderer.close();
+            renderer.close();
+            verify(bank, times(1)).close();
+            assertNull(field(renderer, "pipelines"));
+        } finally {
+            set(renderer, "pipelines", previous);
+        }
+    }
+
+    @Test
+    public void successfulResourceCompletionReplacesTheRetainedBankAndPreparesEachGenerationOnce() throws Exception {
+        ClientPortalRenderer renderer = ClientPortalRenderer.instance();
+        PortalPipelines previous = (PortalPipelines) field(renderer, "pipelines");
+        PortalPipelines oldBank = mock(PortalPipelines.class);
+        renderer.clear();
+        set(renderer, "pipelines", oldBank);
+        try (MockedStatic<RenderSystem> renderSystem = mockStatic(RenderSystem.class);
+             MockedConstruction<PortalPipelines> construction = mockConstruction(PortalPipelines.class)) {
+            renderer.resourcesReady();
+            PortalPipelines first = construction.constructed().getFirst();
+            verify(oldBank, times(1)).close();
+            verify(first, times(1)).prepare();
+            assertSame(first, field(renderer, "pipelines"));
+            renderer.clear();
+            Method invalidation = ClientPortalRenderer.class.getDeclaredMethod("invalidateMeshes");
+            invalidation.setAccessible(true);
+            invalidation.invoke(renderer);
+            assertSame(first, field(renderer, "pipelines"));
+            verify(first, never()).close();
+            renderer.resourcesReady();
+            assertEquals(2, construction.constructed().size());
+            PortalPipelines second = construction.constructed().get(1);
+            verify(first, times(1)).close();
+            verify(second, times(1)).prepare();
+            assertSame(second, field(renderer, "pipelines"));
+            renderer.close();
+            verify(second, times(1)).close();
+        } finally {
+            set(renderer, "pipelines", previous);
+        }
+    }
+
+    @Test
+    public void failedResourcePreparationLeavesNoBankAndSceneResetCannotRetryCompilation() throws Exception {
+        ClientPortalRenderer renderer = ClientPortalRenderer.instance();
+        PortalPipelines previous = (PortalPipelines) field(renderer, "pipelines");
+        PortalPipelines oldBank = mock(PortalPipelines.class);
+        renderer.clear();
+        set(renderer, "pipelines", oldBank);
+        try (MockedStatic<RenderSystem> renderSystem = mockStatic(RenderSystem.class);
+             MockedConstruction<PortalPipelines> construction = mockConstruction(PortalPipelines.class,
+                 (bank, context) -> doThrow(new IllegalStateException("invalid portal shader")).when(bank).prepare())) {
+            renderer.resourcesReady();
+            verify(oldBank, times(1)).close();
+            assertNull(field(renderer, "pipelines"));
+            renderer.clear();
+            assertNull(field(renderer, "pipelines"));
+            assertEquals(1, construction.constructed().size());
+            verify(construction.constructed().getFirst(), times(1)).prepare();
+            verify(construction.constructed().getFirst(), times(1)).close();
+        } finally {
+            set(renderer, "pipelines", previous);
         }
     }
 

@@ -6,11 +6,14 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
 public class ChunkLoadRequestsTest {
@@ -94,6 +97,128 @@ public class ChunkLoadRequestsTest {
         assertTrue(ready.isCompletedExceptionally());
     }
 
+    @Test
+    public void cancellingBeforeTicketPropagationNeverDispatchesTheReleasedLoad() {
+        FakeChunks chunks = new FakeChunks();
+        ChunkLoadRequests<String> requests = new ChunkLoadRequests<>(chunks);
+        CompletableFuture<Boolean> ready = new CompletableFuture<>();
+        requests.request("overworld", 208, -3, ready);
+
+        requests.cancel("overworld", 208, -3);
+        chunks.scheduled.add(key(208, -3));
+        requests.tick();
+
+        assertTrue(ready.isCancelled());
+        assertEquals(List.of("hold 208,-3"), chunks.calls);
+        assertEquals(0, requests.pending());
+    }
+
+    @Test
+    public void cancellingDispatchedLoadLeavesNativeFutureAndReplacementGenerationIndependent() {
+        FakeChunks chunks = new FakeChunks();
+        chunks.scheduled.add(key(208, 2));
+        ChunkLoadRequests<String> requests = new ChunkLoadRequests<>(chunks);
+        CompletableFuture<Boolean> oldReady = new CompletableFuture<>();
+        requests.request("overworld", 208, 2, oldReady);
+        requests.tick();
+        requests.tick();
+        assertEquals(1, chunks.loads.size());
+        ChunkLoadRequests.Request<String> oldRequest = chunks.requests.getFirst();
+        CompletableFuture<Boolean> oldNative = chunks.loads.getFirst();
+
+        requests.cancel("overworld", 208, 2);
+        CompletableFuture<Boolean> replacementReady = new CompletableFuture<>();
+        requests.request("overworld", 208, 2, replacementReady);
+        requests.tick();
+        oldNative.completeExceptionally(new CompletionException(new CancellationException("Unloaded chunk")));
+
+        assertTrue(oldReady.isCancelled());
+        assertTrue(oldRequest.cancelled());
+        assertFalse(chunks.requests.getLast().cancelled());
+        assertFalse(replacementReady.isDone());
+        assertEquals(1, requests.pending());
+        assertEquals(0, chunks.failures.size());
+        assertFalse(oldNative.isCancelled());
+        chunks.loads.getLast().complete(true);
+        assertTrue(replacementReady.join());
+    }
+
+    @Test
+    public void cancellationMatchesWorldIdentityAndExactChunk() {
+        FakeChunks chunks = new FakeChunks();
+        ChunkLoadRequests<String> requests = new ChunkLoadRequests<>(chunks);
+        String firstWorld = new String("overworld");
+        String replacementWorld = new String("overworld");
+        CompletableFuture<Boolean> first = new CompletableFuture<>();
+        CompletableFuture<Boolean> otherWorld = new CompletableFuture<>();
+        CompletableFuture<Boolean> otherChunk = new CompletableFuture<>();
+        requests.request(firstWorld, 208, 2, first);
+        requests.request(replacementWorld, 208, 2, otherWorld);
+        requests.request(firstWorld, 208, 3, otherChunk);
+
+        requests.cancel(firstWorld, 208, 2);
+
+        assertTrue(first.isCancelled());
+        assertFalse(otherWorld.isDone());
+        assertFalse(otherChunk.isDone());
+        assertEquals(2, requests.pending());
+    }
+
+    @Test
+    public void genuineNativeExceptionAfterCancellationIsStillReported() {
+        FakeChunks chunks = new FakeChunks();
+        chunks.scheduled.add(key(208, 1));
+        ChunkLoadRequests<String> requests = new ChunkLoadRequests<>(chunks);
+        CompletableFuture<Boolean> ready = new CompletableFuture<>();
+        requests.request("overworld", 208, 1, ready);
+        requests.tick();
+        requests.cancel("overworld", 208, 1);
+        CompletionException failure = new CompletionException(new IllegalStateException("generation failed"));
+
+        chunks.loads.getFirst().completeExceptionally(failure);
+
+        assertTrue(ready.isCancelled());
+        assertEquals(1, chunks.failures.size());
+        assertSame(failure, chunks.failures.getFirst());
+    }
+
+    @Test
+    public void lateNativeSuccessCannotReviveCancelledReadiness() {
+        FakeChunks chunks = new FakeChunks();
+        chunks.scheduled.add(key(208, 0));
+        ChunkLoadRequests<String> requests = new ChunkLoadRequests<>(chunks);
+        CompletableFuture<Boolean> ready = new CompletableFuture<>();
+        requests.request("overworld", 208, 0, ready);
+        requests.tick();
+        requests.cancel("overworld", 208, 0);
+
+        chunks.loads.getFirst().complete(true);
+
+        assertTrue(ready.isCancelled());
+        assertEquals(0, chunks.failures.size());
+    }
+
+    @Test
+    public void closeCancelsDispatchedRequestsAndRejectsNewHolds() {
+        FakeChunks chunks = new FakeChunks();
+        chunks.scheduled.add(key(208, -1));
+        ChunkLoadRequests<String> requests = new ChunkLoadRequests<>(chunks);
+        CompletableFuture<Boolean> dispatched = new CompletableFuture<>();
+        requests.request("overworld", 208, -1, dispatched);
+        requests.tick();
+        CompletableFuture<Boolean> nativeLoad = chunks.loads.getFirst();
+
+        requests.close();
+        CompletableFuture<Boolean> afterClose = new CompletableFuture<>();
+        requests.request("overworld", 209, -1, afterClose);
+
+        assertTrue(dispatched.isCancelled());
+        assertTrue(afterClose.isCancelled());
+        assertFalse(nativeLoad.isDone());
+        assertEquals(List.of("hold 208,-1", "load 208,-1"), chunks.calls);
+        assertEquals(0, requests.pending());
+    }
+
     private static String key(int chunkX, int chunkZ) {
         return chunkX + "," + chunkZ;
     }
@@ -103,6 +228,8 @@ public class ChunkLoadRequestsTest {
         private final Set<String> loaded = new HashSet<>();
         private final Set<String> scheduled = new HashSet<>();
         private final List<CompletableFuture<Boolean>> loads = new ArrayList<>();
+        private final List<ChunkLoadRequests.Request<String>> requests = new ArrayList<>();
+        private final List<Throwable> failures = new ArrayList<>();
         private boolean present = true;
 
         @Override
@@ -126,11 +253,17 @@ public class ChunkLoadRequestsTest {
         }
 
         @Override
-        public CompletionStage<Boolean> load(String world, int chunkX, int chunkZ) {
-            calls.add("load " + key(chunkX, chunkZ));
+        public CompletionStage<Boolean> load(ChunkLoadRequests.Request<String> request) {
+            requests.add(request);
+            calls.add("load " + key(request.chunkX(), request.chunkZ()));
             CompletableFuture<Boolean> load = new CompletableFuture<>();
             loads.add(load);
             return load;
+        }
+
+        @Override
+        public void reportFailure(Throwable failure) {
+            failures.add(failure);
         }
     }
 }

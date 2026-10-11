@@ -423,7 +423,7 @@ final class TravelExtensionCodecTest {
 
     @Test
     void theBukkitCodecCarriesNoTravel() throws ViewStreamProtocolException {
-        assertEquals(ClientViewExtensions.FX_EMITTERS, ClientViewExtensions.CODEC.capabilities());
+        assertEquals(ClientViewExtensions.FX_EMITTERS | ClientViewExtensions.ROOT_SOURCE, ClientViewExtensions.CODEC.capabilities());
         ViewStreamMessage close = TravelExtension.INSTANCE.wrap(new TravelMessage.RemoteLevelClose(4));
         byte[] frame = encode(close);
         assertThrows(ViewStreamProtocolException.class, () -> ClientViewExtensions.CODEC.decodeS2C(frame, ViewStreamCapability.ALL));

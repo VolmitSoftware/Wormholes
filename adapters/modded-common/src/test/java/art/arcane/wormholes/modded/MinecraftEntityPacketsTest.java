@@ -72,7 +72,7 @@ public class MinecraftEntityPacketsTest extends MinecraftTestBase {
         assertEquals(position, teleport.change().position());
         assertTrue(teleport.relatives().isEmpty());
         assertTrue(teleport.onGround());
-        assertEquals(new VecDelta.Linear((short) -6144, (short) 0, (short) 4096), MinecraftEntityPackets.delta(-1.5D, 0.0D, 1.0D));
+        assertEquals(new VecDelta.Linear((short) -6144, (short) 0, (short) 4096), MinecraftEntityMotionPackets.delta(-1.5D, 0.0D, 1.0D));
     }
 
     @Test

@@ -25,7 +25,6 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.network.protocol.game.ClientboundAddEntityPacket;
-import net.minecraft.network.protocol.game.ClientboundAnimatePacket;
 import net.minecraft.network.protocol.game.ClientboundMapItemDataPacket;
 import net.minecraft.network.protocol.game.ClientboundMoveEntityPacket;
 import net.minecraft.network.protocol.game.ClientboundPlayerInfoRemovePacket;
@@ -38,16 +37,13 @@ import net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket;
 import net.minecraft.network.protocol.game.ClientboundSetEquipmentPacket;
 import net.minecraft.network.protocol.game.ClientboundSetPassengersPacket;
 import net.minecraft.network.protocol.game.ClientboundSetPlayerTeamPacket;
-import net.minecraft.network.protocol.game.ClientboundSwingAnimationPacket;
 import net.minecraft.network.protocol.game.ClientboundTeleportEntityPacket;
-import net.minecraft.network.protocol.game.VecDelta;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
-import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
@@ -56,7 +52,6 @@ import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.PositionMoveRotation;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.component.SwingAnimation;
 import net.minecraft.world.level.saveddata.maps.MapId;
 import net.minecraft.world.level.saveddata.maps.MapItemSavedData;
 import net.minecraft.world.phys.Vec3;
@@ -166,18 +161,7 @@ public final class MinecraftEntityPackets implements EntityOutput<ServerPlayer, 
     }
 
     public static int animationId(Packet<?> packet) {
-        if (packet instanceof ClientboundSwingAnimationPacket swing) {
-            return swing.hand() == InteractionHand.OFF_HAND ? ANIMATION_SWING_OFF_HAND : ANIMATION_SWING_MAIN_HAND;
-        }
-        if (packet instanceof ClientboundAnimatePacket animate) {
-            return switch (animate.getAction()) {
-                case ClientboundAnimatePacket.WAKE_UP -> ANIMATION_WAKE_UP;
-                case ClientboundAnimatePacket.CRITICAL_HIT -> ANIMATION_CRITICAL_HIT;
-                case ClientboundAnimatePacket.MAGIC_CRITICAL_HIT -> ANIMATION_MAGIC_CRITICAL_HIT;
-                default -> NO_ANIMATION;
-            };
-        }
-        return NO_ANIMATION;
+        return MinecraftEntityMotionPackets.animationId(packet);
     }
 
     public static boolean projectsAnimation(int animation) {
@@ -186,14 +170,7 @@ public final class MinecraftEntityPackets implements EntityOutput<ServerPlayer, 
     }
 
     public static Packet<? super ClientGamePacketListener> animation(int entityId, int animation) {
-        return switch (animation) {
-            case ANIMATION_SWING_MAIN_HAND -> new ClientboundSwingAnimationPacket(entityId, InteractionHand.MAIN_HAND, SwingAnimation.DEFAULT);
-            case ANIMATION_SWING_OFF_HAND -> new ClientboundSwingAnimationPacket(entityId, InteractionHand.OFF_HAND, SwingAnimation.DEFAULT);
-            case ANIMATION_WAKE_UP -> animatePacket(entityId, ClientboundAnimatePacket.WAKE_UP);
-            case ANIMATION_CRITICAL_HIT -> animatePacket(entityId, ClientboundAnimatePacket.CRITICAL_HIT);
-            case ANIMATION_MAGIC_CRITICAL_HIT -> animatePacket(entityId, ClientboundAnimatePacket.MAGIC_CRITICAL_HIT);
-            default -> throw new IllegalArgumentException("Unsupported projected entity animation " + animation);
-        };
+        return MinecraftEntityMotionPackets.animation(entityId, animation);
     }
 
     public static void send(ServerPlayer observer, Packet<? super ClientGamePacketListener> packet) {
@@ -209,8 +186,8 @@ public final class MinecraftEntityPackets implements EntityOutput<ServerPlayer, 
     @Override
     public void motion(ServerPlayer observer, SpoofRegistry.Motion<Vec3> motion) {
         Packet<? super ClientGamePacketListener> packet = switch (motion.kind()) {
-            case RELATIVE -> new ClientboundMoveEntityPacket.Pos(motion.entityId(), delta(motion.deltaX(), motion.deltaY(), motion.deltaZ()), motion.onGround());
-            case RELATIVE_ROTATION -> new ClientboundMoveEntityPacket.PosRot(motion.entityId(), delta(motion.deltaX(), motion.deltaY(), motion.deltaZ()), Mth.packDegrees(motion.yaw()), Mth.packDegrees(motion.pitch()), motion.onGround());
+            case RELATIVE -> MinecraftEntityMotionPackets.relative(motion.entityId(), motion.deltaX(), motion.deltaY(), motion.deltaZ(), motion.onGround());
+            case RELATIVE_ROTATION -> MinecraftEntityMotionPackets.relativeRotation(motion.entityId(), motion.deltaX(), motion.deltaY(), motion.deltaZ(), Mth.packDegrees(motion.yaw()), Mth.packDegrees(motion.pitch()), motion.onGround());
             case TELEPORT -> teleport(motion.entityId(), motion.position(), motion.yaw(), motion.pitch(), motion.onGround());
             case ROTATION -> new ClientboundMoveEntityPacket.Rot(motion.entityId(), Mth.packDegrees(motion.yaw()), Mth.packDegrees(motion.pitch()), motion.onGround());
         };
@@ -219,10 +196,6 @@ public final class MinecraftEntityPackets implements EntityOutput<ServerPlayer, 
 
     public static ClientboundTeleportEntityPacket teleport(int entityId, Vec3 position, float yaw, float pitch, boolean onGround) {
         return new ClientboundTeleportEntityPacket(entityId, new PositionMoveRotation(position, Vec3.ZERO, yaw, pitch), Set.of(), onGround);
-    }
-
-    public static VecDelta delta(double x, double y, double z) {
-        return new VecDelta.Linear(encodeDelta(x), encodeDelta(y), encodeDelta(z));
     }
 
     public static ClientboundRotateHeadPacket headPacket(int entityId, float yaw) {
@@ -414,7 +387,7 @@ public final class MinecraftEntityPackets implements EntityOutput<ServerPlayer, 
         SpoofedEntity.Move move = state.updateLabelPosition(position.x, position.y, position.z);
         if (move.moved) {
             send(observer, move.relative
-                ? new ClientboundMoveEntityPacket.Pos(state.labelFakeId(), delta(move.deltaX, move.deltaY, move.deltaZ), false)
+                ? MinecraftEntityMotionPackets.relative(state.labelFakeId(), move.deltaX, move.deltaY, move.deltaZ, false)
                 : teleport(state.labelFakeId(), position, 0, 0, false));
         }
         String text = ProjectedEntityIdentity.NAMING.labelText(label.profile() == null ? null : label.profile().name());
@@ -495,20 +468,5 @@ public final class MinecraftEntityPackets implements EntityOutput<ServerPlayer, 
 
     private static Vec3 labelPosition(SnapshotProjector.Label<Vec3> label) {
         return new Vec3(label.position().x, PlayerNames.labelY(label.position().y, label.height()), label.position().z);
-    }
-
-    private static ClientboundAnimatePacket animatePacket(int entityId, int action) {
-        FriendlyByteBuf buffer = new FriendlyByteBuf(Unpooled.buffer());
-        try {
-            buffer.writeVarInt(entityId);
-            buffer.writeByte(action);
-            return ClientboundAnimatePacket.STREAM_CODEC.decode(buffer);
-        } finally {
-            buffer.release();
-        }
-    }
-
-    private static short encodeDelta(double value) {
-        return (short) (value * 4096.0D);
     }
 }

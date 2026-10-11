@@ -88,10 +88,10 @@ final class MinecraftPortalSurfaceGameTest {
             clear(channel);
             surfaces.update(List.of(portal), access, 10);
             List<ClientboundLevelParticlesPacket> sparks = particles(channel);
-            helper.assertTrue(sparks.size() == 1 && sparks.get(0).particle() == ParticleTypes.MYCELIUM, "Spark burst was not one particle packet");
-            helper.assertTrue(sparks.get(0).count() == (portal.isOpen() ? 4 : 1) && sparks.get(0).xDist() == (float) AmbientSparkCadence.CELL_SPREAD,
+            helper.assertTrue(sparks.size() == 1 && MinecraftGameTestAccess.particle(sparks.get(0)) == ParticleTypes.MYCELIUM, "Spark burst was not one particle packet");
+            helper.assertTrue(MinecraftGameTestAccess.count(sparks.get(0)) == (portal.isOpen() ? 4 : 1) && MinecraftGameTestAccess.xDist(sparks.get(0)) == (float) AmbientSparkCadence.CELL_SPREAD,
                 "Spark burst lost its count or cell spread");
-            helper.assertTrue(portal.getGeometry().contains(new Vec3d(sparks.get(0).x(), sparks.get(0).y(), sparks.get(0).z())),
+            helper.assertTrue(portal.getGeometry().contains(new Vec3d(MinecraftGameTestAccess.x(sparks.get(0)), MinecraftGameTestAccess.y(sparks.get(0)), MinecraftGameTestAccess.z(sparks.get(0)))),
                 "Spark burst left the aperture cells");
             surfaces.update(List.of(portal), access, 11);
             helper.assertTrue(particles(channel).isEmpty(), "Sparks were sent between five-tick steps");
@@ -104,7 +104,7 @@ final class MinecraftPortalSurfaceGameTest {
                 "Water skin did not claim aperture cells");
             channel.runPendingTasks();
             helper.assertTrue(channel.outboundMessages().stream().anyMatch(packet -> packet instanceof ClientboundRemoveEntitiesPacket removed
-                && removed.entityIds().contains(display)), "Changing to fluid did not remove skin display");
+                && MinecraftGameTestAccess.removed(removed).contains(display)), "Changing to fluid did not remove skin display");
             Long2ObjectOpenHashMap<BlockClaim<BlockState, ContentView<BlockState, BlockState>>> behind = new Long2ObjectOpenHashMap<>();
             behind.put(key, new BlockClaim<>(Blocks.STONE.defaultBlockState(), null, BlockClaim.NO_REMOTE_KEY, false));
             UUID background = UUID.randomUUID();

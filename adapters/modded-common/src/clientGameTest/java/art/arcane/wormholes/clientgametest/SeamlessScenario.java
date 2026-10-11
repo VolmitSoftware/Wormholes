@@ -12,6 +12,8 @@ import art.arcane.wormholes.modded.MinecraftPortal;
 import art.arcane.wormholes.modded.WormholesModRuntime;
 import art.arcane.wormholes.modded.client.ClientSeamlessTravel;
 import art.arcane.wormholes.modded.client.WormholesClient;
+import art.arcane.wormholes.modded.client.render.stencil.PortalView;
+import art.arcane.wormholes.modded.client.world.ClientWorldLoader;
 import art.arcane.wormholes.network.client.ClientViewExtensions;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.transit.OrientationPolicy;
@@ -61,7 +63,6 @@ final class SeamlessScenario {
     private static final float LOOK_TOLERANCE = 0.5F;
     private static final int VIEW_SETTLE_TICKS = 100;
     private static final double TURN_PIXELS = 40.0D;
-    private static final float TURNING_HEAD_LAG = 1.0F;
     private static final int MAX_LOGGED_HANDLE = 8;
 
     private SeamlessScenario() {
@@ -163,29 +164,37 @@ final class SeamlessScenario {
         }
         client.waitTicks(1);
         int index = client.computeOnClient(minecraft -> TravelTap.crossingFrame(CROSSING_JUMP));
-        return new Crossing(label, index, player, source);
+        return new Crossing(label, index, player, source, null);
     }
 
     static Crossing walkThroughTurning(SeamlessClient client, String label) {
         client.runOnClient(minecraft -> TravelTap.reset());
         int player = client.computeOnClient(minecraft -> System.identityHashCode(minecraft.player));
         ClientLevel source = client.computeOnClient(minecraft -> minecraft.level);
-        client.holdForward();
+        client.runOnClient(SeamlessTurningTap::open);
         try {
-            for (int tick = 0; tick < CROSSING_TIMEOUT_TICKS && client.computeOnClient(minecraft -> TravelTap.crossingFrame(CROSSING_JUMP)) < 0; tick++) {
-                client.moveCursor((tick & 1) == 0 ? TURN_PIXELS : -TURN_PIXELS, 0.0D);
-                client.waitTicks(1);
+            client.holdForward();
+            try {
+                client.moveCursor(TURN_PIXELS, 0.0D);
+                client.waitFor(minecraft -> TravelTap.crossingFrame(CROSSING_JUMP) >= 0, CROSSING_TIMEOUT_TICKS);
+            } finally {
+                client.releaseForward();
             }
+            client.waitTicks(1);
+            int index = client.computeOnClient(minecraft -> TravelTap.crossingFrame(CROSSING_JUMP));
+            assertTrue(index >= 0, label + ": the player never crossed the portal while turning");
+            LOGGER.info("[{}] original native crossing observations: {}", label,
+                client.computeOnClient(minecraft -> SeamlessTurningTap.observations()));
+            SeamlessTurningTap.Crossing nativeCrossing = client.computeOnClient(minecraft -> SeamlessTurningTap.assertCrossing(index, source, player, label));
+            SeamlessTurningTap.Turn turn = nativeCrossing.attempt().turn();
+            LOGGER.info("[{}] original native crossing frame {} used mouse yaw {} -> {} (signed turn {} degrees)",
+                label, index, turn.before(), turn.after(), turn.delta());
+            float headLag = TravelTap.frames().get(index).headLag();
+            LOGGER.info("[{}] crossing frame look leads the head yaw by {} degrees", label, String.format("%.3f", headLag));
+            return new Crossing(label, index, player, source, nativeCrossing);
         } finally {
-            client.releaseForward();
+            client.runOnClient(minecraft -> SeamlessTurningTap.close());
         }
-        client.waitTicks(1);
-        int index = client.computeOnClient(minecraft -> TravelTap.crossingFrame(CROSSING_JUMP));
-        assertTrue(index >= 0, label + ": the player never crossed the portal while turning");
-        float headLag = TravelTap.frames().get(index).headLag();
-        LOGGER.info("[{}] crossing frame look leads the head yaw by {} degrees", label, String.format("%.3f", headLag));
-        assertTrue(Math.abs(headLag) > TURNING_HEAD_LAG, label + ": the crossing frame was not turning (look leads head by " + headLag + ")");
-        return new Crossing(label, index, player, source);
     }
 
     static boolean ready(Minecraft minecraft) {
@@ -233,8 +242,8 @@ final class SeamlessScenario {
         if (levelChanged) {
             client.waitFor(minecraft -> WormholesClient.instance().seamlessTravel().residents().handle(crossing.source()) > 0, returnViewTicks);
         }
-        int returnView = ticksUntil(client, minecraft -> NativeClientViewAssertions.sections(NativeClientViewAssertions.portalKey(returnPortal)) > 0,
-            returnViewTicks, crossing.label() + ": the return view had no sections");
+        int returnView = ticksUntil(client, minecraft -> returnViewReady(minecraft, crossing.source(), returnPortal),
+            returnViewTicks, crossing.label() + ": the return view was not ready");
         LOGGER.info("[{}] return view present {} ticks after the crossing was accepted", crossing.label(), returnView);
         client.waitTicks(SETTLE_TICKS);
         assertTrue(client.computeOnClient(minecraft -> MainRendererSections.visible(minecraft) > 0),
@@ -247,6 +256,19 @@ final class SeamlessScenario {
         assertTrue(!TravelTap.clientUnloaded(), crossing.label() + ": the client left the loaded state");
         assertSamePlayer(client, crossing);
         assertPoseContinuity(leg, crossing);
+    }
+
+    private static boolean returnViewReady(Minecraft minecraft, ClientLevel destination, BlockPos origin) {
+        Vec3d opening = new Vec3d(origin.getX() + 0.5D, origin.getY() + 0.5D, origin.getZ() + 0.5D);
+        for (PortalView view : WormholesClient.instance().portalViews().current()) {
+            if (view.source() != minecraft.level || view.destination() != destination || !view.surface().area().contains(opening)) {
+                continue;
+            }
+            Vec3d point = view.toDestination().point(view.surface().planePoint());
+            return ClientWorldLoader.residentRenderer(destination) != null
+                && destination.hasChunkAt(BlockPos.containing(point.x(), point.y(), point.z()));
+        }
+        return NativeClientViewAssertions.sections(NativeClientViewAssertions.portalKey(origin)) > 0;
     }
 
     private static int ticksUntil(SeamlessClient client, Predicate<Minecraft> condition, int timeoutTicks, String failure) {
@@ -272,12 +294,43 @@ final class SeamlessScenario {
             String.format("%.5f", gap), String.format("%.5f", step), String.format("%.4f", after.clock() - before.clock()));
         assertTrue(gap <= step + POSE_TOLERANCE, crossing.label() + ": camera moved " + gap + " blocks across the crossing frame (step " + step + ")");
         Angles.Look expected = expectedLook(leg, before);
-        float yawStep = Math.max(Math.abs(wrap(before.yaw() - earlier.yaw())), Math.abs(after.headLag()));
         float pitchStep = Math.abs(before.pitch() - earlier.pitch());
-        assertTrue(Math.abs(wrap(after.yaw() - expected.yaw())) <= yawStep + LOOK_TOLERANCE,
-            crossing.label() + ": yaw " + after.yaw() + " after the crossing, expected " + expected.yaw());
+        if (crossing.turning() != null) {
+            assertTurningLook(leg, crossing, after);
+        } else {
+            float yawStep = Math.max(Math.abs(wrap(before.yaw() - earlier.yaw())), Math.abs(after.headLag()));
+            assertTrue(Math.abs(wrap(after.yaw() - expected.yaw())) <= yawStep + LOOK_TOLERANCE,
+                crossing.label() + ": yaw " + after.yaw() + " after the crossing, expected " + expected.yaw());
+        }
         assertTrue(Math.abs(after.pitch() - expected.pitch()) <= pitchStep + LOOK_TOLERANCE,
             crossing.label() + ": pitch " + after.pitch() + " after the crossing, expected " + expected.pitch());
+    }
+
+    private static void assertTurningLook(Leg leg, Crossing crossing, TravelTap.Frame after) {
+        SeamlessTurningTap.Crossing nativeCrossing = crossing.turning();
+        SeamlessTurningTap.Attempt attempt = nativeCrossing.attempt();
+        SeamlessTurningTap.PoseSample entry = attempt.entry();
+        SeamlessTurningTap.PoseSample returned = nativeCrossing.returned();
+        assertTrue(attempt.frame() == crossing.index() && attempt.source() == crossing.source()
+            && System.identityHashCode(attempt.player()) == crossing.player(),
+            crossing.label() + ": turning entry belongs to another crossing");
+        assertTrue(after.index() == attempt.frame() && after.player() == returned.player() && after.level() == returned.level(),
+            crossing.label() + ": first destination render belongs to another native crossing");
+        Vec3d look = Angles.direction(entry.yaw(), entry.pitch());
+        Exit exit = leg.exit();
+        Vec3 eye = attempt.eye();
+        PlaneCrossing nativePose = new PlaneCrossing(exit.sourceView(), exit.sourceOrigin(),
+            new Vec3d(eye.x, eye.y, eye.z), look, look, exit.front());
+        Angles.Look expected = ArrivalOrientation.apply(nativePose, exit.destinationFrame(), leg.orientation(), false);
+        assertTurningAngles(crossing.label() + ": original native crossing return", expected, returned.yaw(), returned.pitch());
+        assertTurningAngles(crossing.label() + ": first destination render", expected, after.yaw(), after.pitch());
+    }
+
+    private static void assertTurningAngles(String label, Angles.Look expected, float yaw, float pitch) {
+        assertTrue(Math.abs(wrap(yaw - expected.yaw())) <= LOOK_TOLERANCE,
+            label + ": yaw " + yaw + ", expected native entry mapped yaw " + expected.yaw());
+        assertTrue(Math.abs(pitch - expected.pitch()) <= LOOK_TOLERANCE,
+            label + ": pitch " + pitch + ", expected native entry mapped pitch " + expected.pitch());
     }
 
     private static void reportFrameTimes(Crossing crossing) {
@@ -393,6 +446,6 @@ final class SeamlessScenario {
     record Exit(Frame sourceView, Vec3d sourceOrigin, Frame destinationFrame, boolean front) {
     }
 
-    record Crossing(String label, int index, int player, ClientLevel source) {
+    record Crossing(String label, int index, int player, ClientLevel source, SeamlessTurningTap.Crossing turning) {
     }
 }

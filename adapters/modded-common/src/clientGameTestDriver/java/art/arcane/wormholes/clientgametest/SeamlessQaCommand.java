@@ -32,6 +32,9 @@ public final class SeamlessQaCommand {
             .then(Commands.literal("remove").then(Commands.argument(ARGUMENT, StringArgumentType.greedyString()).executes(SeamlessQaCommand::remove)))
             .then(Commands.literal("light").then(Commands.argument(ARGUMENT, StringArgumentType.greedyString()).executes(SeamlessQaCommand::light)))
             .then(Commands.literal("fallloop").executes(SeamlessQaCommand::fallLoop))
+            .then(Commands.literal("startfallloop").executes(SeamlessQaCommand::startFallLoop))
+            .then(Commands.literal("releasefallers").then(Commands.argument(ARGUMENT, StringArgumentType.greedyString())
+                .executes(SeamlessQaCommand::releaseFallers)))
             .then(Commands.literal("centers").then(Commands.argument(ARGUMENT, StringArgumentType.greedyString()).executes(SeamlessQaCommand::centers)))
             .then(Commands.literal("lit").then(Commands.argument(ARGUMENT, StringArgumentType.greedyString()).executes(SeamlessQaCommand::lit)))
             .then(Commands.literal("loaded").then(Commands.argument(ARGUMENT, StringArgumentType.greedyString()).executes(SeamlessQaCommand::loaded)))
@@ -133,6 +136,28 @@ public final class SeamlessQaCommand {
             reply(player, reply.toString());
         } catch (RuntimeException | AssertionError failure) {
             fail(player, "centers", failure);
+        }
+        return 1;
+    }
+
+    private static int releaseFallers(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        ServerPlayer player = context.getSource().getPlayerOrException();
+        try {
+            SeamlessFallLoop.release(context.getSource().getServer(), RouteCodec.ids(StringArgumentType.getString(context, ARGUMENT).trim()));
+            reply(player, "fallersreleased");
+        } catch (RuntimeException | AssertionError failure) {
+            fail(player, "releasefallers", failure);
+        }
+        return 1;
+    }
+
+    private static int startFallLoop(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        ServerPlayer player = context.getSource().getPlayerOrException();
+        try {
+            SeamlessFallLoop.start(player);
+            reply(player, "fallloopstarted");
+        } catch (RuntimeException | AssertionError failure) {
+            fail(player, "startfallloop", failure);
         }
         return 1;
     }

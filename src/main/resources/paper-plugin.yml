@@ -10,6 +10,10 @@ authors: [ VolmitSoftware ]
 website: VolmitSoftware.com
 dependencies:
   server:
+    FastAsyncWorldEdit:
+      load: BEFORE
+      required: false
+      join-classpath: true
     PlaceholderAPI:
       load: BEFORE
       required: false

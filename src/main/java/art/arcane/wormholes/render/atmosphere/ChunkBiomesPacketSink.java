@@ -9,12 +9,12 @@ import java.util.logging.Level;
 
 import org.bukkit.entity.Player;
 
-import com.github.retrooper.packetevents.PacketEvents;
 import com.github.retrooper.packetevents.protocol.world.chunk.palette.DataPalette;
 import com.github.retrooper.packetevents.util.Vector2i;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerChunkBiomes;
 
 import art.arcane.wormholes.Wormholes;
+import art.arcane.wormholes.render.ProjectionPacketOrigin;
 import art.arcane.wormholes.service.WormholesTelemetry;
 import art.arcane.optics.fidelity.BiomeClaimSet;
 
@@ -43,11 +43,11 @@ public final class ChunkBiomesPacketSink {
             for (BiomeClaimSet.ChunkBiomes chunk : chunks) {
                 payload.put(new Vector2i(chunk.chunkX(), chunk.chunkZ()), constructor.newInstance(palettes(chunk)));
             }
-            PacketEvents.getAPI().getPlayerManager().sendPacket(observer, new WrapperPlayServerChunkBiomes(payload));
+            ProjectionPacketOrigin.send(observer, new WrapperPlayServerChunkBiomes(payload));
             WormholesTelemetry.countPacket();
         } catch (ReflectiveOperationException | RuntimeException failure) {
-            unavailable = true;
             noteFailure(failure);
+            throw new IllegalStateException("Chunk biome packet failed", failure);
         }
     }
 
@@ -92,7 +92,7 @@ public final class ChunkBiomesPacketSink {
         failureLogged = true;
         Wormholes plugin = Wormholes.instance;
         if (plugin != null) {
-            plugin.getLogger().log(Level.WARNING, "[atmosphere] chunk biome packet failed; biome tint disabled until reload", failure);
+            plugin.getLogger().log(Level.WARNING, "[atmosphere] chunk biome packet failed", failure);
         }
     }
 }

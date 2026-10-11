@@ -7,7 +7,6 @@ import art.arcane.optics.entity.EntitySnapshot;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.InterpolationHandler;
 import net.minecraft.world.level.entity.EntityTickList;
 import net.minecraft.world.entity.EntitySelector;
 import net.minecraft.world.entity.projectile.ProjectileUtil;
@@ -55,8 +54,7 @@ public class ClientMeshInteractionTest extends MinecraftTestBase {
         when(level.isClientSide()).thenReturn(true);
         when(level.getEntity(-100)).thenReturn(nativeCopy);
         when(nativeCopy.level()).thenReturn(level);
-        when(nativeCopy.getInterpolation()).thenReturn(InterpolationHandler.NO_OP);
-        doCallRealMethod().when(nativeCopy).commonTick();
+        NativeClientClock.stub(nativeCopy);
         ClientLevelScene scene = new ClientLevelScene(level, () -> null);
         EntityTickList list = new EntityTickList();
         list.add(nativeCopy);

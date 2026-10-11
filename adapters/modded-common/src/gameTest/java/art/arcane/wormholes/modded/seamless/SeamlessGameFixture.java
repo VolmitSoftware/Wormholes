@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded.seamless;
 
+import art.arcane.wormholes.modded.MinecraftGameTestAccess;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.optics.stream.ViewStreamHandshake;
@@ -26,7 +27,6 @@ import net.minecraft.network.protocol.game.GamePacketTypes;
 import net.minecraft.network.protocol.game.ServerGamePacketListener;
 import net.minecraft.network.protocol.game.ServerboundClientTickEndPacket;
 import net.minecraft.network.protocol.game.ClientboundPlayerPositionPacket;
-import net.minecraft.network.protocol.game.ServerboundAcceptTeleportationPacket;
 import net.minecraft.server.RunningOnDifferentThreadException;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -201,8 +201,7 @@ final class SeamlessGameFixture implements AutoCloseable {
             return false;
         }
         ServerPlayer target = player();
-        target.connection.handleAcceptTeleportPacket(new ServerboundAcceptTeleportationPacket(latest.id(), target.getX(), target.getY(),
-            target.getZ(), target.getYRot(), target.getXRot()));
+        MinecraftGameTestAccess.acknowledge(target, latest);
         return true;
     }
 

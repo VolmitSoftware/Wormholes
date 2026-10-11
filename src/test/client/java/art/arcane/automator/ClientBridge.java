@@ -35,6 +35,7 @@ import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.PlayerSkin;
@@ -44,10 +45,6 @@ import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.ItemLore;
 import net.minecraft.world.phys.Vec3;
-import org.lwjgl.sdl.SDLMouse;
-import org.lwjgl.sdl.SDLKeycode;
-import org.lwjgl.sdl.SDLScancode;
-import org.lwjgl.sdl.SDLVideo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -63,6 +60,7 @@ import java.util.Set;
 public final class ClientBridge {
     private static final Logger LOGGER = LoggerFactory.getLogger("InstanceAutomator");
     private static final long TICK_NANOS = 50_000_000L;
+    private static final boolean MUTED = Boolean.getBoolean("automator.muted");
     private static final List<String> INPUT_KEYS = List.of("forward", "back", "left", "right", "jump", "sneak", "sprint", "attack", "use",
             "swapHands", "drop", "inventory", "playerList");
     private static final Set<String> CLICK_DRIVEN_KEYS = Set.of("swapHands", "drop", "inventory");
@@ -108,6 +106,9 @@ public final class ClientBridge {
     }
 
     public static void tick(Minecraft client) {
+        if (MUTED && client.options.getSoundSourceVolume(SoundSource.MASTER) != 0.0F) {
+            client.options.getSoundSourceOptionInstance(SoundSource.MASTER).set(0.0D);
+        }
         updateLook(client);
         if (server == null) {
             start(client);
@@ -546,19 +547,7 @@ public final class ClientBridge {
     }
 
     private static void pressGuiKey(Screen screen, String key) {
-        KeyEvent event = switch (key) {
-            case "enter" -> new KeyEvent(SDLScancode.SDL_SCANCODE_RETURN, SDLKeycode.SDLK_RETURN, 0);
-            case "escape" -> new KeyEvent(SDLScancode.SDL_SCANCODE_ESCAPE, SDLKeycode.SDLK_ESCAPE, 0);
-            case "tab" -> new KeyEvent(SDLScancode.SDL_SCANCODE_TAB, SDLKeycode.SDLK_TAB, 0);
-            case "up" -> new KeyEvent(SDLScancode.SDL_SCANCODE_UP, SDLKeycode.SDLK_UP, 0);
-            case "down" -> new KeyEvent(SDLScancode.SDL_SCANCODE_DOWN, SDLKeycode.SDLK_DOWN, 0);
-            case "home" -> new KeyEvent(SDLScancode.SDL_SCANCODE_HOME, SDLKeycode.SDLK_HOME, 0);
-            case "end" -> new KeyEvent(SDLScancode.SDL_SCANCODE_END, SDLKeycode.SDLK_END, 0);
-            case "backspace" -> new KeyEvent(SDLScancode.SDL_SCANCODE_BACKSPACE, SDLKeycode.SDLK_BACKSPACE, 0);
-            case "select-all" -> new KeyEvent(SDLScancode.SDL_SCANCODE_A, SDLKeycode.SDLK_A,
-                    SDLKeycode.SDL_KMOD_CTRL | SDLKeycode.SDL_KMOD_GUI);
-            default -> throw new IllegalArgumentException("Unsupported GUI key " + key);
-        };
+        KeyEvent event = NativeClientPlatform.keyEvent(key);
         screen.keyPressed(event);
         screen.keyReleased(event);
     }
@@ -820,17 +809,11 @@ public final class ClientBridge {
         result.addProperty("frameWidth", client.gameRenderer.mainRenderTarget().width);
         result.addProperty("frameHeight", client.gameRenderer.mainRenderTarget().height);
         result.addProperty("paused", client.isPaused());
-        long window = client.getWindow().handle();
-        long flags = SDLVideo.SDL_GetWindowFlags(window);
         result.addProperty("hiddenRenderer", HiddenRenderer.enabled());
-        result.addProperty("windowVisible", (flags & SDLVideo.SDL_WINDOW_HIDDEN) == 0);
-        result.addProperty("windowFocused", (flags & SDLVideo.SDL_WINDOW_INPUT_FOCUS) != 0);
+        result.addProperty("masterVolume", client.options.getSoundSourceVolume(SoundSource.MASTER));
         result.addProperty("windowActive", client.isWindowActive());
-        result.addProperty("windowMouseGrabbed", SDLVideo.SDL_GetWindowMouseGrab(window));
-        result.addProperty("relativeMouseMode", SDLMouse.SDL_GetWindowRelativeMouseMode(window));
         result.addProperty("hudVisible", !client.gui.hud.isHidden());
-        result.addProperty("mouseGrabbed", client.mouseHandler.isMouseGrabbed() || SDLMouse.SDL_GetWindowRelativeMouseMode(window)
-            || SDLVideo.SDL_GetWindowMouseGrab(window));
+        NativeClientPlatform.appendWindowState(result, client);
         result.addProperty("bridgeAttackActive", hasActiveAttackLease());
         result.addProperty("turning", turningPlayer != null);
         result.addProperty("cursorMoving", hasCursor() && System.nanoTime() - cursorStarted < cursorDuration);

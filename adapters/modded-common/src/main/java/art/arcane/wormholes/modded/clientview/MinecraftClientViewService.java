@@ -62,7 +62,8 @@ public final class MinecraftClientViewService implements AutoCloseable {
         ViewStreamCapability.DEST_LIGHT, ViewStreamCapability.ENTITY_FRAMES, ViewStreamCapability.ENTITY_EVENTS, ViewStreamCapability.ATMOSPHERE,
         ViewStreamCapability.ZERO_COPY, ViewStreamCapability.CONFIG_PHASE, ViewStreamCapability.LINK_UNCOMPRESSED,
         ViewStreamCapability.VIEW_STATS, ViewStreamCapability.CLIENT_MIRROR, ViewStreamCapability.CLIENT_RECURSION, ViewStreamCapability.MESH_RENDER, ViewStreamCapability.LOCAL_MESH, ViewStreamCapability.MESH_REUSE)
-        | ClientViewExtensions.FX_EMITTERS | ClientViewExtensions.REMOTE_VIEW | ClientViewExtensions.SEAMLESS_TRAVEL;
+        | ClientViewExtensions.FX_EMITTERS | ClientViewExtensions.REMOTE_VIEW | ClientViewExtensions.SEAMLESS_TRAVEL
+        | ClientViewExtensions.ROOT_SOURCE;
     private static final Logger LOGGER = LoggerFactory.getLogger("Wormholes");
     private static final long HANDLE_PURGE_INTERVAL_TICKS = 20L;
     private static final double PARTICLE_RANGE_SQUARED = 32.0D * 32.0D;
@@ -411,11 +412,15 @@ public final class MinecraftClientViewService implements AutoCloseable {
     }
 
     public ViewStreamInbound receive(Connection connection, byte[] payload) {
+        return receiveAt(connection, payload, System.nanoTime());
+    }
+
+    private ViewStreamInbound receiveAt(Connection connection, byte[] payload, long receivedNanos) {
         MinecraftClientViewNegotiator current = negotiator;
         if (current == null || connection == null || payload == null) {
             return ViewStreamInbound.IGNORED;
         }
-        ViewStreamInbound outcome = current.receive(connection, payload);
+        ViewStreamInbound outcome = current.receiveAt(connection, payload, receivedNanos);
         if (outcome == ViewStreamInbound.RESET) {
             MinecraftClientViewPeer peer = current.peer(connection);
             LOGGER.warn("Wormholes ClientView ended the session for {} after repeated protocol violations", peer == null ? "unknown" : peer.name());
@@ -431,8 +436,13 @@ public final class MinecraftClientViewService implements AutoCloseable {
     }
 
     public ViewStreamInbound receivePlay(ServerPlayer player, byte[] payload) {
+        return receivePlayAt(player, payload, System.nanoTime());
+    }
+
+    public ViewStreamInbound receivePlayAt(ServerPlayer player, byte[] payload, long receivedNanos) {
         runtime.requireServerThread();
-        ViewStreamInbound outcome = receive(player.connection, payload);
+        ViewStreamInbound outcome = player.connection instanceof ServerConnectionAccess access
+            ? receiveAt(access.wormholesConnection(), payload, receivedNanos) : ViewStreamInbound.IGNORED;
         ClientViewTravel<MinecraftClientViewPeer> travel = travel(player.getUUID());
         if (travel != null && travel.seamlessSelected()) {
             seamlessTravel.settle(travel, player);

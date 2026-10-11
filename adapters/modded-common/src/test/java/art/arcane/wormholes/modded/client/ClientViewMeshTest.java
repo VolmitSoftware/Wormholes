@@ -51,18 +51,59 @@ public class ClientViewMeshTest extends MinecraftTestBase {
     }
 
     @Test
-    public void destinationAtmosphereWorksWithoutAVoxelSweep() throws Exception {
+    public void destinationAtmosphereKeepsAuthoritativeTimeAndWeatherWithoutAVoxelSweep() throws Exception {
+        ClientViewHarness harness = new ClientViewHarness(ViewStreamCapability.ALL);
+        begin(harness);
+        harness.scene.weather(0.2F, 0.1F);
+        harness.receive(new ViewStreamMessage.Atmosphere(1, 18000L, 0.8F, 0.5F,
+            ViewStreamMessage.Atmosphere.withSkyDarken(ViewStreamMessage.Atmosphere.FLAG_TIME
+                | ViewStreamMessage.Atmosphere.FLAG_WEATHER, 7)), 0);
+        harness.tick(ClientViewHarness.EYE_X, ClientViewHarness.EYE_Y, 11.0D);
+        assertTrue(harness.session.nativeSelected());
+        assertTrue(harness.tick.atmosphere().holds(1));
+        assertEquals(7, harness.tick.atmosphere().skyDarken(1));
+        assertEquals(0, harness.tick.atmosphere().dominant());
+        assertEquals(0.2F, harness.scene.rain, 0.0F);
+        assertEquals(0.1F, harness.scene.thunder, 0.0F);
+        assertEquals(1000L, harness.scene.clock);
+        harness.scene.clock = 6000L;
+        harness.scene.gameTime += 20L;
+        harness.scene.weather(0.3F, 0.0F);
+        harness.tick(ClientViewHarness.EYE_X, ClientViewHarness.EYE_Y, 11.0D);
+        assertEquals(6000L, harness.scene.clock);
+        assertEquals(0.3F, harness.scene.rain, 0.0F);
+        harness.tick(ClientViewHarness.EYE_X, ClientViewHarness.EYE_Y, 30.0D);
+        assertEquals(6000L, harness.scene.clock);
+        assertEquals(0.3F, harness.scene.rain, 0.0F);
+        harness.receive(new ViewStreamMessage.PortalDrop(1), 0);
+        harness.tick(ClientViewHarness.EYE_X, ClientViewHarness.EYE_Y, 11.0D);
+        assertEquals(0, harness.tick.atmosphere().dominant());
+        assertEquals(6000L, harness.scene.clock);
+    }
+
+    @Test
+    public void nativeLevelRebindingNeverCarriesADestinationNightSnapshotIntoTheActiveClock() throws Exception {
         ClientViewHarness harness = new ClientViewHarness(ViewStreamCapability.ALL);
         begin(harness);
         harness.receive(new ViewStreamMessage.Atmosphere(1, 18000L, 0.8F, 0.5F,
             ViewStreamMessage.Atmosphere.FLAG_TIME | ViewStreamMessage.Atmosphere.FLAG_WEATHER), 0);
         harness.tick(ClientViewHarness.EYE_X, ClientViewHarness.EYE_Y, 11.0D);
-        assertEquals(1, harness.tick.atmosphere().dominant());
-        assertEquals(0.8F, harness.scene.rain, 0.0F);
-        assertEquals(18000L, harness.scene.clock);
-        harness.receive(new ViewStreamMessage.PortalDrop(1), 0);
+        ClientViewHarness.FakeScene destination = new ClientViewHarness.FakeScene();
+        destination.clock = 12000L;
+        destination.gameTime = 100L;
+        harness.tick.detach();
+        harness.tick.attach(new Object(), harness.surface, destination);
+        harness.receive(new ViewStreamMessage.Atmosphere(1, 18000L, 0.8F, 0.5F,
+            ViewStreamMessage.Atmosphere.FLAG_TIME | ViewStreamMessage.Atmosphere.FLAG_WEATHER), 0);
         harness.tick(ClientViewHarness.EYE_X, ClientViewHarness.EYE_Y, 11.0D);
+
+        assertEquals(1000L, harness.scene.clock);
+        assertEquals(12000L, destination.clock);
         assertEquals(0, harness.tick.atmosphere().dominant());
+        destination.gameTime += 20L;
+        destination.clock += 20L;
+        harness.tick(ClientViewHarness.EYE_X, ClientViewHarness.EYE_Y, 11.0D);
+        assertEquals(12020L, destination.clock);
     }
 
     @Test
@@ -164,7 +205,11 @@ public class ClientViewMeshTest extends MinecraftTestBase {
         ClientViewHarness harness = new ClientViewHarness();
         harness.stream();
         harness.receive(new ViewStreamMessage.Portal(2, 1, mirror(List.of())), ViewStreamLimits.FLAG_LAST);
-        harness.tick(1.5, 65.5, 15.5);
+        harness.receive(new ViewStreamMessage.Atmosphere(1, 18000L, 0.8F, 0.5F,
+            ViewStreamMessage.Atmosphere.FLAG_TIME | ViewStreamMessage.Atmosphere.FLAG_WEATHER), ViewStreamLimits.FLAG_LAST);
+        harness.tick(1.5, 65.5, 11.0D);
+        assertEquals(18000L, harness.scene.clock);
+        assertEquals(0.8F, harness.scene.rain, 0.0F);
         assertTrue(harness.surface.changedCells() > 0);
         assertNotNull(harness.tick.mirror(2));
         harness.session.accept(new ViewStreamMessage.Accept(2, ViewStreamCapability.ALL, 20,
@@ -177,6 +222,9 @@ public class ClientViewMeshTest extends MinecraftTestBase {
         assertNull(harness.tick.mirror(2));
         assertNull(harness.session.portal(1).content());
         assertNull(harness.session.portal(2).content());
+        assertEquals(1000L, harness.scene.clock);
+        assertEquals(0.0F, harness.scene.rain, 0.0F);
+        assertEquals(0.0F, harness.scene.thunder, 0.0F);
         int writes = harness.surface.writes.size();
         harness.tick(1.5, 65.5, 15.5);
         assertEquals(writes, harness.surface.writes.size());

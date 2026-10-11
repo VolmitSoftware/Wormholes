@@ -52,6 +52,8 @@ def languageSourceManifestTask = tasks.register('generateLanguageSourceManifest'
 
 def shadowJarTask = tasks.named('shadowJar', com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar)
 apply from: 'gradle/runtime-test.gradle'
+apply from: 'gradle/packetevents-patch.gradle'
+apply from: 'gradle/fawe-patch.gradle'
 tasks.named('slimJar').get()
 
 tasks.register('buildPsychoLT') {
@@ -341,10 +343,13 @@ dependencies {
     testImplementation('me.clip:placeholderapi:2.11.6') { transitive = false }
     testImplementation('com.github.MilkBowl:VaultAPI:1.7') { transitive = false }
     testImplementation('net.citizensnpcs:citizensapi:2.0.43-SNAPSHOT') { transitive = false }
+    testRuntimeOnly('com.fastasyncworldedit:FastAsyncWorldEdit-Libs-Core:2.16.1') { transitive = false }
+    testRuntimeOnly('org.apache.logging.log4j:log4j-api:2.17.1')
     testImplementation(libs.paper)
     testImplementation(libs.fastutil)
     testImplementation('com.github.luben:zstd-jni:1.5.7-11')
     testImplementation('io.netty:netty-buffer:4.2.15.Final')
+    testImplementation('io.netty:netty-transport:4.2.15.Final')
     testImplementation(libs.junitJupiter)
     testImplementation('org.mockito:mockito-core:5.23.0')
     testRuntimeOnly(libs.junitPlatformLauncher)
@@ -456,6 +461,16 @@ tasks.register('verifyPacketEventsPackaging') {
                     throw new GradleException("Wormholes must bundle PacketEvents mappings: ${mapping}")
                 }
             }
+            for (String entry : ['api/event/PacketSendEvent.class', 'impl/injector/handlers/PacketEventsEncoder.class']) {
+                def patchedEntry = archive.getJarEntry("art/arcane/wormholes/libs/packetevents/${entry}")
+                if (patchedEntry == null) {
+                    throw new GradleException("Wormholes must bundle patched PacketEvents: ${entry}")
+                }
+                String bytecode = new String(archive.getInputStream(patchedEntry).readAllBytes(), java.nio.charset.StandardCharsets.ISO_8859_1)
+                if (!bytecode.contains('getTasksOnWriteCompletion') || !bytecode.contains('hasTasksOnWriteCompletion')) {
+                    throw new GradleException("Wormholes must bundle PacketEvents write completion support: ${entry}")
+                }
+            }
             for (String manifest : ['slimjar.dat', 'slimjar-resolutions.dat']) {
                 String contents = new String(archive.getInputStream(archive.getJarEntry(manifest)).readAllBytes(), java.nio.charset.StandardCharsets.ISO_8859_1)
                 if (contents.contains('com.github.retrooper')) {
@@ -489,6 +504,7 @@ pluginPackaging {
                 'art/arcane/volmlib/nativelib/environment/WorldEnvironmentAccess$Position.class',
                 'art/arcane/volmlib/nativelib/environment/WorldEnvironment.class',
                 'art/arcane/volmlib/nativelib/environment/WorldEnvironment$EyeMedium.class',
+                'art/arcane/volmlib/nativelib/v26_2_R1/environment/NativeWorldEnvironmentAccess.class',
                 'art/arcane/volmlib/nativelib/v26_3_R1/environment/NativeWorldEnvironmentAccess.class'
             ]
             prunePrefixes = ['art/arcane/volmlib/']

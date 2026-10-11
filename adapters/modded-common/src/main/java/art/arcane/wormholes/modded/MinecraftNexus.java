@@ -24,7 +24,6 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.phys.BlockHitResult;
 import art.arcane.optics.math.Box;
-import net.minecraft.world.level.block.RedstoneWireBlock;
 import net.minecraft.world.level.block.state.BlockState;
 
 import java.io.IOException;
@@ -345,8 +344,7 @@ public final class MinecraftNexus implements AutoCloseable {
             return;
         }
         BlockState block = level.getBlockState(position);
-        boolean signal = level.hasNeighborSignal(position) || block.hasProperty(RedstoneWireBlock.POWER)
-            && block.getValue(RedstoneWireBlock.POWER) > 0;
+        boolean signal = level.hasNeighborSignal(position) || MinecraftNexusSignals.powered(block);
         Boolean previous = powered.put(id, signal);
         if (signal && !Boolean.TRUE.equals(previous)) {
             runtime.schedule(() -> redstone(portal, state(portal).io().action()), 1L);
@@ -477,9 +475,7 @@ public final class MinecraftNexus implements AutoCloseable {
         int signal = io.comparator() == FrameIo.ComparatorOutput.STATE ? (portal.isOpen() ? 15 : 0)
             : stamps == null ? 0 : Math.min(15, stamps.size());
         BlockState block = level.getBlockState(position);
-        if (block.getBlock() instanceof RedstoneWireBlock && block.getValue(RedstoneWireBlock.POWER) != signal) {
-            level.setBlock(position, block.setValue(RedstoneWireBlock.POWER, signal), 2);
-        }
+        MinecraftNexusSignals.output(level, position, block, signal);
     }
 
     private void redstone(MinecraftPortal portal, FrameIo.RedstoneAction action) {

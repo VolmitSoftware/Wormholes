@@ -31,7 +31,7 @@ final class RemoteViewOptionsTest {
     void travelPrerequisitesAreDeclaredByTheExtension() {
         long mesh = ViewStreamCapability.MESH_RENDER.mask();
         assertEquals(ClientViewExtensions.REMOTE_VIEW | ClientViewExtensions.SEAMLESS_TRAVEL, TravelExtension.INSTANCE.capabilities());
-        assertEquals(ClientViewExtensions.REMOTE_VIEW | mesh, TravelExtension.INSTANCE.requires(ClientViewExtensions.SEAMLESS_TRAVEL));
+        assertEquals(ClientViewExtensions.REMOTE_VIEW | ClientViewExtensions.ROOT_SOURCE | mesh, TravelExtension.INSTANCE.requires(ClientViewExtensions.SEAMLESS_TRAVEL));
         assertEquals(0L, TravelExtension.INSTANCE.requires(ClientViewExtensions.REMOTE_VIEW));
     }
 }

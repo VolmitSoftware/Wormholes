@@ -32,9 +32,9 @@ public final class StraddleCollision {
             if (shape.isEmpty()) {
                 continue;
             }
-            AABB bounds = shape.bounds();
-            if (!straddle.excludes(bounds.minX, bounds.minY, bounds.minZ, bounds.maxX, bounds.maxY, bounds.maxZ)) {
-                kept.add(shape);
+            VoxelShape clipped = sourceShape(shape, straddle);
+            if (!clipped.isEmpty()) {
+                kept.add(clipped);
             }
         }
         return kept;
@@ -86,15 +86,36 @@ public final class StraddleCollision {
             Mth.floor(front.maxX), Mth.floor(front.maxY), Mth.floor(front.maxZ))) {
             BlockState state = level.getBlockState(position);
             if (!state.isAir() && state.isSuffocating(level, position)
-                && Shapes.joinIsNotEmpty(state.getCollisionShape(level, position).move(position), Shapes.create(front), BooleanOp.AND)) {
+                && Shapes.joinIsNotEmpty(sourceShape(state.getCollisionShape(level, position).move(position), straddle), Shapes.create(front), BooleanOp.AND)) {
                 return true;
             }
         }
         return false;
     }
 
-    public static AABB front(AABB box, StraddleTracker.Straddle straddle) {
-        return aabb(StraddleGeometry.clipToFront(box(box), straddle.frame(), straddle.origin(), straddle.frontSide()));
+    public static boolean fits(Entity entity, AABB bounds, StraddleTracker.Straddle straddle) {
+        AABB front = aabb(StraddleGeometry.clipToFront(box(bounds), straddle.frame(), straddle.origin(), straddle.frontSide()));
+        Level level = entity.level();
+        VoxelShape body = Shapes.create(front);
+        for (VoxelShape shape : level.getBlockCollisions(entity, front)) {
+            if (Shapes.joinIsNotEmpty(sourceShape(shape, straddle), body, BooleanOp.AND)) {
+                return false;
+            }
+        }
+        return level.noEntityCollision(entity, front) && level.noBorderCollision(entity, front);
+    }
+
+    private static VoxelShape sourceShape(VoxelShape shape, StraddleTracker.Straddle straddle) {
+        if (shape.isEmpty()) {
+            return shape;
+        }
+        AABB bounds = shape.bounds();
+        Box slab = straddle.slab();
+        if (bounds.maxX <= slab.getXa() || bounds.minX >= slab.getXb() || bounds.maxY <= slab.getYa() || bounds.minY >= slab.getYb()
+            || bounds.maxZ <= slab.getZa() || bounds.minZ >= slab.getZb()) {
+            return shape;
+        }
+        return Shapes.join(shape, straddle.sourceOpening(), BooleanOp.ONLY_FIRST);
     }
 
     private static VoxelShape exitSide(VoxelShape shape, StraddleTracker.Straddle straddle) {

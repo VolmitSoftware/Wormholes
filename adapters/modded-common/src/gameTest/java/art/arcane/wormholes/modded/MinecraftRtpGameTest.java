@@ -343,10 +343,10 @@ public final class MinecraftRtpGameTest {
         Box area = portal.getGeometry().getArea();
         int count = 0;
         for (Object packet : packets) {
-            if (packet instanceof ClientboundLevelParticlesPacket particles && particles.particle() instanceof DustParticleOptions
-                && (particles.x() == area.getXa() || particles.x() == area.getXb()) && (particles.y() == area.getYa() || particles.y() == area.getYb())
-                && (particles.z() == area.getZa() || particles.z() == area.getZb())) {
-                count += particles.count();
+            if (packet instanceof ClientboundLevelParticlesPacket particles && MinecraftGameTestAccess.particle(particles) instanceof DustParticleOptions
+                && (MinecraftGameTestAccess.x(particles) == area.getXa() || MinecraftGameTestAccess.x(particles) == area.getXb()) && (MinecraftGameTestAccess.y(particles) == area.getYa() || MinecraftGameTestAccess.y(particles) == area.getYb())
+                && (MinecraftGameTestAccess.z(particles) == area.getZa() || MinecraftGameTestAccess.z(particles) == area.getZb())) {
+                count += MinecraftGameTestAccess.count(particles);
             }
         }
         return count;

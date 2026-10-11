@@ -1,0 +1,11 @@
+diff --git a/worldedit-bukkit/build.gradle.kts b/worldedit-bukkit/build.gradle.kts
+--- a/worldedit-bukkit/build.gradle.kts
++++ b/worldedit-bukkit/build.gradle.kts
+@@ -202,6 +202,7 @@
+              exclude()
+          }
+      }
+     }
++    manifest.attributes("FAWE-Plugin-Jar-Type" to "spigot")
+     exclude("META-INF/INDEX.LIST", "META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA", "module-info.class")
+ }

@@ -1,0 +1,427 @@
+diff --git a/worldedit-core/src/main/java/com/fastasyncworldedit/core/extent/processor/BatchProcessorHolder.java b/worldedit-core/src/main/java/com/fastasyncworldedit/core/extent/processor/BatchProcessorHolder.java
+--- a/worldedit-core/src/main/java/com/fastasyncworldedit/core/extent/processor/BatchProcessorHolder.java
++++ b/worldedit-core/src/main/java/com/fastasyncworldedit/core/extent/processor/BatchProcessorHolder.java
+@@ -9,8 +9,8 @@
+ 
+ public class BatchProcessorHolder implements IBatchProcessorHolder {
+ 
+-    private IBatchProcessor processor = EmptyBatchProcessor.getInstance();
+-    private IBatchProcessor postProcessor = EmptyBatchProcessor.getInstance();
++    private volatile IBatchProcessor processor = EmptyBatchProcessor.getInstance();
++    private volatile IBatchProcessor postProcessor = EmptyBatchProcessor.getInstance();
+ 
+     @Override
+     public IBatchProcessor getProcessor() {
+diff --git a/worldedit-core/src/main/java/com/fastasyncworldedit/core/extent/processor/EmptyBatchProcessor.java b/worldedit-core/src/main/java/com/fastasyncworldedit/core/extent/processor/EmptyBatchProcessor.java
+--- a/worldedit-core/src/main/java/com/fastasyncworldedit/core/extent/processor/EmptyBatchProcessor.java
++++ b/worldedit-core/src/main/java/com/fastasyncworldedit/core/extent/processor/EmptyBatchProcessor.java
+@@ -43,6 +43,11 @@
+     }
+ 
+     @Override
++    public boolean requiresBeforeState() {
++        return false;
++    }
++
++    @Override
+     public ProcessorScope getScope() {
+         return ProcessorScope.ADDING_BLOCKS;
+     }
+diff --git a/worldedit-core/src/main/java/com/fastasyncworldedit/core/extent/processor/IBatchProcessorHolder.java b/worldedit-core/src/main/java/com/fastasyncworldedit/core/extent/processor/IBatchProcessorHolder.java
+--- a/worldedit-core/src/main/java/com/fastasyncworldedit/core/extent/processor/IBatchProcessorHolder.java
++++ b/worldedit-core/src/main/java/com/fastasyncworldedit/core/extent/processor/IBatchProcessorHolder.java
+@@ -24,6 +24,16 @@
+     void setProcessor(IBatchProcessor set);
+ 
+     void setPostProcessor(IBatchProcessor set);
++
++    @Override
++    default IBatchProcessor capturePostProcessor(IChunk chunk) {
++        return getPostProcessor().capturePostProcessor(chunk);
++    }
++
++    @Override
++    default boolean requiresBeforeState() {
++        return getPostProcessor().requiresBeforeState();
++    }
+ 
+     @Override
+     default IChunkSet processSet(IChunk chunk, IChunkGet get, IChunkSet set) {
+diff --git a/worldedit-core/src/main/java/com/fastasyncworldedit/core/extent/processor/MultiBatchProcessor.java b/worldedit-core/src/main/java/com/fastasyncworldedit/core/extent/processor/MultiBatchProcessor.java
+--- a/worldedit-core/src/main/java/com/fastasyncworldedit/core/extent/processor/MultiBatchProcessor.java
++++ b/worldedit-core/src/main/java/com/fastasyncworldedit/core/extent/processor/MultiBatchProcessor.java
+@@ -35,7 +35,7 @@
+     // Array for lazy avoidance of concurrent modification exceptions and needless overcomplication of code (synchronisation is
+     // not very important)
+     private boolean[] faweExceptionReasonsUsed = new boolean[FaweException.Type.values().length];
+-    private IBatchProcessor[] processors;
++    private volatile IBatchProcessor[] processors;
+     private int lastException = Integer.MIN_VALUE;
+     private int exceptionCount = 0;
+ 
+@@ -73,6 +73,40 @@
+         List<IBatchProcessor> processors = new ArrayList<>(Arrays.asList(this.processors));
+         processors.remove(processor);
+         this.processors = processors.toArray(new IBatchProcessor[0]);
++    }
++
++    @Override
++    public IBatchProcessor capturePostProcessor(IChunk chunk) {
++        IBatchProcessor[] current = processors;
++        IBatchProcessor[] captured = new IBatchProcessor[current.length];
++        for (int index = 0; index < current.length; index++) {
++            captured[index] = current[index].capturePostProcessor(chunk);
++        }
++        return of(captured);
++    }
++
++    @Override
++    public boolean requiresBeforeState() {
++        for (IBatchProcessor processor : processors) {
++            if (processor.getScope() == ProcessorScope.READING_BLOCKS && processor.requiresBeforeState()) {
++                return true;
++            }
++        }
++        return false;
++    }
++
++    @Override
++    public void applicationStarted() {
++        for (IBatchProcessor processor : processors) {
++            processor.applicationStarted();
++        }
++    }
++
++    @Override
++    public void applicationCompleted() {
++        for (IBatchProcessor processor : processors) {
++            processor.applicationCompleted();
++        }
+     }
+ 
+     @Override
+diff --git a/worldedit-core/src/main/java/com/fastasyncworldedit/core/queue/IBatchProcessor.java b/worldedit-core/src/main/java/com/fastasyncworldedit/core/queue/IBatchProcessor.java
+--- a/worldedit-core/src/main/java/com/fastasyncworldedit/core/queue/IBatchProcessor.java
++++ b/worldedit-core/src/main/java/com/fastasyncworldedit/core/queue/IBatchProcessor.java
+@@ -47,6 +47,20 @@
+         postProcessSet(chunk, get, set);
+     }
+ 
++    default IBatchProcessor capturePostProcessor(IChunk chunk) {
++        return this;
++    }
++
++    default boolean requiresBeforeState() {
++        return true;
++    }
++
++    default void applicationStarted() {
++    }
++
++    default void applicationCompleted() {
++    }
++
+     default boolean processGet(int chunkX, int chunkZ) {
+         return true;
+     }
+diff --git a/worldedit-core/src/main/java/com/fastasyncworldedit/core/queue/implementation/chunk/ChunkHolder.java b/worldedit-core/src/main/java/com/fastasyncworldedit/core/queue/implementation/chunk/ChunkHolder.java
+--- a/worldedit-core/src/main/java/com/fastasyncworldedit/core/queue/implementation/chunk/ChunkHolder.java
++++ b/worldedit-core/src/main/java/com/fastasyncworldedit/core/queue/implementation/chunk/ChunkHolder.java
+@@ -6,6 +6,7 @@
+ import com.fastasyncworldedit.core.nbt.FaweCompoundTag;
+ import com.fastasyncworldedit.core.queue.Filter;
+ import com.fastasyncworldedit.core.queue.IChunk;
++import com.fastasyncworldedit.core.queue.IBatchProcessor;
+ import com.fastasyncworldedit.core.queue.IChunkGet;
+ import com.fastasyncworldedit.core.queue.IChunkSet;
+ import com.fastasyncworldedit.core.queue.IQueueChunk;
+@@ -1074,20 +1075,42 @@
+             try {
+                 get.lockCall();
+                 trackExtent();
+-                boolean postProcess = !(getExtent().getPostProcessor() instanceof EmptyBatchProcessor);
+-                final int copyKey = get.setCreateCopy(postProcess);
++                IBatchProcessor completion = getExtent().getPostProcessor().capturePostProcessor(this);
++                boolean postProcess = !(completion instanceof EmptyBatchProcessor);
++                boolean beforeState = postProcess && completion.requiresBeforeState();
++                int copyKey = get.setCreateCopy(beforeState);
+                 // We should always be performing processing/postprocessing with this instance (i.e. not with this.parentWrapper)
+                 final IChunkSet iChunkSet = getExtent().processSet(this, get, set);
+-                Runnable finalizer;
+-                if (postProcess) {
+-                    finalizer = () -> {
+-                        getExtent().postProcess(this, get.getCopy(copyKey), iChunkSet);
+-                        finalize.run();
+-                    };
+-                } else {
+-                    finalizer = finalize;
++                if (iChunkSet == null) {
++                    finalize.run();
++                    return null;
+                 }
+-                return get.call(extent, set, finalizer);
++                completion.applicationStarted();
++                AtomicBoolean completed = new AtomicBoolean();
++                Runnable finalizer = () -> {
++                    if (!completed.compareAndSet(false, true)) {
++                        return;
++                    }
++                    try {
++                        if (postProcess) {
++                            completion.postProcess(this, beforeState ? get.getCopy(copyKey) : null, iChunkSet);
++                        }
++                    } finally {
++                        try {
++                            finalize.run();
++                        } finally {
++                            completion.applicationCompleted();
++                        }
++                    }
++                };
++                try {
++                    return get.call(extent, iChunkSet, finalizer);
++                } catch (RuntimeException | Error failure) {
++                    if (completed.compareAndSet(false, true)) {
++                        completion.applicationCompleted();
++                    }
++                    throw failure;
++                }
+             } finally {
+                 get.unlockCall();
+                 untrackExtent();
+diff --git a/worldedit-core/src/test/java/com/fastasyncworldedit/core/queue/implementation/chunk/AppliedChunkCompletionTest.java b/worldedit-core/src/test/java/com/fastasyncworldedit/core/queue/implementation/chunk/AppliedChunkCompletionTest.java
+--- /dev/null
++++ b/worldedit-core/src/test/java/com/fastasyncworldedit/core/queue/implementation/chunk/AppliedChunkCompletionTest.java
+@@ -0,0 +1,232 @@
++package com.fastasyncworldedit.core.queue.implementation.chunk;
++
++import com.fastasyncworldedit.core.extent.processor.BatchProcessorHolder;
++import com.fastasyncworldedit.core.extent.processor.MultiBatchProcessor;
++import com.fastasyncworldedit.core.extent.processor.ProcessorScope;
++import com.fastasyncworldedit.core.queue.IBatchProcessor;
++import com.fastasyncworldedit.core.queue.IChunk;
++import com.fastasyncworldedit.core.queue.IChunkGet;
++import com.fastasyncworldedit.core.queue.IChunkSet;
++import com.fastasyncworldedit.core.queue.IQueueChunk;
++import com.fastasyncworldedit.core.queue.IQueueExtent;
++import com.fastasyncworldedit.core.queue.implementation.ParallelQueueExtent;
++import com.fastasyncworldedit.core.queue.implementation.QueueHandler;
++import com.sk89q.worldedit.extent.Extent;
++import com.sk89q.worldedit.world.World;
++import org.junit.jupiter.api.Test;
++
++import java.util.concurrent.CountDownLatch;
++import java.util.concurrent.ExecutorService;
++import java.util.concurrent.Executors;
++import java.util.concurrent.Future;
++import java.util.concurrent.TimeUnit;
++import java.util.concurrent.atomic.AtomicInteger;
++import java.util.concurrent.atomic.AtomicReference;
++
++import static org.junit.jupiter.api.Assertions.assertEquals;
++import static org.junit.jupiter.api.Assertions.assertSame;
++import static org.junit.jupiter.api.Assertions.assertThrows;
++import static org.junit.jupiter.api.Assertions.assertTrue;
++import static org.mockito.ArgumentMatchers.any;
++import static org.mockito.ArgumentMatchers.anyBoolean;
++import static org.mockito.ArgumentMatchers.anyInt;
++import static org.mockito.Mockito.doAnswer;
++import static org.mockito.Mockito.mock;
++import static org.mockito.Mockito.never;
++import static org.mockito.Mockito.verify;
++import static org.mockito.Mockito.when;
++
++@SuppressWarnings("rawtypes")
++class AppliedChunkCompletionTest {
++    @Test
++    void realParallelCancellationPreservesAppliedObserverThroughNestedMutableHolders() throws Exception {
++        Fixture fixture = new Fixture();
++        CountDownLatch finalizerReady = new CountDownLatch(1);
++        CountDownLatch releaseFinalizer = new CountDownLatch(1);
++        ExecutorService executor = Executors.newSingleThreadExecutor();
++        try {
++            fixture.chunk.call(fixture.owner, fixture.set, () -> { });
++            assertEquals(1, fixture.block.get());
++            Future<?> completion = executor.submit(() -> {
++                finalizerReady.countDown();
++                try {
++                    assertTrue(releaseFinalizer.await(5L, TimeUnit.SECONDS));
++                } catch (InterruptedException exception) {
++                    Thread.currentThread().interrupt();
++                    throw new AssertionError(exception);
++                }
++                fixture.finalizer.get().run();
++            });
++            assertTrue(finalizerReady.await(5L, TimeUnit.SECONDS));
++            assertEquals(0, fixture.observer.notifications.get());
++            assertTrue(fixture.parallel.cancel());
++            fixture.inner.setPostProcessor(mock(IBatchProcessor.class));
++            releaseFinalizer.countDown();
++            completion.get(5L, TimeUnit.SECONDS);
++            assertEquals(1, fixture.block.get());
++            assertEquals(1, fixture.observer.notifications.get());
++            assertEquals(1, fixture.observer.completed.get());
++            fixture.finalizer.get().run();
++            assertEquals(1, fixture.observer.notifications.get());
++            assertEquals(1, fixture.observer.completed.get());
++        } finally {
++            releaseFinalizer.countDown();
++            executor.shutdownNow();
++        }
++    }
++
++    @Test
++    void cancelledBeforeAdmissionDoesNotApplyOrNotify() {
++        Fixture fixture = new Fixture();
++        assertTrue(fixture.parallel.cancel());
++        assertThrows(RuntimeException.class, () -> fixture.chunk.call(fixture.owner, fixture.set, () -> { }));
++        assertEquals(0, fixture.block.get());
++        assertEquals(0, fixture.observer.notifications.get());
++        verify(fixture.get, never()).call(any(), any(), any());
++    }
++
++    @Test
++    void observerOnlyApplicationDoesNotRequestOrReadBeforeStateCopy() {
++        Fixture fixture = new Fixture();
++        fixture.chunk.call(fixture.owner, fixture.set, () -> { });
++        fixture.finalizer.get().run();
++        verify(fixture.get).setCreateCopy(false);
++        verify(fixture.get, never()).getCopy(anyInt());
++        assertEquals(1, fixture.observer.notifications.get());
++    }
++
++    @Test
++    void historyKeepsBeforeStateWhileObserverSharesAppliedCompletion() {
++        Fixture fixture = new Fixture();
++        IChunkGet before = mock(IChunkGet.class);
++        IBatchProcessor history = mock(IBatchProcessor.class);
++        when(history.getScope()).thenReturn(ProcessorScope.READING_BLOCKS);
++        when(history.requiresBeforeState()).thenCallRealMethod();
++        when(history.capturePostProcessor(any())).thenCallRealMethod();
++        fixture.inner.setPostProcessor(MultiBatchProcessor.of(history, fixture.observer));
++        when(fixture.get.getCopy(7)).thenReturn(before);
++        fixture.chunk.call(fixture.owner, fixture.set, () -> { });
++        fixture.finalizer.get().run();
++        verify(fixture.get).setCreateCopy(true);
++        verify(history).postProcess(fixture.chunk, before, fixture.set);
++        assertEquals(1, fixture.observer.notifications.get());
++    }
++
++    @Test
++    void nullPreprocessedSetNeverReachesNativeApplication() {
++        Fixture fixture = new Fixture();
++        when(fixture.owner.processSet(any(), any(), any())).thenReturn(null);
++        AtomicInteger recycled = new AtomicInteger();
++        fixture.chunk.call(fixture.owner, fixture.set, recycled::incrementAndGet);
++        assertEquals(1, recycled.get());
++        assertEquals(0, fixture.block.get());
++        assertEquals(0, fixture.observer.notifications.get());
++        verify(fixture.get, never()).call(any(), any(), any());
++    }
++
++    @Test
++    void admissionUsesReplacementSetAndReleasesApplication() {
++        Fixture fixture = new Fixture();
++        IChunkSet replacement = mock(IChunkSet.class);
++        when(fixture.owner.processSet(any(), any(), any())).thenReturn(replacement);
++        fixture.chunk.call(fixture.owner, fixture.set, () -> { });
++        fixture.finalizer.get().run();
++        verify(fixture.get).call(fixture.owner, replacement, fixture.finalizer.get());
++        assertSame(replacement, fixture.observer.appliedSet.get());
++        assertEquals(1, fixture.observer.completed.get());
++    }
++
++    @Test
++    void observerFailureStillRecyclesChunkAndReleasesApplication() {
++        Fixture fixture = new Fixture();
++        fixture.observer.failure = new IllegalStateException("Observer failed");
++        AtomicInteger recycled = new AtomicInteger();
++        fixture.chunk.call(fixture.owner, fixture.set, recycled::incrementAndGet);
++        assertThrows(IllegalStateException.class, () -> fixture.finalizer.get().run());
++        assertEquals(1, recycled.get());
++        assertEquals(1, fixture.observer.completed.get());
++    }
++
++    private static final class Fixture {
++        private final IQueueExtent<IQueueChunk> owner = mock(IQueueExtent.class);
++        private final IChunkGet get = mock(IChunkGet.class);
++        private final IChunkSet set = mock(IChunkSet.class);
++        private final BatchProcessorHolder preprocessing = new BatchProcessorHolder();
++        private final BatchProcessorHolder outer = new BatchProcessorHolder();
++        private final BatchProcessorHolder inner = new BatchProcessorHolder();
++        private final AtomicInteger block = new AtomicInteger();
++        private final Observer observer = new Observer(block);
++        private final AtomicReference<Runnable> finalizer = new AtomicReference<>();
++        private final ChunkHolder<?> chunk = ChunkHolder.newInstance();
++        private final ParallelQueueExtent parallel;
++
++        private Fixture() {
++            inner.setPostProcessor(observer);
++            outer.setPostProcessor(inner);
++            when(owner.cancel()).thenReturn(true);
++            when(owner.getProcessor()).thenReturn(preprocessing);
++            when(owner.getPostProcessor()).thenReturn(outer);
++            when(owner.getCachedGet(-3, 8)).thenReturn(get);
++            when(owner.processSet(any(), any(), any())).thenAnswer(invocation -> preprocessing.processSet(
++                    invocation.getArgument(0), invocation.getArgument(1), invocation.getArgument(2)));
++            when(get.setCreateCopy(anyBoolean())).thenReturn(7);
++            doAnswer(invocation -> {
++                block.set(1);
++                finalizer.set(invocation.getArgument(2));
++                return null;
++            }).when(get).call(any(), any(), any());
++            QueueHandler handler = mock(QueueHandler.class);
++            World world = mock(World.class);
++            when(handler.getQueue(any(), any(), any())).thenReturn(owner);
++            parallel = new ParallelQueueExtent(handler, world, true, null);
++            chunk.init(owner, -3, 8);
++        }
++    }
++
++    private static final class Observer implements IBatchProcessor {
++        private final AtomicInteger block;
++        private RuntimeException failure;
++        private final AtomicInteger notifications = new AtomicInteger();
++        private final AtomicInteger completed = new AtomicInteger();
++        private final AtomicReference<IChunkSet> appliedSet = new AtomicReference<>();
++
++        private Observer(AtomicInteger block) {
++            this.block = block;
++        }
++
++        @Override
++        public IChunkSet processSet(IChunk chunk, IChunkGet get, IChunkSet set) {
++            return set;
++        }
++
++        @Override
++        public void postProcess(IChunk chunk, IChunkGet get, IChunkSet set) {
++            assertEquals(1, block.get());
++            appliedSet.set(set);
++            notifications.incrementAndGet();
++            if (failure != null) {
++                throw failure;
++            }
++        }
++
++        @Override
++        public boolean requiresBeforeState() {
++            return false;
++        }
++
++        @Override
++        public void applicationCompleted() {
++            completed.incrementAndGet();
++        }
++
++        @Override
++        public Extent construct(Extent child) {
++            return child;
++        }
++
++        @Override
++        public ProcessorScope getScope() {
++            return ProcessorScope.READING_BLOCKS;
++        }
++    }
++}

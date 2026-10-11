@@ -8,7 +8,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.culling.Frustum;
 import net.minecraft.client.renderer.entity.EntityRenderDispatcher;
-import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
@@ -29,16 +28,10 @@ import java.util.function.Predicate;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyDouble;
-import static org.mockito.ArgumentMatchers.anyFloat;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
 
@@ -60,21 +53,21 @@ public class ClientMeshEntityVisibilityTest extends MinecraftTestBase {
         EntityRenderDispatcher dispatcher = mock(EntityRenderDispatcher.class);
         EntityRendererProvider.Context context = mock(EntityRendererProvider.Context.class);
         when(context.getEntityRenderDispatcher()).thenReturn(dispatcher);
-        CullingRenderer renderer = new CullingRenderer(context);
+        NativeCullingRenderer renderer = new NativeCullingRenderer(context);
         Frustum display = new Frustum(new Matrix4f(), new Matrix4f());
         Frustum destination = new ClientMeshEntities.DestinationFrustum(display, OpticTransform.IDENTITY);
         Entity source = mock(Entity.class, withSettings().extraInterfaces(Leashable.class));
         when(source.shouldRender(0, 0, 0)).thenReturn(true);
-        when(source.getInterpolatedBoundingBox(0.5F)).thenReturn(new AABB(10, 0, 0, 11, 1, 1));
-        assertFalse(renderer.shouldRender(source, destination, 0, 0, 0, 0.5F));
+        NativeCullingRenderer.bounds(source, new AABB(10, 0, 0, 11, 1, 1));
+        assertFalse(renderer.visible(source, destination));
         Entity holder = mock(Entity.class);
         when(((Leashable) source).getLeashHolder()).thenReturn(holder);
         doReturn(renderer).when(dispatcher).getRenderer(holder);
-        when(holder.getInterpolatedBoundingBox(0.5F)).thenReturn(new AABB(-11, 0, 0, -10, 1, 1));
-        assertTrue(renderer.shouldRender(source, destination, 0, 0, 0, 0.5F));
-        renderer.extendedBounds = new AABB(-1, -1, -1, 11, 1, 1);
+        NativeCullingRenderer.bounds(holder, new AABB(-11, 0, 0, -10, 1, 1));
+        assertTrue(renderer.visible(source, destination));
+        renderer.extend(new AABB(-1, -1, -1, 11, 1, 1));
         when(((Leashable) source).getLeashHolder()).thenReturn(null);
-        assertTrue(renderer.shouldRender(source, destination, 0, 0, 0, 0.5F));
+        assertTrue(renderer.visible(source, destination));
     }
 
     @Test
@@ -89,8 +82,7 @@ public class ClientMeshEntityVisibilityTest extends MinecraftTestBase {
         EntityRenderState state = new EntityRenderState();
         when(dispatcher.extractEntity(source, 0.5F)).thenReturn(state);
         AABB bounds = new AABB(500, 20, 10, 501, 21, 11);
-        when(dispatcher.shouldRender(any(), any(), anyDouble(), anyDouble(), anyDouble(), anyFloat()))
-            .thenAnswer(call -> ((Frustum) call.getArgument(1)).isVisible(bounds));
+        NativeCullingRenderer.answer(dispatcher, call -> ((Frustum) call.getArgument(1)).isVisible(bounds));
         Minecraft minecraft = mock(Minecraft.class);
         when(minecraft.getEntityRenderDispatcher()).thenReturn(dispatcher);
         List<EntityRenderState> states = new ArrayList<>();
@@ -106,9 +98,9 @@ public class ClientMeshEntityVisibilityTest extends MinecraftTestBase {
             Frustum shadow = new Frustum(new Matrix4f(), new Matrix4f());
             shadow.prepare(500, 20, 10);
             assertTrue(features.entityVisibility(camera, shadow, OpticTransform.IDENTITY).test(state));
-            verify(dispatcher, times(2)).shouldRender(eq(source), any(Frustum.class), eq(0.0), eq(0.0), eq(0.0), eq(0.5F));
+            NativeCullingRenderer.verifyCameras(dispatcher, source);
             Predicate<EntityRenderState> visible = features.entityVisibility(camera, main, OpticTransform.IDENTITY);
-            doReturn(false).when(dispatcher).shouldRender(any(), any(), anyDouble(), anyDouble(), anyDouble(), anyFloat());
+            NativeCullingRenderer.reject(dispatcher);
             assertTrue(visible.test(state));
             state.nameTag = Component.literal("Visible label");
             assertTrue(visible.test(state));
@@ -122,21 +114,4 @@ public class ClientMeshEntityVisibilityTest extends MinecraftTestBase {
         }
     }
 
-    private static final class CullingRenderer extends EntityRenderer<Entity, EntityRenderState> {
-        private AABB extendedBounds;
-
-        private CullingRenderer(EntityRendererProvider.Context context) {
-            super(context);
-        }
-
-        @Override
-        public EntityRenderState createRenderState() {
-            return new EntityRenderState();
-        }
-
-        @Override
-        protected AABB getBoundingBoxForCulling(Entity entity, float partialTick) {
-            return extendedBounds == null ? super.getBoundingBoxForCulling(entity, partialTick) : extendedBounds;
-        }
-    }
 }

@@ -6,6 +6,7 @@ import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.modded.mixin.client.ParticleEngineAccess;
 import art.arcane.wormholes.modded.client.render.ClientPortalRenderer;
+import art.arcane.wormholes.modded.client.render.stencil.PortalViews;
 import art.arcane.wormholes.modded.client.world.ClientWorldLoader;
 import art.arcane.wormholes.modded.mixin.client.PreparedPacketAccess;
 import art.arcane.wormholes.network.client.TravelMessage;
@@ -28,6 +29,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.same;
 import static org.mockito.Mockito.atLeastOnce;
@@ -38,6 +40,62 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 public class ClientSeamlessTravelTest extends MinecraftTestBase {
+    @Test
+    public void predictedCrossingNotifiesReturnOwnershipWithTheActualArmAndLevels() throws ReflectiveOperationException {
+        try (Crossing crossing = new Crossing(false)) {
+            double nearZ = crossing.begin.sourceGeometry().signedDistance(0.5D, 1.62D, 0.2D) > 0.0D ? 0.2D : 0.8D;
+            double farZ = 1.0D - nearZ;
+            when(crossing.scope.minecraft.getCameraEntity()).thenReturn(crossing.player);
+            when(crossing.player.getEyePosition(0.0F)).thenReturn(new Vec3(0.5D, 1.62D, nearZ));
+            when(crossing.player.getPosition(0.0F)).thenReturn(new Vec3(0.5D, 0.0D, nearZ));
+            when(crossing.player.position()).thenReturn(new Vec3(0.5D, 0.0D, farZ));
+            crossing.travel.afterTick();
+            verify(crossing.portalViews, never()).crossed(any(), any(), any(), anyBoolean());
+            when(crossing.player.getEyePosition(0.0F)).thenReturn(new Vec3(0.5D, 1.62D, farZ));
+            when(crossing.player.getPosition(0.0F)).thenReturn(new Vec3(0.5D, 0.0D, farZ));
+            when(crossing.player.getEyePosition()).thenReturn(new Vec3(0.5D, 1.62D, farZ));
+            crossing.travel.afterTick();
+            assertTrue(crossing.travel.pending());
+            assertSame(crossing.nether, crossing.scope.minecraft.level);
+            verify(crossing.portalViews).crossed(crossing.begin, crossing.source, crossing.nether, true);
+        }
+    }
+
+    @Test
+    public void anOlderConfirmationDoesNotReplaceTheLatestPredictedReturn() throws ReflectiveOperationException {
+        try (Crossing crossing = new Crossing(true)) {
+            TravelMessage.TravelBegin next = mock(TravelMessage.TravelBegin.class);
+            crossing.pending().add(Crossing.crossing(next, crossing.nether, crossing.source));
+            crossing.scope.minecraft.level = crossing.source;
+            crossing.travel.receive(SeamlessTravelFixtures.accept(0.0D, 0.0F));
+            assertTrue(crossing.travel.pending());
+            assertSame(crossing.source, crossing.scope.minecraft.level);
+            verify(crossing.portalViews, never()).crossed(any(), any(), any(), anyBoolean());
+            verify(crossing.portalViews, never()).resetReturn(any());
+        }
+    }
+
+    @Test
+    public void serverCrossingWithoutAnArmCannotBorrowTheLastRenderedPortal() throws ReflectiveOperationException {
+        try (Crossing crossing = new Crossing(false)) {
+            crossing.travel.receive(new TravelMessage.TravelCancel(crossing.begin.token(), crossing.begin.generation()));
+            crossing.travel.receive(SeamlessTravelFixtures.accept(0.0D, 0.0F));
+            assertSame(crossing.nether, crossing.scope.minecraft.level);
+            verify(crossing.portalViews).crossed(null, crossing.source, crossing.nether, true);
+        }
+    }
+
+    @Test
+    public void serverCrossingCarriesTheConfiguredRecursionChoice() throws ReflectiveOperationException {
+        try (Crossing crossing = new Crossing(false)) {
+            WormholesClientConfig config = new WormholesClientConfig();
+            config.clientRecursion = false;
+            when(crossing.client.config()).thenReturn(config);
+            crossing.travel.receive(SeamlessTravelFixtures.accept(0.0D, 0.0F));
+            verify(crossing.portalViews).crossed(crossing.begin, crossing.source, crossing.nether, false);
+        }
+    }
+
     @Test
     public void armsAreHeldPerSourcePortalUntilTheServerDisarmsThem() throws ReflectiveOperationException {
         try (Crossing crossing = new Crossing(false)) {
@@ -93,6 +151,7 @@ public class ClientSeamlessTravelTest extends MinecraftTestBase {
             verify(crossing.nether).removeEntity(42, Entity.RemovalReason.CHANGED_DIMENSION);
             verify(crossing.source).addEntity(crossing.player);
             verify((PreparedChunkColumns) crossing.source.getChunkSource()).wormholes$announceColumns();
+            verify(crossing.portalViews).resetReturn(crossing.source);
             crossing.scope.worlds.verify(ClientWorldLoader::forceFullSectionDiscovery);
         }
     }
@@ -115,6 +174,7 @@ public class ClientSeamlessTravelTest extends MinecraftTestBase {
             verify(crossing.nether).addEntity(crossing.player);
             assertPosition(crossing.player, SeamlessTravelFixtures.EXPECTED_ARRIVAL.x, SeamlessTravelFixtures.EXPECTED_ARRIVAL.z);
             verify(crossing.client).dropProjectedEntities(crossing.begin.sourceGeometry());
+            verify(crossing.portalViews).crossed(crossing.begin, crossing.source, crossing.nether, true);
             crossing.scope.worlds.verify(ClientWorldLoader::forceFullSectionDiscovery);
         }
     }
@@ -126,6 +186,7 @@ public class ClientSeamlessTravelTest extends MinecraftTestBase {
             crossing.travel.receive(SeamlessTravelFixtures.accept(0.0D, 0.0F));
             assertSame(crossing.source, crossing.scope.minecraft.level);
             assertTrue(crossing.scope.sent.contains(new TravelMessage.RemoteLevelReopen(3)));
+            verify(crossing.portalViews, never()).crossed(any(), any(), any(), anyBoolean());
             crossing.scope.worlds.verify(ClientWorldLoader::forceFullSectionDiscovery, never());
         }
     }
@@ -155,6 +216,7 @@ public class ClientSeamlessTravelTest extends MinecraftTestBase {
         final TravelMessage.TravelBegin begin = SeamlessTravelFixtures.begin(true);
         final LocalPlayer player = SeamlessTravelFixtures.player();
         final WormholesClient client = mock(WormholesClient.class);
+        final PortalViews portalViews = mock(PortalViews.class);
         final MockedStatic<WormholesClient> clients = mockStatic(WormholesClient.class);
         final MockedStatic<ClientPortalRenderer> renderers = mockStatic(ClientPortalRenderer.class);
         final ClientPortalRenderer renderer = mock(ClientPortalRenderer.class);
@@ -165,6 +227,7 @@ public class ClientSeamlessTravelTest extends MinecraftTestBase {
             when(session.has(any(ViewStreamCapability.class))).thenReturn(true);
             when(session.has(anyLong())).thenReturn(true);
             when(client.session()).thenReturn(session);
+            when(client.portalViews()).thenReturn(portalViews);
             clients.when(WormholesClient::instance).thenReturn(client);
             renderers.when(ClientPortalRenderer::instance).thenReturn(renderer);
             when(player.getId()).thenReturn(42);

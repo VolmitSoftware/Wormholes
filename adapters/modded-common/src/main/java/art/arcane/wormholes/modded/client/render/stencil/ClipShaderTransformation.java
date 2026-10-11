@@ -14,8 +14,8 @@ import java.util.regex.Pattern;
 public final class ClipShaderTransformation {
     public static final String CLIP_PLANE = "WormholesClipPlane";
     public static final String CLIP_PLANE_DEFINE = "WORMHOLES_CLIP_PLANE";
-    public static final String PROJECTION_INCLUDE = "#include <minecraft:projection.glsl>";
-    public static final String SODIUM_GLOBALS_INCLUDE = "#include <sodium:globals.glsl>";
+    public static final String PROJECTION_INCLUDE = NativeShaderImports.PROJECTION;
+    public static final String SODIUM_GLOBALS_INCLUDE = NativeShaderImports.SODIUM_GLOBALS;
     private static final Pattern PROJECTION_MATRIX = Pattern.compile("uniform\\s+Projection\\s*\\{[^}]*?mat4\\s+ProjMat\\s*;");
     private static final Pattern MAIN = Pattern.compile("\\bvoid\\s+main\\s*\\(\\s*(?:void)?\\s*\\)");
     private static final Set<String> UNCLIPPED = Set.of("minecraft:core/sky", "minecraft:core/stars", "minecraft:core/panorama");

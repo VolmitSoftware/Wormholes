@@ -102,7 +102,7 @@ public class PortalSectionMeshTest {
     private static final class EastFaceModel implements BlockStateModel, BlockStateModelPart {
         private final BakedQuad quad = new BakedQuad(new Vector3f(1, 0, 0), new Vector3f(1, 1, 0),
             new Vector3f(1, 1, 1), new Vector3f(1, 0, 1), 0L, 0L, 0L, 0L, Direction.EAST,
-            new BakedQuad.MaterialInfo(null, ChunkSectionLayer.SOLID, null, null, null, -1, Direction.EAST, 0));
+            NativeRenderFixtures.eastFaceMaterial());
 
         @Override
         public void collectParts(RandomSource random, List<BlockStateModelPart> parts) {

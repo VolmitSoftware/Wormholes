@@ -1,0 +1,2663 @@
+diff --git a/worldedit-bukkit/adapters/adapter-1_21/src/main/java/com/sk89q/worldedit/bukkit/adapter/impl/fawe/v1_21_R1/PaperweightFaweWorldNativeAccess.java b/worldedit-bukkit/adapters/adapter-1_21/src/main/java/com/sk89q/worldedit/bukkit/adapter/impl/fawe/v1_21_R1/PaperweightFaweWorldNativeAccess.java
+--- a/worldedit-bukkit/adapters/adapter-1_21/src/main/java/com/sk89q/worldedit/bukkit/adapter/impl/fawe/v1_21_R1/PaperweightFaweWorldNativeAccess.java
++++ b/worldedit-bukkit/adapters/adapter-1_21/src/main/java/com/sk89q/worldedit/bukkit/adapter/impl/fawe/v1_21_R1/PaperweightFaweWorldNativeAccess.java
+@@ -3,8 +3,14 @@
+ import com.fastasyncworldedit.core.Fawe;
+ import com.fastasyncworldedit.core.math.IntPair;
+ import com.fastasyncworldedit.core.util.TaskManager;
++import com.fastasyncworldedit.core.util.task.DetachedNativeBatchQueue;
++import com.fastasyncworldedit.core.util.task.NativeChangeScope;
+ import com.fastasyncworldedit.core.util.task.RunnableVal;
+ import com.sk89q.worldedit.bukkit.BukkitAdapter;
++import com.sk89q.worldedit.WorldEditException;
++import com.sk89q.worldedit.math.BlockVector3;
++import com.sk89q.worldedit.world.block.BaseBlock;
++import com.sk89q.worldedit.world.block.BlockStateHolder;
+ import com.sk89q.worldedit.internal.block.BlockStateIdAccess;
+ import com.sk89q.worldedit.internal.wna.WorldNativeAccess;
+ import com.sk89q.worldedit.util.SideEffect;
+@@ -28,8 +34,9 @@
+ 
+ import javax.annotation.Nullable;
+ import java.lang.ref.WeakReference;
+-import java.util.Collections;
+ import java.util.HashSet;
++import java.util.ArrayList;
++import java.util.List;
+ import java.util.Objects;
+ import java.util.Set;
+ import java.util.concurrent.atomic.AtomicInteger;
+@@ -50,7 +57,8 @@
+     private final PaperweightFaweAdapter paperweightFaweAdapter;
+     private final WeakReference<Level> level;
+     private final AtomicInteger lastTick;
+-    private final Set<CachedChange> cachedChanges = new HashSet<>();
++    private final List<Runnable> cachedChanges = new ArrayList<>();
++    private final DetachedNativeBatchQueue batches = new DetachedNativeBatchQueue();
+     private final Set<IntPair> cachedChunksToSend = new HashSet<>();
+     private SideEffectSet sideEffectSet;
+ 
+@@ -95,22 +103,15 @@
+             LevelChunk levelChunk, BlockPos blockPos,
+             net.minecraft.world.level.block.state.BlockState blockState
+     ) {
+-        int currentTick = MinecraftServer.currentTick;
+         if (Fawe.isMainThread()) {
+-            return levelChunk.setBlockState(blockPos, blockState,
++            return NativeChangeScope.recordChange(levelChunk.setBlockState(blockPos, blockState,
+                     this.sideEffectSet != null && this.sideEffectSet.shouldApply(SideEffect.UPDATE)
+-            );
+-        }
+-        // Since FAWE is.. Async we need to do it on the main thread (wooooo.. :( )
+-        cachedChanges.add(new CachedChange(levelChunk, blockPos, blockState));
+-        cachedChunksToSend.add(new IntPair(levelChunk.locX, levelChunk.locZ));
+-        boolean nextTick = lastTick.get() > currentTick;
+-        if (nextTick || cachedChanges.size() >= 1024) {
+-            if (nextTick) {
+-                lastTick.set(currentTick);
+-            }
+-            flushAsync(nextTick);
+-        }
++            ));
++        }
++        NativeChangeScope applied = NativeChangeScope.capture();
++        CachedChange change = new CachedChange(levelChunk, blockPos.immutable(), blockState, applied,
++                sideEffectSet != null && sideEffectSet.shouldApply(SideEffect.UPDATE));
++        enqueue(() -> applyBlockState(change), levelChunk.locX, levelChunk.locZ);
+         return blockState;
+     }
+ 
+@@ -233,59 +234,140 @@
+         getLevel().onBlockStateChange(blockPos, oldState, newState);
+     }
+ 
+-    private synchronized void flushAsync(final boolean sendChunks) {
+-        final Set<CachedChange> changes = Set.copyOf(cachedChanges);
++    @Override
++    public int appliedChangeSupportVersion() {
++        return 1;
++    }
++
++    @Override
++    public boolean deferNativeWrite(Runnable application, int chunkX, int chunkZ) {
++        if (Fawe.isMainThread()) {
++            return false;
++        }
++        NativeChangeScope observer = NativeChangeScope.capture();
++        synchronized (this) {
++            enqueue(() -> {
++                try {
++                    application.run();
++                    if (observer != null) {
++                        observer.applied(true);
++                    }
++                } finally {
++                    if (observer != null) {
++                        observer.applied(false);
++                    }
++                }
++            }, chunkX, chunkZ);
++        }
++        return true;
++    }
++
++    @Override
++    public <B extends BlockStateHolder<B>> boolean setBlock(
++            BlockVector3 position, B block, SideEffectSet sideEffects
++    ) throws WorldEditException {
++        if (Fawe.isMainThread()) {
++            return WorldNativeAccess.super.setBlock(position, block, sideEffects);
++        }
++        NativeChangeScope observer = NativeChangeScope.capture();
++        BaseBlock immutable = block.toBaseBlock();
++        synchronized (this) {
++            enqueue(() -> applyNativeBlock(position, immutable, sideEffects, observer), position.x() >> 4, position.z() >> 4);
++        }
++        return true;
++    }
++
++    private void enqueue(Runnable application, int chunkX, int chunkZ) {
++        cachedChanges.add(application);
++        cachedChunksToSend.add(new IntPair(chunkX, chunkZ));
++        int currentTick = MinecraftServer.currentTick;
++        boolean nextTick = lastTick.get() > currentTick;
++        if (nextTick || cachedChanges.size() >= 1024) {
++            if (nextTick) {
++                lastTick.set(currentTick);
++            }
++            flushAsync(nextTick);
++        }
++    }
++
++    private void applyNativeBlock(BlockVector3 position, BaseBlock block, SideEffectSet sideEffects, NativeChangeScope observer) {
++        try (NativeChangeScope scope = observer == null ? null : NativeChangeScope.open(
++                () -> observer.applied(true), () -> observer.applied(false))) {
++            boolean changed = WorldNativeAccess.super.setBlock(position, block, sideEffects);
++            if (scope != null) {
++                scope.complete(changed);
++            }
++        } catch (WorldEditException exception) {
++            throw new IllegalStateException("Native block application failed at " + position, exception);
++        }
++    }
++
++    private void flushAsync(boolean sendChunks) {
++        Runnable application;
++        synchronized (this) {
++            application = detach(sendChunks);
++        }
++        TaskManager.taskManager().async(() -> runOnMainThread(application));
++    }
++
++    private Runnable detach(boolean sendChunks) {
++        List<Runnable> changes = List.copyOf(cachedChanges);
+         cachedChanges.clear();
+-        final Set<IntPair> toSend;
++        Set<IntPair> toSend = sendChunks ? Set.copyOf(cachedChunksToSend) : Set.of();
+         if (sendChunks) {
+-            toSend = Set.copyOf(cachedChunksToSend);
+             cachedChunksToSend.clear();
+-        } else {
+-            toSend = Collections.emptySet();
+-        }
+-        RunnableVal<Object> runnableVal = new RunnableVal<>() {
++        }
++        return batches.admit(() -> {
++            for (Runnable change : changes) {
++                change.run();
++            }
++            for (IntPair chunk : toSend) {
++                PaperweightPlatformAdapter.sendChunk(chunk, getLevel().getWorld().getHandle(), chunk.x(), chunk.z());
++            }
++        });
++    }
++
++    private void runOnMainThread(Runnable application) {
++        RunnableVal<Object> task = new RunnableVal<>() {
+             @Override
+             public void run(Object value) {
+-                changes.forEach(cc -> cc.levelChunk.setBlockState(cc.blockPos, cc.blockState,
+-                        sideEffectSet != null && sideEffectSet.shouldApply(SideEffect.UPDATE)
+-                ));
+-                if (!sendChunks) {
+-                    return;
+-                }
+-                for (IntPair chunk : toSend) {
+-                    PaperweightPlatformAdapter.sendChunk(chunk, getLevel().getWorld().getHandle(), chunk.x(), chunk.z());
+-                }
+-            }
+-        };
+-        TaskManager.taskManager().async(() -> TaskManager.taskManager().sync(runnableVal));
+-    }
+-
+-    @Override
+-    public synchronized void flush() {
+-        RunnableVal<Object> runnableVal = new RunnableVal<>() {
+-            @Override
+-            public void run(Object value) {
+-                cachedChanges.forEach(cc -> cc.levelChunk.setBlockState(cc.blockPos, cc.blockState,
+-                        sideEffectSet != null && sideEffectSet.shouldApply(SideEffect.UPDATE)
+-                ));
+-                for (IntPair chunk : cachedChunksToSend) {
+-                    PaperweightPlatformAdapter.sendChunk(chunk, getLevel().getWorld().getHandle(), chunk.x(), chunk.z());
+-                }
++                application.run();
+             }
+         };
+         if (Fawe.isMainThread()) {
+-            runnableVal.run();
++            task.run();
+         } else {
+-            TaskManager.taskManager().sync(runnableVal);
+-        }
+-        cachedChanges.clear();
+-        cachedChunksToSend.clear();
++            TaskManager.taskManager().sync(task);
++        }
++    }
++
++    @Override
++    public void flush() {
++        Runnable application;
++        synchronized (this) {
++            detach(true);
++            application = batches.fence();
++        }
++        runOnMainThread(application);
++    }
++
++    private void applyBlockState(CachedChange change) {
++        boolean changed = false;
++        try {
++            changed = change.levelChunk().setBlockState(change.blockPos(), change.blockState(), change.update()) != null;
++        } finally {
++            if (change.applied() != null) {
++                change.applied().applied(changed);
++            }
++        }
+     }
+ 
+     private record CachedChange(
+             LevelChunk levelChunk,
+             BlockPos blockPos,
+-            net.minecraft.world.level.block.state.BlockState blockState
++            net.minecraft.world.level.block.state.BlockState blockState,
++            NativeChangeScope applied,
++            boolean update
+     ) {
+ 
+     }
+diff --git a/worldedit-bukkit/adapters/adapter-1_21_11/src/main/java/com/sk89q/worldedit/bukkit/adapter/impl/fawe/v1_21_11/PaperweightFaweWorldNativeAccess.java b/worldedit-bukkit/adapters/adapter-1_21_11/src/main/java/com/sk89q/worldedit/bukkit/adapter/impl/fawe/v1_21_11/PaperweightFaweWorldNativeAccess.java
+--- a/worldedit-bukkit/adapters/adapter-1_21_11/src/main/java/com/sk89q/worldedit/bukkit/adapter/impl/fawe/v1_21_11/PaperweightFaweWorldNativeAccess.java
++++ b/worldedit-bukkit/adapters/adapter-1_21_11/src/main/java/com/sk89q/worldedit/bukkit/adapter/impl/fawe/v1_21_11/PaperweightFaweWorldNativeAccess.java
+@@ -3,8 +3,14 @@
+ import com.fastasyncworldedit.core.Fawe;
+ import com.fastasyncworldedit.core.math.IntPair;
+ import com.fastasyncworldedit.core.util.TaskManager;
++import com.fastasyncworldedit.core.util.task.DetachedNativeBatchQueue;
++import com.fastasyncworldedit.core.util.task.NativeChangeScope;
+ import com.fastasyncworldedit.core.util.task.RunnableVal;
+ import com.sk89q.worldedit.bukkit.BukkitAdapter;
++import com.sk89q.worldedit.WorldEditException;
++import com.sk89q.worldedit.math.BlockVector3;
++import com.sk89q.worldedit.world.block.BaseBlock;
++import com.sk89q.worldedit.world.block.BlockStateHolder;
+ import com.sk89q.worldedit.internal.block.BlockStateIdAccess;
+ import com.sk89q.worldedit.internal.wna.WorldNativeAccess;
+ import com.sk89q.worldedit.util.SideEffect;
+@@ -29,8 +35,9 @@
+ 
+ import javax.annotation.Nullable;
+ import java.lang.ref.WeakReference;
+-import java.util.Collections;
+ import java.util.HashSet;
++import java.util.ArrayList;
++import java.util.List;
+ import java.util.Objects;
+ import java.util.Set;
+ import java.util.concurrent.atomic.AtomicInteger;
+@@ -53,7 +60,8 @@
+     private final PaperweightFaweAdapter paperweightFaweAdapter;
+     private final WeakReference<Level> level;
+     private final AtomicInteger lastTick;
+-    private final Set<CachedChange> cachedChanges = new HashSet<>();
++    private final List<Runnable> cachedChanges = new ArrayList<>();
++    private final DetachedNativeBatchQueue batches = new DetachedNativeBatchQueue();
+     private final Set<IntPair> cachedChunksToSend = new HashSet<>();
+     private SideEffectSet sideEffectSet;
+ 
+@@ -98,22 +106,15 @@
+             LevelChunk levelChunk, BlockPos blockPos,
+             net.minecraft.world.level.block.state.BlockState blockState
+     ) {
+-        int currentTick = MinecraftServer.currentTick;
+         if (Fawe.isMainThread()) {
+-            return levelChunk.setBlockState(blockPos, blockState,
++            return NativeChangeScope.recordChange(levelChunk.setBlockState(blockPos, blockState,
+                     this.sideEffectSet.shouldApply(SideEffect.UPDATE) ? 0 : 512
+-            );
+-        }
+-        // Since FAWE is.. Async we need to do it on the main thread (wooooo.. :( )
+-        cachedChanges.add(new CachedChange(levelChunk, blockPos, blockState));
+-        cachedChunksToSend.add(new IntPair(levelChunk.locX, levelChunk.locZ));
+-        boolean nextTick = lastTick.get() > currentTick;
+-        if (nextTick || cachedChanges.size() >= 1024) {
+-            if (nextTick) {
+-                lastTick.set(currentTick);
+-            }
+-            flushAsync(nextTick);
+-        }
++            ));
++        }
++        NativeChangeScope applied = NativeChangeScope.capture();
++        CachedChange change = new CachedChange(levelChunk, blockPos.immutable(), blockState, applied,
++                sideEffectSet != null && sideEffectSet.shouldApply(SideEffect.UPDATE));
++        enqueue(() -> applyBlockState(change), levelChunk.locX, levelChunk.locZ);
+         return blockState;
+     }
+ 
+@@ -237,59 +238,140 @@
+         getLevel().updatePOIOnBlockStateChange(blockPos, oldState, newState);
+     }
+ 
+-    private synchronized void flushAsync(final boolean sendChunks) {
+-        final Set<CachedChange> changes = Set.copyOf(cachedChanges);
++    @Override
++    public int appliedChangeSupportVersion() {
++        return 1;
++    }
++
++    @Override
++    public boolean deferNativeWrite(Runnable application, int chunkX, int chunkZ) {
++        if (Fawe.isMainThread()) {
++            return false;
++        }
++        NativeChangeScope observer = NativeChangeScope.capture();
++        synchronized (this) {
++            enqueue(() -> {
++                try {
++                    application.run();
++                    if (observer != null) {
++                        observer.applied(true);
++                    }
++                } finally {
++                    if (observer != null) {
++                        observer.applied(false);
++                    }
++                }
++            }, chunkX, chunkZ);
++        }
++        return true;
++    }
++
++    @Override
++    public <B extends BlockStateHolder<B>> boolean setBlock(
++            BlockVector3 position, B block, SideEffectSet sideEffects
++    ) throws WorldEditException {
++        if (Fawe.isMainThread()) {
++            return WorldNativeAccess.super.setBlock(position, block, sideEffects);
++        }
++        NativeChangeScope observer = NativeChangeScope.capture();
++        BaseBlock immutable = block.toBaseBlock();
++        synchronized (this) {
++            enqueue(() -> applyNativeBlock(position, immutable, sideEffects, observer), position.x() >> 4, position.z() >> 4);
++        }
++        return true;
++    }
++
++    private void enqueue(Runnable application, int chunkX, int chunkZ) {
++        cachedChanges.add(application);
++        cachedChunksToSend.add(new IntPair(chunkX, chunkZ));
++        int currentTick = MinecraftServer.currentTick;
++        boolean nextTick = lastTick.get() > currentTick;
++        if (nextTick || cachedChanges.size() >= 1024) {
++            if (nextTick) {
++                lastTick.set(currentTick);
++            }
++            flushAsync(nextTick);
++        }
++    }
++
++    private void applyNativeBlock(BlockVector3 position, BaseBlock block, SideEffectSet sideEffects, NativeChangeScope observer) {
++        try (NativeChangeScope scope = observer == null ? null : NativeChangeScope.open(
++                () -> observer.applied(true), () -> observer.applied(false))) {
++            boolean changed = WorldNativeAccess.super.setBlock(position, block, sideEffects);
++            if (scope != null) {
++                scope.complete(changed);
++            }
++        } catch (WorldEditException exception) {
++            throw new IllegalStateException("Native block application failed at " + position, exception);
++        }
++    }
++
++    private void flushAsync(boolean sendChunks) {
++        Runnable application;
++        synchronized (this) {
++            application = detach(sendChunks);
++        }
++        TaskManager.taskManager().async(() -> runOnMainThread(application));
++    }
++
++    private Runnable detach(boolean sendChunks) {
++        List<Runnable> changes = List.copyOf(cachedChanges);
+         cachedChanges.clear();
+-        final Set<IntPair> toSend;
++        Set<IntPair> toSend = sendChunks ? Set.copyOf(cachedChunksToSend) : Set.of();
+         if (sendChunks) {
+-            toSend = Set.copyOf(cachedChunksToSend);
+             cachedChunksToSend.clear();
+-        } else {
+-            toSend = Collections.emptySet();
+-        }
+-        RunnableVal<Object> runnableVal = new RunnableVal<>() {
++        }
++        return batches.admit(() -> {
++            for (Runnable change : changes) {
++                change.run();
++            }
++            for (IntPair chunk : toSend) {
++                PaperweightPlatformAdapter.sendChunk(chunk, getLevel().getWorld().getHandle(), chunk.x(), chunk.z());
++            }
++        });
++    }
++
++    private void runOnMainThread(Runnable application) {
++        RunnableVal<Object> task = new RunnableVal<>() {
+             @Override
+             public void run(Object value) {
+-                changes.forEach(cc -> cc.levelChunk.setBlockState(cc.blockPos, cc.blockState,
+-                        sideEffectSet.shouldApply(SideEffect.UPDATE) ? 0 : 512
+-                ));
+-                if (!sendChunks) {
+-                    return;
+-                }
+-                for (IntPair chunk : toSend) {
+-                    PaperweightPlatformAdapter.sendChunk(chunk, getLevel().getWorld().getHandle(), chunk.x(), chunk.z());
+-                }
+-            }
+-        };
+-        TaskManager.taskManager().async(() -> TaskManager.taskManager().sync(runnableVal));
+-    }
+-
+-    @Override
+-    public synchronized void flush() {
+-        RunnableVal<Object> runnableVal = new RunnableVal<>() {
+-            @Override
+-            public void run(Object value) {
+-                cachedChanges.forEach(cc -> cc.levelChunk.setBlockState(cc.blockPos, cc.blockState,
+-                        sideEffectSet.shouldApply(SideEffect.UPDATE) ? 0 : 512
+-                ));
+-                for (IntPair chunk : cachedChunksToSend) {
+-                    PaperweightPlatformAdapter.sendChunk(chunk, getLevel().getWorld().getHandle(), chunk.x(), chunk.z());
+-                }
++                application.run();
+             }
+         };
+         if (Fawe.isMainThread()) {
+-            runnableVal.run();
++            task.run();
+         } else {
+-            TaskManager.taskManager().sync(runnableVal);
+-        }
+-        cachedChanges.clear();
+-        cachedChunksToSend.clear();
++            TaskManager.taskManager().sync(task);
++        }
++    }
++
++    @Override
++    public void flush() {
++        Runnable application;
++        synchronized (this) {
++            detach(true);
++            application = batches.fence();
++        }
++        runOnMainThread(application);
++    }
++
++    private void applyBlockState(CachedChange change) {
++        boolean changed = false;
++        try {
++            changed = change.levelChunk().setBlockState(change.blockPos(), change.blockState(), change.update() ? 0 : 512) != null;
++        } finally {
++            if (change.applied() != null) {
++                change.applied().applied(changed);
++            }
++        }
+     }
+ 
+     private record CachedChange(
+             LevelChunk levelChunk,
+             BlockPos blockPos,
+-            net.minecraft.world.level.block.state.BlockState blockState
++            net.minecraft.world.level.block.state.BlockState blockState,
++            NativeChangeScope applied,
++            boolean update
+     ) {
+ 
+     }
+diff --git a/worldedit-bukkit/adapters/adapter-1_21_4/src/main/java/com/sk89q/worldedit/bukkit/adapter/impl/fawe/v1_21_4/PaperweightFaweWorldNativeAccess.java b/worldedit-bukkit/adapters/adapter-1_21_4/src/main/java/com/sk89q/worldedit/bukkit/adapter/impl/fawe/v1_21_4/PaperweightFaweWorldNativeAccess.java
+--- a/worldedit-bukkit/adapters/adapter-1_21_4/src/main/java/com/sk89q/worldedit/bukkit/adapter/impl/fawe/v1_21_4/PaperweightFaweWorldNativeAccess.java
++++ b/worldedit-bukkit/adapters/adapter-1_21_4/src/main/java/com/sk89q/worldedit/bukkit/adapter/impl/fawe/v1_21_4/PaperweightFaweWorldNativeAccess.java
+@@ -3,8 +3,14 @@
+ import com.fastasyncworldedit.core.Fawe;
+ import com.fastasyncworldedit.core.math.IntPair;
+ import com.fastasyncworldedit.core.util.TaskManager;
++import com.fastasyncworldedit.core.util.task.DetachedNativeBatchQueue;
++import com.fastasyncworldedit.core.util.task.NativeChangeScope;
+ import com.fastasyncworldedit.core.util.task.RunnableVal;
+ import com.sk89q.worldedit.bukkit.BukkitAdapter;
++import com.sk89q.worldedit.WorldEditException;
++import com.sk89q.worldedit.math.BlockVector3;
++import com.sk89q.worldedit.world.block.BaseBlock;
++import com.sk89q.worldedit.world.block.BlockStateHolder;
+ import com.sk89q.worldedit.internal.block.BlockStateIdAccess;
+ import com.sk89q.worldedit.internal.wna.WorldNativeAccess;
+ import com.sk89q.worldedit.util.SideEffect;
+@@ -29,8 +35,9 @@
+ 
+ import javax.annotation.Nullable;
+ import java.lang.ref.WeakReference;
+-import java.util.Collections;
+ import java.util.HashSet;
++import java.util.ArrayList;
++import java.util.List;
+ import java.util.Objects;
+ import java.util.Set;
+ import java.util.concurrent.atomic.AtomicInteger;
+@@ -51,7 +58,8 @@
+     private final PaperweightFaweAdapter paperweightFaweAdapter;
+     private final WeakReference<Level> level;
+     private final AtomicInteger lastTick;
+-    private final Set<CachedChange> cachedChanges = new HashSet<>();
++    private final List<Runnable> cachedChanges = new ArrayList<>();
++    private final DetachedNativeBatchQueue batches = new DetachedNativeBatchQueue();
+     private final Set<IntPair> cachedChunksToSend = new HashSet<>();
+     private SideEffectSet sideEffectSet;
+ 
+@@ -96,22 +104,15 @@
+             LevelChunk levelChunk, BlockPos blockPos,
+             net.minecraft.world.level.block.state.BlockState blockState
+     ) {
+-        int currentTick = MinecraftServer.currentTick;
+         if (Fawe.isMainThread()) {
+-            return levelChunk.setBlockState(blockPos, blockState,
++            return NativeChangeScope.recordChange(levelChunk.setBlockState(blockPos, blockState,
+                     this.sideEffectSet != null && this.sideEffectSet.shouldApply(SideEffect.UPDATE)
+-            );
+-        }
+-        // Since FAWE is.. Async we need to do it on the main thread (wooooo.. :( )
+-        cachedChanges.add(new CachedChange(levelChunk, blockPos, blockState));
+-        cachedChunksToSend.add(new IntPair(levelChunk.locX, levelChunk.locZ));
+-        boolean nextTick = lastTick.get() > currentTick;
+-        if (nextTick || cachedChanges.size() >= 1024) {
+-            if (nextTick) {
+-                lastTick.set(currentTick);
+-            }
+-            flushAsync(nextTick);
+-        }
++            ));
++        }
++        NativeChangeScope applied = NativeChangeScope.capture();
++        CachedChange change = new CachedChange(levelChunk, blockPos.immutable(), blockState, applied,
++                sideEffectSet != null && sideEffectSet.shouldApply(SideEffect.UPDATE));
++        enqueue(() -> applyBlockState(change), levelChunk.locX, levelChunk.locZ);
+         return blockState;
+     }
+ 
+@@ -234,59 +235,140 @@
+         getLevel().onBlockStateChange(blockPos, oldState, newState);
+     }
+ 
+-    private synchronized void flushAsync(final boolean sendChunks) {
+-        final Set<CachedChange> changes = Set.copyOf(cachedChanges);
++    @Override
++    public int appliedChangeSupportVersion() {
++        return 1;
++    }
++
++    @Override
++    public boolean deferNativeWrite(Runnable application, int chunkX, int chunkZ) {
++        if (Fawe.isMainThread()) {
++            return false;
++        }
++        NativeChangeScope observer = NativeChangeScope.capture();
++        synchronized (this) {
++            enqueue(() -> {
++                try {
++                    application.run();
++                    if (observer != null) {
++                        observer.applied(true);
++                    }
++                } finally {
++                    if (observer != null) {
++                        observer.applied(false);
++                    }
++                }
++            }, chunkX, chunkZ);
++        }
++        return true;
++    }
++
++    @Override
++    public <B extends BlockStateHolder<B>> boolean setBlock(
++            BlockVector3 position, B block, SideEffectSet sideEffects
++    ) throws WorldEditException {
++        if (Fawe.isMainThread()) {
++            return WorldNativeAccess.super.setBlock(position, block, sideEffects);
++        }
++        NativeChangeScope observer = NativeChangeScope.capture();
++        BaseBlock immutable = block.toBaseBlock();
++        synchronized (this) {
++            enqueue(() -> applyNativeBlock(position, immutable, sideEffects, observer), position.x() >> 4, position.z() >> 4);
++        }
++        return true;
++    }
++
++    private void enqueue(Runnable application, int chunkX, int chunkZ) {
++        cachedChanges.add(application);
++        cachedChunksToSend.add(new IntPair(chunkX, chunkZ));
++        int currentTick = MinecraftServer.currentTick;
++        boolean nextTick = lastTick.get() > currentTick;
++        if (nextTick || cachedChanges.size() >= 1024) {
++            if (nextTick) {
++                lastTick.set(currentTick);
++            }
++            flushAsync(nextTick);
++        }
++    }
++
++    private void applyNativeBlock(BlockVector3 position, BaseBlock block, SideEffectSet sideEffects, NativeChangeScope observer) {
++        try (NativeChangeScope scope = observer == null ? null : NativeChangeScope.open(
++                () -> observer.applied(true), () -> observer.applied(false))) {
++            boolean changed = WorldNativeAccess.super.setBlock(position, block, sideEffects);
++            if (scope != null) {
++                scope.complete(changed);
++            }
++        } catch (WorldEditException exception) {
++            throw new IllegalStateException("Native block application failed at " + position, exception);
++        }
++    }
++
++    private void flushAsync(boolean sendChunks) {
++        Runnable application;
++        synchronized (this) {
++            application = detach(sendChunks);
++        }
++        TaskManager.taskManager().async(() -> runOnMainThread(application));
++    }
++
++    private Runnable detach(boolean sendChunks) {
++        List<Runnable> changes = List.copyOf(cachedChanges);
+         cachedChanges.clear();
+-        final Set<IntPair> toSend;
++        Set<IntPair> toSend = sendChunks ? Set.copyOf(cachedChunksToSend) : Set.of();
+         if (sendChunks) {
+-            toSend = Set.copyOf(cachedChunksToSend);
+             cachedChunksToSend.clear();
+-        } else {
+-            toSend = Collections.emptySet();
+-        }
+-        RunnableVal<Object> runnableVal = new RunnableVal<>() {
++        }
++        return batches.admit(() -> {
++            for (Runnable change : changes) {
++                change.run();
++            }
++            for (IntPair chunk : toSend) {
++                PaperweightPlatformAdapter.sendChunk(chunk, getLevel().getWorld().getHandle(), chunk.x(), chunk.z());
++            }
++        });
++    }
++
++    private void runOnMainThread(Runnable application) {
++        RunnableVal<Object> task = new RunnableVal<>() {
+             @Override
+             public void run(Object value) {
+-                changes.forEach(cc -> cc.levelChunk.setBlockState(cc.blockPos, cc.blockState,
+-                        sideEffectSet != null && sideEffectSet.shouldApply(SideEffect.UPDATE)
+-                ));
+-                if (!sendChunks) {
+-                    return;
+-                }
+-                for (IntPair chunk : toSend) {
+-                    PaperweightPlatformAdapter.sendChunk(chunk, getLevel().getWorld().getHandle(), chunk.x(), chunk.z());
+-                }
+-            }
+-        };
+-        TaskManager.taskManager().async(() -> TaskManager.taskManager().sync(runnableVal));
+-    }
+-
+-    @Override
+-    public synchronized void flush() {
+-        RunnableVal<Object> runnableVal = new RunnableVal<>() {
+-            @Override
+-            public void run(Object value) {
+-                cachedChanges.forEach(cc -> cc.levelChunk.setBlockState(cc.blockPos, cc.blockState,
+-                        sideEffectSet != null && sideEffectSet.shouldApply(SideEffect.UPDATE)
+-                ));
+-                for (IntPair chunk : cachedChunksToSend) {
+-                    PaperweightPlatformAdapter.sendChunk(chunk, getLevel().getWorld().getHandle(), chunk.x(), chunk.z());
+-                }
++                application.run();
+             }
+         };
+         if (Fawe.isMainThread()) {
+-            runnableVal.run();
++            task.run();
+         } else {
+-            TaskManager.taskManager().sync(runnableVal);
+-        }
+-        cachedChanges.clear();
+-        cachedChunksToSend.clear();
++            TaskManager.taskManager().sync(task);
++        }
++    }
++
++    @Override
++    public void flush() {
++        Runnable application;
++        synchronized (this) {
++            detach(true);
++            application = batches.fence();
++        }
++        runOnMainThread(application);
++    }
++
++    private void applyBlockState(CachedChange change) {
++        boolean changed = false;
++        try {
++            changed = change.levelChunk().setBlockState(change.blockPos(), change.blockState(), change.update()) != null;
++        } finally {
++            if (change.applied() != null) {
++                change.applied().applied(changed);
++            }
++        }
+     }
+ 
+     private record CachedChange(
+             LevelChunk levelChunk,
+             BlockPos blockPos,
+-            net.minecraft.world.level.block.state.BlockState blockState
++            net.minecraft.world.level.block.state.BlockState blockState,
++            NativeChangeScope applied,
++            boolean update
+     ) {
+ 
+     }
+diff --git a/worldedit-bukkit/adapters/adapter-1_21_5/src/main/java/com/sk89q/worldedit/bukkit/adapter/impl/fawe/v1_21_5/PaperweightFaweWorldNativeAccess.java b/worldedit-bukkit/adapters/adapter-1_21_5/src/main/java/com/sk89q/worldedit/bukkit/adapter/impl/fawe/v1_21_5/PaperweightFaweWorldNativeAccess.java
+--- a/worldedit-bukkit/adapters/adapter-1_21_5/src/main/java/com/sk89q/worldedit/bukkit/adapter/impl/fawe/v1_21_5/PaperweightFaweWorldNativeAccess.java
++++ b/worldedit-bukkit/adapters/adapter-1_21_5/src/main/java/com/sk89q/worldedit/bukkit/adapter/impl/fawe/v1_21_5/PaperweightFaweWorldNativeAccess.java
+@@ -3,8 +3,14 @@
+ import com.fastasyncworldedit.core.Fawe;
+ import com.fastasyncworldedit.core.math.IntPair;
+ import com.fastasyncworldedit.core.util.TaskManager;
++import com.fastasyncworldedit.core.util.task.DetachedNativeBatchQueue;
++import com.fastasyncworldedit.core.util.task.NativeChangeScope;
+ import com.fastasyncworldedit.core.util.task.RunnableVal;
+ import com.sk89q.worldedit.bukkit.BukkitAdapter;
++import com.sk89q.worldedit.WorldEditException;
++import com.sk89q.worldedit.math.BlockVector3;
++import com.sk89q.worldedit.world.block.BaseBlock;
++import com.sk89q.worldedit.world.block.BlockStateHolder;
+ import com.sk89q.worldedit.internal.block.BlockStateIdAccess;
+ import com.sk89q.worldedit.internal.wna.WorldNativeAccess;
+ import com.sk89q.worldedit.util.SideEffect;
+@@ -29,8 +35,9 @@
+ 
+ import javax.annotation.Nullable;
+ import java.lang.ref.WeakReference;
+-import java.util.Collections;
+ import java.util.HashSet;
++import java.util.ArrayList;
++import java.util.List;
+ import java.util.Objects;
+ import java.util.Set;
+ import java.util.concurrent.atomic.AtomicInteger;
+@@ -51,7 +58,8 @@
+     private final PaperweightFaweAdapter paperweightFaweAdapter;
+     private final WeakReference<Level> level;
+     private final AtomicInteger lastTick;
+-    private final Set<CachedChange> cachedChanges = new HashSet<>();
++    private final List<Runnable> cachedChanges = new ArrayList<>();
++    private final DetachedNativeBatchQueue batches = new DetachedNativeBatchQueue();
+     private final Set<IntPair> cachedChunksToSend = new HashSet<>();
+     private SideEffectSet sideEffectSet;
+ 
+@@ -96,22 +104,15 @@
+             LevelChunk levelChunk, BlockPos blockPos,
+             net.minecraft.world.level.block.state.BlockState blockState
+     ) {
+-        int currentTick = MinecraftServer.currentTick;
+         if (Fawe.isMainThread()) {
+-            return levelChunk.setBlockState(blockPos, blockState,
++            return NativeChangeScope.recordChange(levelChunk.setBlockState(blockPos, blockState,
+                     this.sideEffectSet.shouldApply(SideEffect.UPDATE) ? 0 : 512
+-            );
+-        }
+-        // Since FAWE is.. Async we need to do it on the main thread (wooooo.. :( )
+-        cachedChanges.add(new CachedChange(levelChunk, blockPos, blockState));
+-        cachedChunksToSend.add(new IntPair(levelChunk.locX, levelChunk.locZ));
+-        boolean nextTick = lastTick.get() > currentTick;
+-        if (nextTick || cachedChanges.size() >= 1024) {
+-            if (nextTick) {
+-                lastTick.set(currentTick);
+-            }
+-            flushAsync(nextTick);
+-        }
++            ));
++        }
++        NativeChangeScope applied = NativeChangeScope.capture();
++        CachedChange change = new CachedChange(levelChunk, blockPos.immutable(), blockState, applied,
++                sideEffectSet != null && sideEffectSet.shouldApply(SideEffect.UPDATE));
++        enqueue(() -> applyBlockState(change), levelChunk.locX, levelChunk.locZ);
+         return blockState;
+     }
+ 
+@@ -234,59 +235,140 @@
+         getLevel().updatePOIOnBlockStateChange(blockPos, oldState, newState);
+     }
+ 
+-    private synchronized void flushAsync(final boolean sendChunks) {
+-        final Set<CachedChange> changes = Set.copyOf(cachedChanges);
++    @Override
++    public int appliedChangeSupportVersion() {
++        return 1;
++    }
++
++    @Override
++    public boolean deferNativeWrite(Runnable application, int chunkX, int chunkZ) {
++        if (Fawe.isMainThread()) {
++            return false;
++        }
++        NativeChangeScope observer = NativeChangeScope.capture();
++        synchronized (this) {
++            enqueue(() -> {
++                try {
++                    application.run();
++                    if (observer != null) {
++                        observer.applied(true);
++                    }
++                } finally {
++                    if (observer != null) {
++                        observer.applied(false);
++                    }
++                }
++            }, chunkX, chunkZ);
++        }
++        return true;
++    }
++
++    @Override
++    public <B extends BlockStateHolder<B>> boolean setBlock(
++            BlockVector3 position, B block, SideEffectSet sideEffects
++    ) throws WorldEditException {
++        if (Fawe.isMainThread()) {
++            return WorldNativeAccess.super.setBlock(position, block, sideEffects);
++        }
++        NativeChangeScope observer = NativeChangeScope.capture();
++        BaseBlock immutable = block.toBaseBlock();
++        synchronized (this) {
++            enqueue(() -> applyNativeBlock(position, immutable, sideEffects, observer), position.x() >> 4, position.z() >> 4);
++        }
++        return true;
++    }
++
++    private void enqueue(Runnable application, int chunkX, int chunkZ) {
++        cachedChanges.add(application);
++        cachedChunksToSend.add(new IntPair(chunkX, chunkZ));
++        int currentTick = MinecraftServer.currentTick;
++        boolean nextTick = lastTick.get() > currentTick;
++        if (nextTick || cachedChanges.size() >= 1024) {
++            if (nextTick) {
++                lastTick.set(currentTick);
++            }
++            flushAsync(nextTick);
++        }
++    }
++
++    private void applyNativeBlock(BlockVector3 position, BaseBlock block, SideEffectSet sideEffects, NativeChangeScope observer) {
++        try (NativeChangeScope scope = observer == null ? null : NativeChangeScope.open(
++                () -> observer.applied(true), () -> observer.applied(false))) {
++            boolean changed = WorldNativeAccess.super.setBlock(position, block, sideEffects);
++            if (scope != null) {
++                scope.complete(changed);
++            }
++        } catch (WorldEditException exception) {
++            throw new IllegalStateException("Native block application failed at " + position, exception);
++        }
++    }
++
++    private void flushAsync(boolean sendChunks) {
++        Runnable application;
++        synchronized (this) {
++            application = detach(sendChunks);
++        }
++        TaskManager.taskManager().async(() -> runOnMainThread(application));
++    }
++
++    private Runnable detach(boolean sendChunks) {
++        List<Runnable> changes = List.copyOf(cachedChanges);
+         cachedChanges.clear();
+-        final Set<IntPair> toSend;
++        Set<IntPair> toSend = sendChunks ? Set.copyOf(cachedChunksToSend) : Set.of();
+         if (sendChunks) {
+-            toSend = Set.copyOf(cachedChunksToSend);
+             cachedChunksToSend.clear();
+-        } else {
+-            toSend = Collections.emptySet();
+-        }
+-        RunnableVal<Object> runnableVal = new RunnableVal<>() {
++        }
++        return batches.admit(() -> {
++            for (Runnable change : changes) {
++                change.run();
++            }
++            for (IntPair chunk : toSend) {
++                PaperweightPlatformAdapter.sendChunk(chunk, getLevel().getWorld().getHandle(), chunk.x(), chunk.z());
++            }
++        });
++    }
++
++    private void runOnMainThread(Runnable application) {
++        RunnableVal<Object> task = new RunnableVal<>() {
+             @Override
+             public void run(Object value) {
+-                changes.forEach(cc -> cc.levelChunk.setBlockState(cc.blockPos, cc.blockState,
+-                        sideEffectSet.shouldApply(SideEffect.UPDATE) ? 0 : 512
+-                ));
+-                if (!sendChunks) {
+-                    return;
+-                }
+-                for (IntPair chunk : toSend) {
+-                    PaperweightPlatformAdapter.sendChunk(chunk, getLevel().getWorld().getHandle(), chunk.x(), chunk.z());
+-                }
+-            }
+-        };
+-        TaskManager.taskManager().async(() -> TaskManager.taskManager().sync(runnableVal));
+-    }
+-
+-    @Override
+-    public synchronized void flush() {
+-        RunnableVal<Object> runnableVal = new RunnableVal<>() {
+-            @Override
+-            public void run(Object value) {
+-                cachedChanges.forEach(cc -> cc.levelChunk.setBlockState(cc.blockPos, cc.blockState,
+-                        sideEffectSet.shouldApply(SideEffect.UPDATE) ? 0 : 512
+-                ));
+-                for (IntPair chunk : cachedChunksToSend) {
+-                    PaperweightPlatformAdapter.sendChunk(chunk, getLevel().getWorld().getHandle(), chunk.x(), chunk.z());
+-                }
++                application.run();
+             }
+         };
+         if (Fawe.isMainThread()) {
+-            runnableVal.run();
++            task.run();
+         } else {
+-            TaskManager.taskManager().sync(runnableVal);
+-        }
+-        cachedChanges.clear();
+-        cachedChunksToSend.clear();
++            TaskManager.taskManager().sync(task);
++        }
++    }
++
++    @Override
++    public void flush() {
++        Runnable application;
++        synchronized (this) {
++            detach(true);
++            application = batches.fence();
++        }
++        runOnMainThread(application);
++    }
++
++    private void applyBlockState(CachedChange change) {
++        boolean changed = false;
++        try {
++            changed = change.levelChunk().setBlockState(change.blockPos(), change.blockState(), change.update() ? 0 : 512) != null;
++        } finally {
++            if (change.applied() != null) {
++                change.applied().applied(changed);
++            }
++        }
+     }
+ 
+     private record CachedChange(
+             LevelChunk levelChunk,
+             BlockPos blockPos,
+-            net.minecraft.world.level.block.state.BlockState blockState
++            net.minecraft.world.level.block.state.BlockState blockState,
++            NativeChangeScope applied,
++            boolean update
+     ) {
+ 
+     }
+diff --git a/worldedit-bukkit/adapters/adapter-1_21_6/src/main/java/com/sk89q/worldedit/bukkit/adapter/impl/fawe/v1_21_6/PaperweightFaweWorldNativeAccess.java b/worldedit-bukkit/adapters/adapter-1_21_6/src/main/java/com/sk89q/worldedit/bukkit/adapter/impl/fawe/v1_21_6/PaperweightFaweWorldNativeAccess.java
+--- a/worldedit-bukkit/adapters/adapter-1_21_6/src/main/java/com/sk89q/worldedit/bukkit/adapter/impl/fawe/v1_21_6/PaperweightFaweWorldNativeAccess.java
++++ b/worldedit-bukkit/adapters/adapter-1_21_6/src/main/java/com/sk89q/worldedit/bukkit/adapter/impl/fawe/v1_21_6/PaperweightFaweWorldNativeAccess.java
+@@ -3,8 +3,14 @@
+ import com.fastasyncworldedit.core.Fawe;
+ import com.fastasyncworldedit.core.math.IntPair;
+ import com.fastasyncworldedit.core.util.TaskManager;
++import com.fastasyncworldedit.core.util.task.DetachedNativeBatchQueue;
++import com.fastasyncworldedit.core.util.task.NativeChangeScope;
+ import com.fastasyncworldedit.core.util.task.RunnableVal;
+ import com.sk89q.worldedit.bukkit.BukkitAdapter;
++import com.sk89q.worldedit.WorldEditException;
++import com.sk89q.worldedit.math.BlockVector3;
++import com.sk89q.worldedit.world.block.BaseBlock;
++import com.sk89q.worldedit.world.block.BlockStateHolder;
+ import com.sk89q.worldedit.internal.block.BlockStateIdAccess;
+ import com.sk89q.worldedit.internal.wna.WorldNativeAccess;
+ import com.sk89q.worldedit.util.SideEffect;
+@@ -29,8 +35,9 @@
+ 
+ import javax.annotation.Nullable;
+ import java.lang.ref.WeakReference;
+-import java.util.Collections;
+ import java.util.HashSet;
++import java.util.ArrayList;
++import java.util.List;
+ import java.util.Objects;
+ import java.util.Set;
+ import java.util.concurrent.atomic.AtomicInteger;
+@@ -53,7 +60,8 @@
+     private final PaperweightFaweAdapter paperweightFaweAdapter;
+     private final WeakReference<Level> level;
+     private final AtomicInteger lastTick;
+-    private final Set<CachedChange> cachedChanges = new HashSet<>();
++    private final List<Runnable> cachedChanges = new ArrayList<>();
++    private final DetachedNativeBatchQueue batches = new DetachedNativeBatchQueue();
+     private final Set<IntPair> cachedChunksToSend = new HashSet<>();
+     private SideEffectSet sideEffectSet;
+ 
+@@ -98,23 +106,16 @@
+             LevelChunk levelChunk, BlockPos blockPos,
+             net.minecraft.world.level.block.state.BlockState blockState
+     ) {
+-        int currentTick = MinecraftServer.currentTick;
+         if (Fawe.isMainThread()) {
+-            return levelChunk.setBlockState(
++            return NativeChangeScope.recordChange(levelChunk.setBlockState(
+                     blockPos, blockState,
+                     this.sideEffectSet.shouldApply(SideEffect.UPDATE) ? 0 : 512
+-            );
+-        }
+-        // Since FAWE is.. Async we need to do it on the main thread (wooooo.. :( )
+-        cachedChanges.add(new CachedChange(levelChunk, blockPos, blockState));
+-        cachedChunksToSend.add(new IntPair(levelChunk.locX, levelChunk.locZ));
+-        boolean nextTick = lastTick.get() > currentTick;
+-        if (nextTick || cachedChanges.size() >= 1024) {
+-            if (nextTick) {
+-                lastTick.set(currentTick);
+-            }
+-            flushAsync(nextTick);
+-        }
++            ));
++        }
++        NativeChangeScope applied = NativeChangeScope.capture();
++        CachedChange change = new CachedChange(levelChunk, blockPos.immutable(), blockState, applied,
++                sideEffectSet != null && sideEffectSet.shouldApply(SideEffect.UPDATE));
++        enqueue(() -> applyBlockState(change), levelChunk.locX, levelChunk.locZ);
+         return blockState;
+     }
+ 
+@@ -250,61 +251,140 @@
+         getLevel().updatePOIOnBlockStateChange(blockPos, oldState, newState);
+     }
+ 
+-    private synchronized void flushAsync(final boolean sendChunks) {
+-        final Set<CachedChange> changes = Set.copyOf(cachedChanges);
++    @Override
++    public int appliedChangeSupportVersion() {
++        return 1;
++    }
++
++    @Override
++    public boolean deferNativeWrite(Runnable application, int chunkX, int chunkZ) {
++        if (Fawe.isMainThread()) {
++            return false;
++        }
++        NativeChangeScope observer = NativeChangeScope.capture();
++        synchronized (this) {
++            enqueue(() -> {
++                try {
++                    application.run();
++                    if (observer != null) {
++                        observer.applied(true);
++                    }
++                } finally {
++                    if (observer != null) {
++                        observer.applied(false);
++                    }
++                }
++            }, chunkX, chunkZ);
++        }
++        return true;
++    }
++
++    @Override
++    public <B extends BlockStateHolder<B>> boolean setBlock(
++            BlockVector3 position, B block, SideEffectSet sideEffects
++    ) throws WorldEditException {
++        if (Fawe.isMainThread()) {
++            return WorldNativeAccess.super.setBlock(position, block, sideEffects);
++        }
++        NativeChangeScope observer = NativeChangeScope.capture();
++        BaseBlock immutable = block.toBaseBlock();
++        synchronized (this) {
++            enqueue(() -> applyNativeBlock(position, immutable, sideEffects, observer), position.x() >> 4, position.z() >> 4);
++        }
++        return true;
++    }
++
++    private void enqueue(Runnable application, int chunkX, int chunkZ) {
++        cachedChanges.add(application);
++        cachedChunksToSend.add(new IntPair(chunkX, chunkZ));
++        int currentTick = MinecraftServer.currentTick;
++        boolean nextTick = lastTick.get() > currentTick;
++        if (nextTick || cachedChanges.size() >= 1024) {
++            if (nextTick) {
++                lastTick.set(currentTick);
++            }
++            flushAsync(nextTick);
++        }
++    }
++
++    private void applyNativeBlock(BlockVector3 position, BaseBlock block, SideEffectSet sideEffects, NativeChangeScope observer) {
++        try (NativeChangeScope scope = observer == null ? null : NativeChangeScope.open(
++                () -> observer.applied(true), () -> observer.applied(false))) {
++            boolean changed = WorldNativeAccess.super.setBlock(position, block, sideEffects);
++            if (scope != null) {
++                scope.complete(changed);
++            }
++        } catch (WorldEditException exception) {
++            throw new IllegalStateException("Native block application failed at " + position, exception);
++        }
++    }
++
++    private void flushAsync(boolean sendChunks) {
++        Runnable application;
++        synchronized (this) {
++            application = detach(sendChunks);
++        }
++        TaskManager.taskManager().async(() -> runOnMainThread(application));
++    }
++
++    private Runnable detach(boolean sendChunks) {
++        List<Runnable> changes = List.copyOf(cachedChanges);
+         cachedChanges.clear();
+-        final Set<IntPair> toSend;
++        Set<IntPair> toSend = sendChunks ? Set.copyOf(cachedChunksToSend) : Set.of();
+         if (sendChunks) {
+-            toSend = Set.copyOf(cachedChunksToSend);
+             cachedChunksToSend.clear();
+-        } else {
+-            toSend = Collections.emptySet();
+-        }
+-        RunnableVal<Object> runnableVal = new RunnableVal<>() {
++        }
++        return batches.admit(() -> {
++            for (Runnable change : changes) {
++                change.run();
++            }
++            for (IntPair chunk : toSend) {
++                PaperweightPlatformAdapter.sendChunk(chunk, getLevel().getWorld().getHandle(), chunk.x(), chunk.z());
++            }
++        });
++    }
++
++    private void runOnMainThread(Runnable application) {
++        RunnableVal<Object> task = new RunnableVal<>() {
+             @Override
+             public void run(Object value) {
+-                changes.forEach(cc -> cc.levelChunk.setBlockState(
+-                        cc.blockPos, cc.blockState,
+-                        sideEffectSet.shouldApply(SideEffect.UPDATE) ? 0 : 512
+-                ));
+-                if (!sendChunks) {
+-                    return;
+-                }
+-                for (IntPair chunk : toSend) {
+-                    PaperweightPlatformAdapter.sendChunk(chunk, getLevel().getWorld().getHandle(), chunk.x(), chunk.z());
+-                }
+-            }
+-        };
+-        TaskManager.taskManager().async(() -> TaskManager.taskManager().sync(runnableVal));
+-    }
+-
+-    @Override
+-    public synchronized void flush() {
+-        RunnableVal<Object> runnableVal = new RunnableVal<>() {
+-            @Override
+-            public void run(Object value) {
+-                cachedChanges.forEach(cc -> cc.levelChunk.setBlockState(
+-                        cc.blockPos, cc.blockState,
+-                        sideEffectSet.shouldApply(SideEffect.UPDATE) ? 0 : 512
+-                ));
+-                for (IntPair chunk : cachedChunksToSend) {
+-                    PaperweightPlatformAdapter.sendChunk(chunk, getLevel().getWorld().getHandle(), chunk.x(), chunk.z());
+-                }
++                application.run();
+             }
+         };
+         if (Fawe.isMainThread()) {
+-            runnableVal.run();
++            task.run();
+         } else {
+-            TaskManager.taskManager().sync(runnableVal);
+-        }
+-        cachedChanges.clear();
+-        cachedChunksToSend.clear();
++            TaskManager.taskManager().sync(task);
++        }
++    }
++
++    @Override
++    public void flush() {
++        Runnable application;
++        synchronized (this) {
++            detach(true);
++            application = batches.fence();
++        }
++        runOnMainThread(application);
++    }
++
++    private void applyBlockState(CachedChange change) {
++        boolean changed = false;
++        try {
++            changed = change.levelChunk().setBlockState(change.blockPos(), change.blockState(), change.update() ? 0 : 512) != null;
++        } finally {
++            if (change.applied() != null) {
++                change.applied().applied(changed);
++            }
++        }
+     }
+ 
+     private record CachedChange(
+             LevelChunk levelChunk,
+             BlockPos blockPos,
+-            net.minecraft.world.level.block.state.BlockState blockState
++            net.minecraft.world.level.block.state.BlockState blockState,
++            NativeChangeScope applied,
++            boolean update
+     ) {
+ 
+     }
+diff --git a/worldedit-bukkit/adapters/adapter-1_21_9/src/main/java/com/sk89q/worldedit/bukkit/adapter/impl/fawe/v1_21_9/PaperweightFaweWorldNativeAccess.java b/worldedit-bukkit/adapters/adapter-1_21_9/src/main/java/com/sk89q/worldedit/bukkit/adapter/impl/fawe/v1_21_9/PaperweightFaweWorldNativeAccess.java
+--- a/worldedit-bukkit/adapters/adapter-1_21_9/src/main/java/com/sk89q/worldedit/bukkit/adapter/impl/fawe/v1_21_9/PaperweightFaweWorldNativeAccess.java
++++ b/worldedit-bukkit/adapters/adapter-1_21_9/src/main/java/com/sk89q/worldedit/bukkit/adapter/impl/fawe/v1_21_9/PaperweightFaweWorldNativeAccess.java
+@@ -3,8 +3,14 @@
+ import com.fastasyncworldedit.core.Fawe;
+ import com.fastasyncworldedit.core.math.IntPair;
+ import com.fastasyncworldedit.core.util.TaskManager;
++import com.fastasyncworldedit.core.util.task.DetachedNativeBatchQueue;
++import com.fastasyncworldedit.core.util.task.NativeChangeScope;
+ import com.fastasyncworldedit.core.util.task.RunnableVal;
+ import com.sk89q.worldedit.bukkit.BukkitAdapter;
++import com.sk89q.worldedit.WorldEditException;
++import com.sk89q.worldedit.math.BlockVector3;
++import com.sk89q.worldedit.world.block.BaseBlock;
++import com.sk89q.worldedit.world.block.BlockStateHolder;
+ import com.sk89q.worldedit.internal.block.BlockStateIdAccess;
+ import com.sk89q.worldedit.internal.wna.WorldNativeAccess;
+ import com.sk89q.worldedit.util.SideEffect;
+@@ -29,8 +35,9 @@
+ 
+ import javax.annotation.Nullable;
+ import java.lang.ref.WeakReference;
+-import java.util.Collections;
+ import java.util.HashSet;
++import java.util.ArrayList;
++import java.util.List;
+ import java.util.Objects;
+ import java.util.Set;
+ import java.util.concurrent.atomic.AtomicInteger;
+@@ -53,7 +60,8 @@
+     private final PaperweightFaweAdapter paperweightFaweAdapter;
+     private final WeakReference<Level> level;
+     private final AtomicInteger lastTick;
+-    private final Set<CachedChange> cachedChanges = new HashSet<>();
++    private final List<Runnable> cachedChanges = new ArrayList<>();
++    private final DetachedNativeBatchQueue batches = new DetachedNativeBatchQueue();
+     private final Set<IntPair> cachedChunksToSend = new HashSet<>();
+     private SideEffectSet sideEffectSet;
+ 
+@@ -98,22 +106,15 @@
+             LevelChunk levelChunk, BlockPos blockPos,
+             net.minecraft.world.level.block.state.BlockState blockState
+     ) {
+-        int currentTick = MinecraftServer.currentTick;
+         if (Fawe.isMainThread()) {
+-            return levelChunk.setBlockState(blockPos, blockState,
++            return NativeChangeScope.recordChange(levelChunk.setBlockState(blockPos, blockState,
+                     this.sideEffectSet.shouldApply(SideEffect.UPDATE) ? 0 : 512
+-            );
+-        }
+-        // Since FAWE is.. Async we need to do it on the main thread (wooooo.. :( )
+-        cachedChanges.add(new CachedChange(levelChunk, blockPos, blockState));
+-        cachedChunksToSend.add(new IntPair(levelChunk.locX, levelChunk.locZ));
+-        boolean nextTick = lastTick.get() > currentTick;
+-        if (nextTick || cachedChanges.size() >= 1024) {
+-            if (nextTick) {
+-                lastTick.set(currentTick);
+-            }
+-            flushAsync(nextTick);
+-        }
++            ));
++        }
++        NativeChangeScope applied = NativeChangeScope.capture();
++        CachedChange change = new CachedChange(levelChunk, blockPos.immutable(), blockState, applied,
++                sideEffectSet != null && sideEffectSet.shouldApply(SideEffect.UPDATE));
++        enqueue(() -> applyBlockState(change), levelChunk.locX, levelChunk.locZ);
+         return blockState;
+     }
+ 
+@@ -239,59 +240,140 @@
+         getLevel().updatePOIOnBlockStateChange(blockPos, oldState, newState);
+     }
+ 
+-    private synchronized void flushAsync(final boolean sendChunks) {
+-        final Set<CachedChange> changes = Set.copyOf(cachedChanges);
++    @Override
++    public int appliedChangeSupportVersion() {
++        return 1;
++    }
++
++    @Override
++    public boolean deferNativeWrite(Runnable application, int chunkX, int chunkZ) {
++        if (Fawe.isMainThread()) {
++            return false;
++        }
++        NativeChangeScope observer = NativeChangeScope.capture();
++        synchronized (this) {
++            enqueue(() -> {
++                try {
++                    application.run();
++                    if (observer != null) {
++                        observer.applied(true);
++                    }
++                } finally {
++                    if (observer != null) {
++                        observer.applied(false);
++                    }
++                }
++            }, chunkX, chunkZ);
++        }
++        return true;
++    }
++
++    @Override
++    public <B extends BlockStateHolder<B>> boolean setBlock(
++            BlockVector3 position, B block, SideEffectSet sideEffects
++    ) throws WorldEditException {
++        if (Fawe.isMainThread()) {
++            return WorldNativeAccess.super.setBlock(position, block, sideEffects);
++        }
++        NativeChangeScope observer = NativeChangeScope.capture();
++        BaseBlock immutable = block.toBaseBlock();
++        synchronized (this) {
++            enqueue(() -> applyNativeBlock(position, immutable, sideEffects, observer), position.x() >> 4, position.z() >> 4);
++        }
++        return true;
++    }
++
++    private void enqueue(Runnable application, int chunkX, int chunkZ) {
++        cachedChanges.add(application);
++        cachedChunksToSend.add(new IntPair(chunkX, chunkZ));
++        int currentTick = MinecraftServer.currentTick;
++        boolean nextTick = lastTick.get() > currentTick;
++        if (nextTick || cachedChanges.size() >= 1024) {
++            if (nextTick) {
++                lastTick.set(currentTick);
++            }
++            flushAsync(nextTick);
++        }
++    }
++
++    private void applyNativeBlock(BlockVector3 position, BaseBlock block, SideEffectSet sideEffects, NativeChangeScope observer) {
++        try (NativeChangeScope scope = observer == null ? null : NativeChangeScope.open(
++                () -> observer.applied(true), () -> observer.applied(false))) {
++            boolean changed = WorldNativeAccess.super.setBlock(position, block, sideEffects);
++            if (scope != null) {
++                scope.complete(changed);
++            }
++        } catch (WorldEditException exception) {
++            throw new IllegalStateException("Native block application failed at " + position, exception);
++        }
++    }
++
++    private void flushAsync(boolean sendChunks) {
++        Runnable application;
++        synchronized (this) {
++            application = detach(sendChunks);
++        }
++        TaskManager.taskManager().async(() -> runOnMainThread(application));
++    }
++
++    private Runnable detach(boolean sendChunks) {
++        List<Runnable> changes = List.copyOf(cachedChanges);
+         cachedChanges.clear();
+-        final Set<IntPair> toSend;
++        Set<IntPair> toSend = sendChunks ? Set.copyOf(cachedChunksToSend) : Set.of();
+         if (sendChunks) {
+-            toSend = Set.copyOf(cachedChunksToSend);
+             cachedChunksToSend.clear();
+-        } else {
+-            toSend = Collections.emptySet();
+-        }
+-        RunnableVal<Object> runnableVal = new RunnableVal<>() {
++        }
++        return batches.admit(() -> {
++            for (Runnable change : changes) {
++                change.run();
++            }
++            for (IntPair chunk : toSend) {
++                PaperweightPlatformAdapter.sendChunk(chunk, getLevel().getWorld().getHandle(), chunk.x(), chunk.z());
++            }
++        });
++    }
++
++    private void runOnMainThread(Runnable application) {
++        RunnableVal<Object> task = new RunnableVal<>() {
+             @Override
+             public void run(Object value) {
+-                changes.forEach(cc -> cc.levelChunk.setBlockState(cc.blockPos, cc.blockState,
+-                        sideEffectSet.shouldApply(SideEffect.UPDATE) ? 0 : 512
+-                ));
+-                if (!sendChunks) {
+-                    return;
+-                }
+-                for (IntPair chunk : toSend) {
+-                    PaperweightPlatformAdapter.sendChunk(chunk, getLevel().getWorld().getHandle(), chunk.x(), chunk.z());
+-                }
+-            }
+-        };
+-        TaskManager.taskManager().async(() -> TaskManager.taskManager().sync(runnableVal));
+-    }
+-
+-    @Override
+-    public synchronized void flush() {
+-        RunnableVal<Object> runnableVal = new RunnableVal<>() {
+-            @Override
+-            public void run(Object value) {
+-                cachedChanges.forEach(cc -> cc.levelChunk.setBlockState(cc.blockPos, cc.blockState,
+-                        sideEffectSet.shouldApply(SideEffect.UPDATE) ? 0 : 512
+-                ));
+-                for (IntPair chunk : cachedChunksToSend) {
+-                    PaperweightPlatformAdapter.sendChunk(chunk, getLevel().getWorld().getHandle(), chunk.x(), chunk.z());
+-                }
++                application.run();
+             }
+         };
+         if (Fawe.isMainThread()) {
+-            runnableVal.run();
++            task.run();
+         } else {
+-            TaskManager.taskManager().sync(runnableVal);
+-        }
+-        cachedChanges.clear();
+-        cachedChunksToSend.clear();
++            TaskManager.taskManager().sync(task);
++        }
++    }
++
++    @Override
++    public void flush() {
++        Runnable application;
++        synchronized (this) {
++            detach(true);
++            application = batches.fence();
++        }
++        runOnMainThread(application);
++    }
++
++    private void applyBlockState(CachedChange change) {
++        boolean changed = false;
++        try {
++            changed = change.levelChunk().setBlockState(change.blockPos(), change.blockState(), change.update() ? 0 : 512) != null;
++        } finally {
++            if (change.applied() != null) {
++                change.applied().applied(changed);
++            }
++        }
+     }
+ 
+     private record CachedChange(
+             LevelChunk levelChunk,
+             BlockPos blockPos,
+-            net.minecraft.world.level.block.state.BlockState blockState
++            net.minecraft.world.level.block.state.BlockState blockState,
++            NativeChangeScope applied,
++            boolean update
+     ) {
+ 
+     }
+diff --git a/worldedit-bukkit/adapters/adapter-26.1/src/main/java/com/sk89q/worldedit/bukkit/adapter/impl/fawe/v26_1/PaperweightFaweWorldNativeAccess.java b/worldedit-bukkit/adapters/adapter-26.1/src/main/java/com/sk89q/worldedit/bukkit/adapter/impl/fawe/v26_1/PaperweightFaweWorldNativeAccess.java
+--- a/worldedit-bukkit/adapters/adapter-26.1/src/main/java/com/sk89q/worldedit/bukkit/adapter/impl/fawe/v26_1/PaperweightFaweWorldNativeAccess.java
++++ b/worldedit-bukkit/adapters/adapter-26.1/src/main/java/com/sk89q/worldedit/bukkit/adapter/impl/fawe/v26_1/PaperweightFaweWorldNativeAccess.java
+@@ -3,8 +3,14 @@
+ import com.fastasyncworldedit.core.Fawe;
+ import com.fastasyncworldedit.core.math.IntPair;
+ import com.fastasyncworldedit.core.util.TaskManager;
++import com.fastasyncworldedit.core.util.task.DetachedNativeBatchQueue;
++import com.fastasyncworldedit.core.util.task.NativeChangeScope;
+ import com.fastasyncworldedit.core.util.task.RunnableVal;
+ import com.sk89q.worldedit.bukkit.BukkitAdapter;
++import com.sk89q.worldedit.WorldEditException;
++import com.sk89q.worldedit.math.BlockVector3;
++import com.sk89q.worldedit.world.block.BaseBlock;
++import com.sk89q.worldedit.world.block.BlockStateHolder;
+ import com.sk89q.worldedit.internal.block.BlockStateIdAccess;
+ import com.sk89q.worldedit.internal.wna.WorldNativeAccess;
+ import com.sk89q.worldedit.util.SideEffect;
+@@ -29,8 +35,9 @@
+ 
+ import javax.annotation.Nullable;
+ import java.lang.ref.WeakReference;
+-import java.util.Collections;
+ import java.util.HashSet;
++import java.util.ArrayList;
++import java.util.List;
+ import java.util.Objects;
+ import java.util.Set;
+ import java.util.concurrent.atomic.AtomicInteger;
+@@ -53,7 +60,8 @@
+     private final PaperweightFaweAdapter paperweightFaweAdapter;
+     private final WeakReference<Level> level;
+     private final AtomicInteger lastTick;
+-    private final Set<CachedChange> cachedChanges = new HashSet<>();
++    private final List<Runnable> cachedChanges = new ArrayList<>();
++    private final DetachedNativeBatchQueue batches = new DetachedNativeBatchQueue();
+     private final Set<IntPair> cachedChunksToSend = new HashSet<>();
+     private SideEffectSet sideEffectSet;
+ 
+@@ -98,22 +106,15 @@
+             LevelChunk levelChunk, BlockPos blockPos,
+             net.minecraft.world.level.block.state.BlockState blockState
+     ) {
+-        int currentTick = MinecraftServer.currentTick;
+         if (Fawe.isMainThread()) {
+-            return levelChunk.setBlockState(blockPos, blockState,
++            return NativeChangeScope.recordChange(levelChunk.setBlockState(blockPos, blockState,
+                     this.sideEffectSet.shouldApply(SideEffect.UPDATE) ? 0 : 512
+-            );
+-        }
+-        // Since FAWE is.. Async we need to do it on the main thread (wooooo.. :( )
+-        cachedChanges.add(new CachedChange(levelChunk, blockPos, blockState));
+-        cachedChunksToSend.add(new IntPair(levelChunk.locX, levelChunk.locZ));
+-        boolean nextTick = lastTick.get() > currentTick;
+-        if (nextTick || cachedChanges.size() >= 1024) {
+-            if (nextTick) {
+-                lastTick.set(currentTick);
+-            }
+-            flushAsync(nextTick);
+-        }
++            ));
++        }
++        NativeChangeScope applied = NativeChangeScope.capture();
++        CachedChange change = new CachedChange(levelChunk, blockPos.immutable(), blockState, applied,
++                sideEffectSet != null && sideEffectSet.shouldApply(SideEffect.UPDATE));
++        enqueue(() -> applyBlockState(change), levelChunk.locX, levelChunk.locZ);
+         return blockState;
+     }
+ 
+@@ -237,59 +238,140 @@
+         getLevel().updatePOIOnBlockStateChange(blockPos, oldState, newState);
+     }
+ 
+-    private synchronized void flushAsync(final boolean sendChunks) {
+-        final Set<CachedChange> changes = Set.copyOf(cachedChanges);
++    @Override
++    public int appliedChangeSupportVersion() {
++        return 1;
++    }
++
++    @Override
++    public boolean deferNativeWrite(Runnable application, int chunkX, int chunkZ) {
++        if (Fawe.isMainThread()) {
++            return false;
++        }
++        NativeChangeScope observer = NativeChangeScope.capture();
++        synchronized (this) {
++            enqueue(() -> {
++                try {
++                    application.run();
++                    if (observer != null) {
++                        observer.applied(true);
++                    }
++                } finally {
++                    if (observer != null) {
++                        observer.applied(false);
++                    }
++                }
++            }, chunkX, chunkZ);
++        }
++        return true;
++    }
++
++    @Override
++    public <B extends BlockStateHolder<B>> boolean setBlock(
++            BlockVector3 position, B block, SideEffectSet sideEffects
++    ) throws WorldEditException {
++        if (Fawe.isMainThread()) {
++            return WorldNativeAccess.super.setBlock(position, block, sideEffects);
++        }
++        NativeChangeScope observer = NativeChangeScope.capture();
++        BaseBlock immutable = block.toBaseBlock();
++        synchronized (this) {
++            enqueue(() -> applyNativeBlock(position, immutable, sideEffects, observer), position.x() >> 4, position.z() >> 4);
++        }
++        return true;
++    }
++
++    private void enqueue(Runnable application, int chunkX, int chunkZ) {
++        cachedChanges.add(application);
++        cachedChunksToSend.add(new IntPair(chunkX, chunkZ));
++        int currentTick = MinecraftServer.currentTick;
++        boolean nextTick = lastTick.get() > currentTick;
++        if (nextTick || cachedChanges.size() >= 1024) {
++            if (nextTick) {
++                lastTick.set(currentTick);
++            }
++            flushAsync(nextTick);
++        }
++    }
++
++    private void applyNativeBlock(BlockVector3 position, BaseBlock block, SideEffectSet sideEffects, NativeChangeScope observer) {
++        try (NativeChangeScope scope = observer == null ? null : NativeChangeScope.open(
++                () -> observer.applied(true), () -> observer.applied(false))) {
++            boolean changed = WorldNativeAccess.super.setBlock(position, block, sideEffects);
++            if (scope != null) {
++                scope.complete(changed);
++            }
++        } catch (WorldEditException exception) {
++            throw new IllegalStateException("Native block application failed at " + position, exception);
++        }
++    }
++
++    private void flushAsync(boolean sendChunks) {
++        Runnable application;
++        synchronized (this) {
++            application = detach(sendChunks);
++        }
++        TaskManager.taskManager().async(() -> runOnMainThread(application));
++    }
++
++    private Runnable detach(boolean sendChunks) {
++        List<Runnable> changes = List.copyOf(cachedChanges);
+         cachedChanges.clear();
+-        final Set<IntPair> toSend;
++        Set<IntPair> toSend = sendChunks ? Set.copyOf(cachedChunksToSend) : Set.of();
+         if (sendChunks) {
+-            toSend = Set.copyOf(cachedChunksToSend);
+             cachedChunksToSend.clear();
+-        } else {
+-            toSend = Collections.emptySet();
+-        }
+-        RunnableVal<Object> runnableVal = new RunnableVal<>() {
++        }
++        return batches.admit(() -> {
++            for (Runnable change : changes) {
++                change.run();
++            }
++            for (IntPair chunk : toSend) {
++                PaperweightPlatformAdapter.sendChunk(chunk, getLevel().getWorld().getHandle(), chunk.x(), chunk.z());
++            }
++        });
++    }
++
++    private void runOnMainThread(Runnable application) {
++        RunnableVal<Object> task = new RunnableVal<>() {
+             @Override
+             public void run(Object value) {
+-                changes.forEach(cc -> cc.levelChunk.setBlockState(cc.blockPos, cc.blockState,
+-                        sideEffectSet.shouldApply(SideEffect.UPDATE) ? 0 : 512
+-                ));
+-                if (!sendChunks) {
+-                    return;
+-                }
+-                for (IntPair chunk : toSend) {
+-                    PaperweightPlatformAdapter.sendChunk(chunk, getLevel().getWorld().getHandle(), chunk.x(), chunk.z());
+-                }
+-            }
+-        };
+-        TaskManager.taskManager().async(() -> TaskManager.taskManager().sync(runnableVal));
+-    }
+-
+-    @Override
+-    public synchronized void flush() {
+-        RunnableVal<Object> runnableVal = new RunnableVal<>() {
+-            @Override
+-            public void run(Object value) {
+-                cachedChanges.forEach(cc -> cc.levelChunk.setBlockState(cc.blockPos, cc.blockState,
+-                        sideEffectSet.shouldApply(SideEffect.UPDATE) ? 0 : 512
+-                ));
+-                for (IntPair chunk : cachedChunksToSend) {
+-                    PaperweightPlatformAdapter.sendChunk(chunk, getLevel().getWorld().getHandle(), chunk.x(), chunk.z());
+-                }
++                application.run();
+             }
+         };
+         if (Fawe.isMainThread()) {
+-            runnableVal.run();
++            task.run();
+         } else {
+-            TaskManager.taskManager().sync(runnableVal);
+-        }
+-        cachedChanges.clear();
+-        cachedChunksToSend.clear();
++            TaskManager.taskManager().sync(task);
++        }
++    }
++
++    @Override
++    public void flush() {
++        Runnable application;
++        synchronized (this) {
++            detach(true);
++            application = batches.fence();
++        }
++        runOnMainThread(application);
++    }
++
++    private void applyBlockState(CachedChange change) {
++        boolean changed = false;
++        try {
++            changed = change.levelChunk().setBlockState(change.blockPos(), change.blockState(), change.update() ? 0 : 512) != null;
++        } finally {
++            if (change.applied() != null) {
++                change.applied().applied(changed);
++            }
++        }
+     }
+ 
+     private record CachedChange(
+             LevelChunk levelChunk,
+             BlockPos blockPos,
+-            net.minecraft.world.level.block.state.BlockState blockState
++            net.minecraft.world.level.block.state.BlockState blockState,
++            NativeChangeScope applied,
++            boolean update
+     ) {
+ 
+     }
+diff --git a/worldedit-bukkit/adapters/adapter-26.2/src/main/java/com/sk89q/worldedit/bukkit/adapter/impl/fawe/v26_2/PaperweightFaweWorldNativeAccess.java b/worldedit-bukkit/adapters/adapter-26.2/src/main/java/com/sk89q/worldedit/bukkit/adapter/impl/fawe/v26_2/PaperweightFaweWorldNativeAccess.java
+--- a/worldedit-bukkit/adapters/adapter-26.2/src/main/java/com/sk89q/worldedit/bukkit/adapter/impl/fawe/v26_2/PaperweightFaweWorldNativeAccess.java
++++ b/worldedit-bukkit/adapters/adapter-26.2/src/main/java/com/sk89q/worldedit/bukkit/adapter/impl/fawe/v26_2/PaperweightFaweWorldNativeAccess.java
+@@ -3,8 +3,14 @@
+ import com.fastasyncworldedit.core.Fawe;
+ import com.fastasyncworldedit.core.math.IntPair;
+ import com.fastasyncworldedit.core.util.TaskManager;
++import com.fastasyncworldedit.core.util.task.DetachedNativeBatchQueue;
++import com.fastasyncworldedit.core.util.task.NativeChangeScope;
+ import com.fastasyncworldedit.core.util.task.RunnableVal;
+ import com.sk89q.worldedit.bukkit.BukkitAdapter;
++import com.sk89q.worldedit.WorldEditException;
++import com.sk89q.worldedit.math.BlockVector3;
++import com.sk89q.worldedit.world.block.BaseBlock;
++import com.sk89q.worldedit.world.block.BlockStateHolder;
+ import com.sk89q.worldedit.internal.block.BlockStateIdAccess;
+ import com.sk89q.worldedit.internal.wna.WorldNativeAccess;
+ import com.sk89q.worldedit.util.SideEffect;
+@@ -28,8 +34,9 @@
+ 
+ import javax.annotation.Nullable;
+ import java.lang.ref.WeakReference;
+-import java.util.Collections;
+ import java.util.HashSet;
++import java.util.ArrayList;
++import java.util.List;
+ import java.util.Objects;
+ import java.util.Set;
+ import java.util.concurrent.atomic.AtomicInteger;
+@@ -52,7 +59,8 @@
+     private final PaperweightFaweAdapter paperweightFaweAdapter;
+     private final WeakReference<Level> level;
+     private final AtomicInteger lastTick;
+-    private final Set<CachedChange> cachedChanges = new HashSet<>();
++    private final List<Runnable> cachedChanges = new ArrayList<>();
++    private final DetachedNativeBatchQueue batches = new DetachedNativeBatchQueue();
+     private final Set<IntPair> cachedChunksToSend = new HashSet<>();
+     private SideEffectSet sideEffectSet;
+ 
+@@ -97,22 +105,15 @@
+             LevelChunk levelChunk, BlockPos blockPos,
+             net.minecraft.world.level.block.state.BlockState blockState
+     ) {
+-        int currentTick = MinecraftServer.currentTick;
+         if (Fawe.isMainThread()) {
+-            return levelChunk.setBlockState(blockPos, blockState,
++            return NativeChangeScope.recordChange(levelChunk.setBlockState(blockPos, blockState,
+                     this.sideEffectSet.shouldApply(SideEffect.UPDATE) ? 0 : 512
+-            );
+-        }
+-        // Since FAWE is.. Async we need to do it on the main thread (wooooo.. :( )
+-        cachedChanges.add(new CachedChange(levelChunk, blockPos, blockState));
+-        cachedChunksToSend.add(new IntPair(levelChunk.locX, levelChunk.locZ));
+-        boolean nextTick = lastTick.get() > currentTick;
+-        if (nextTick || cachedChanges.size() >= 1024) {
+-            if (nextTick) {
+-                lastTick.set(currentTick);
+-            }
+-            flushAsync(nextTick);
+-        }
++            ));
++        }
++        NativeChangeScope applied = NativeChangeScope.capture();
++        CachedChange change = new CachedChange(levelChunk, blockPos.immutable(), blockState, applied,
++                sideEffectSet != null && sideEffectSet.shouldApply(SideEffect.UPDATE));
++        enqueue(() -> applyBlockState(change), levelChunk.locX, levelChunk.locZ);
+         return blockState;
+     }
+ 
+@@ -236,59 +237,140 @@
+         getLevel().updatePOIOnBlockStateChange(blockPos, oldState, newState);
+     }
+ 
+-    private synchronized void flushAsync(final boolean sendChunks) {
+-        final Set<CachedChange> changes = Set.copyOf(cachedChanges);
++    @Override
++    public int appliedChangeSupportVersion() {
++        return 1;
++    }
++
++    @Override
++    public boolean deferNativeWrite(Runnable application, int chunkX, int chunkZ) {
++        if (Fawe.isMainThread()) {
++            return false;
++        }
++        NativeChangeScope observer = NativeChangeScope.capture();
++        synchronized (this) {
++            enqueue(() -> {
++                try {
++                    application.run();
++                    if (observer != null) {
++                        observer.applied(true);
++                    }
++                } finally {
++                    if (observer != null) {
++                        observer.applied(false);
++                    }
++                }
++            }, chunkX, chunkZ);
++        }
++        return true;
++    }
++
++    @Override
++    public <B extends BlockStateHolder<B>> boolean setBlock(
++            BlockVector3 position, B block, SideEffectSet sideEffects
++    ) throws WorldEditException {
++        if (Fawe.isMainThread()) {
++            return WorldNativeAccess.super.setBlock(position, block, sideEffects);
++        }
++        NativeChangeScope observer = NativeChangeScope.capture();
++        BaseBlock immutable = block.toBaseBlock();
++        synchronized (this) {
++            enqueue(() -> applyNativeBlock(position, immutable, sideEffects, observer), position.x() >> 4, position.z() >> 4);
++        }
++        return true;
++    }
++
++    private void enqueue(Runnable application, int chunkX, int chunkZ) {
++        cachedChanges.add(application);
++        cachedChunksToSend.add(new IntPair(chunkX, chunkZ));
++        int currentTick = MinecraftServer.currentTick;
++        boolean nextTick = lastTick.get() > currentTick;
++        if (nextTick || cachedChanges.size() >= 1024) {
++            if (nextTick) {
++                lastTick.set(currentTick);
++            }
++            flushAsync(nextTick);
++        }
++    }
++
++    private void applyNativeBlock(BlockVector3 position, BaseBlock block, SideEffectSet sideEffects, NativeChangeScope observer) {
++        try (NativeChangeScope scope = observer == null ? null : NativeChangeScope.open(
++                () -> observer.applied(true), () -> observer.applied(false))) {
++            boolean changed = WorldNativeAccess.super.setBlock(position, block, sideEffects);
++            if (scope != null) {
++                scope.complete(changed);
++            }
++        } catch (WorldEditException exception) {
++            throw new IllegalStateException("Native block application failed at " + position, exception);
++        }
++    }
++
++    private void flushAsync(boolean sendChunks) {
++        Runnable application;
++        synchronized (this) {
++            application = detach(sendChunks);
++        }
++        TaskManager.taskManager().async(() -> runOnMainThread(application));
++    }
++
++    private Runnable detach(boolean sendChunks) {
++        List<Runnable> changes = List.copyOf(cachedChanges);
+         cachedChanges.clear();
+-        final Set<IntPair> toSend;
++        Set<IntPair> toSend = sendChunks ? Set.copyOf(cachedChunksToSend) : Set.of();
+         if (sendChunks) {
+-            toSend = Set.copyOf(cachedChunksToSend);
+             cachedChunksToSend.clear();
+-        } else {
+-            toSend = Collections.emptySet();
+-        }
+-        RunnableVal<Object> runnableVal = new RunnableVal<>() {
++        }
++        return batches.admit(() -> {
++            for (Runnable change : changes) {
++                change.run();
++            }
++            for (IntPair chunk : toSend) {
++                PaperweightPlatformAdapter.sendChunk(chunk, getLevel().getWorld().getHandle(), chunk.x(), chunk.z());
++            }
++        });
++    }
++
++    private void runOnMainThread(Runnable application) {
++        RunnableVal<Object> task = new RunnableVal<>() {
+             @Override
+             public void run(Object value) {
+-                changes.forEach(cc -> cc.levelChunk.setBlockState(cc.blockPos, cc.blockState,
+-                        sideEffectSet.shouldApply(SideEffect.UPDATE) ? 0 : 512
+-                ));
+-                if (!sendChunks) {
+-                    return;
+-                }
+-                for (IntPair chunk : toSend) {
+-                    PaperweightPlatformAdapter.sendChunk(chunk, getLevel().getWorld().getHandle(), chunk.x(), chunk.z());
+-                }
+-            }
+-        };
+-        TaskManager.taskManager().async(() -> TaskManager.taskManager().sync(runnableVal));
+-    }
+-
+-    @Override
+-    public synchronized void flush() {
+-        RunnableVal<Object> runnableVal = new RunnableVal<>() {
+-            @Override
+-            public void run(Object value) {
+-                cachedChanges.forEach(cc -> cc.levelChunk.setBlockState(cc.blockPos, cc.blockState,
+-                        sideEffectSet.shouldApply(SideEffect.UPDATE) ? 0 : 512
+-                ));
+-                for (IntPair chunk : cachedChunksToSend) {
+-                    PaperweightPlatformAdapter.sendChunk(chunk, getLevel().getWorld().getHandle(), chunk.x(), chunk.z());
+-                }
++                application.run();
+             }
+         };
+         if (Fawe.isMainThread()) {
+-            runnableVal.run();
++            task.run();
+         } else {
+-            TaskManager.taskManager().sync(runnableVal);
+-        }
+-        cachedChanges.clear();
+-        cachedChunksToSend.clear();
++            TaskManager.taskManager().sync(task);
++        }
++    }
++
++    @Override
++    public void flush() {
++        Runnable application;
++        synchronized (this) {
++            detach(true);
++            application = batches.fence();
++        }
++        runOnMainThread(application);
++    }
++
++    private void applyBlockState(CachedChange change) {
++        boolean changed = false;
++        try {
++            changed = change.levelChunk().setBlockState(change.blockPos(), change.blockState(), change.update() ? 0 : 512) != null;
++        } finally {
++            if (change.applied() != null) {
++                change.applied().applied(changed);
++            }
++        }
+     }
+ 
+     private record CachedChange(
+             LevelChunk levelChunk,
+             BlockPos blockPos,
+-            net.minecraft.world.level.block.state.BlockState blockState
++            net.minecraft.world.level.block.state.BlockState blockState,
++            NativeChangeScope applied,
++            boolean update
+     ) {
+ 
+     }
+diff --git a/worldedit-bukkit/adapters/adapter-26.3/src/main/java/com/sk89q/worldedit/bukkit/adapter/impl/fawe/v26_3/PaperweightFaweWorldNativeAccess.java b/worldedit-bukkit/adapters/adapter-26.3/src/main/java/com/sk89q/worldedit/bukkit/adapter/impl/fawe/v26_3/PaperweightFaweWorldNativeAccess.java
+--- a/worldedit-bukkit/adapters/adapter-26.3/src/main/java/com/sk89q/worldedit/bukkit/adapter/impl/fawe/v26_3/PaperweightFaweWorldNativeAccess.java
++++ b/worldedit-bukkit/adapters/adapter-26.3/src/main/java/com/sk89q/worldedit/bukkit/adapter/impl/fawe/v26_3/PaperweightFaweWorldNativeAccess.java
+@@ -3,8 +3,14 @@
+ import com.fastasyncworldedit.core.Fawe;
+ import com.fastasyncworldedit.core.math.IntPair;
+ import com.fastasyncworldedit.core.util.TaskManager;
++import com.fastasyncworldedit.core.util.task.DetachedNativeBatchQueue;
++import com.fastasyncworldedit.core.util.task.NativeChangeScope;
+ import com.fastasyncworldedit.core.util.task.RunnableVal;
+ import com.sk89q.worldedit.bukkit.BukkitAdapter;
++import com.sk89q.worldedit.WorldEditException;
++import com.sk89q.worldedit.math.BlockVector3;
++import com.sk89q.worldedit.world.block.BaseBlock;
++import com.sk89q.worldedit.world.block.BlockStateHolder;
+ import com.sk89q.worldedit.internal.block.BlockStateIdAccess;
+ import com.sk89q.worldedit.internal.wna.WorldNativeAccess;
+ import com.sk89q.worldedit.util.SideEffect;
+@@ -28,8 +34,9 @@
+ 
+ import javax.annotation.Nullable;
+ import java.lang.ref.WeakReference;
+-import java.util.Collections;
+ import java.util.HashSet;
++import java.util.ArrayList;
++import java.util.List;
+ import java.util.Objects;
+ import java.util.Set;
+ import java.util.concurrent.atomic.AtomicInteger;
+@@ -52,7 +59,8 @@
+     private final PaperweightFaweAdapter paperweightFaweAdapter;
+     private final WeakReference<Level> level;
+     private final AtomicInteger lastTick;
+-    private final Set<CachedChange> cachedChanges = new HashSet<>();
++    private final List<Runnable> cachedChanges = new ArrayList<>();
++    private final DetachedNativeBatchQueue batches = new DetachedNativeBatchQueue();
+     private final Set<IntPair> cachedChunksToSend = new HashSet<>();
+     private SideEffectSet sideEffectSet;
+ 
+@@ -97,22 +105,15 @@
+             LevelChunk levelChunk, BlockPos blockPos,
+             net.minecraft.world.level.block.state.BlockState blockState
+     ) {
+-        int currentTick = MinecraftServer.currentTick;
+         if (Fawe.isMainThread()) {
+-            return levelChunk.setBlockState(blockPos, blockState,
++            return NativeChangeScope.recordChange(levelChunk.setBlockState(blockPos, blockState,
+                     this.sideEffectSet.shouldApply(SideEffect.UPDATE) ? 0 : 512
+-            );
+-        }
+-        // Since FAWE is.. Async we need to do it on the main thread (wooooo.. :( )
+-        cachedChanges.add(new CachedChange(levelChunk, blockPos, blockState));
+-        cachedChunksToSend.add(new IntPair(levelChunk.locX, levelChunk.locZ));
+-        boolean nextTick = lastTick.get() > currentTick;
+-        if (nextTick || cachedChanges.size() >= 1024) {
+-            if (nextTick) {
+-                lastTick.set(currentTick);
+-            }
+-            flushAsync(nextTick);
+-        }
++            ));
++        }
++        NativeChangeScope applied = NativeChangeScope.capture();
++        CachedChange change = new CachedChange(levelChunk, blockPos.immutable(), blockState, applied,
++                sideEffectSet != null && sideEffectSet.shouldApply(SideEffect.UPDATE));
++        enqueue(() -> applyBlockState(change), levelChunk.locX, levelChunk.locZ);
+         return blockState;
+     }
+ 
+@@ -236,59 +237,140 @@
+         getLevel().updatePOIOnBlockStateChange(blockPos, oldState, newState);
+     }
+ 
+-    private synchronized void flushAsync(final boolean sendChunks) {
+-        final Set<CachedChange> changes = Set.copyOf(cachedChanges);
++    @Override
++    public int appliedChangeSupportVersion() {
++        return 1;
++    }
++
++    @Override
++    public boolean deferNativeWrite(Runnable application, int chunkX, int chunkZ) {
++        if (Fawe.isMainThread()) {
++            return false;
++        }
++        NativeChangeScope observer = NativeChangeScope.capture();
++        synchronized (this) {
++            enqueue(() -> {
++                try {
++                    application.run();
++                    if (observer != null) {
++                        observer.applied(true);
++                    }
++                } finally {
++                    if (observer != null) {
++                        observer.applied(false);
++                    }
++                }
++            }, chunkX, chunkZ);
++        }
++        return true;
++    }
++
++    @Override
++    public <B extends BlockStateHolder<B>> boolean setBlock(
++            BlockVector3 position, B block, SideEffectSet sideEffects
++    ) throws WorldEditException {
++        if (Fawe.isMainThread()) {
++            return WorldNativeAccess.super.setBlock(position, block, sideEffects);
++        }
++        NativeChangeScope observer = NativeChangeScope.capture();
++        BaseBlock immutable = block.toBaseBlock();
++        synchronized (this) {
++            enqueue(() -> applyNativeBlock(position, immutable, sideEffects, observer), position.x() >> 4, position.z() >> 4);
++        }
++        return true;
++    }
++
++    private void enqueue(Runnable application, int chunkX, int chunkZ) {
++        cachedChanges.add(application);
++        cachedChunksToSend.add(new IntPair(chunkX, chunkZ));
++        int currentTick = MinecraftServer.currentTick;
++        boolean nextTick = lastTick.get() > currentTick;
++        if (nextTick || cachedChanges.size() >= 1024) {
++            if (nextTick) {
++                lastTick.set(currentTick);
++            }
++            flushAsync(nextTick);
++        }
++    }
++
++    private void applyNativeBlock(BlockVector3 position, BaseBlock block, SideEffectSet sideEffects, NativeChangeScope observer) {
++        try (NativeChangeScope scope = observer == null ? null : NativeChangeScope.open(
++                () -> observer.applied(true), () -> observer.applied(false))) {
++            boolean changed = WorldNativeAccess.super.setBlock(position, block, sideEffects);
++            if (scope != null) {
++                scope.complete(changed);
++            }
++        } catch (WorldEditException exception) {
++            throw new IllegalStateException("Native block application failed at " + position, exception);
++        }
++    }
++
++    private void flushAsync(boolean sendChunks) {
++        Runnable application;
++        synchronized (this) {
++            application = detach(sendChunks);
++        }
++        TaskManager.taskManager().async(() -> runOnMainThread(application));
++    }
++
++    private Runnable detach(boolean sendChunks) {
++        List<Runnable> changes = List.copyOf(cachedChanges);
+         cachedChanges.clear();
+-        final Set<IntPair> toSend;
++        Set<IntPair> toSend = sendChunks ? Set.copyOf(cachedChunksToSend) : Set.of();
+         if (sendChunks) {
+-            toSend = Set.copyOf(cachedChunksToSend);
+             cachedChunksToSend.clear();
+-        } else {
+-            toSend = Collections.emptySet();
+-        }
+-        RunnableVal<Object> runnableVal = new RunnableVal<>() {
++        }
++        return batches.admit(() -> {
++            for (Runnable change : changes) {
++                change.run();
++            }
++            for (IntPair chunk : toSend) {
++                PaperweightPlatformAdapter.sendChunk(chunk, getLevel().getWorld().getHandle(), chunk.x(), chunk.z());
++            }
++        });
++    }
++
++    private void runOnMainThread(Runnable application) {
++        RunnableVal<Object> task = new RunnableVal<>() {
+             @Override
+             public void run(Object value) {
+-                changes.forEach(cc -> cc.levelChunk.setBlockState(cc.blockPos, cc.blockState,
+-                        sideEffectSet.shouldApply(SideEffect.UPDATE) ? 0 : 512
+-                ));
+-                if (!sendChunks) {
+-                    return;
+-                }
+-                for (IntPair chunk : toSend) {
+-                    PaperweightPlatformAdapter.sendChunk(chunk, getLevel().getWorld().getHandle(), chunk.x(), chunk.z());
+-                }
+-            }
+-        };
+-        TaskManager.taskManager().async(() -> TaskManager.taskManager().sync(runnableVal));
+-    }
+-
+-    @Override
+-    public synchronized void flush() {
+-        RunnableVal<Object> runnableVal = new RunnableVal<>() {
+-            @Override
+-            public void run(Object value) {
+-                cachedChanges.forEach(cc -> cc.levelChunk.setBlockState(cc.blockPos, cc.blockState,
+-                        sideEffectSet.shouldApply(SideEffect.UPDATE) ? 0 : 512
+-                ));
+-                for (IntPair chunk : cachedChunksToSend) {
+-                    PaperweightPlatformAdapter.sendChunk(chunk, getLevel().getWorld().getHandle(), chunk.x(), chunk.z());
+-                }
++                application.run();
+             }
+         };
+         if (Fawe.isMainThread()) {
+-            runnableVal.run();
++            task.run();
+         } else {
+-            TaskManager.taskManager().sync(runnableVal);
+-        }
+-        cachedChanges.clear();
+-        cachedChunksToSend.clear();
++            TaskManager.taskManager().sync(task);
++        }
++    }
++
++    @Override
++    public void flush() {
++        Runnable application;
++        synchronized (this) {
++            detach(true);
++            application = batches.fence();
++        }
++        runOnMainThread(application);
++    }
++
++    private void applyBlockState(CachedChange change) {
++        boolean changed = false;
++        try {
++            changed = change.levelChunk().setBlockState(change.blockPos(), change.blockState(), change.update() ? 0 : 512) != null;
++        } finally {
++            if (change.applied() != null) {
++                change.applied().applied(changed);
++            }
++        }
+     }
+ 
+     private record CachedChange(
+             LevelChunk levelChunk,
+             BlockPos blockPos,
+-            net.minecraft.world.level.block.state.BlockState blockState
++            net.minecraft.world.level.block.state.BlockState blockState,
++            NativeChangeScope applied,
++            boolean update
+     ) {
+ 
+     }
+diff --git a/worldedit-bukkit/src/main/java/com/sk89q/worldedit/bukkit/BukkitWorld.java b/worldedit-bukkit/src/main/java/com/sk89q/worldedit/bukkit/BukkitWorld.java
+--- a/worldedit-bukkit/src/main/java/com/sk89q/worldedit/bukkit/BukkitWorld.java
++++ b/worldedit-bukkit/src/main/java/com/sk89q/worldedit/bukkit/BukkitWorld.java
+@@ -601,6 +601,10 @@
+         }
+     }
+ 
++    public int appliedChangeSupportVersion() {
++        return worldNativeAccess == null ? 1 : worldNativeAccess.appliedChangeSupportVersion();
++    }
++
+     @Override
+     public <B extends BlockStateHolder<B>> boolean setBlock(BlockVector3 position, B block, SideEffectSet sideEffects) {
+         //FAWE start - safe edit region
+@@ -620,9 +624,11 @@
+                 }
+             }
+         }
+-        Block bukkitBlock = getWorld().getBlockAt(position.x(), position.y(), position.z());
+-        bukkitBlock.setBlockData(BukkitAdapter.adapt(block), sideEffects.doesApplyAny());
+-        return true;
++        return TaskManager.taskManager().sync(() -> {
++            Block bukkitBlock = getWorld().getBlockAt(position.x(), position.y(), position.z());
++            bukkitBlock.setBlockData(BukkitAdapter.adapt(block), sideEffects.doesApplyAny());
++            return true;
++        });
+     }
+ 
+     @Override
+@@ -700,12 +706,20 @@
+         //FAWE start - safe edit region
+         testCoords(position);
+         //FAWE end
+-        if (HAS_3D_BIOMES) {
+-            getWorld().setBiome(position.x(), position.y(), position.z(), BukkitAdapter.adapt(biome));
+-        } else {
+-            getWorld().setBiome(position.x(), position.z(), BukkitAdapter.adapt(biome));
+-        }
+-        return true;
++        Runnable application = () -> {
++            if (HAS_3D_BIOMES) {
++                getWorld().setBiome(position.x(), position.y(), position.z(), BukkitAdapter.adapt(biome));
++            } else {
++                getWorld().setBiome(position.x(), position.z(), BukkitAdapter.adapt(biome));
++            }
++        };
++        if (worldNativeAccess != null && worldNativeAccess.deferNativeWrite(application, position.x() >> 4, position.z() >> 4)) {
++            return true;
++        }
++        return TaskManager.taskManager().sync(() -> {
++            application.run();
++            return true;
++        });
+     }
+ 
+     //FAWE start
+diff --git a/worldedit-core/src/main/java/com/fastasyncworldedit/core/util/task/DetachedNativeBatchQueue.java b/worldedit-core/src/main/java/com/fastasyncworldedit/core/util/task/DetachedNativeBatchQueue.java
+--- /dev/null
++++ b/worldedit-core/src/main/java/com/fastasyncworldedit/core/util/task/DetachedNativeBatchQueue.java
+@@ -0,0 +1,59 @@
++package com.fastasyncworldedit.core.util.task;
++
++import java.util.ArrayDeque;
++import java.util.Deque;
++import java.util.Objects;
++import java.util.concurrent.locks.ReentrantLock;
++
++public final class DetachedNativeBatchQueue {
++    private final Deque<Batch> pending = new ArrayDeque<>();
++    private final ReentrantLock applying = new ReentrantLock();
++    private long admitted;
++    private Throwable failure;
++
++    public synchronized Runnable admit(Runnable application) {
++        long sequence = ++admitted;
++        pending.addLast(new Batch(sequence, Objects.requireNonNull(application)));
++        return () -> applyThrough(sequence);
++    }
++
++    public synchronized Runnable fence() {
++        long sequence = admitted;
++        return () -> applyThrough(sequence);
++    }
++
++    private void applyThrough(long sequence) {
++        applying.lock();
++        try {
++            Batch batch;
++            while ((batch = takeThrough(sequence)) != null) {
++                try {
++                    batch.application().run();
++                } catch (RuntimeException | Error exception) {
++                    synchronized (this) {
++                        failure = exception;
++                    }
++                    throw exception;
++                }
++            }
++        } finally {
++            applying.unlock();
++        }
++    }
++
++    private synchronized Batch takeThrough(long sequence) {
++        if (failure instanceof RuntimeException exception) {
++            throw exception;
++        }
++        if (failure instanceof Error error) {
++            throw error;
++        }
++        if (pending.isEmpty() || pending.getFirst().sequence() > sequence) {
++            return null;
++        }
++        return pending.removeFirst();
++    }
++
++    private record Batch(long sequence, Runnable application) {
++    }
++}
+diff --git a/worldedit-core/src/main/java/com/fastasyncworldedit/core/util/task/NativeChangeScope.java b/worldedit-core/src/main/java/com/fastasyncworldedit/core/util/task/NativeChangeScope.java
+--- /dev/null
++++ b/worldedit-core/src/main/java/com/fastasyncworldedit/core/util/task/NativeChangeScope.java
+@@ -0,0 +1,105 @@
++package com.fastasyncworldedit.core.util.task;
++
++import java.util.Objects;
++
++public final class NativeChangeScope implements AutoCloseable {
++    private static final ThreadLocal<NativeChangeScope> CURRENT = new ThreadLocal<>();
++
++    private final NativeChangeScope parent;
++    private final Runnable applied;
++    private final Runnable finished;
++    private boolean deferred;
++    private boolean returned;
++    private boolean applicationKnown;
++    private boolean changed;
++    private boolean synchronousChanged;
++    private boolean completed;
++
++    private NativeChangeScope(Runnable applied, Runnable finished) {
++        this.parent = CURRENT.get();
++        this.applied = Objects.requireNonNull(applied);
++        this.finished = Objects.requireNonNull(finished);
++        CURRENT.set(this);
++    }
++
++    public static NativeChangeScope open(Runnable applied, Runnable finished) {
++        return new NativeChangeScope(applied, finished);
++    }
++
++    public static NativeChangeScope capture() {
++        NativeChangeScope scope = CURRENT.get();
++        if (scope != null) {
++            synchronized (scope) {
++                scope.deferred = true;
++            }
++        }
++        return scope;
++    }
++
++    public static <T> T recordChange(T previous) {
++        NativeChangeScope scope = CURRENT.get();
++        if (scope != null && previous != null) {
++            synchronized (scope) {
++                scope.synchronousChanged = true;
++            }
++        }
++        return previous;
++    }
++
++    public void complete(boolean changed) {
++        boolean successful;
++        synchronized (this) {
++            if (deferred) {
++                return;
++            }
++            successful = changed || synchronousChanged;
++        }
++        applied(successful);
++    }
++
++    public void applied(boolean changed) {
++        synchronized (this) {
++            if (applicationKnown) {
++                return;
++            }
++            applicationKnown = true;
++            this.changed = changed;
++        }
++        publishIfReady();
++    }
++
++    @Override
++    public void close() {
++        if (CURRENT.get() != this) {
++            throw new IllegalStateException("Native change scopes closed out of order");
++        }
++        if (parent == null) {
++            CURRENT.remove();
++        } else {
++            CURRENT.set(parent);
++        }
++        synchronized (this) {
++            returned = true;
++        }
++        complete(false);
++        publishIfReady();
++    }
++
++    private void publishIfReady() {
++        boolean notify;
++        synchronized (this) {
++            if (completed || !applicationKnown || deferred && !returned) {
++                return;
++            }
++            completed = true;
++            notify = changed;
++        }
++        try {
++            if (notify) {
++                applied.run();
++            }
++        } finally {
++            finished.run();
++        }
++    }
++}
+diff --git a/worldedit-core/src/main/java/com/sk89q/worldedit/internal/wna/WorldNativeAccess.java b/worldedit-core/src/main/java/com/sk89q/worldedit/internal/wna/WorldNativeAccess.java
+--- a/worldedit-core/src/main/java/com/sk89q/worldedit/internal/wna/WorldNativeAccess.java
++++ b/worldedit-core/src/main/java/com/sk89q/worldedit/internal/wna/WorldNativeAccess.java
+@@ -40,6 +40,14 @@
+  * @param <NP>  the native position type
+  */
+ public interface WorldNativeAccess<NC, NBS, NP> {
++
++    default int appliedChangeSupportVersion() {
++        return 0;
++    }
++
++    default boolean deferNativeWrite(Runnable application, int chunkX, int chunkZ) {
++        return false;
++    }
+ 
+     default <B extends BlockStateHolder<B>> boolean setBlock(BlockVector3 position, B block, SideEffectSet sideEffects) throws
+             WorldEditException {
+diff --git a/worldedit-core/src/test/java/com/fastasyncworldedit/core/util/task/DetachedNativeBatchQueueTest.java b/worldedit-core/src/test/java/com/fastasyncworldedit/core/util/task/DetachedNativeBatchQueueTest.java
+--- /dev/null
++++ b/worldedit-core/src/test/java/com/fastasyncworldedit/core/util/task/DetachedNativeBatchQueueTest.java
+@@ -0,0 +1,169 @@
++package com.fastasyncworldedit.core.util.task;
++
++import org.junit.jupiter.api.Test;
++
++import java.util.ArrayList;
++import java.util.List;
++import java.util.concurrent.CountDownLatch;
++import java.util.concurrent.ExecutorService;
++import java.util.concurrent.Executors;
++import java.util.concurrent.Future;
++import java.util.concurrent.TimeUnit;
++import java.util.concurrent.atomic.AtomicInteger;
++
++import static org.junit.jupiter.api.Assertions.assertEquals;
++import static org.junit.jupiter.api.Assertions.assertFalse;
++import static org.junit.jupiter.api.Assertions.assertSame;
++import static org.junit.jupiter.api.Assertions.assertThrows;
++import static org.junit.jupiter.api.Assertions.assertTrue;
++
++class DetachedNativeBatchQueueTest {
++    @Test
++    void emptyTailFenceAppliesAllDetachedBatchesBeforeNotification() throws Exception {
++        DetachedNativeBatchQueue batches = new DetachedNativeBatchQueue();
++        AtomicInteger blocks = new AtomicInteger();
++        List<Integer> notifications = new ArrayList<>();
++        Runnable detached = batches.admit(() -> {
++            blocks.addAndGet(1024);
++            notifications.add(blocks.get());
++        });
++        CountDownLatch workerReady = new CountDownLatch(1);
++        CountDownLatch releaseWorker = new CountDownLatch(1);
++        ExecutorService executor = Executors.newSingleThreadExecutor();
++        try {
++            Future<?> deferred = executor.submit(() -> {
++                workerReady.countDown();
++                try {
++                    assertTrue(releaseWorker.await(5L, TimeUnit.SECONDS));
++                } catch (InterruptedException exception) {
++                    Thread.currentThread().interrupt();
++                    throw new AssertionError(exception);
++                }
++                detached.run();
++            });
++            assertTrue(workerReady.await(5L, TimeUnit.SECONDS));
++            assertEquals(0, blocks.get());
++            batches.fence().run();
++            assertEquals(1024, blocks.get());
++            assertEquals(List.of(1024), notifications);
++            releaseWorker.countDown();
++            deferred.get(5L, TimeUnit.SECONDS);
++            assertEquals(1024, blocks.get());
++            assertEquals(List.of(1024), notifications);
++        } finally {
++            releaseWorker.countDown();
++            executor.shutdownNow();
++        }
++    }
++
++    @Test
++    void reverselyScheduledBatchesAndTailKeepAdmissionOrderAndApplyOnlyOnce() {
++        DetachedNativeBatchQueue batches = new DetachedNativeBatchQueue();
++        List<Integer> applied = new ArrayList<>();
++        Runnable first = batches.admit(() -> applied.add(1024));
++        Runnable second = batches.admit(() -> applied.add(2048));
++        batches.admit(() -> applied.add(2049));
++        second.run();
++        assertEquals(List.of(1024, 2048), applied);
++        batches.fence().run();
++        first.run();
++        second.run();
++        assertEquals(List.of(1024, 2048, 2049), applied);
++    }
++
++    @Test
++    void failedApplicationCannotMakeAFutureFenceSucceed() {
++        DetachedNativeBatchQueue batches = new DetachedNativeBatchQueue();
++        IllegalStateException failure = new IllegalStateException("Native write failed");
++        batches.admit(() -> { throw failure; });
++        assertSame(failure, assertThrows(IllegalStateException.class, () -> batches.fence().run()));
++        AtomicInteger next = new AtomicInteger();
++        batches.admit(next::incrementAndGet);
++        assertSame(failure, assertThrows(IllegalStateException.class, () -> batches.fence().run()));
++        assertEquals(0, next.get());
++    }
++
++    @Test
++    void applicationErrorRemainsVisibleToEveryLaterFence() {
++        DetachedNativeBatchQueue batches = new DetachedNativeBatchQueue();
++        AssertionError failure = new AssertionError("Native application failed");
++        batches.admit(() -> { throw failure; });
++        assertSame(failure, assertThrows(AssertionError.class, () -> batches.fence().run()));
++        assertSame(failure, assertThrows(AssertionError.class, () -> batches.fence().run()));
++    }
++
++    @Test
++    void actualSynchronousMutationStillNotifiesWhenLaterMetadataStepFails() {
++        AtomicInteger blocks = new AtomicInteger();
++        AtomicInteger notifications = new AtomicInteger();
++        AtomicInteger finished = new AtomicInteger();
++        try (NativeChangeScope scope = NativeChangeScope.open(notifications::incrementAndGet, finished::incrementAndGet)) {
++            blocks.incrementAndGet();
++            NativeChangeScope.recordChange(new Object());
++            scope.complete(false);
++        }
++        assertEquals(1, blocks.get());
++        assertEquals(1, notifications.get());
++        assertEquals(1, finished.get());
++    }
++
++    @Test
++    void deferredObserverCannotNotifyBeforeWriteOrBeforeNativeCallReturns() {
++        AtomicInteger blocks = new AtomicInteger();
++        AtomicInteger notifications = new AtomicInteger();
++        AtomicInteger finished = new AtomicInteger();
++        NativeChangeScope observer;
++        try (NativeChangeScope scope = NativeChangeScope.open(() -> {
++            assertEquals(1, blocks.get());
++            notifications.incrementAndGet();
++        }, finished::incrementAndGet)) {
++            observer = NativeChangeScope.capture();
++            scope.complete(true);
++            assertEquals(0, notifications.get());
++            blocks.incrementAndGet();
++            observer.applied(true);
++            assertEquals(0, notifications.get());
++        }
++        assertEquals(1, notifications.get());
++        assertEquals(1, finished.get());
++        observer.applied(true);
++        assertEquals(1, notifications.get());
++        assertEquals(1, finished.get());
++    }
++
++    @Test
++    void cancelledFutureWriteReleasesLeaseWithoutAppliedNotification() {
++        AtomicInteger notifications = new AtomicInteger();
++        AtomicInteger finished = new AtomicInteger();
++        NativeChangeScope observer;
++        try (NativeChangeScope scope = NativeChangeScope.open(notifications::incrementAndGet, finished::incrementAndGet)) {
++            observer = NativeChangeScope.capture();
++            scope.complete(true);
++        }
++        assertEquals(0, finished.get());
++        observer.applied(false);
++        assertEquals(0, notifications.get());
++        assertEquals(1, finished.get());
++        observer.applied(true);
++        assertEquals(0, notifications.get());
++    }
++
++    @Test
++    void synchronousFailureAndNestedScopesRestoreCaptureAndReleaseOnlyTheirLease() {
++        AtomicInteger finished = new AtomicInteger();
++        NativeChangeScope outer = NativeChangeScope.open(() -> { }, finished::incrementAndGet);
++        try (outer) {
++            assertThrows(IllegalStateException.class, () -> {
++                try (NativeChangeScope inner = NativeChangeScope.open(() -> { }, finished::incrementAndGet)) {
++                    throw new IllegalStateException("Write rejected");
++                }
++            });
++            assertEquals(1, finished.get());
++            NativeChangeScope observer = NativeChangeScope.capture();
++            assertSame(outer, observer);
++            observer.applied(false);
++        }
++        assertEquals(2, finished.get());
++        assertFalse(finished.get() == 0);
++    }
++}

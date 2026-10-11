@@ -50,7 +50,7 @@ public class PortalEnvironmentTest {
     public void skyAndFogUseDestinationMetadataAndRequestedDistance() {
         EnvironmentState environment = environment(identity());
         SkyRenderState sky = PortalEnvironment.sky(environment, new Vec3d(0, 80, 0));
-        assertEquals(new Vector3f(0.2f, 0.4f, 0.8f), sky.skyColor);
+        NativeRenderFixtures.assertSkyColor(sky, new Vector3f(0.2f, 0.4f, 0.8f));
         assertEquals(MoonPhase.THIRD_QUARTER, sky.moonPhase);
         assertEquals(0.7f, sky.rainBrightness, 0.0001f);
         assertFalse(sky.shouldRenderDarkDisc);

@@ -1,5 +1,8 @@
 package art.arcane.wormholes.modded.client.render.stencil;
 
+import net.minecraft.client.renderer.state.level.CameraRenderState;
+import org.joml.Matrix4fc;
+
 public interface PipelineBackend {
     PipelineBackend NONE = new PipelineBackend() {
         @Override
@@ -28,6 +31,9 @@ public interface PipelineBackend {
     void beginLayer(PortalLayer layer);
 
     void endLayer(PortalLayer layer);
+
+    default void prepareViews(CameraRenderState camera, Matrix4fc projection) {
+    }
 
     default void closeView(PortalView view) {
     }

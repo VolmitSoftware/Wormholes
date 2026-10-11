@@ -1,5 +1,7 @@
 package art.arcane.wormholes.modded.client.render.iris;
 
+import art.arcane.wormholes.modded.client.render.dh.DhClipPrograms;
+import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.logging.LogUtils;
 import io.github.douira.glsl_transformer.ast.transform.TransformationException;
 import io.github.douira.glsl_transformer.parser.ParsingException;
@@ -23,7 +25,10 @@ public final class IrisClipPrograms {
             return null;
         }
         try {
-            return IrisClipTransformation.transform(sources);
+            return switch (parameters.patch) {
+                case DH_TERRAIN, DH_GENERIC -> IrisClipTransformation.transformDistant(sources);
+                default -> IrisClipTransformation.transform(sources);
+            };
         } catch (IllegalArgumentException | IllegalStateException | ParsingException | TransformationException failure) {
             LOGGER.warn("Portal views draw shader program {} without the portal clip plane", name, failure);
             return null;
@@ -40,15 +45,31 @@ public final class IrisClipPrograms {
         return Binding.NONE;
     }
 
+    public static DistantBinding bindDistant(int program) {
+        return new DistantBinding(bind(program), GL20C.glGetUniformLocation(program, IrisClipTransformation.DISTANT_DEPTH));
+    }
+
+    public static void applyDistant(DistantBinding binding) {
+        IrisClipPlanes.apply(binding.clipping().location(), binding.clipping().distance(), DhClipPrograms.plane());
+        if (binding.depth() < 0) {
+            return;
+        }
+        boolean zeroToOne = RenderSystem.getDevice().getDeviceInfo().isZZeroToOne();
+        GL20C.glUniform2f(binding.depth(), zeroToOne ? -2.0F : -1.0F, zeroToOne ? 1.0F : 0.0F);
+    }
+
     static boolean clipped(String name, Parameters parameters) {
         return switch (parameters.patch) {
             case VANILLA -> name != null && !name.startsWith(SKY_PREFIX) && !CommonTransformer.isShadowPass(parameters, name);
-            case SODIUM -> !CommonTransformer.isShadowPass(parameters, name);
-            case DH_TERRAIN, DH_GENERIC, COMPOSITE, COMPUTE -> false;
+            case SODIUM, DH_TERRAIN, DH_GENERIC -> !CommonTransformer.isShadowPass(parameters, name);
+            case COMPOSITE, COMPUTE -> false;
         };
     }
 
     public record Binding(int location, int distance) {
         public static final Binding NONE = new Binding(-1, -1);
+    }
+
+    public record DistantBinding(Binding clipping, int depth) {
     }
 }

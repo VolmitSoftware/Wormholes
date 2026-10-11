@@ -4,6 +4,7 @@ import art.arcane.wormholes.modded.MinecraftNetworkService;
 import net.minecraft.server.level.ChunkMap;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.chunk.ChunkAccess;
+import net.minecraft.world.level.chunk.LevelChunk;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -20,10 +21,11 @@ public abstract class ViewChunkLifecycleMixin {
     @Inject(method = "resendBiomesForChunks", at = @At("TAIL"))
     private void wormholesViewBiomes(List<ChunkAccess> chunks, CallbackInfo callback) {
         MinecraftNetworkService network = MinecraftNetworkService.forServer(level.getServer());
-        if (network != null) {
+        if (network != null && level.getServer().isSameThread() && !level.getServer().isStopped()) {
             for (ChunkAccess chunk : chunks) {
-                network.columnChanged(level, chunk.getPos().x(), chunk.getPos().z());
-                network.viewServer().biomesChanged(level, chunk.getPos().x(), chunk.getPos().z());
+                if (chunk instanceof LevelChunk && level.getChunkSource().getChunkNow(chunk.getPos().x(), chunk.getPos().z()) == chunk) {
+                    network.columnMutated(level, chunk.getPos().x(), chunk.getPos().z());
+                }
             }
         }
     }

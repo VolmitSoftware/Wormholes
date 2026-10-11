@@ -80,6 +80,10 @@ public final class MinecraftClientViewNegotiator {
     }
 
     public ViewStreamInbound receive(Connection connection, byte[] payload) {
+        return receiveAt(connection, payload, System.nanoTime());
+    }
+
+    public ViewStreamInbound receiveAt(Connection connection, byte[] payload, long receivedNanos) {
         MinecraftClientViewPeer peer = peers.get(connection);
         if (peer == null) {
             return ViewStreamInbound.IGNORED;
@@ -88,7 +92,7 @@ public final class MinecraftClientViewNegotiator {
         if (session == null || session.player() != peer) {
             return ViewStreamInbound.IGNORED;
         }
-        return session.receive(payload, 0, payload.length);
+        return session.receiveAt(payload, 0, payload.length, receivedNanos / 1_000_000L);
     }
 
     public ViewStreamSession<MinecraftClientViewPeer, BlockState> session(UUID id) {

@@ -60,6 +60,16 @@ final class FabricSeamlessServer implements SeamlessServer {
     }
 
     @Override
+    public void startFallLoop() {
+        server.runOnServer(minecraftServer -> SeamlessFallLoop.start(connection.getServerPlayer()));
+    }
+
+    @Override
+    public void releaseFallers(SeamlessFallLoop.Loop loop) {
+        server.runOnServer(minecraftServer -> SeamlessFallLoop.release(minecraftServer, loop.fallers()));
+    }
+
+    @Override
     public void removeFallLoop(SeamlessFallLoop.Loop loop) {
         server.runOnServer(minecraftServer -> SeamlessFallLoop.remove(minecraftServer, connection.getServerPlayer(), loop));
     }

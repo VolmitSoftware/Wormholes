@@ -39,6 +39,7 @@ import art.arcane.optics.stream.ViewStreamTransport;
 import art.arcane.wormholes.config.toml.ClientViewConfig;
 import art.arcane.wormholes.network.client.ClientViewExtensions;
 import art.arcane.wormholes.network.client.FxExtension;
+import art.arcane.wormholes.network.client.RootSourceExtension;
 import art.arcane.wormholes.network.client.TravelExtension;
 import art.arcane.wormholes.network.client.TravelMessage;
 
@@ -46,8 +47,8 @@ final class ClientViewTravelTest {
     private static final int DATA_VERSION = 4325;
     private static final long REMOTE_VIEW = ViewStreamCapability.of(ViewStreamCapability.PLATES, ViewStreamCapability.MESH_RENDER)
         | ClientViewExtensions.REMOTE_VIEW;
-    private static final long SEAMLESS = REMOTE_VIEW | ClientViewExtensions.SEAMLESS_TRAVEL;
-    private static final List<ViewStreamExtension<?>> EXTENSIONS = List.of(FxExtension.INSTANCE, TravelExtension.INSTANCE);
+    private static final long SEAMLESS = REMOTE_VIEW | ClientViewExtensions.SEAMLESS_TRAVEL | ClientViewExtensions.ROOT_SOURCE;
+    private static final List<ViewStreamExtension<?>> EXTENSIONS = List.of(FxExtension.INSTANCE, TravelExtension.INSTANCE, RootSourceExtension.INSTANCE);
     private static final ViewStreamCodec CODEC = new ViewStreamCodec(EXTENSIONS);
     private static final UUID PLAYER = new UUID(3L, 4L);
 

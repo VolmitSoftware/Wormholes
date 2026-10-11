@@ -15,6 +15,7 @@ import art.arcane.wormholes.modded.client.WormholesClient;
 import art.arcane.wormholes.modded.client.WormholesClientConfig;
 import art.arcane.wormholes.modded.client.render.ClientPortalRenderer;
 import art.arcane.wormholes.modded.client.render.PortalGpuMesh;
+import art.arcane.wormholes.modded.client.render.PortalShaderScope;
 import art.arcane.wormholes.modded.client.world.ClientWorldLoader;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.systems.RenderSystem;
@@ -139,11 +140,14 @@ public final class PortalStencilRenderer {
         pipelineGeneration = -1;
     }
 
-    public void renderPortals(LevelRenderer renderer, CameraRenderState camera) {
+    public void prepareFrame(LevelRenderer renderer, CameraRenderState camera) {
         if (!layers.nested()) {
             active = beginFrame(renderer, camera);
             deferredFrame = active && PortalBackends.pipeline().deferred();
         }
+    }
+
+    public void renderPortals(CameraRenderState camera) {
         if (!active || deferredFrame) {
             return;
         }
@@ -273,6 +277,7 @@ public final class PortalStencilRenderer {
         if (!available(minecraft)) {
             return false;
         }
+        PortalBackends.pipeline().prepareViews(camera, projection);
         layers.beginFrame(MAX_VIEWS_PER_FRAME);
         long now = System.currentTimeMillis();
         for (PortalView view : client.portalViews().current()) {
@@ -294,10 +299,12 @@ public final class PortalStencilRenderer {
             world.close();
             deferred.close();
             pipelinesReady = true;
-            for (RenderPipeline pipeline : StencilPipelines.ALL) {
-                if (RenderSystem.getCompiledPipelineNullable(pipeline) == null) {
-                    pipelinesReady = false;
-                    LOGGER.warn("Portal views fall back to streamed meshes: pipeline {} did not compile", pipeline.getLocation());
+            try (PortalShaderScope scope = PortalShaderScope.rendering()) {
+                for (RenderPipeline pipeline : StencilPipelines.ALL) {
+                    if (RenderSystem.getCompiledPipelineNullable(pipeline) == null) {
+                        pipelinesReady = false;
+                        LOGGER.warn("Portal views fall back to streamed meshes: pipeline {} did not compile", pipeline.getLocation());
+                    }
                 }
             }
         }
@@ -421,7 +428,9 @@ public final class PortalStencilRenderer {
     }
 
     private static CompiledRenderPipeline compiled(RenderPipeline pipeline) {
-        return RenderSystem.getCompiledPipeline(pipeline);
+        try (PortalShaderScope scope = PortalShaderScope.rendering()) {
+            return RenderSystem.getCompiledPipeline(pipeline);
+        }
     }
 
     private record Candidate(PortalView view, double distance) {

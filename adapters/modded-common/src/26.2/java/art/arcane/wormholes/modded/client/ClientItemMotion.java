@@ -1,0 +1,42 @@
+package art.arcane.wormholes.modded.client;
+
+import art.arcane.optics.entity.EntitySnapshot;
+import net.minecraft.world.entity.InterpolationHandler;
+import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.phys.Vec3;
+
+final class ClientItemMotion {
+    private static final double TELEPORT_DISTANCE_SQUARED = 64.0D;
+    private static final int INTERPOLATION_TICKS = 2;
+
+    private final ItemEntity entity;
+    private final InterpolationHandler interpolation;
+
+    ClientItemMotion(ItemEntity entity) {
+        this.entity = entity;
+        this.interpolation = new InterpolationHandler(entity, INTERPOLATION_TICKS);
+    }
+
+    void move(EntitySnapshot visual, EntitySnapshot previous) {
+        Vec3 position = new Vec3(visual.x(), visual.y(), visual.z());
+        double dx = visual.x() - previous.x();
+        double dy = visual.y() - previous.y();
+        double dz = visual.z() - previous.z();
+        if (dx * dx + dy * dy + dz * dz > TELEPORT_DISTANCE_SQUARED) {
+            interpolation.cancel();
+            entity.setPos(position);
+            entity.setYRot(visual.yaw());
+            entity.setXRot(visual.pitch());
+            entity.setOldPosAndRot();
+        } else if (dx != 0 || dy != 0 || dz != 0 || visual.yaw() != previous.yaw() || visual.pitch() != previous.pitch()) {
+            interpolation.interpolateTo(position, visual.yaw(), visual.pitch());
+        }
+        entity.setDeltaMovement(new Vec3(visual.velocityX(), visual.velocityY(), visual.velocityZ()));
+        entity.setOnGround(visual.onGround());
+    }
+
+    void tick() {
+        ClientEntityTick.begin(entity);
+        interpolation.interpolate();
+    }
+}

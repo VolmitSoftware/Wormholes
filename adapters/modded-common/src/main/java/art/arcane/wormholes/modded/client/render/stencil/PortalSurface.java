@@ -84,7 +84,10 @@ public final class PortalSurface {
         double x = Math.clamp(point.x(), area.getXa(), area.getXb());
         double y = Math.clamp(point.y(), area.getYa(), area.getYb());
         double z = Math.clamp(point.z(), area.getZa(), area.getZb());
-        return point.distance(new Vec3d(x, y, z));
+        double offset = (x - planePoint.x()) * servedNormal.x() + (y - planePoint.y()) * servedNormal.y()
+            + (z - planePoint.z()) * servedNormal.z();
+        return point.distance(new Vec3d(x - servedNormal.x() * offset, y - servedNormal.y() * offset,
+            z - servedNormal.z() * offset));
     }
 
     public boolean servesEye(Vec3d eye) {

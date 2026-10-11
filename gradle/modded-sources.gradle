@@ -1,0 +1,33 @@
+import org.gradle.api.file.SourceDirectorySet
+import java.nio.file.Path
+
+String targetVersion = project.ext.minecraftTargetVersion
+List<File> versionRoots = [file("../modded-common/src/${targetVersion}"), file("src/${targetVersion}")]
+Map<String, String> sourcePaths = [main: '', test: 'test/', gameTest: 'gameTest/', clientGameTest: 'clientGameTest/']
+sourceSets.configureEach { SourceSet sourceSet ->
+    String sourcePath = sourcePaths[sourceSet.name]
+    if (sourcePath == null) {
+        return
+    }
+    Map<SourceDirectorySet, String> directories = [(sourceSet.java): 'java', (sourceSet.resources): 'resources']
+    directories.each { SourceDirectorySet directorySet, String kind ->
+        List<Path> managedRoots = directorySet.srcDirs.collect { File directory -> directory.canonicalFile.toPath() }
+        List<File> versionDirectories = []
+        for (File versionRoot : versionRoots) {
+            File directory = new File(versionRoot, sourcePath + kind)
+            versionDirectories.add(directory)
+            managedRoots.add(directory.canonicalFile.toPath())
+            directorySet.srcDir(directory)
+        }
+        directorySet.exclude { FileTreeElement entry ->
+            for (int index = versionDirectories.size() - 1; index >= 0; index--) {
+                File replacement = new File(versionDirectories[index], entry.relativePath.pathString)
+                if (replacement.isFile()) {
+                    File source = entry.file.canonicalFile
+                    return source != replacement.canonicalFile && managedRoots.any { Path root -> source.toPath().startsWith(root) }
+                }
+            }
+            false
+        }
+    }
+}

@@ -69,7 +69,7 @@ final class FabricSeamlessClient implements SeamlessClient {
 
     @Override
     public void moveCursor(double deltaX, double deltaY) {
-        context.getInput().moveCursor(deltaX, deltaY);
+        NativeSeamlessInput.moveCursor(this, deltaX, deltaY);
     }
 
     @Override

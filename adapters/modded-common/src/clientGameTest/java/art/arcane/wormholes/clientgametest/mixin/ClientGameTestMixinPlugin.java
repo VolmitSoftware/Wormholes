@@ -19,7 +19,20 @@ public final class ClientGameTestMixinPlugin implements IMixinConfigPlugin {
 
     @Override
     public boolean shouldApplyMixin(String targetClassName, String mixinClassName) {
-        if (mixinClassName.endsWith(".IrisHistoryPipelineTap") || mixinClassName.endsWith(".IrisHistoryLayerTap")) {
+        if (mixinClassName.endsWith(".FabricGameTestShutdownMixin")) {
+            return Boolean.getBoolean("wormholes.test.fabricPhasedShutdown")
+                && System.getProperty("fabric.client.gametest") != null
+                && getClass().getClassLoader().getResource("net/fabricmc/fabric/impl/client/gametest/threading/ThreadingImpl.class") != null;
+        }
+        if (mixinClassName.contains(".DistantHorizons")) {
+            return getClass().getClassLoader().getResource("com/seibel/distanthorizons/core/api/internal/ClientApi.class") != null
+                && (!mixinClassName.endsWith(".DistantHorizonsPipelineTap")
+                && !mixinClassName.contains(".DistantHorizonsShaderComparisonClockMixin")
+                || getClass().getClassLoader().getResource("net/irisshaders/iris/Iris.class") != null);
+        }
+        if (mixinClassName.endsWith(".IrisFullscreenScopeTap") || mixinClassName.endsWith(".IrisHistoryPipelineTap")
+            || mixinClassName.endsWith(".IrisHistoryLayerTap")
+            || mixinClassName.contains(".IrisPipelineCostMixin")) {
             return getClass().getClassLoader().getResource("net/irisshaders/iris/Iris.class") != null;
         }
         return true;

@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded.clientview;
 
+import art.arcane.optics.aperture.ApertureCells;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.crossing.PlaneCrossing;
 import art.arcane.optics.crossing.Pose;
@@ -10,6 +11,7 @@ import art.arcane.optics.frame.Similarity;
 import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Face;
 import art.arcane.optics.math.Vec3d;
+import art.arcane.optics.shape.ShapeDescriptor;
 import art.arcane.wormholes.modded.MinecraftPortal;
 import art.arcane.wormholes.modded.MinecraftPortalRegistry;
 import art.arcane.wormholes.modded.WormholesModRuntime;
@@ -94,7 +96,7 @@ final class MinecraftSeamlessTravel {
             return true;
         }
         Arm arm = traveler.arms.get(source);
-        if (arm == null) {
+        if (arm == null || !arm.geometryMatches(arm.source(), arm.destination())) {
             return false;
         }
         long tick = runtime.server().getTickCount();
@@ -129,7 +131,8 @@ final class MinecraftSeamlessTravel {
                                           TravelMessage.TravelPose arrival, Vec3d velocity) {
         Traveler traveler = travelers.get(player.getUUID());
         Flight flight = traveler == null ? null : traveler.flight;
-        if (flight == null || !flight.arm.source().getId().equals(source) || flight.arm.world() != world) {
+        if (flight == null || !flight.arm.geometryMatches(flight.arm.source(), flight.arm.destination())
+            || !flight.arm.source().getId().equals(source) || flight.arm.world() != world) {
             return null;
         }
         RemoteRoute route = runtime.remoteRoutes().route(player.getUUID(), source);
@@ -245,9 +248,10 @@ final class MinecraftSeamlessTravel {
             }
             UUID sourceId = source.getId();
             Arm current = traveler.arms.get(sourceId);
+            boolean unchanged = current != null && current.geometryMatches(source, destination);
             Vec3 eye = player.getEyePosition();
-            boolean withinAperture = current != null && projectsIntoAperture(current.begin().sourceGeometry(), new Vec3d(eye.x, eye.y, eye.z));
-            boolean front = traveler.sides.front(current != null, current != null && current.front(), planeDistance(eye, source), speed,
+            boolean withinAperture = unchanged && projectsIntoAperture(current.begin().sourceGeometry(), new Vec3d(eye.x, eye.y, eye.z));
+            boolean front = traveler.sides.front(unchanged, unchanged && current.front(), planeDistance(eye, source), speed,
                 withinAperture);
             long identity = peer.portals().routeIdentity(source);
             TravelMessage.DoorCollisionTarget doorCollision = collisionTarget(peer, source, destination);
@@ -320,7 +324,7 @@ final class MinecraftSeamlessTravel {
             new TravelMessage.TravelPose(feet.x(), feet.y(), feet.z(), player.getYRot(), player.getXRot()),
             MinecraftPortalEnvironment.capture(world, eye, OpticTransform.IDENTITY, world.isFlat()), rules(peer, source), route.resident(),
             route.handle(), doorCollision);
-        return new Arm(source, destination, world, front, identity, route.handle(), begin);
+        return new Arm(source, destination, world, front, identity, route.handle(), begin, PortalState.capture(source), PortalState.capture(destination));
     }
 
     private List<RemoteRoutes.Candidate> candidates(ClientViewTravel<MinecraftClientViewPeer> travel, ServerPlayer player) {
@@ -395,6 +399,9 @@ final class MinecraftSeamlessTravel {
     }
 
     private Refused refusal(ClientViewTravel<MinecraftClientViewPeer> travel, ServerPlayer player, Arm arm, TravelMessage.TravelCross request) {
+        if (!arm.geometryMatches(arm.source(), arm.destination())) {
+            return new Refused(null, "portal geometry changed", true);
+        }
         MinecraftClientViewPeer peer = travel.player();
         RemoteRoute route = runtime.remoteRoutes().route(player.getUUID(), arm.source().getId());
         if (route == null || route.level() != arm.world() || route.handle() != arm.handle()) {
@@ -485,11 +492,28 @@ final class MinecraftSeamlessTravel {
     }
 
     private record Arm(MinecraftPortal source, MinecraftPortal destination, ServerLevel world, boolean front, long identity, int handle,
-                       TravelMessage.TravelBegin begin) {
+                       TravelMessage.TravelBegin begin, PortalState sourceState, PortalState destinationState) {
         private boolean matches(MinecraftPortal nextSource, MinecraftPortal nextDestination, RemoteRoute route, boolean nextFront,
                                 long nextIdentity, TravelMessage.DoorCollisionTarget nextDoorCollision) {
             return source == nextSource && destination == nextDestination && world == route.level() && front == nextFront
-                && identity == nextIdentity && handle == route.handle() && Objects.equals(begin.doorCollision(), nextDoorCollision);
+                && identity == nextIdentity && handle == route.handle() && Objects.equals(begin.doorCollision(), nextDoorCollision)
+                && geometryMatches(nextSource, nextDestination);
+        }
+
+        private boolean geometryMatches(MinecraftPortal nextSource, MinecraftPortal nextDestination) {
+            return sourceState.matches(nextSource) && destinationState.matches(nextDestination);
+        }
+    }
+
+    private record PortalState(Frame frame, Vec3d origin, ApertureCells geometry, long revision, ShapeDescriptor shape) {
+        private static PortalState capture(MinecraftPortal portal) {
+            ApertureCells geometry = portal.getGeometry();
+            return new PortalState(portal.getFrame(), portal.getOrigin(), geometry, geometry.getRevision(), portal.getApertureShape());
+        }
+
+        private boolean matches(MinecraftPortal portal) {
+            return frame.equals(portal.getFrame()) && origin.equals(portal.getOrigin()) && geometry == portal.getGeometry()
+                && revision == geometry.getRevision() && shape.equals(portal.getApertureShape());
         }
     }
 

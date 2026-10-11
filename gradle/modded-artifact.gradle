@@ -14,7 +14,7 @@ abstract class VerifyModdedArtifact extends DefaultTask {
     private static final Set<String> portalRenderMixins = ['client.PortalLevelRendererMixin', 'client.PortalProjectionMixin', 'client.PortalLightmapMixin',
                                      'client.MeshLevelExtractorMixin', 'client.MeshEntityRendererMixin', 'client.MeshFeatureWindingMixin',
                                      'client.EndPortalSurfaceMixin', 'client.MeshBlockModelLighterMixin', 'client.MeshFluidLightingMixin',
-                                     'client.PortalShaderGameRendererMixin',
+                                     'client.PortalShaderGameRendererMixin', 'client.PortalSkyRendererMixin',
                                      'client.PreparedLevelAccess', 'client.PreparedLevelMetadataMixin',
                                      'client.CrossingCameraMixin', 'client.SodiumPortalUniformsMixin',
                                      'client.LocalMeshChunkMixin', 'client.StraddleOverlayMixin',
@@ -26,8 +26,12 @@ abstract class VerifyModdedArtifact extends DefaultTask {
                                      'client.ClientWorldCloudAccess', 'client.ClientWorldOcclusionAccess',
                                      'client.PortalLevelRendererAccess', 'client.PortalGameRendererAccess',
                                      'client.PortalLevelExtractorAccess', 'client.PortalLevelExtractorMixin',
+                                     'client.VanillaTerrainExtractorMixin', 'client.VanillaTerrainRendererAccess',
+                                     'client.VanillaTerrainRendererMixin',
                                      'client.PortalClipShaderMixin', 'client.PortalClipProjectionMixin',
-                                     'client.PortalStencilPipelinesMixin'] as Set
+                                     'client.PortalStencilPipelinesMixin', 'client.PortalClipIncludeMixin',
+                                     'client.PortalFeaturePipelineMixin', 'client.PortalDrawPassMixin',
+                                     'client.PortalStencilLayerTargetMixin'] as Set
 
     @InputFile
     @PathSensitive(PathSensitivity.NONE)
@@ -36,12 +40,21 @@ abstract class VerifyModdedArtifact extends DefaultTask {
     @Input
     abstract Property<String> getMetadata()
 
+    @Input
+    abstract Property<String> getMinecraftVersion()
+
+    @Input
+    abstract Property<String> getLoaderVersion()
+
+    @Input
+    abstract Property<String> getLoaderRange()
+
     @TaskAction
     void verify() {
         File artifact = getArtifact().get().asFile
         new java.util.jar.JarFile(artifact).withCloseable { java.util.jar.JarFile archive ->
             String metadata = getMetadata().get()
-            for (String required : [metadata, 'art/arcane/wormholes/modded/WormholesModRuntime.class',
+            for (String required : [metadata, 'wormholes-target.properties', 'art/arcane/wormholes/modded/WormholesModRuntime.class',
                                     'art/arcane/wormholes/network/WireCodec.class',
                                     'art/arcane/optics/frame/Frame.class',
                                     'art/arcane/optics/spi/OpticsMetrics.class']) {
@@ -49,7 +62,35 @@ abstract class VerifyModdedArtifact extends DefaultTask {
                     throw new GradleException("${artifact.name} is missing ${required}")
                 }
             }
+            Properties target = new Properties()
+            archive.getInputStream(archive.getJarEntry('wormholes-target.properties')).withCloseable { InputStream stream ->
+                target.load(stream)
+            }
+            String minecraftVersion = getMinecraftVersion().get()
+            if (target.getProperty('minecraft') != minecraftVersion || target.getProperty('loaderVersion') != getLoaderVersion().get()) {
+                throw new GradleException("${artifact.name} contains metadata for a different Minecraft or loader target")
+            }
+            String loaderMetadata = archive.getInputStream(archive.getJarEntry(metadata)).withCloseable { InputStream stream ->
+                stream.getText('UTF-8')
+            }
+            if (loaderMetadata.contains('${')) {
+                throw new GradleException("${artifact.name} contains unexpanded loader metadata")
+            }
+            if (metadata == 'fabric.mod.json') {
+                Map<String, Object> fabricMetadata = (Map<String, Object>) new groovy.json.JsonSlurper().parseText(loaderMetadata)
+                Map<String, Object> dependencies = (Map<String, Object>) fabricMetadata['depends']
+                if (dependencies['minecraft'] != minecraftVersion || dependencies['fabricloader'] != ">=${getLoaderVersion().get()}") {
+                    throw new GradleException("${artifact.name} declares an incorrect Minecraft or Fabric loader version")
+                }
+            } else if (!loaderMetadata.contains('versionRange = "[' + minecraftVersion + ']"')
+                || !loaderMetadata.contains('versionRange = "' + getLoaderRange().get() + '"')) {
+                throw new GradleException("${artifact.name} declares an incorrect Minecraft or mod loader version range")
+            }
+            Set<String> classes = new HashSet<>()
             archive.entries().each { java.util.jar.JarEntry entry ->
+                if (entry.name.endsWith('.class') && !classes.add(entry.name)) {
+                    throw new GradleException("${artifact.name} contains duplicate class ${entry.name}")
+                }
                 if (entry.name.startsWith('art/arcane/wormholes/')
                     && (entry.name.contains('/gametest/') || entry.name.contains('GameTest')
                         || entry.name.endsWith('/NativeHandoffProbe.class'))) {
@@ -113,6 +154,12 @@ tasks.register('verifyModdedArtifact', VerifyModdedArtifact) {
     description = 'Verifies loader metadata, shading, fixtures, and rendering boundaries in the runtime jar.'
     dependsOn(tasks.named('shadowJar'))
     artifact.set(tasks.named('shadowJar').flatMap { task -> task.archiveFile })
+    minecraftVersion.set(project.ext.minecraftTargetVersion)
+    String loader = project.projectDir.name
+    Map<String, String> versionKeys = [fabric: 'fabricLoaderVersion', forge: 'forgeVersion', neoforge: 'neoForgeVersion']
+    Map<String, Object> target = project.ext.minecraftTarget
+    loaderVersion.set(providers.gradleProperty(versionKeys[loader]).getOrElse(((Map<String, String>) target['loaders'])[loader]))
+    loaderRange.set(loader == 'forge' ? (String) target['forgeLoaderRange'] : loader == 'neoforge' ? (String) target['neoForgeRange'] : '')
 }
 
 tasks.named('check').configure {

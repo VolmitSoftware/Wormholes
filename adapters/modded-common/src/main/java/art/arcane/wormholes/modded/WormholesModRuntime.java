@@ -254,6 +254,7 @@ public final class WormholesModRuntime {
 
     public void registerCommands(CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(Commands.literal("wormholes")
+            .requires(source -> running())
             .then(Commands.literal("status").executes(context -> {
                 context.getSource().sendSuccess(() -> Component.literal(
                     "Wormholes runtime: " + (running() ? "running" : "stopped")), false);
@@ -272,8 +273,8 @@ public final class WormholesModRuntime {
         new MinecraftRulesCommands(this).register(dispatcher);
         new MinecraftNexusCommands(this).register(dispatcher);
         new MinecraftClientViewCommands(this).register(dispatcher);
-        dispatcher.register(Commands.literal("wh").redirect(dispatcher.getRoot().getChild("wormholes")));
-        dispatcher.register(Commands.literal("wormhole").redirect(dispatcher.getRoot().getChild("wormholes")));
+        dispatcher.register(Commands.literal("wh").requires(source -> running()).redirect(dispatcher.getRoot().getChild("wormholes")));
+        dispatcher.register(Commands.literal("wormhole").requires(source -> running()).redirect(dispatcher.getRoot().getChild("wormholes")));
     }
 
     public boolean attackBlock(ServerPlayer player, BlockPos position) {
@@ -554,6 +555,7 @@ public final class WormholesModRuntime {
     }
 
     private int reloadCommand(CommandSourceStack source) {
+        source.sendSuccess(() -> Component.literal("Wormholes configuration reload started."), false);
         configuration().reload().whenComplete((settings, error) -> {
             if (error instanceof CancellationException) {
                 return;

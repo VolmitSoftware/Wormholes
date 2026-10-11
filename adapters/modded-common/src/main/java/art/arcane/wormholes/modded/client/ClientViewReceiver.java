@@ -21,6 +21,7 @@ public final class ClientViewReceiver {
 
     private final ClientViewSession session;
     private Consumer<TravelMessage> travel = ignored -> { };
+    private Runnable negotiationReset = () -> { };
     private final ConcurrentLinkedQueue<Queued> queue;
     private final AtomicInteger queued;
     private final AtomicLong decodeFailures;
@@ -42,6 +43,10 @@ public final class ClientViewReceiver {
         travel = Objects.requireNonNull(receiver);
     }
 
+    public void negotiationReset(Runnable reset) {
+        negotiationReset = Objects.requireNonNull(reset);
+    }
+
     public void receive(byte[] payload, Consumer<byte[]> reply) {
         Objects.requireNonNull(payload, "payload");
         received.incrementAndGet();
@@ -58,6 +63,7 @@ public final class ClientViewReceiver {
         }
         switch (frame.message()) {
             case ViewStreamMessage.Offer offer -> {
+                negotiationReset.run();
                 ViewStreamMessage.Hello hello = session.offer(offer);
                 enqueue(new Queued(new ViewStreamCodec.S2CFrame(frame.seq(), 0, offer), payload.length, System.nanoTime()));
                 if (hello != null && reply != null && !send(reply, hello)) {

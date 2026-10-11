@@ -18,6 +18,8 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongLinkedOpenHashSet;
 import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.world.level.Level;
+import art.arcane.wormholes.network.client.ClientViewExtensions;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Options;
@@ -62,12 +64,13 @@ import static org.mockito.ArgumentMatchers.anyLong;
 
 public class ClientMeshViewsTest extends MinecraftTestBase {
     private MockedStatic<Minecraft> minecraftAccess;
+    private Minecraft minecraft;
     private OptionInstance<Integer> blendRadius;
 
     @Before
     @SuppressWarnings("unchecked")
     public void gameOptions() throws ReflectiveOperationException {
-        Minecraft minecraft = mock(Minecraft.class);
+        minecraft = mock(Minecraft.class);
         Options options = mock(Options.class);
         blendRadius = mock(OptionInstance.class);
         when(blendRadius.get()).thenReturn(1);
@@ -95,6 +98,7 @@ public class ClientMeshViewsTest extends MinecraftTestBase {
         ApertureDescriptor geometry = mock(ApertureDescriptor.class);
         ClientPortalRenderer renderer = mock(ClientPortalRenderer.class);
         ClientLevel level = mock(ClientLevel.class);
+        bindLevel(level);
         EnvironmentState environment = mock(EnvironmentState.class);
         Camera camera = mock(Camera.class);
         when(session.active()).thenReturn(true);
@@ -137,6 +141,7 @@ public class ClientMeshViewsTest extends MinecraftTestBase {
         ClientPortal portal = mock(ClientPortal.class);
         ClientPortalRenderer renderer = mock(ClientPortalRenderer.class);
         ClientLevel level = mock(ClientLevel.class);
+        bindLevel(level);
         ApertureDescriptor base = new ApertureDescriptor(0, 64, 0, Face.S.ordinal(), true, 0, true,
             1, 2, new long[]{3}, ShapeDescriptor.FULL, 0, 0, 1, 64, 3, 0, 0, 0, 0, 0, ApertureKind.FRAME, 0.0D, 0, 1, List.of());
         when(session.active()).thenReturn(true);
@@ -174,7 +179,9 @@ public class ClientMeshViewsTest extends MinecraftTestBase {
             when(portal.geometry()).thenReturn(surface(base, 1, 99L));
             views.update(session, level);
             verify(renderer, times(3)).replaceScene(eq(7), any(PortalScene.class));
-            views.update(session, mock(ClientLevel.class));
+            ClientLevel refreshed = mock(ClientLevel.class);
+            bindLevel(refreshed);
+            views.update(session, refreshed);
             verify(renderer, times(4)).replaceScene(eq(7), any(PortalScene.class));
         }
     }
@@ -188,6 +195,7 @@ public class ClientMeshViewsTest extends MinecraftTestBase {
         ApertureDescriptor geometry = mock(ApertureDescriptor.class);
         ClientPortalRenderer renderer = mock(ClientPortalRenderer.class);
         ClientLevel level = mock(ClientLevel.class);
+        bindLevel(level);
         EnvironmentState environment = mock(EnvironmentState.class);
         when(session.active()).thenReturn(true);
         when(session.meshes()).thenReturn(meshes);
@@ -222,6 +230,7 @@ public class ClientMeshViewsTest extends MinecraftTestBase {
     public void identicalTerrainRebindsFreshFeaturesToTheNewPhysicalLevelWithoutDeletingGpuGeometry() {
         Fixture fixture = new Fixture();
         ClientLevel destination = mock(ClientLevel.class);
+        bindLevel(destination);
         when(destination.registryAccess()).thenReturn(RegistryAccess.EMPTY);
         List<ClientLevel> featureLevels = new ArrayList<>();
         try (MockedStatic<ClientPortalRenderer> renderers = mockStatic(ClientPortalRenderer.class);
@@ -231,6 +240,7 @@ public class ClientMeshViewsTest extends MinecraftTestBase {
             fixture.views.update(fixture.session, fixture.level);
             ClientMeshSections.Identity sameIdentity = new ClientMeshSections.Identity(fixture.environment, 1, 1);
             when(fixture.view.identity()).thenReturn(sameIdentity);
+            minecraft.level = destination;
             fixture.views.update(fixture.session, destination);
             fixture.views.update(fixture.session, destination);
             ArgumentCaptor<PortalScene> scene = ArgumentCaptor.forClass(PortalScene.class);
@@ -249,6 +259,7 @@ public class ClientMeshViewsTest extends MinecraftTestBase {
     public void changedRegistryCanonicalIdentityViewOrDimensionUsesOrdinarySceneReplacement() {
         Fixture fixture = new Fixture();
         ClientLevel foreignRegistry = mock(ClientLevel.class);
+        bindLevel(foreignRegistry);
         RegistryAccess foreignAccess = mock(RegistryAccess.class);
         when(foreignRegistry.registryAccess()).thenReturn(foreignAccess);
         try (MockedStatic<ClientPortalRenderer> renderers = mockStatic(ClientPortalRenderer.class);
@@ -281,6 +292,7 @@ public class ClientMeshViewsTest extends MinecraftTestBase {
         Fixture fixture = new Fixture();
         when(fixture.view.identity()).thenReturn(null);
         ClientLevel destination = mock(ClientLevel.class);
+        bindLevel(destination);
         when(destination.registryAccess()).thenReturn(RegistryAccess.EMPTY);
         try (MockedStatic<ClientPortalRenderer> renderers = mockStatic(ClientPortalRenderer.class);
              MockedConstruction<ClientMeshEntities> features = mockConstruction(ClientMeshEntities.class)) {
@@ -427,8 +439,10 @@ public class ClientMeshViewsTest extends MinecraftTestBase {
         LongLinkedOpenHashSet changed = new LongLinkedOpenHashSet();
         when(fixture.view.changed()).thenReturn(changed);
         ClientLevel retainedLevel = mock(ClientLevel.class);
+        bindLevel(retainedLevel);
         when(retainedLevel.registryAccess()).thenReturn(RegistryAccess.EMPTY);
         ClientLevel changedRegistry = mock(ClientLevel.class);
+        bindLevel(changedRegistry);
         RegistryAccess foreignAccess = mock(RegistryAccess.class);
         when(changedRegistry.registryAccess()).thenReturn(foreignAccess);
         try (MockedStatic<ClientPortalRenderer> renderers = mockStatic(ClientPortalRenderer.class);
@@ -589,7 +603,103 @@ public class ClientMeshViewsTest extends MinecraftTestBase {
         return neighbors;
     }
 
-    private static final class Fixture {
+    private void bindLevel(ClientLevel level) {
+        when(level.dimension()).thenReturn(Level.OVERWORLD);
+        minecraft.level = level;
+    }
+
+    @Test
+    public void graceRetainedSourceScenesCannotRebindIntoTheDestinationBeforeDrop() {
+        Fixture fixture = new Fixture();
+        when(fixture.session.has(ClientViewExtensions.ROOT_SOURCE)).thenReturn(true);
+        when(fixture.session.rootSourceWorld(7)).thenReturn("minecraft:overworld");
+        ClientLevel nether = mock(ClientLevel.class);
+        when(nether.dimension()).thenReturn(Level.NETHER);
+        when(nether.registryAccess()).thenReturn(RegistryAccess.EMPTY);
+        Camera camera = mock(Camera.class);
+        try (MockedStatic<ClientPortalRenderer> renderers = mockStatic(ClientPortalRenderer.class);
+             MockedConstruction<ClientMeshEntities> features = mockConstruction(ClientMeshEntities.class)) {
+            renderers.when(ClientPortalRenderer::instance).thenReturn(fixture.renderer);
+            fixture.views.update(fixture.session, fixture.level);
+            ArgumentCaptor<PortalScene> scene = ArgumentCaptor.forClass(PortalScene.class);
+            verify(fixture.renderer).replaceScene(eq(7), scene.capture());
+            assertSame(fixture.level, scene.getValue().sourceLevel());
+            minecraft.level = nether;
+            fixture.views.extract(camera, 0.5F);
+            fixture.views.update(fixture.session, nether);
+            fixture.views.update(fixture.session, nether);
+            fixture.views.extract(camera, 0.5F);
+            assertEquals(1, features.constructed().size());
+            verify(features.constructed().getFirst(), never()).extract(eq(7), any(Camera.class), anyFloat(), any());
+            verify(fixture.renderer, never()).refreshScene(eq(7), any(), anyBoolean());
+            verify(fixture.renderer, never()).remove(7);
+            assertSame(fixture.level, scene.getValue().sourceLevel());
+            minecraft.level = fixture.level;
+            fixture.views.update(fixture.session, fixture.level);
+            fixture.views.extract(camera, 0.5F);
+            verify(features.constructed().getFirst()).extract(7, camera, 0.5F, OpticTransform.IDENTITY);
+            verify(fixture.renderer, times(1)).replaceScene(eq(7), any());
+        }
+    }
+
+    @Test
+    public void firstEverDelayedRootWaitsForMetadataAndNeverAdoptsDestination() {
+        Fixture fixture = new Fixture();
+        when(fixture.session.has(ClientViewExtensions.ROOT_SOURCE)).thenReturn(true);
+        ClientLevel nether = mock(ClientLevel.class);
+        when(nether.dimension()).thenReturn(Level.NETHER);
+        minecraft.level = nether;
+        try (MockedStatic<ClientPortalRenderer> renderers = mockStatic(ClientPortalRenderer.class);
+             MockedConstruction<ClientMeshEntities> features = mockConstruction(ClientMeshEntities.class)) {
+            renderers.when(ClientPortalRenderer::instance).thenReturn(fixture.renderer);
+            fixture.views.update(fixture.session, nether);
+            when(fixture.session.rootSourceWorld(7)).thenReturn("minecraft:overworld");
+            fixture.views.update(fixture.session, nether);
+            assertTrue(features.constructed().isEmpty());
+            verify(fixture.renderer, never()).replaceScene(eq(7), any());
+            minecraft.level = fixture.level;
+            fixture.views.update(fixture.session, fixture.level);
+            assertEquals(1, features.constructed().size());
+        }
+    }
+
+    @Test
+    public void optionalCapabilityFallbackRetainsTheFirstOwningWorld() {
+        Fixture fixture = new Fixture();
+        ClientLevel nether = mock(ClientLevel.class);
+        when(nether.dimension()).thenReturn(Level.NETHER);
+        try (MockedStatic<ClientPortalRenderer> renderers = mockStatic(ClientPortalRenderer.class);
+             MockedConstruction<ClientMeshEntities> features = mockConstruction(ClientMeshEntities.class)) {
+            renderers.when(ClientPortalRenderer::instance).thenReturn(fixture.renderer);
+            fixture.views.update(fixture.session, fixture.level);
+            minecraft.level = nether;
+            fixture.views.update(fixture.session, nether);
+            verify(fixture.renderer, times(1)).replaceScene(eq(7), any());
+            verify(fixture.renderer, never()).refreshScene(eq(7), any(), anyBoolean());
+            assertEquals(1, features.constructed().size());
+        }
+    }
+
+    @Test
+    public void metadataRevisionMismatchImmediatelyExpiresThePreparedScene() {
+        Fixture fixture = new Fixture();
+        when(fixture.session.has(ClientViewExtensions.ROOT_SOURCE)).thenReturn(true);
+        when(fixture.session.rootSourceWorld(7)).thenReturn("minecraft:overworld");
+        try (MockedStatic<ClientPortalRenderer> renderers = mockStatic(ClientPortalRenderer.class);
+             MockedConstruction<ClientMeshEntities> features = mockConstruction(ClientMeshEntities.class)) {
+            renderers.when(ClientPortalRenderer::instance).thenReturn(fixture.renderer);
+            fixture.views.update(fixture.session, fixture.level);
+            ArgumentCaptor<PortalScene> scene = ArgumentCaptor.forClass(PortalScene.class);
+            verify(fixture.renderer).replaceScene(eq(7), scene.capture());
+            assertFalse(scene.getValue().sourceExpired());
+            when(fixture.session.rootSourceWorld(7)).thenReturn(null);
+            assertTrue(scene.getValue().sourceExpired());
+            fixture.views.extract(mock(Camera.class), 0.5F);
+            verify(features.constructed().getFirst(), never()).extract(eq(7), any(Camera.class), anyFloat(), any());
+        }
+    }
+
+    private final class Fixture {
         private final ClientViewSession session = mock(ClientViewSession.class);
         private final ClientMeshSections meshes = mock(ClientMeshSections.class);
         private final ClientMeshSections.View view = mock(ClientMeshSections.View.class);
@@ -601,6 +711,7 @@ public class ClientMeshViewsTest extends MinecraftTestBase {
         private final ClientMeshViews views = new ClientMeshViews();
 
         private Fixture() {
+            bindLevel(level);
             when(session.active()).thenReturn(true);
             when(session.meshes()).thenReturn(meshes);
             when(meshes.view(7)).thenReturn(view);

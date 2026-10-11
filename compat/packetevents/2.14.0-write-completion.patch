@@ -1,0 +1,117 @@
+--- a/com/github/retrooper/packetevents/event/PacketSendEvent.java
++++ b/com/github/retrooper/packetevents/event/PacketSendEvent.java
+@@ -30,11 +30,13 @@
+ 
+ import java.util.ArrayList;
+ import java.util.List;
++import java.util.function.BiConsumer;
+ 
+ @NullMarked
+ public class PacketSendEvent extends ProtocolPacketEvent {
+ 
+     private @Nullable List<Runnable> tasksAfterSend = null;
++    private @Nullable List<BiConsumer<Boolean, @Nullable Throwable>> tasksOnWriteCompletion = null;
+ 
+     protected PacketSendEvent(
+             Object channel, User user,
+@@ -69,6 +71,17 @@
+         return tasksAfterSend != null && !tasksAfterSend.isEmpty();
+     }
+ 
++    public List<BiConsumer<Boolean, @Nullable Throwable>> getTasksOnWriteCompletion() {
++        if (tasksOnWriteCompletion == null) {
++            tasksOnWriteCompletion = new ArrayList<>();
++        }
++        return tasksOnWriteCompletion;
++    }
++
++    public boolean hasTasksOnWriteCompletion() {
++        return tasksOnWriteCompletion != null && !tasksOnWriteCompletion.isEmpty();
++    }
++
+     @Override
+     public PacketSendEvent clone() {
+         Object clonedBuffer = ByteBufHelper.retainedDuplicate(getByteBuf());
+--- a/io/github/retrooper/packetevents/injector/handlers/PacketEventsEncoder.java
++++ b/io/github/retrooper/packetevents/injector/handlers/PacketEventsEncoder.java
+@@ -46,6 +46,7 @@
+ import java.lang.reflect.InvocationTargetException;
+ import java.util.ArrayDeque;
+ import java.util.Queue;
++import java.util.function.BiConsumer;
+ 
+ public class PacketEventsEncoder extends ChannelOutboundHandlerAdapter {
+ 
+@@ -100,10 +101,23 @@
+ 
+     private @Nullable PacketSendEvent handleClientBoundPacket(Channel channel, User user, Object player, ByteBuf buffer, ChannelPromise promise) throws Exception {
+         PacketSendEvent packetSendEvent = PacketEventsImplHelper.handleClientBoundPacket(channel, user, player, buffer, true);
+-        if (packetSendEvent != null && packetSendEvent.hasTasksAfterSend()) {
++        if (packetSendEvent != null
++                && (packetSendEvent.hasTasksAfterSend() || packetSendEvent.hasTasksOnWriteCompletion())) {
+             promise.addListener((p) -> {
+-                for (Runnable task : packetSendEvent.getTasksAfterSend()) {
+-                    task.run();
++                if (packetSendEvent.hasTasksOnWriteCompletion()) {
++                    boolean delivered = p.isSuccess() && !packetSendEvent.isCancelled();
++                    for (BiConsumer<Boolean, @Nullable Throwable> task : packetSendEvent.getTasksOnWriteCompletion()) {
++                        try {
++                            task.accept(delivered, p.cause());
++                        } catch (RuntimeException exception) {
++                            channel.pipeline().fireExceptionCaught(exception);
++                        }
++                    }
++                }
++                if (packetSendEvent.hasTasksAfterSend()) {
++                    for (Runnable task : packetSendEvent.getTasksAfterSend()) {
++                        task.run();
++                    }
+                 }
+             });
+         }
+@@ -129,23 +143,28 @@
+         promise.addListener(p -> this.promise = oldPromise);
+         this.promise = promise;
+ 
+-        if (msg instanceof ByteBuf) {
+-            boolean needsRecompression = !this.handledCompression && this.handleCompression(ctx, (ByteBuf) msg);
+-            this.handleClientBoundPacket(ctx.channel(), this.user, this.player, (ByteBuf) msg, this.promise);
+-
+-            // check if the packet got cancelled
+-            if (!((ByteBuf) msg).isReadable()) {
+-                ReferenceCountUtil.release(msg);
+-                promise.trySuccess(); // TODO how to properly handle this?
+-                return; // abort handling
+-            }
+-
+-            if (needsRecompression) {
+-                this.compress(ctx, (ByteBuf) msg);
+-            }
+-        }
+-
+-        ctx.write(msg, promise);
++        try {
++            if (msg instanceof ByteBuf) {
++                boolean needsRecompression = !this.handledCompression && this.handleCompression(ctx, (ByteBuf) msg);
++                this.handleClientBoundPacket(ctx.channel(), this.user, this.player, (ByteBuf) msg, this.promise);
++
++                // check if the packet got cancelled
++                if (!((ByteBuf) msg).isReadable()) {
++                    ReferenceCountUtil.release(msg);
++                    promise.trySuccess(); // TODO how to properly handle this?
++                    return; // abort handling
++                }
++
++                if (needsRecompression) {
++                    this.compress(ctx, (ByteBuf) msg);
++                }
++            }
++
++            ctx.write(msg, promise);
++        } catch (Exception exception) {
++            promise.tryFailure(exception);
++            throw exception;
++        }
+     }
+ 
+     @Override

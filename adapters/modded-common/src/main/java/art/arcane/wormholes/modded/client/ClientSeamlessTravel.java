@@ -341,6 +341,7 @@ public final class ClientSeamlessTravel {
             TRAVELLER_SCALE.set(player, scaleBefore);
             return null;
         }
+        crossedView(arm, source, target);
         long now = System.currentTimeMillis();
         cameraRoll.start(ClientTravelMotion.roll(arm, before, crossingFeet), rollSeconds(), now);
         pending.addLast(new Crossing(arm, source, target, before, carry, after, expected, now + ACCEPT_TIMEOUT_MILLIS, scaleBefore));
@@ -439,6 +440,7 @@ public final class ClientSeamlessTravel {
         }
         ClientWorldLoader.forceFullSectionDiscovery();
         previousEye = null;
+        crossedView(arm, source, target);
         LOGGER.debug("Crossing seamless {} -> {} by the server{}", arm == null ? source.dimension().identifier() : arm.sourceWorld(),
             target.dimension().identifier(), accept.dimensionChanged() ? " (resident " + accept.levelHandle() + ")" : "");
         WormholesClient client = WormholesClient.instance();
@@ -477,6 +479,10 @@ public final class ClientSeamlessTravel {
         residents.crossing(next == null || next.source() == next.target() ? null : next.source());
         previousEye = null;
         returning = null;
+        WormholesClient client = WormholesClient.instance();
+        if (client != null) {
+            client.portalViews().resetReturn(from.source());
+        }
         if (player == null) {
             return;
         }
@@ -492,6 +498,14 @@ public final class ClientSeamlessTravel {
             from.carry().restore(player);
         }
         ClientWorldLoader.forceFullSectionDiscovery();
+    }
+
+    private static void crossedView(TravelMessage.TravelBegin arm, ClientLevel source, ClientLevel target) {
+        WormholesClient client = WormholesClient.instance();
+        if (client != null) {
+            WormholesClientConfig config = client.config();
+            client.portalViews().crossed(arm, source, target, config == null || config.clientRecursion);
+        }
     }
 
     private void straddle(Minecraft minecraft, LocalPlayer player) {

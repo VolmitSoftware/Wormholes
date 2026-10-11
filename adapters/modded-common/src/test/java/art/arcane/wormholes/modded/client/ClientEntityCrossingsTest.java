@@ -8,17 +8,12 @@ import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.network.client.TravelMessage;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.core.PositionAndRotation;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityTypes;
-import net.minecraft.world.entity.MoveSimulationType;
 import net.minecraft.world.entity.InterpolationHandler;
-import net.minecraft.world.entity.PositionPath;
-import net.minecraft.world.entity.PositionStep;
 import net.minecraft.world.phys.Vec3;
 import org.junit.Test;
 
-import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.Assert.assertFalse;
@@ -31,6 +26,7 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
 
@@ -42,10 +38,9 @@ public class ClientEntityCrossingsTest extends MinecraftTestBase {
     @Test
     public void aTranslatedCrossingCarriesPositionHistoryInterpolationAndVelocityThroughThePortal() {
         Faller faller = new Faller(80.5D);
-        when(faller.interpolation.target()).thenReturn(PositionAndRotation.of(new Vec3(1.5D, 79.0D, 1.5D), 0.0F, 0.0F),
-            PositionAndRotation.of(new Vec3(1.5D, 99.0D, 1.5D), 0.0F, 0.0F));
+        NativeCrossingFixtures.target(faller.interpolation, new Vec3(1.5D, 79.0D, 1.5D), new Vec3(1.5D, 99.0D, 1.5D));
         ClientEntityCrossings.cross(faller.entity, UP, new Vec3d(0.0D, -3.5D, 0.0D));
-        verify(faller.interpolation).applyPredictedMovement(new Vec3(0.0D, 20.0D, 0.0D));
+        NativeCrossingFixtures.translation(faller.interpolation, times(1), new Vec3(0.0D, 20.0D, 0.0D));
         verify(faller.interpolation, never()).cancel();
         verify(faller.entity).setPos(new Vec3(1.5D, 100.5D, 1.5D));
         verify(faller.entity).setOldPosAndRot(new Vec3(1.5D, 104.0D, 1.5D), 90.0F, 10.0F);
@@ -55,8 +50,8 @@ public class ClientEntityCrossingsTest extends MinecraftTestBase {
     @Test
     public void anInterpolationTargetThatCannotFollowIsDroppedInsteadOfPullingTheEntityBack() {
         Faller faller = new Faller(80.5D);
-        PositionAndRotation stuck = PositionAndRotation.of(new Vec3(1.5D, 79.0D, 1.5D), 0.0F, 0.0F);
-        when(faller.interpolation.target()).thenReturn(stuck, stuck);
+        Vec3 stuck = new Vec3(1.5D, 79.0D, 1.5D);
+        NativeCrossingFixtures.target(faller.interpolation, stuck, stuck);
         ClientEntityCrossings.cross(faller.entity, UP, new Vec3d(0.0D, -3.5D, 0.0D));
         verify(faller.interpolation).cancel();
         verify(faller.entity).setPos(new Vec3(1.5D, 100.5D, 1.5D));
@@ -67,7 +62,7 @@ public class ClientEntityCrossingsTest extends MinecraftTestBase {
         Faller faller = new Faller(80.5D);
         OpticTransform turn = OpticTransform.of(AxisPermutation.of(Face.S, Face.U, Face.W), 10.0D, 0.0D, 0.0D);
         ClientEntityCrossings.cross(faller.entity, turn, new Vec3d(1.0D, 0.0D, 0.0D));
-        verify(faller.interpolation, never()).applyPredictedMovement(any());
+        NativeCrossingFixtures.noTranslation(faller.interpolation);
         verify(faller.interpolation).cancel();
         Angles.Look look = turn.look(new Angles.Look(90.0F, 10.0F));
         verify(faller.entity).setYRot(look.yaw());
@@ -96,12 +91,7 @@ public class ClientEntityCrossingsTest extends MinecraftTestBase {
     public void positionsSentAfterTheCrossingAreFollowedOnTheSourceSideUntilThePlaneIsReached() {
         Faller faller = new Faller(88.0D);
         ClientEntityCrossing crossing = new ClientEntityCrossing(CROSSED, false);
-        crossing.route(faller.entity, PositionPath.stepped(List.of(new PositionStep(new Vec3(1.5D, 97.0D, 1.5D), 1),
-            new PositionStep(new Vec3(1.5D, 93.0D, 1.5D), 2))), 90.0F, 10.0F, true);
-        verify(faller.entity).moveOrInterpolateTo(PositionPath.stepped(List.of(new PositionStep(new Vec3(1.5D, 77.0D, 1.5D), 1),
-            new PositionStep(new Vec3(1.5D, 73.0D, 1.5D), 2))), 90.0F, 10.0F, true);
-        crossing.route(faller.entity, PositionPath.of(new Vec3(1.5D, 96.0D, 1.5D)), 0.0F, 0.0F, false);
-        verify(faller.entity).moveOrInterpolateTo(PositionPath.of(new Vec3(1.5D, 76.0D, 1.5D)), 0.0F, 0.0F, false);
+        NativeCrossingFixtures.route(crossing, faller.entity);
     }
 
     @Test
@@ -129,7 +119,7 @@ public class ClientEntityCrossingsTest extends MinecraftTestBase {
     public void theServerTeleportEchoOfAClientSimulatedEntityIsAbsorbedAfterTheCrossing() {
         Faller faller = new Faller(80.25D);
         doReturn(EntityTypes.ITEM).when(faller.entity).getType();
-        when(faller.entity.getMoveSimulationType()).thenReturn(MoveSimulationType.SERVER_AND_CLIENT);
+        NativeCrossingFixtures.simulated(faller.entity);
         ClientEntityCrossings crossings = new ClientEntityCrossings();
         assertTrue(crossings.receive(faller.level, null, CROSSED));
         verify(faller.entity).setPos(new Vec3(1.5D, 100.25D, 1.5D));
@@ -155,7 +145,7 @@ public class ClientEntityCrossingsTest extends MinecraftTestBase {
 
     private static final class Faller {
         final Entity entity = mock(Entity.class, withSettings().extraInterfaces(CrossingEntity.class));
-        final InterpolationHandler interpolation = mock(InterpolationHandler.class);
+        final InterpolationHandler interpolation = NativeCrossingFixtures.interpolation();
         final ClientLevel level = mock(ClientLevel.class);
         final AtomicReference<ClientEntityCrossing> crossing = new AtomicReference<>();
 

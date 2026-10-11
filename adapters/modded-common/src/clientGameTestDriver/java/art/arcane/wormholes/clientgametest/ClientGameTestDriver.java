@@ -9,6 +9,9 @@ import net.minecraft.client.Options;
 import net.minecraft.client.gui.screens.TitleScreen;
 import net.minecraft.client.tutorial.TutorialSteps;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.LightLayer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.spongepowered.asm.mixin.MixinEnvironment;
@@ -72,11 +75,18 @@ public final class ClientGameTestDriver {
                 if (!pass.label().contains(filter)) {
                     continue;
                 }
+                if (pass.label().equals("dh-acceptance-singleplayer")) {
+                    LOGGER.info("[{}] starting", pass.label());
+                    pass.body().accept(pass.label());
+                    passed.add(pass.label());
+                    LOGGER.info("[{}] passed", pass.label());
+                    continue;
+                }
                 if (address.isEmpty()) {
                     ClientViewTestConfig.enableSeamless(true);
-                    worlds.singleplayer(() -> pass(passed, pass));
+                    worlds.singleplayer(() -> pass(client, passed, pass));
                 } else {
-                    worlds.dedicated(address, () -> pass(passed, pass));
+                    worlds.dedicated(address, () -> pass(client, passed, pass));
                 }
             }
             LOGGER.info("WORMHOLES_CLIENT_GAME_TEST_PASS {}", passed);
@@ -90,6 +100,9 @@ public final class ClientGameTestDriver {
     private static List<Pass> passes(DriverClient client, String address) {
         CommandSeamlessServer server = new CommandSeamlessServer(client);
         if (address.isEmpty()) {
+            if (Boolean.getBoolean("wormholes.test.dhAcceptance")) {
+                return List.of(new Pass("dh-acceptance-singleplayer", label -> NativeDistantHorizonsAcceptance.run(client, label)));
+            }
             return List.of(
                 new Pass("same-dimension-singleplayer", label -> SeamlessSameDimension.seamless(client, server, label)),
                 new Pass("cross-dimension-singleplayer-frame", label -> SeamlessCrossDimension.seamless(client, server, label, OrientationPolicy.FRAME)),
@@ -104,8 +117,12 @@ public final class ClientGameTestDriver {
             new Pass("cross-dimension-stress-dedicated", label -> SeamlessCrossDimension.stress(client, server, label)));
     }
 
-    private static void pass(List<String> passed, Pass pass) {
+    private static void pass(DriverClient client, List<String> passed, Pass pass) {
         LOGGER.info("[{}] starting", pass.label());
+        client.runOnClient(minecraft -> CardinalLightingAssertions.verify());
+        LOGGER.info("WORMHOLES_CARDINAL_LIGHTING_SCOPE_PASS");
+        client.runOnClient(minecraft -> ClientMeshLightingAssertions.verify(minecraft.level));
+        LOGGER.info("WORMHOLES_CLIENT_LIGHTING_SCOPE_PASS");
         pass.body().accept(pass.label());
         passed.add(pass.label());
         LOGGER.info("[{}] passed", pass.label());
@@ -131,6 +148,15 @@ public final class ClientGameTestDriver {
 
     private static void auditMixins() {
         MixinEnvironment.getCurrentEnvironment().audit();
+        try {
+            if (Level.class.getDeclaredMethod("getBrightness", LightLayer.class, BlockPos.class).getReturnType() != int.class
+                || Level.class.getDeclaredMethod("getRawBrightness", BlockPos.class, int.class).getReturnType() != int.class) {
+                throw new AssertionError("Streamed scene lighting methods have invalid return types");
+            }
+        } catch (NoSuchMethodException missing) {
+            throw new AssertionError("Streamed scene lighting methods are missing", missing);
+        }
+        LOGGER.info("WORMHOLES_CLIENT_LIGHTING_MIXIN_PASS");
         LOGGER.info("WORMHOLES_CLIENT_MIXIN_AUDIT complete");
     }
 

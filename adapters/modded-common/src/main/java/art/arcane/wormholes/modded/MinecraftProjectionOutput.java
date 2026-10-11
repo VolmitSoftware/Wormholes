@@ -16,7 +16,6 @@ import net.minecraft.core.Registry;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.protocol.game.ClientboundLightUpdatePacket;
-import net.minecraft.network.protocol.game.ClientboundLightUpdatePacketData;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.biome.Biome;
 
@@ -92,8 +91,7 @@ public final class MinecraftProjectionOutput implements WorldOutput<ServerPlayer
     }
 
     static ClientboundLightUpdatePacket lightPacket(LightOverlay.ChunkLight light) {
-        return new ClientboundLightUpdatePacket(light.chunkX(), light.chunkZ(), new ClientboundLightUpdatePacketData(light.skyMask(),
-            light.blockMask(), light.emptySkyMask(), light.emptyBlockMask(), List.of(light.skyArrays()), List.of(light.blockArrays())));
+        return MinecraftProjectionLightPackets.packet(light);
     }
 
     private Registry<Biome> biomeRegistry() {

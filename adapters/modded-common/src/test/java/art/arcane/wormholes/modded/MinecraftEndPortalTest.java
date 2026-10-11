@@ -11,12 +11,10 @@ import art.arcane.optics.math.Face;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.levelgen.feature.EndPodiumFeature;
 import org.junit.Test;
 
 import java.lang.reflect.Method;
@@ -43,12 +41,9 @@ public class MinecraftEndPortalTest extends MinecraftTestBase {
         WorldGenLevel generated = mock(WorldGenLevel.class);
         when(generated.getBlockState(any(BlockPos.class))).thenAnswer(invocation ->
             blocks.getOrDefault(invocation.getArgument(0), Blocks.AIR.defaultBlockState()));
-        when(generated.setBlockAndUpdate(any(BlockPos.class), any(BlockState.class))).thenAnswer(invocation -> {
-            blocks.put(((BlockPos) invocation.getArgument(0)).immutable(), invocation.getArgument(1));
-            return true;
-        });
+        MinecraftTestAccess.recordPodium(generated, blocks);
         BlockPos center = new BlockPos(0, 64, 0);
-        new EndPodiumFeature(true).place(generated, null, RandomSource.create(1), center);
+        MinecraftTestAccess.podium(generated, true, center, 1);
         ServerLevel level = mock(ServerLevel.class);
         when(level.dimension()).thenReturn(Level.END);
         when(level.hasChunk(anyInt(), anyInt())).thenReturn(true);
@@ -66,7 +61,7 @@ public class MinecraftEndPortalTest extends MinecraftTestBase {
             assertEquals(64, cell.getY());
             assertTrue(blocks.get(cell).is(Blocks.END_PORTAL));
         }
-        new EndPodiumFeature(false).place(generated, null, RandomSource.create(2), center);
+        MinecraftTestAccess.podium(generated, false, center, 2);
         assertNull(shape(level, center.east()));
         assertTrue(blocks.get(center).is(Blocks.BEDROCK));
         Method active = MinecraftVanillaPortals.class.getDeclaredMethod("exitActive", ServerLevel.class, List.class);

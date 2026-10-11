@@ -3,6 +3,9 @@ package art.arcane.wormholes.render;
 import art.arcane.optics.view.ContentView;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.spy;
 
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
@@ -22,6 +25,9 @@ import org.bukkit.World;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Player;
 import org.junit.jupiter.api.Test;
+import com.github.retrooper.packetevents.util.Vector3i;
+import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerBlockChange;
+import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerMultiBlockChange;
 
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.render.view.ProjectionWorldView;
@@ -31,6 +37,126 @@ import art.arcane.optics.claim.ClaimSet;
 public final class ProjectionClaimArbiterChunkMemoTest {
     private static final UUID WORLD_ID = UUID.fromString("00000000-0000-0000-0000-0000000000d1");
     private static final long CELL = packKey(3, 70, 5);
+
+    @Test
+    public void observerSchedulerRepairsWithoutAnotherProjectionDeltaAndDiscardDropsQueuedWork() {
+        List<Location> sentLocations = new ArrayList<Location>();
+        List<Runnable> scheduled = new ArrayList<Runnable>();
+        Player observer = player(sentLocations);
+        World world = world();
+        ILocalPortal portal = portal();
+        ProjectionClientChunkTracker tracker = new ProjectionClientChunkTracker();
+        BukkitProjectionOutput output = spy(new BukkitProjectionOutput(externalVisibility(tracker), portalId -> List.of()));
+        doAnswer(invocation -> {
+            scheduled.add(invocation.getArgument(1, Runnable.class));
+            return true;
+        }).when(output).scheduleBlockRepair(any(Player.class), any(Runnable.class));
+        ProjectionClaimArbiter arbiter = new ProjectionClaimArbiter(ignored -> availableView(world), output);
+        Long2ObjectOpenHashMap<BlockClaim<BlockData, ProjectionWorldView>> cells = claims(blockData("stable"));
+        cells.get(CELL).setGlobalId(-1);
+        try (ProjectionBlockPacketFixture fixture = new ProjectionBlockPacketFixture(observer.getUniqueId())) {
+            fixture.send(tracker, fixture.chunk(0, 0));
+            arbiter.submit(observer, portal, world, cells, 2.0D, false);
+            fixture.send(tracker, fixture.event(new WrapperPlayServerBlockChange(new Vector3i(3, 70, 5), 42)));
+            fixture.send(tracker, fixture.event(new WrapperPlayServerBlockChange(new Vector3i(3, 70, 5), 5)));
+            assertEquals(1, sentLocations.size());
+            assertEquals(1, scheduled.size());
+            scheduled.removeFirst().run();
+            assertEquals(2, sentLocations.size());
+            fixture.send(tracker, fixture.event(new WrapperPlayServerBlockChange(new Vector3i(3, 70, 5), 42)));
+            fixture.send(tracker, fixture.event(new WrapperPlayServerBlockChange(new Vector3i(3, 70, 5), 5)));
+            assertEquals(1, scheduled.size());
+            arbiter.discardObserver(observer.getUniqueId());
+            scheduled.removeFirst().run();
+            assertEquals(2, sentLocations.size());
+            assertTrue(arbiter.isIdle());
+        }
+    }
+
+    @Test
+    public void unchangedDeltaRepairsAnExternalSingleBlockOverwrite() {
+        List<Location> sentLocations = new ArrayList<Location>();
+        Player observer = player(sentLocations);
+        World world = world();
+        ILocalPortal portal = portal();
+        ProjectionClientChunkTracker tracker = new ProjectionClientChunkTracker();
+        ProjectionClaimArbiter arbiter = new ProjectionClaimArbiter(ignored -> availableView(world),
+            new BukkitProjectionOutput(externalVisibility(tracker), portalId -> List.of()));
+        Long2ObjectOpenHashMap<BlockClaim<BlockData, ProjectionWorldView>> cells = claims(blockData("stable"));
+        cells.get(CELL).setGlobalId(-1);
+        try (ProjectionBlockPacketFixture fixture = new ProjectionBlockPacketFixture(observer.getUniqueId())) {
+            fixture.send(tracker, fixture.chunk(0, 0));
+            assertEquals(1, arbiter.submit(observer, portal, world, cells, 2.0D, false).getBlockChanges());
+            fixture.send(tracker, fixture.event(new WrapperPlayServerBlockChange(new Vector3i(3, 70, 5), 42)));
+            assertEquals(0, arbiter.retryPending(observer, world).getBlockChanges());
+            fixture.send(tracker, fixture.event(new WrapperPlayServerBlockChange(new Vector3i(3, 70, 5), 5)));
+            assertEquals(1, sentLocations.size());
+            assertEquals(1, arbiter.submitDelta(observer, portal, world,
+                new ClaimSet.ClaimDelta<BlockClaim<BlockData, ProjectionWorldView>>(cells, cells,
+                    new LongOpenHashSet(), new LongOpenHashSet()), 2.0D, false, false).getBlockChanges());
+            assertEquals(2, sentLocations.size());
+            assertEquals(0, arbiter.retryPending(observer, world).getBlockChanges());
+        }
+    }
+
+    @Test
+    public void externalSectionOverwriteRepairsOnlyTouchedClaimedCoordinates() {
+        List<Location> sentLocations = new ArrayList<Location>();
+        Player observer = player(sentLocations);
+        World world = world();
+        ILocalPortal portal = portal();
+        ProjectionClientChunkTracker tracker = new ProjectionClientChunkTracker();
+        ProjectionClaimArbiter arbiter = new ProjectionClaimArbiter(ignored -> availableView(world),
+            new BukkitProjectionOutput(externalVisibility(tracker), portalId -> List.of()));
+        Long2ObjectOpenHashMap<BlockClaim<BlockData, ProjectionWorldView>> cells = claims(blockData("stable"));
+        cells.get(CELL).setGlobalId(-1);
+        cells.put(packKey(4, 70, 5), cells.get(CELL));
+        try (ProjectionBlockPacketFixture fixture = new ProjectionBlockPacketFixture(observer.getUniqueId())) {
+            fixture.send(tracker, fixture.chunk(0, 0));
+            assertEquals(2, arbiter.submit(observer, portal, world, cells, 2.0D, false).getBlockChanges());
+            fixture.send(tracker, fixture.event(new WrapperPlayServerBlockChange(new Vector3i(3, 70, 5), 42)));
+            fixture.send(tracker, fixture.event(new WrapperPlayServerBlockChange(new Vector3i(4, 70, 5), 42)));
+            sentLocations.clear();
+            fixture.send(tracker, fixture.event(new WrapperPlayServerMultiBlockChange(new Vector3i(0, 4, 0), null,
+                new WrapperPlayServerMultiBlockChange.EncodedBlock[] {
+                    new WrapperPlayServerMultiBlockChange.EncodedBlock(5, 3, 70, 5),
+                    new WrapperPlayServerMultiBlockChange.EncodedBlock(5, 6, 70, 5)
+                })));
+            assertEquals(1, arbiter.retryPending(observer, world).getBlockChanges());
+            assertEquals(1, sentLocations.size());
+            assertEquals(3, sentLocations.getFirst().getBlockX());
+            assertEquals(0, arbiter.retryPending(observer, world).getBlockChanges());
+        }
+    }
+
+    @Test
+    public void chunkReplacementStillRepairsAllClaimsAfterACellOverwrite() {
+        List<Location> sentLocations = new ArrayList<Location>();
+        Player observer = player(sentLocations);
+        World world = world();
+        ILocalPortal portal = portal();
+        ProjectionClientChunkTracker tracker = new ProjectionClientChunkTracker();
+        ProjectionClaimArbiter arbiter = new ProjectionClaimArbiter(ignored -> availableView(world),
+            new BukkitProjectionOutput(externalVisibility(tracker), portalId -> List.of()));
+        Long2ObjectOpenHashMap<BlockClaim<BlockData, ProjectionWorldView>> cells = claims(blockData("stable"));
+        cells.get(CELL).setGlobalId(-1);
+        cells.put(packKey(4, 70, 5), cells.get(CELL));
+        try (ProjectionBlockPacketFixture fixture = new ProjectionBlockPacketFixture(observer.getUniqueId())) {
+            fixture.send(tracker, fixture.chunk(0, 0));
+            arbiter.submit(observer, portal, world, cells, 2.0D, false);
+            fixture.send(tracker, fixture.event(new WrapperPlayServerBlockChange(new Vector3i(3, 70, 5), 42)));
+            fixture.send(tracker, fixture.event(new WrapperPlayServerBlockChange(new Vector3i(4, 70, 5), 42)));
+            fixture.send(tracker, fixture.event(new WrapperPlayServerBlockChange(new Vector3i(3, 70, 5), 5)));
+            fixture.send(tracker, fixture.chunk(0, 0));
+            sentLocations.clear();
+            assertEquals(2, arbiter.retryPending(observer, world).getBlockChanges());
+            assertEquals(2, sentLocations.size());
+            arbiter.discardObserver(observer.getUniqueId());
+            fixture.send(tracker, fixture.event(new WrapperPlayServerBlockChange(new Vector3i(3, 70, 5), 5)));
+            assertEquals(0, arbiter.retryPending(observer, world).getBlockChanges());
+            assertTrue(arbiter.isIdle());
+        }
+    }
 
     @Test
     public void unchangedDeltaStillRepairsAReplacedClientChunk() {
@@ -268,6 +394,35 @@ public final class ProjectionClaimArbiterChunkMemoTest {
             @Override
             public long chunkRevision(Player observer, int chunkX, int chunkZ) {
                 return chunkRevision.get();
+            }
+        };
+    }
+
+    private static ProjectionChunkVisibility externalVisibility(ProjectionClientChunkTracker tracker) {
+        return new ProjectionChunkVisibility() {
+            @Override
+            public boolean isChunkSent(Player observer, int chunkX, int chunkZ) {
+                return tracker.isTracked(observer.getUniqueId(), chunkX, chunkZ);
+            }
+
+            @Override
+            public long revision(Player observer) {
+                return tracker.revision(observer.getUniqueId());
+            }
+
+            @Override
+            public long chunkRevision(Player observer, int chunkX, int chunkZ) {
+                return tracker.chunkRevision(observer.getUniqueId(), chunkX, chunkZ);
+            }
+
+            @Override
+            public void watchBlockUpdates(UUID observerId, ProjectionBlockUpdateRepair repair) {
+                tracker.watchBlockUpdates(observerId, repair);
+            }
+
+            @Override
+            public void unwatchBlockUpdates(UUID observerId, ProjectionBlockUpdateRepair repair) {
+                tracker.unwatchBlockUpdates(observerId, repair);
             }
         };
     }

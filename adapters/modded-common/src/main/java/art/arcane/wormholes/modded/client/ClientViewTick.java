@@ -1,6 +1,8 @@
 package art.arcane.wormholes.modded.client;
 
 import art.arcane.optics.stream.BrickLightSource;
+import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.client.Minecraft;
 import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.optics.stream.ViewStreamMessage;
 import art.arcane.optics.stream.ViewStreamLimits;
@@ -56,6 +58,7 @@ public final class ClientViewTick implements ClientViewSession.Sink {
     private final Int2ObjectOpenHashMap<MirrorState> mirrors;
     private Consumer<ViewStreamMessage> sender;
     private ClientViewSurface surface;
+    private ClientLevel sourceLevel;
     private ProjectionOverlay overlay;
     private ClientProjectionApplier applier;
     private ClientLightPatches light;
@@ -93,7 +96,7 @@ public final class ClientViewTick implements ClientViewSession.Sink {
         this.sectionPortals = new IntArrayList(256);
         this.sectionSeen = new LongOpenHashSet(256);
         this.misses = new ArrayList<>(4);
-        this.portals = session::portal;
+        this.portals = key -> sourceCurrent(key) ? session.portal(key) : null;
         this.cellLight = new CellLight();
         this.nested = new ClientNestedViews(session, ViewStreamLimits.MAX_GEOMETRY_DEPTH, touchedSections);
         this.mirrors = new Int2ObjectOpenHashMap<>(4);
@@ -115,6 +118,10 @@ public final class ClientViewTick implements ClientViewSession.Sink {
         }
         if (entities != null) {
             entities.clear();
+        }
+        sourceLevel = levelToken instanceof ClientLevel level ? level : null;
+        if (sourceLevel != null) {
+            session.bindSourceWorld(sourceLevel.dimension().identifier().toString());
         }
         surface = levelSurface;
         overlay = new ProjectionOverlay(levelToken);
@@ -153,6 +160,7 @@ public final class ClientViewTick implements ClientViewSession.Sink {
             entities.clear();
         }
         surface = null;
+        sourceLevel = null;
         overlay = null;
         applier = null;
         light = null;
@@ -161,6 +169,11 @@ public final class ClientViewTick implements ClientViewSession.Sink {
         atmosphere = null;
         nested.unbind();
         mirrors.clear();
+    }
+
+    private boolean sourceCurrent(int portalKey) {
+        Minecraft minecraft = Minecraft.getInstance();
+        return sourceLevel == null || minecraft != null && minecraft.level == sourceLevel && session.matchesSource(portalKey, sourceLevel);
     }
 
     public boolean attached() {
@@ -254,7 +267,7 @@ public final class ClientViewTick implements ClientViewSession.Sink {
         }
         entities.tick(portals, key -> session.nativeSelected() || session.meshes().view(key) != null);
         fx.tick(portals);
-        atmosphere.tick(eyeX, eyeY, eyeZ, portals, session.meshes(), effectsActive);
+        atmosphere.tick(eyeX, eyeY, eyeZ, portals, session.meshes(), effectsActive, !session.nativeSelected());
         sendMisses();
         sendAck(applied);
         if (session.has(ViewStreamCapability.VIEW_STATS) && stats.reportDue(nowMillis)) {
@@ -383,7 +396,7 @@ public final class ClientViewTick implements ClientViewSession.Sink {
 
     @Override
     public void atmosphere(ViewStreamMessage.Atmosphere message) {
-        if (atmosphere != null && atmosphere.apply(message)) {
+        if (atmosphere != null && sourceCurrent(message.portalKey()) && atmosphere.apply(message)) {
             touchedSections.addAll(light.sectionsOf(message.portalKey()));
         }
     }
@@ -481,7 +494,7 @@ public final class ClientViewTick implements ClientViewSession.Sink {
         ObjectIterator<ClientPortal> portals = session.portals().values().iterator();
         while (portals.hasNext()) {
             ClientPortal portal = portals.next();
-            if (portal.ready() && !portal.nested() && session.meshes().view(portal.portalKey()) == null) {
+            if (sourceCurrent(portal.portalKey()) && portal.ready() && !portal.nested() && session.meshes().view(portal.portalKey()) == null) {
                 order.add(portal);
             }
         }
@@ -768,7 +781,7 @@ public final class ClientViewTick implements ClientViewSession.Sink {
         while (states.hasNext()) {
             Int2ObjectMap.Entry<MirrorState> entry = states.next();
             ClientPortal portal = session.portal(entry.getIntKey());
-            if (!enabled || portal == null || portal.plate() != null || portal.geometry() != entry.getValue().builder.geometry()) {
+            if (!enabled || portal == null || !sourceCurrent(portal.portalKey()) || portal.plate() != null || portal.geometry() != entry.getValue().builder.geometry()) {
                 states.remove();
             }
         }
@@ -778,7 +791,7 @@ public final class ClientViewTick implements ClientViewSession.Sink {
         ObjectIterator<ClientPortal> portals = session.portals().values().iterator();
         while (portals.hasNext()) {
             ClientPortal portal = portals.next();
-            if (!portal.geometry().mirror() || portal.nested() || portal.plate() != null || mirrors.containsKey(portal.portalKey())) {
+            if (!sourceCurrent(portal.portalKey()) || !portal.geometry().mirror() || portal.nested() || portal.plate() != null || mirrors.containsKey(portal.portalKey())) {
                 continue;
             }
             ClientMirrorBuilder builder = ClientMirrorBuilder.create(portal.geometry(), session.palette(), this::shadow);

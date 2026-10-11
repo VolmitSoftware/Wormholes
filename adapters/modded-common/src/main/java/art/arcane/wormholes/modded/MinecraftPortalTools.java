@@ -29,7 +29,6 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.util.Prediction;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.item.ItemStack;
@@ -270,7 +269,7 @@ public final class MinecraftPortalTools implements AutoCloseable {
         if (rune) {
             ItemStack item = items.wormholeRune();
             if (!player.getInventory().add(item)) {
-                player.drop(item, false, Prediction.SERVER_ONLY);
+                MinecraftItemDelivery.drop(player, item);
             }
         }
         source.sendSuccess(() -> Component.literal(rune ? "Wormholes wand and rune added to your inventory." : "Wormholes wand added to your inventory."), false);

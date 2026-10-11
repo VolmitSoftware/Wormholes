@@ -1,11 +1,15 @@
 package art.arcane.wormholes.clientgametest;
 
+import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.crossing.ScaleRule;
 import art.arcane.optics.stream.EnvironmentState;
 import art.arcane.wormholes.modded.MinecraftPortal;
 import art.arcane.wormholes.modded.MinecraftScaleAccess;
 import art.arcane.wormholes.modded.WormholesModRuntime;
 import art.arcane.wormholes.modded.client.WormholesClient;
+import art.arcane.wormholes.modded.client.render.stencil.PortalStencilRenderer;
+import art.arcane.wormholes.modded.client.render.stencil.PortalView;
+import art.arcane.wormholes.network.client.ClientViewExtensions;
 import art.arcane.wormholes.portal.AmbientParticleStyle;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.transit.OrientationPolicy;
@@ -14,6 +18,7 @@ import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestServerConnection;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestServerContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestSingleplayerContext;
+import net.minecraft.client.CameraType;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.MinecraftServer;
@@ -81,8 +86,11 @@ public final class ScaledPairClientGameTest implements FabricClientGameTest {
         context.waitFor(client -> WormholesClient.instance() != null && WormholesClient.instance().session().active(), NEGOTIATION_TIMEOUT_TICKS);
         ServerPlayer player = server.computeOnServer(minecraftServer -> connection.getServerPlayer());
         UUID[] portals = server.computeOnServer(minecraftServer -> build(minecraftServer, player));
+        boolean hidden = context.computeOnClient(client -> client.gui.hud.isHidden());
+        CameraType camera = context.computeOnClient(client -> client.options.getCameraType());
         List<String> failures = new ArrayList<>();
         try {
+            context.runOnClient(client -> client.options.setCameraType(CameraType.FIRST_PERSON));
             view(context, connection, server, player, label + " scaled view", failures);
             place(context, server, player, SMALL.approach(ENTRY_OFFSET), 180.0F);
             List<TravelTap.Frame> grown = walk(context, portals[0], label + " ratio");
@@ -100,7 +108,10 @@ public final class ScaledPairClientGameTest implements FabricClientGameTest {
             List<TravelTap.Frame> moved = walk(context, portals[0], label + " motion");
             crossed(context, moved, 1.0D, SMALL, LARGE, label + " motion", failures);
         } finally {
-            context.runOnClient(client -> hud(client, false));
+            context.runOnClient(client -> {
+                hud(client, hidden);
+                client.options.setCameraType(camera);
+            });
             server.runOnServer(minecraftServer -> {
                 MinecraftScaleAccess.scaleAttribute().reset(player);
                 runtime(minecraftServer).portals().remove(player, portals[0]);
@@ -116,16 +127,25 @@ public final class ScaledPairClientGameTest implements FabricClientGameTest {
         connection.waitForChunksRender();
         BlockPos marker = new BlockPos(LARGE.min().getX() + LARGE.edge() / 2, LARGE.min().getY() + LARGE.edge() / 2, BACKDROP_Z);
         context.waitFor(client -> {
+            if (nativeRendering()) {
+                PortalView view = nativeView();
+                return view != null && PortalStencilRenderer.instance().claims(view.surface().geometry())
+                    && YELLOW.equals(view.destination().getBlockState(marker));
+            }
             int key = NativeClientViewAssertions.portalKey(SMALL.min());
             return NativeClientViewAssertions.ready(key) && YELLOW.equals(NativeClientViewAssertions.state(key, marker));
         }, STREAM_TIMEOUT_TICKS);
-        float scale = context.computeOnClient(client -> {
+        double scale = context.computeOnClient(client -> {
+            if (nativeRendering()) {
+                PortalView view = nativeView();
+                return view == null ? Double.NaN : 1.0D / view.toDestination().scale();
+            }
             EnvironmentState environment = WormholesClient.instance().session().environment(NativeClientViewAssertions.portalKey(SMALL.min()));
-            return environment == null ? Float.NaN : environment.scale();
+            return environment == null ? Double.NaN : (double) environment.scale();
         });
-        LOGGER.info("[{}] the 3x3 view streams at scale {}", label, scale);
-        if (Math.abs(scale - 1.0D / RATIO_FACTOR) > FACTOR_TOLERANCE) {
-            failures.add(label + ": the 3x3 view environment scale is " + scale + " instead of 1/3");
+        LOGGER.info("[{}] the 3x3 destination view displays at scale {}", label, scale);
+        if (!Double.isFinite(scale) || Math.abs(scale - 1.0D / RATIO_FACTOR) > FACTOR_TOLERANCE) {
+            failures.add(label + ": the 3x3 destination view display scale is " + scale + " instead of 1/3");
         }
         context.runOnClient(client -> hud(client, true));
         context.waitTicks(SETTLE_TICKS);
@@ -251,8 +271,11 @@ public final class ScaledPairClientGameTest implements FabricClientGameTest {
             player.teleportTo(player.level(), position.x, position.y, position.z, Set.of(), yaw, 0.0F, false);
             player.setDeltaMovement(Vec3.ZERO);
         });
-        context.waitFor(client -> client.player.position().distanceTo(position) < 0.05D, ARRIVE_TIMEOUT_TICKS);
+        context.waitFor(client -> client.player.position().distanceTo(position) < 0.05D
+            && !client.player.getAbilities().flying, ARRIVE_TIMEOUT_TICKS);
         context.getInput().lookAt(yaw, 0.0F);
+        context.waitFor(client -> Math.abs(Math.IEEEremainder(client.player.getYRot() - yaw, 360.0D)) < 0.1D
+            && Math.abs(client.player.getXRot()) < 0.1D, ARRIVE_TIMEOUT_TICKS);
         context.waitTicks(SETTLE_TICKS);
     }
 
@@ -303,6 +326,22 @@ public final class ScaledPairClientGameTest implements FabricClientGameTest {
     private static int sample(Minecraft client, FramebufferProbe probe, Vec3 world) {
         int[] pixel = FramebufferProbe.screen(client, world);
         return pixel == null ? OFF_SCREEN : probe.average(pixel[0], pixel[1], SAMPLE_RADIUS);
+    }
+
+    private static boolean nativeRendering() {
+        return WormholesClient.instance().session().has(ClientViewExtensions.SEAMLESS_TRAVEL);
+    }
+
+    private static PortalView nativeView() {
+        BlockPos min = SMALL.min();
+        for (PortalView view : WormholesClient.instance().portalViews().current()) {
+            ApertureDescriptor geometry = view.surface().geometry();
+            if (view.kind() == PortalView.Kind.ARM && geometry.originX() == min.getX()
+                && geometry.originY() == min.getY() && geometry.originZ() == min.getZ()) {
+                return view;
+            }
+        }
+        return null;
     }
 
     private static boolean lime(int color) {

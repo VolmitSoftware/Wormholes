@@ -32,6 +32,8 @@ import art.arcane.optics.frame.QuarterTurn;
 import art.arcane.optics.math.Face;
 import art.arcane.optics.scan.PassInputs;
 import art.arcane.optics.scan.PassPlanner;
+import art.arcane.optics.scan.CellScan;
+import art.arcane.optics.scan.RemoteFootprint;
 import art.arcane.optics.view.WorldChangeTracker;
 import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.Wormholes;
@@ -45,6 +47,40 @@ import art.arcane.wormholes.util.BukkitGeometry;
 import art.arcane.wormholes.util.Cuboid;
 
 final class PortalProjectorPassParityTest {
+    @Test
+    void dirtyDestinationRescansOnElapsedHeartbeatWithSparseSelections() throws Exception {
+        try (Fixture fixture = new Fixture()) {
+            when(fixture.portal.getNetworkViewHeartbeatTicks()).thenReturn(60);
+            fixture.projector.setRtpProjectionTarget(new PortalProjector.RtpProjectionTarget(fixture.world,
+                104.0D, 65.0D, 0.0D, Frame.canonical(Face.S), 1L));
+            fixture.scheduler.advanceTo(1L);
+            fixture.settle();
+            Field scanField = PortalProjector.class.getDeclaredField("cellScan");
+            scanField.setAccessible(true);
+            CellScan<?, ?, ?, ?, ?> scan = (CellScan<?, ?, ?, ?, ?>) scanField.get(fixture.projector);
+            RemoteFootprint footprint = scan.remoteFootprint();
+            assertTrue(footprint.size() > 0);
+            Wormholes.projectionChangeTracker.markChanged(fixture.world.getUID(),
+                footprint.queryMinChunkX() << 4, footprint.queryMinChunkZ() << 4);
+            for (long tick : new long[] {21L, 41L}) {
+                fixture.scheduler.advanceTo(tick);
+                int skips = fixture.reuseSkips();
+                fixture.projector.project(true, false, 0L);
+                assertTrue(fixture.projector.destinationChangePending());
+                assertEquals(skips + 1, fixture.reuseSkips());
+                assertFalse(fixture.projector.hasPendingScan());
+            }
+            fixture.scheduler.advanceTo(61L);
+            fixture.assertRescans();
+            fixture.projector.project(true, false);
+            assertFalse(fixture.projector.hasPendingScan());
+            assertFalse(fixture.projector.destinationChangePending());
+            int skips = fixture.reuseSkips();
+            fixture.projector.project(true, false, 0L);
+            assertEquals(skips + 1, fixture.reuseSkips());
+        }
+    }
+
     @Test
     void anUnchangedPassReusesTheCommittedProjection() throws Exception {
         try (Fixture fixture = new Fixture()) {
@@ -171,6 +207,7 @@ final class PortalProjectorPassParityTest {
         private final ProjectionClaimArbiter arbiter = mock(ProjectionClaimArbiter.class);
         private final ILocalPortal portal = mock(ILocalPortal.class);
         private final Player player = mock(Player.class);
+        private final QueuedOpticsScheduler scheduler = new QueuedOpticsScheduler();
         private final PortalProjector projector;
 
         private Fixture() {
@@ -234,7 +271,7 @@ final class PortalProjectorPassParityTest {
             ProjectionClaimArbiter.ClaimUpdateResult result = mock(ProjectionClaimArbiter.ClaimUpdateResult.class);
             when(arbiter.submitDelta(any(), any(), any(), any(), anyDouble(), anyBoolean(), anyBoolean())).thenReturn(result);
             when(arbiter.release(any(Player.class), any(ILocalPortal.class), any(World.class), anyBoolean())).thenReturn(result);
-            projector = new PortalProjector(portal, player, arbiter, ignored -> view, () -> true, new QueuedOpticsScheduler());
+            projector = new PortalProjector(portal, player, arbiter, ignored -> view, () -> true, scheduler);
         }
 
         private void settle() throws Exception {

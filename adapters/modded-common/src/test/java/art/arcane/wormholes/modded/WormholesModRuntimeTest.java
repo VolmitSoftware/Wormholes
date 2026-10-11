@@ -1,7 +1,11 @@
 package art.arcane.wormholes.modded;
 
 import art.arcane.wormholes.config.WormholesSettings;
+import com.mojang.brigadier.CommandDispatcher;
+import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.permissions.LevelBasedPermissionSet;
 import net.minecraft.server.players.PlayerList;
 import net.minecraft.world.item.crafting.RecipeManager;
 import net.minecraft.world.level.storage.LevelResource;
@@ -19,6 +23,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Supplier;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -26,6 +31,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -33,6 +39,31 @@ import static org.mockito.Mockito.when;
 public class WormholesModRuntimeTest extends MinecraftTestBase {
     @Rule
     public TemporaryFolder directory = new TemporaryFolder();
+
+    @Test
+    public void commandTreeWithdrawsAfterStopAndReturnsAfterRestart() {
+        MinecraftServer server = server();
+        WormholesModRuntime runtime = new WormholesModRuntime();
+        CommandDispatcher<CommandSourceStack> dispatcher = new CommandDispatcher<>();
+        CommandSourceStack source = mock(CommandSourceStack.class);
+        runtime.start(server);
+        try {
+            runtime.registerCommands(dispatcher);
+            for (String name : List.of("wormholes", "wh", "wormhole")) {
+                assertTrue(dispatcher.getRoot().getChild(name).canUse(source));
+            }
+            runtime.stop();
+            for (String name : List.of("wormholes", "wh", "wormhole")) {
+                assertFalse(dispatcher.getRoot().getChild(name).canUse(source));
+            }
+            runtime.start(server);
+            for (String name : List.of("wormholes", "wh", "wormhole")) {
+                assertTrue(dispatcher.getRoot().getChild(name).canUse(source));
+            }
+        } finally {
+            runtime.stop();
+        }
+    }
 
     @Test
     public void executesInDueOrderOnServerTicks() {
@@ -126,6 +157,51 @@ public class WormholesModRuntimeTest extends MinecraftTestBase {
             assertNotNull(apply);
             apply.run();
             assertFalse(reload.get(5L, TimeUnit.SECONDS).isMetrics());
+        } finally {
+            runtime.stop();
+        }
+    }
+
+    @Test
+    public void reloadCommandAcknowledgesBeforeAsyncCompletion() throws Exception {
+        MinecraftServer server = server();
+        WormholesModRuntime runtime = new WormholesModRuntime();
+        runtime.start(server);
+        try {
+            BlockingQueue<Runnable> serverTasks = new LinkedBlockingQueue<>();
+            doAnswer(invocation -> {
+                serverTasks.add(invocation.getArgument(0, Runnable.class));
+                return null;
+            }).when(server).execute(any(Runnable.class));
+            CommandSourceStack source = mock(CommandSourceStack.class);
+            when(source.permissions()).thenReturn(LevelBasedPermissionSet.OWNER);
+            List<String> messages = new ArrayList<>();
+            List<Boolean> broadcasts = new ArrayList<>();
+            Thread owner = Thread.currentThread();
+            doAnswer(invocation -> {
+                assertEquals(owner, Thread.currentThread());
+                Supplier<Component> message = invocation.getArgument(0);
+                messages.add(message.get().getString());
+                broadcasts.add(invocation.getArgument(1, Boolean.class));
+                return null;
+            }).when(source).sendSuccess(any(), anyBoolean());
+            CommandDispatcher<CommandSourceStack> dispatcher = new CommandDispatcher<>();
+            runtime.registerCommands(dispatcher);
+
+            assertEquals(1, dispatcher.execute("wormholes reload", source));
+            assertEquals(List.of("Wormholes configuration reload started."), messages);
+            assertEquals(List.of(false), broadcasts);
+
+            Runnable applyConfiguration = serverTasks.poll(5L, TimeUnit.SECONDS);
+            assertNotNull(applyConfiguration);
+            applyConfiguration.run();
+            assertEquals(List.of("Wormholes configuration reload started."), messages);
+
+            Runnable applyLocalization = serverTasks.poll(5L, TimeUnit.SECONDS);
+            assertNotNull(applyLocalization);
+            applyLocalization.run();
+            assertEquals(List.of("Wormholes configuration reload started.", "Wormholes configuration reloaded."), messages);
+            assertEquals(List.of(false, true), broadcasts);
         } finally {
             runtime.stop();
         }

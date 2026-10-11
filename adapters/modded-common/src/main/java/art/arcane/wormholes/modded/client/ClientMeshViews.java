@@ -2,6 +2,7 @@ package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.modded.client.render.ClientPortalRenderer;
 import art.arcane.wormholes.modded.client.render.PortalScene;
+import art.arcane.wormholes.network.client.ClientViewExtensions;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.stream.EnvironmentState;
@@ -30,6 +31,7 @@ public final class ClientMeshViews {
     private final LongLinkedOpenHashSet changedNeighbors = new LongLinkedOpenHashSet();
 
     public void update(ClientViewSession session, ClientLevel level) {
+        session.bindSourceWorld(level.dimension().identifier().toString());
         ClientPortalRenderer renderer = ClientPortalRenderer.instance();
         for (IntIterator iterator = scenes.keySet().iterator(); iterator.hasNext();) {
             int key = iterator.nextInt();
@@ -47,6 +49,13 @@ public final class ClientMeshViews {
                 continue;
             }
             Scene scene = scenes.get(portal.portalKey());
+            String boundSource = session.rootSourceWorld(portal.portalKey());
+            String sourceWorld = session.has(ClientViewExtensions.ROOT_SOURCE) || boundSource != null ? boundSource
+                : scene == null ? level.dimension().identifier().toString() : scene.sourceWorld;
+            if (sourceWorld == null || !sourceWorld.equals(level.dimension().identifier().toString())
+                || scene != null && !scene.sourceWorld.equals(sourceWorld)) {
+                continue;
+            }
             EnvironmentState environment = session.environment(portal.portalKey());
             OpticTransform transform = environment == null ? null : environment.transform();
             EnvironmentState.Dimension dimension = environment == null ? null : environment.dimension();
@@ -62,7 +71,7 @@ public final class ClientMeshViews {
                 ClientMeshEntities features = retain && !levelChanged ? scene.features : new ClientMeshEntities(view, level);
                 PortalScene.MeshIdentity context = ClientMeshWorld.meshContext(new ClientMeshWorld.Snapshot(view, 0L,
                     level.registryAccess(), environment, blendRadius));
-                scene = new Scene(portal.portalKey(), portal.geometry(), view, level, features, session, transform, dimension,
+                scene = new Scene(portal.portalKey(), portal.geometry(), view, level, sourceWorld, features, session, transform, dimension,
                     identity, blendRadius, view.bounds(), context);
                 scenes.put(portal.portalKey(), scene);
                 if (retain) {
@@ -101,7 +110,7 @@ public final class ClientMeshViews {
 
     public boolean tickEntity(int portalKey, Entity entity) {
         Scene scene = scenes.get(portalKey);
-        if (scene == null || scene.level != entity.level() || scene.session.meshes().view(portalKey) != scene.view) {
+        if (scene == null || scene.level != entity.level() || scene.sourceExpired() || scene.session.meshes().view(portalKey) != scene.view) {
             return false;
         }
         EnvironmentState environment = scene.environment();
@@ -115,7 +124,8 @@ public final class ClientMeshViews {
     public void extract(Camera camera, float partialTick) {
         ClientPortalRenderer renderer = ClientPortalRenderer.instance();
         for (Scene scene : scenes.values()) {
-            if (scene.session.meshes().view(scene.portalKey) != scene.view || !renderer.available(scene.portalKey)) {
+            if (scene.level != Minecraft.getInstance().level || scene.sourceExpired()
+                || scene.session.meshes().view(scene.portalKey) != scene.view || !renderer.available(scene.portalKey)) {
                 continue;
             }
             try {
@@ -144,9 +154,20 @@ public final class ClientMeshViews {
     }
 
     private record Scene(int portalKey, ApertureDescriptor surfaceGeometry, ClientMeshSections.View view, ClientLevel level,
-                         ClientMeshEntities features, ClientViewSession session, OpticTransform transform,
+                         String sourceWorld, ClientMeshEntities features, ClientViewSession session, OpticTransform transform,
                          EnvironmentState.Dimension dimension, ClientMeshSections.Identity identity, int blendRadius,
                          BlockBox bounds, PortalScene.MeshIdentity meshContext) implements PortalScene {
+        @Override
+        public ClientLevel sourceLevel() {
+            return level;
+        }
+
+        @Override
+        public boolean sourceExpired() {
+            return session.portal(portalKey) == null || session.meshes().view(portalKey) != view
+                || session.has(ClientViewExtensions.ROOT_SOURCE) && !sourceWorld.equals(session.rootSourceWorld(portalKey));
+        }
+
         @Override
         public ApertureDescriptor geometry() {
             return session.portal(portalKey).geometry();

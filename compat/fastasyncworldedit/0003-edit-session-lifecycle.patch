@@ -1,0 +1,307 @@
+diff --git a/worldedit-core/src/main/java/com/sk89q/worldedit/EditSession.java b/worldedit-core/src/main/java/com/sk89q/worldedit/EditSession.java
+--- a/worldedit-core/src/main/java/com/sk89q/worldedit/EditSession.java
++++ b/worldedit-core/src/main/java/com/sk89q/worldedit/EditSession.java
+@@ -253,6 +253,7 @@
+     private final int minY;
+     private final int maxY;
+     //FAWE end
++    private final EditSessionBuilder sessionBuilder;
+     private final List<WatchdogTickingExtent> watchdogExtents = new ArrayList<>(2);
+     @Nullable
+     private final List<TracingExtent> tracingExtents;
+@@ -265,6 +266,7 @@
+ 
+     EditSession(EditSessionBuilder builder) {
+         super(builder.compile().getExtent());
++        this.sessionBuilder = builder;
+         this.world = builder.getWorld();
+         this.bypassHistory = builder.getBypassHistory();
+         this.bypassAll = builder.getBypassAll();
+@@ -1273,8 +1275,25 @@
+      */
+     @Override
+     public void close() {
+-        flushQueue();
+-        dumpTracingInformation();
++        Throwable failure = null;
++        try {
++            flushQueue();
++            dumpTracingInformation();
++        } catch (RuntimeException | Error exception) {
++            failure = exception;
++            throw exception;
++        } finally {
++            try {
++                sessionBuilder.completeSession();
++            } catch (RuntimeException | Error exception) {
++                if (failure == null) {
++                    throw exception;
++                }
++                if (failure != exception) {
++                    failure.addSuppressed(exception);
++                }
++            }
++        }
+     }
+ 
+     private void dumpTracingInformation() {
+@@ -1368,6 +1387,9 @@
+         } catch (Throwable e) {
+             actor.print(Caption.of("fawe.error.lighting"));
+             e.printStackTrace();
++        }
++        if (!wnaMode) {
++            Operations.completeBlindly(commit());
+         }
+         // Cancel any preloader associated with the actor if present
+         if (getActor() instanceof Player) {
+diff --git a/worldedit-core/src/main/java/com/sk89q/worldedit/EditSessionBuilder.java b/worldedit-core/src/main/java/com/sk89q/worldedit/EditSessionBuilder.java
+--- a/worldedit-core/src/main/java/com/sk89q/worldedit/EditSessionBuilder.java
++++ b/worldedit-core/src/main/java/com/sk89q/worldedit/EditSessionBuilder.java
+@@ -241,7 +241,24 @@
+         //if (WorldEdit.getInstance().getConfiguration().traceUnflushedSessions) {
+         //    return new TracedEditSession(this);
+         //}
+-        return new EditSession(this);
++        try {
++            return new EditSession(this);
++        } catch (RuntimeException | Error failure) {
++            try {
++                completeSession();
++            } catch (RuntimeException | Error exception) {
++                if (failure != exception) {
++                    failure.addSuppressed(exception);
++                }
++            }
++            throw failure;
++        }
++    }
++
++    public void completeSession() {
++        if (event != null) {
++            event.completeSession();
++        }
+     }
+ 
+     /**
+diff --git a/worldedit-core/src/main/java/com/sk89q/worldedit/event/extent/EditSessionEvent.java b/worldedit-core/src/main/java/com/sk89q/worldedit/event/extent/EditSessionEvent.java
+--- a/worldedit-core/src/main/java/com/sk89q/worldedit/event/extent/EditSessionEvent.java
++++ b/worldedit-core/src/main/java/com/sk89q/worldedit/event/extent/EditSessionEvent.java
+@@ -32,6 +32,7 @@
+ import javax.annotation.Nullable;
+ import java.util.ArrayList;
+ import java.util.List;
++import java.util.Objects;
+ 
+ import static com.google.common.base.Preconditions.checkNotNull;
+ import static com.sk89q.worldedit.EditSession.Stage;
+@@ -70,6 +71,7 @@
+     private final int maxBlocks;
+     private final Stage stage;
+     private final List<TracingExtent> tracingExtents = new ArrayList<>();
++    private SessionLifecycle sessionLifecycle = new SessionLifecycle();
+     private Extent extent;
+     private boolean tracing;
+     //FAWE start
+@@ -181,7 +183,59 @@
+      * @return a new event
+      */
+     public EditSessionEvent clone(Stage stage) {
+-        return new EditSessionEvent(world, actor, maxBlocks, stage);
++        EditSessionEvent cloned = new EditSessionEvent(world, actor, maxBlocks, stage);
++        cloned.sessionLifecycle = sessionLifecycle;
++        return cloned;
++    }
++
++    public void onSessionClose(Runnable callback) {
++        sessionLifecycle.add(callback);
++    }
++
++    public void completeSession() {
++        sessionLifecycle.complete();
++    }
++
++    private static final class SessionLifecycle {
++        private final List<Runnable> callbacks = new ArrayList<>();
++        private boolean completed;
++
++        private synchronized void add(Runnable callback) {
++            if (completed) {
++                throw new IllegalStateException("Edit session has already closed");
++            }
++            callbacks.add(Objects.requireNonNull(callback));
++        }
++
++        private void complete() {
++            List<Runnable> completedCallbacks;
++            synchronized (this) {
++                if (completed) {
++                    return;
++                }
++                completed = true;
++                completedCallbacks = List.copyOf(callbacks);
++                callbacks.clear();
++            }
++            Throwable failure = null;
++            for (Runnable callback : completedCallbacks) {
++                try {
++                    callback.run();
++                } catch (RuntimeException | Error exception) {
++                    if (failure == null) {
++                        failure = exception;
++                    } else if (failure != exception) {
++                        failure.addSuppressed(exception);
++                    }
++                }
++            }
++            if (failure instanceof RuntimeException exception) {
++                throw exception;
++            }
++            if (failure instanceof Error error) {
++                throw error;
++            }
++        }
+     }
+ 
+     //FAWE start
+diff --git a/worldedit-core/src/test/java/com/sk89q/worldedit/SessionFailureCompletionTest.java b/worldedit-core/src/test/java/com/sk89q/worldedit/SessionFailureCompletionTest.java
+--- /dev/null
++++ b/worldedit-core/src/test/java/com/sk89q/worldedit/SessionFailureCompletionTest.java
+@@ -0,0 +1,107 @@
++package com.sk89q.worldedit;
++
++import com.fastasyncworldedit.core.limit.FaweLimit;
++import com.fastasyncworldedit.core.extent.processor.lighting.Relighter;
++import com.sk89q.worldedit.function.operation.Operation;
++import com.sk89q.worldedit.event.extent.EditSessionEvent;
++import com.sk89q.worldedit.world.World;
++import org.junit.jupiter.api.Test;
++
++import java.util.concurrent.atomic.AtomicInteger;
++import java.util.concurrent.locks.ReentrantLock;
++
++import static org.junit.jupiter.api.Assertions.assertEquals;
++import static org.junit.jupiter.api.Assertions.assertSame;
++import static org.junit.jupiter.api.Assertions.assertThrows;
++import static org.mockito.Mockito.doCallRealMethod;
++import static org.mockito.Mockito.doAnswer;
++import static org.mockito.ArgumentMatchers.anyBoolean;
++import static org.mockito.Mockito.doThrow;
++import static org.mockito.Mockito.mock;
++import static org.mockito.Mockito.spy;
++import static org.mockito.Mockito.verify;
++import static org.mockito.Mockito.when;
++
++class SessionFailureCompletionTest {
++    @Test
++    void failedFlushStillClosesTheSessionAndPreservesBothFailures() {
++        EditSessionBuilder builder = mock(EditSessionBuilder.class);
++        World world = mock(World.class);
++        when(builder.compile()).thenReturn(builder);
++        when(builder.getExtent()).thenReturn(world);
++        when(builder.getWorld()).thenReturn(world);
++        when(builder.getLimit()).thenReturn(new FaweLimit());
++        when(builder.isWNAMode()).thenReturn(true);
++        EditSession session = spy(new EditSession(builder));
++        IllegalStateException flushFailure = new IllegalStateException("flush failed");
++        IllegalArgumentException closureFailure = new IllegalArgumentException("close callback failed");
++        doThrow(flushFailure).when(session).flushQueue();
++        doThrow(closureFailure).when(builder).completeSession();
++        assertSame(flushFailure, assertThrows(IllegalStateException.class, session::close));
++        assertEquals(1, flushFailure.getSuppressed().length);
++        assertSame(closureFailure, flushFailure.getSuppressed()[0]);
++        verify(builder).completeSession();
++    }
++
++    @Test
++    void closesOnlyAfterDrainingRelightGeneratedQueueWrites() {
++        EditSessionBuilder builder = mock(EditSessionBuilder.class);
++        World world = mock(World.class);
++        Relighter relighter = mock(Relighter.class);
++        when(builder.compile()).thenReturn(builder);
++        when(builder.getExtent()).thenReturn(world);
++        when(builder.getWorld()).thenReturn(world);
++        when(builder.getLimit()).thenReturn(new FaweLimit());
++        when(builder.isWNAMode()).thenReturn(false);
++        when(builder.getRelighter()).thenReturn(relighter);
++        when(relighter.getLock()).thenReturn(new ReentrantLock());
++        AtomicInteger commits = new AtomicInteger();
++        AtomicInteger lighting = new AtomicInteger();
++        doAnswer(invocation -> { lighting.incrementAndGet(); return null; })
++                .when(relighter).fixLightingSafe(anyBoolean());
++        doAnswer(invocation -> { lighting.incrementAndGet(); return null; })
++                .when(relighter).removeAndRelight(anyBoolean());
++        EditSession session = spy(new EditSession(builder));
++        Operation operation = mock(Operation.class);
++        doAnswer(invocation -> {
++            if (commits.incrementAndGet() == 2) {
++                assertEquals(1, lighting.get());
++            }
++            return operation;
++        }).when(session).commit();
++        doAnswer(invocation -> { assertEquals(2, commits.get()); return null; })
++                .when(builder).completeSession();
++        session.close();
++        assertEquals(2, commits.get());
++        verify(builder).completeSession();
++    }
++
++    @Test
++    void failedConstructionPreservesItsFailureWhenClosureAlsoFails() {
++        EditSessionBuilder builder = mock(EditSessionBuilder.class);
++        IllegalStateException constructionFailure = new IllegalStateException("construction failed");
++        IllegalArgumentException closureFailure = new IllegalArgumentException("close callback failed");
++        when(builder.compile()).thenThrow(constructionFailure);
++        doThrow(closureFailure).when(builder).completeSession();
++        doCallRealMethod().when(builder).build();
++        assertSame(constructionFailure, assertThrows(IllegalStateException.class, builder::build));
++        assertEquals(1, constructionFailure.getSuppressed().length);
++        assertSame(closureFailure, constructionFailure.getSuppressed()[0]);
++    }
++
++    @Test
++    void failedCallbackDoesNotLeaveLaterSessionsAdmitted() {
++        EditSessionEvent event = new EditSessionEvent(null, null, -1, null);
++        AtomicInteger closed = new AtomicInteger();
++        IllegalStateException firstFailure = new IllegalStateException("first callback failed");
++        AssertionError lastFailure = new AssertionError("last callback failed");
++        event.onSessionClose(() -> { throw firstFailure; });
++        event.onSessionClose(closed::incrementAndGet);
++        event.onSessionClose(() -> { throw lastFailure; });
++        assertSame(firstFailure, assertThrows(IllegalStateException.class, event::completeSession));
++        assertEquals(1, closed.get());
++        assertSame(lastFailure, firstFailure.getSuppressed()[0]);
++        event.completeSession();
++        assertEquals(1, closed.get());
++    }
++}
+diff --git a/worldedit-core/src/test/java/com/sk89q/worldedit/event/extent/EditSessionLifecycleTest.java b/worldedit-core/src/test/java/com/sk89q/worldedit/event/extent/EditSessionLifecycleTest.java
+--- /dev/null
++++ b/worldedit-core/src/test/java/com/sk89q/worldedit/event/extent/EditSessionLifecycleTest.java
+@@ -0,0 +1,26 @@
++package com.sk89q.worldedit.event.extent;
++
++import com.sk89q.worldedit.EditSession;
++import org.junit.jupiter.api.Test;
++
++import java.util.concurrent.atomic.AtomicInteger;
++
++import static org.junit.jupiter.api.Assertions.assertEquals;
++import static org.junit.jupiter.api.Assertions.assertThrows;
++
++class EditSessionLifecycleTest {
++    @Test
++    void clonedStagesShareExactlyOneSessionClosure() {
++        EditSessionEvent original = new EditSessionEvent(null, null, -1, null);
++        EditSessionEvent before = original.clone(EditSession.Stage.BEFORE_CHANGE);
++        EditSessionEvent after = original.clone(EditSession.Stage.BEFORE_HISTORY);
++        AtomicInteger closed = new AtomicInteger();
++        before.onSessionClose(closed::incrementAndGet);
++        after.onSessionClose(closed::incrementAndGet);
++        original.completeSession();
++        before.completeSession();
++        after.completeSession();
++        assertEquals(2, closed.get());
++        assertThrows(IllegalStateException.class, () -> original.onSessionClose(closed::incrementAndGet));
++    }
++}

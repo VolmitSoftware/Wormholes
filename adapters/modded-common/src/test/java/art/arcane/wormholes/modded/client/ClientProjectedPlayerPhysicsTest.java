@@ -8,7 +8,6 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.player.RemotePlayer;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.InterpolationHandler;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.junit.Test;
@@ -118,8 +117,7 @@ public class ClientProjectedPlayerPhysicsTest extends MinecraftTestBase {
         ClientLevel level = mock(ClientLevel.class);
         when(level.isClientSide()).thenReturn(true);
         RemotePlayer copy = copy(level, -100, 0.1);
-        when(copy.getInterpolation()).thenReturn(InterpolationHandler.NO_OP);
-        doCallRealMethod().when(copy).commonTick();
+        NativeClientClock.stub(copy);
         when(level.getEntity(-100)).thenReturn(copy);
         ClientLevelScene scene = new ClientLevelScene(level, () -> null);
         doAnswer(call -> {

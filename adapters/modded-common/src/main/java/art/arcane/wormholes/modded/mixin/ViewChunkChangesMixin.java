@@ -25,9 +25,8 @@ public abstract class ViewChunkChangesMixin {
             nexus.blockChanged(level, position);
         }
         MinecraftNetworkService network = MinecraftNetworkService.forServer(level.getServer());
-        if (network != null) {
+        if (network != null && level.getServer().isSameThread() && !level.getServer().isStopped()) {
             network.blockChanged(level, position);
-            network.viewServer().blockChanged(level, position);
         }
     }
 

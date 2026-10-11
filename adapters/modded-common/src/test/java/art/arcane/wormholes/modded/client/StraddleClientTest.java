@@ -4,22 +4,20 @@ import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.MinecraftTestBase;
-import art.arcane.wormholes.modded.mixin.client.StraddleOverlayMixin;
 import art.arcane.wormholes.modded.seamless.StraddleHolder;
+import art.arcane.wormholes.modded.seamless.StraddleCollision;
 import art.arcane.wormholes.modded.seamless.StraddleTracker;
 import art.arcane.wormholes.network.client.TravelMessage;
-import net.minecraft.client.Camera;
-import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.client.renderer.state.level.PlayerRenderState;
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.shapes.Shapes;
 import org.junit.Test;
 import org.mockito.MockedStatic;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-import java.lang.reflect.Method;
+import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -27,7 +25,6 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
@@ -61,11 +58,11 @@ public class StraddleClientTest extends MinecraftTestBase {
             eye(1.0, plane + front * 0.2));
         double behindNear = Math.min(plane, plane - front);
         double behindFar = Math.max(plane, plane - front);
-        assertTrue(straddle.excludes(0.0, 0.0, behindNear, 1.0, 1.0, behindFar));
+        assertFalse(StraddleCollision.thisSide(List.of(Shapes.create(new AABB(0.0, 0.0, behindNear, 1.0, 1.0, behindFar))), straddle).iterator().hasNext());
         double frontNear = Math.min(plane, plane + front);
         double frontFar = Math.max(plane, plane + front);
-        assertFalse(straddle.excludes(0.0, 0.0, frontNear, 1.0, 1.0, frontFar));
-        assertFalse(straddle.excludes(8.0, 0.0, behindNear, 9.0, 1.0, behindFar));
+        assertTrue(StraddleCollision.thisSide(List.of(Shapes.create(new AABB(0.0, 0.0, frontNear, 1.0, 1.0, frontFar))), straddle).iterator().hasNext());
+        assertTrue(StraddleCollision.thisSide(List.of(Shapes.create(new AABB(8.0, 0.0, behindNear, 9.0, 1.0, behindFar))), straddle).iterator().hasNext());
     }
 
     @Test
@@ -94,9 +91,9 @@ public class StraddleClientTest extends MinecraftTestBase {
         minecraft.player = player;
         try (MockedStatic<Minecraft> access = mockStatic(Minecraft.class)) {
             access.when(Minecraft::getInstance).thenReturn(minecraft);
-            assertNull(overlay().blockOverlay);
+            assertFalse(NativeStraddleOverlay.blocked(player));
             when(((StraddleHolder) player).wormholesStraddle()).thenReturn(null);
-            assertNotNull(overlay().blockOverlay);
+            assertTrue(NativeStraddleOverlay.blocked(player));
             assertTrue(suffocates(player, true, behind));
         }
     }
@@ -118,14 +115,4 @@ public class StraddleClientTest extends MinecraftTestBase {
         return ClientStraddles.suffocates(player, vanilla, position);
     }
 
-    private static PlayerRenderState overlay() throws ReflectiveOperationException {
-        PlayerRenderState rendered = new PlayerRenderState();
-        rendered.blockOverlay = new PlayerRenderState.BlockOverlay(null, 0, 0, 1, 1);
-        StraddleOverlayMixin mixin = mock(StraddleOverlayMixin.class, CALLS_REAL_METHODS);
-        Method method = StraddleOverlayMixin.class.getDeclaredMethod("wormholes$straddleOverlay", Camera.class, DeltaTracker.class, float.class,
-            PlayerRenderState.class, CallbackInfo.class);
-        method.setAccessible(true);
-        method.invoke(mixin, null, null, 0.0F, rendered, mock(CallbackInfo.class));
-        return rendered;
-    }
 }

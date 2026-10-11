@@ -1,0 +1,11 @@
+name: WormholesFaweFixture
+version: 1.0.0
+main: qa.FaweProjectionFixture
+api-version: '26.1'
+depend: [Wormholes, FastAsyncWorldEdit]
+commands:
+  whfawe:
+    permission: wormholesfawefixture.use
+permissions:
+  wormholesfawefixture.use:
+    default: op

@@ -1,6 +1,7 @@
 package art.arcane.wormholes.render.clientview;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -10,12 +11,16 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.mock;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import org.bukkit.entity.Player;
+import org.bukkit.Location;
+import org.bukkit.World;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -32,6 +37,13 @@ import art.arcane.optics.entity.EntitySnapshot;
 import art.arcane.optics.stream.ViewStreamInbound;
 import art.arcane.optics.view.ContentView;
 import art.arcane.wormholes.render.view.ProjectionEntityView;
+import art.arcane.wormholes.render.ClientViewPortalSource;
+import art.arcane.wormholes.portal.ILocalPortal;
+import art.arcane.optics.frame.Frame;
+import art.arcane.optics.frame.ViewWindow;
+import art.arcane.optics.frame.QuarterTurn;
+import art.arcane.optics.math.Face;
+import art.arcane.optics.math.Vec3d;
 
 final class BukkitClientViewSceneTest {
     private final boolean oldLighting = Settings.LIGHTING_FIDELITY;
@@ -121,6 +133,49 @@ final class BukkitClientViewSceneTest {
         assertEquals(1, mirrorPresence(ClientViewFixture.CLIENT_CAPS | ViewStreamCapability.CLIENT_MIRROR.mask()),
             "the client draws its own reflection");
         assertEquals(2, mirrorPresence(ClientViewFixture.CLIENT_CAPS), "a streamed mirror plate keeps the projected observer");
+    }
+
+    @Test
+    void recursiveLinkedObserverRequiresSeparationFromTheComposedEye() {
+        BukkitClientViewScene scene = new BukkitClientViewScene(mock(BukkitClientViewPortalAccess.class));
+        ClientViewObserver observer = new ClientViewObserver(UUID.randomUUID(), null);
+        Player player = mock(Player.class);
+        World world = mock(World.class);
+        Location eye = new Location(world, 0.0D, 65.6D, 0.0D);
+        observer.beginFrame(player, eye, List.of(), List.of(), Map.of(), 1L);
+        observer.meshDepth(64);
+        ILocalPortal portal = mock(ILocalPortal.class);
+        UUID portalId = UUID.randomUUID();
+        UUID child = UUID.randomUUID();
+        when(portal.getId()).thenReturn(portalId);
+        ClientViewPortalSource source = mock(ClientViewPortalSource.class);
+        when(source.portal()).thenReturn(portal);
+        Vec3d origin = new Vec3d(0.0D, 64.0D, 0.0D);
+        Frame frame = Frame.canonical(Face.N);
+        ViewWindow window = ViewWindow.between(origin, frame, new Vec3d(0.0D, 64.0D, 4.0D), frame, true, 64.0D);
+        when(source.transformFrame()).thenReturn(window);
+        Location parentEye = new Location(world, 0.0D, 65.6D, 4.0D);
+        Vec3d composedEye = window.toward().point(new Vec3d(parentEye.getX(), parentEye.getY(), parentEye.getZ()));
+        observer.nestedContext(child, source, parentEye);
+        observer.reflectedEye(child, new Location(world, composedEye.x(), composedEye.y(), composedEye.z()));
+        assertTrue(scene.observerVisible(observer, child));
+        observer.nestedContext(portalId, source, eye);
+        observer.reflectedEye(portalId, observer.reflectedEye(child));
+        assertFalse(scene.observerVisible(observer, portalId), "the root view still conceals the observer");
+        observer.reflectedEye(child, eye.clone());
+        assertFalse(scene.observerVisible(observer, child), "an identity loop conceals the observer");
+        observer.reflectedEye(child, new Location(world, 0.0D, 65.6D, 1.0D));
+        assertFalse(scene.observerVisible(observer, child));
+        observer.reflectedEye(child, new Location(world, 0.0D, 65.6D, 1.001D));
+        assertTrue(scene.observerVisible(observer, child));
+        when(source.transformFrame()).thenReturn(ViewWindow.mirror(origin, frame, QuarterTurn.DEGREES_0, true, 64.0D));
+        assertFalse(scene.observerVisible(observer, child), "the client retains ownership of mirror reflections");
+        when(source.transformFrame()).thenReturn(ViewWindow.between(origin, frame, origin, frame, true, 64.0D));
+        observer.reflectedEye(child, new Location(mock(World.class), 0.0D, 65.6D, 8.0D));
+        assertFalse(scene.observerVisible(observer, child));
+        observer.reflectedEye(child, new Location(world, 0.0D, 65.6D, 8.0D));
+        observer.meshDepth(0);
+        assertFalse(scene.observerVisible(observer, child));
     }
 
     @Test

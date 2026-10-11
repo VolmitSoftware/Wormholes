@@ -78,6 +78,7 @@ public final class MinecraftProjectionService implements AutoCloseable {
     private final WorldChangeTracker changes = new WorldChangeTracker();
     private final MinecraftPlateSnapshotCache plateSnapshots = new MinecraftPlateSnapshotCache(changes, MinecraftPlateSnapshotCache.VIEW_LIMITS);
     private final Map<ServerLevel, MinecraftProjectionWorldView> views = new HashMap<>();
+    private final Map<ServerLevel, UUID> worldIds = new HashMap<>();
     private final Map<UUID, Observer> observers = new HashMap<>();
     private final SectionCache<BlockState, BlockState> sections = new SectionCache<>(MinecraftProjectorBlocks.INSTANCE, SectionCache.Limits.from(true, 64, 16, 200));
     private final SectionEviction eviction = new SectionEviction();
@@ -370,17 +371,15 @@ public final class MinecraftProjectionService implements AutoCloseable {
 
     public void blockChanged(ServerLevel world, BlockPos position) {
         runtime.requireServerThread();
-        MinecraftProjectionWorldView view = views.get(world);
-        if (view != null) {
-            changes.markChanged(view.worldId(), position.getX(), position.getY(), position.getZ());
+        if (!closed) {
+            changes.markChanged(worldIds.computeIfAbsent(world, MinecraftProjectionWorldView::worldId), position.getX(), position.getY(), position.getZ());
         }
     }
 
     public void columnChanged(ServerLevel world, int chunkX, int chunkZ) {
         runtime.requireServerThread();
-        MinecraftProjectionWorldView view = views.get(world);
-        if (view != null) {
-            changes.markChanged(view.worldId(), chunkX << 4, chunkZ << 4);
+        if (!closed) {
+            changes.markChanged(worldIds.computeIfAbsent(world, MinecraftProjectionWorldView::worldId), chunkX << 4, chunkZ << 4);
         }
     }
 
@@ -419,6 +418,10 @@ public final class MinecraftProjectionService implements AutoCloseable {
             changes.clearWorld(view.worldId());
         }
         views.clear();
+        for (UUID worldId : worldIds.values()) {
+            changes.clearWorld(worldId);
+        }
+        worldIds.clear();
         sections.clear();
         entityScenes.clear();
         localEntityCandidates.clear();

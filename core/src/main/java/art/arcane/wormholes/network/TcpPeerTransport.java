@@ -20,10 +20,19 @@ public final class TcpPeerTransport implements PeerTransport {
 
     public static TcpPeerTransport bind(String host, int port) throws IOException {
         ServerSocket socket = new ServerSocket();
-        socket.setReuseAddress(true);
-        InetSocketAddress address = new InetSocketAddress(host, port);
-        socket.bind(address);
-        return new TcpPeerTransport(socket, address);
+        try {
+            socket.setReuseAddress(true);
+            InetSocketAddress address = new InetSocketAddress(host, port);
+            socket.bind(address);
+            return new TcpPeerTransport(socket, address);
+        } catch (IOException | RuntimeException | Error failure) {
+            try {
+                socket.close();
+            } catch (IOException closeFailure) {
+                failure.addSuppressed(closeFailure);
+            }
+            throw failure;
+        }
     }
 
     @Override

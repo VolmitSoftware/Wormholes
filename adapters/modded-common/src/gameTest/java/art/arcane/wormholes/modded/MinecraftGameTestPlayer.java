@@ -17,7 +17,6 @@ import net.minecraft.network.protocol.game.GameProtocols;
 import net.minecraft.network.protocol.game.ClientboundChunkBatchFinishedPacket;
 import net.minecraft.network.protocol.game.ClientboundPlayerPositionPacket;
 import net.minecraft.network.protocol.game.ServerboundChunkBatchReceivedPacket;
-import net.minecraft.network.protocol.game.ServerboundAcceptTeleportationPacket;
 import net.minecraft.network.protocol.game.ServerboundPlayerLoadedPacket;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -108,8 +107,7 @@ public record MinecraftGameTestPlayer(WormholesModRuntime runtime, ServerPlayer 
         if (latest == null) {
             return false;
         }
-        player.connection.handleAcceptTeleportPacket(new ServerboundAcceptTeleportationPacket(latest.id(),
-            player.getX(), player.getY(), player.getZ(), player.getYRot(), player.getXRot()));
+        MinecraftGameTestAccess.acknowledge(player, latest);
         return true;
     }
 

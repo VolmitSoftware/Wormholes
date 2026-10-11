@@ -39,6 +39,7 @@ import it.unimi.dsi.fastutil.longs.LongIterator;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongLinkedOpenHashSet;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.TextureFilteringMethod;
 import net.minecraft.client.color.block.BlockColors;
 import net.minecraft.client.renderer.DynamicGpuData;
@@ -103,6 +104,7 @@ public final class ClientPortalRenderer {
     private int frameHeight;
     private CameraRenderState camera;
     private CameraRenderState rootCamera;
+    private ClientLevel frameLevel;
     private final PortalRenderTargets targets = new PortalRenderTargets();
     private TextureTarget portalLayer;
     private PortalGpuMesh layerMesh;
@@ -149,7 +151,7 @@ public final class ClientPortalRenderer {
 
     public boolean available(int portalKey) {
         Portal portal = portals.get(portalKey);
-        if (portal == null) {
+        if (portal == null || !sourceCurrent(portal.scene, activeLevel())) {
             return false;
         }
         retry(portal, System.nanoTime());
@@ -158,6 +160,9 @@ public final class ClientPortalRenderer {
 
     public boolean coversEndPortalSurface(BlockPos position) {
         for (Portal portal : portals.values()) {
+            if (!sourceCurrent(portal.scene, activeLevel())) {
+                continue;
+            }
             ApertureDescriptor geometry = portal.scene.geometry();
             if (portal.active && portal.rendered && geometry.parentPortalKey() == 0
                 && geometry.kind() == ApertureKind.VANILLA_REPLACEMENT
@@ -230,6 +235,7 @@ public final class ClientPortalRenderer {
     }
 
     public void clear() {
+        discardFrame();
         clearRetainedMeshes();
         releaseFrameTargets();
         for (Portal portal : portals.values()) {
@@ -244,10 +250,6 @@ public final class ClientPortalRenderer {
         residentBuilds = 0;
         lastBuildPortal = 0;
         buildBudgetNanos = BUILD_DISPATCH_NANOS;
-        if (pipelines != null) {
-            pipelines.close();
-            pipelines = null;
-        }
         if (terrainSampler != null) {
             terrainSampler.close();
             terrainSampler = null;
@@ -270,25 +272,41 @@ public final class ClientPortalRenderer {
         }
     }
 
-    public void resourceReload() {
-        clearRetainedMeshes();
-        buildDemand.clear();
-        releaseFrameTargets();
-        for (Portal portal : portals.values()) {
-            portal.generation++;
-            portal.materials = PortalTerrainMaterials.VANILLA;
-            portal.evicted.clear();
-            release(portal);
-            for (LongIterator iterator = portal.scene.sectionKeys().iterator(); iterator.hasNext();) {
-                portal.dirty.add(iterator.nextLong());
+    public void resourcesReady() {
+        RenderSystem.assertOnRenderThread();
+        PortalPipelines replacement = null;
+        try {
+            resourceReload();
+            replacement = new PortalPipelines();
+            replacement.prepare();
+            pipelines = replacement;
+        } catch (RuntimeException | LinkageError failure) {
+            if (replacement != null) {
+                try {
+                    replacement.close();
+                } catch (RuntimeException cleanupFailure) {
+                    failure.addSuppressed(cleanupFailure);
+                }
             }
+            LOGGER.error("Could not prepare vanilla portal pipelines after resource loading", failure);
         }
-        clearRetainedMeshes();
-        if (pipelines != null) {
-            pipelines.close();
-            pipelines = null;
+    }
+
+    public void resourceReload() {
+        try {
+            invalidateMeshes();
+        } finally {
+            closePipelines();
         }
-        models = null;
+    }
+
+    public void close() {
+        RenderSystem.assertOnRenderThread();
+        try {
+            clear();
+        } finally {
+            closePipelines();
+        }
     }
 
     public void finishBuilds() {
@@ -298,10 +316,71 @@ public final class ClientPortalRenderer {
         }
     }
 
+    public void discardFrame() {
+        visible.clear();
+        shaded.clear();
+        buildDemand.clear();
+        shadedMaterials = null;
+        portalLayer = null;
+        frameLevel = null;
+        for (Portal portal : portals.values()) {
+            portal.rendered = false;
+            portal.rendering = false;
+            portal.target = null;
+        }
+    }
+
+    private static ClientLevel activeLevel() {
+        Minecraft minecraft = Minecraft.getInstance();
+        return minecraft == null ? null : minecraft.level;
+    }
+
+    static boolean sourceCurrent(PortalScene scene, ClientLevel level) {
+        ClientLevel owner = scene.sourceLevel();
+        return !scene.sourceExpired() && (owner == null || owner == level);
+    }
+
+    private static boolean streamedContext() {
+        WormholesClient client = WormholesClient.instance();
+        return !PortalStencilRenderer.instance().nested() && (client == null
+            || client.viewsAttachedTo(activeLevel()) && !client.seamlessTravel().view().active());
+    }
+
+    private boolean frameCurrent() {
+        if (PortalStencilRenderer.instance().nested()) {
+            return false;
+        }
+        ClientLevel level = activeLevel();
+        if (frameLevel != level || !streamedContext()) {
+            discardFrame();
+            return false;
+        }
+        for (Portal portal : visible) {
+            if (!sourceCurrent(portal.scene, level)) {
+                discardFrame();
+                return false;
+            }
+        }
+        for (Portal portal : shaded) {
+            if (!sourceCurrent(portal.scene, level)) {
+                discardFrame();
+                return false;
+            }
+        }
+        return true;
+    }
+
     public void prepare(CameraRenderState camera, GpuBufferSlice fog) {
         if (PortalShaderScope.shadowPass()) {
             return;
         }
+        if (!streamedContext()) {
+            if (!PortalStencilRenderer.instance().nested()) {
+                discardFrame();
+            }
+            return;
+        }
+        frameLevel = activeLevel();
         shaded.clear();
         shadedMaterials = null;
         finishBuilds();
@@ -311,7 +390,7 @@ public final class ClientPortalRenderer {
         buildDemand.clear();
         try {
             retryUnavailable(System.nanoTime());
-            if (!hasActivePortals()) {
+            if (!hasActivePortals() || pipelines == null) {
                 releaseFrameTargets();
                 return;
             }
@@ -329,9 +408,34 @@ public final class ClientPortalRenderer {
         }
     }
 
+    private void invalidateMeshes() {
+        clearRetainedMeshes();
+        buildDemand.clear();
+        releaseFrameTargets();
+        for (Portal portal : portals.values()) {
+            portal.generation++;
+            portal.materials = PortalTerrainMaterials.VANILLA;
+            portal.evicted.clear();
+            release(portal);
+            for (LongIterator iterator = portal.scene.sectionKeys().iterator(); iterator.hasNext();) {
+                portal.dirty.add(iterator.nextLong());
+            }
+        }
+        clearRetainedMeshes();
+        models = null;
+    }
+
+    private void closePipelines() {
+        PortalPipelines previous = pipelines;
+        pipelines = null;
+        if (previous != null) {
+            previous.close();
+        }
+    }
+
     private boolean hasActivePortals() {
         for (Portal portal : portals.values()) {
-            if (portal.active) {
+            if (portal.active && sourceCurrent(portal.scene, activeLevel())) {
                 return true;
             }
         }
@@ -344,19 +448,11 @@ public final class ClientPortalRenderer {
         BlockStateModelSet currentModels = minecraft.getModelManager().getBlockStateModelSet();
         boolean currentAmbientOcclusion = minecraft.options.ambientOcclusion().get();
         if (models != currentModels || currentAmbientOcclusion != ambientOcclusion) {
-            clearRetainedMeshes();
-            resourceReload();
+            invalidateMeshes();
             models = currentModels;
             ambientOcclusion = currentAmbientOcclusion;
         }
-        boolean requestedRgss = minecraft.options.textureFiltering().get() == TextureFilteringMethod.RGSS;
-        if (pipelines == null || requestedRgss != rgss) {
-            if (pipelines != null) {
-                pipelines.close();
-            }
-            rgss = requestedRgss;
-            pipelines = new PortalPipelines(rgss);
-        }
+        rgss = minecraft.options.textureFiltering().get() == TextureFilteringMethod.RGSS;
         int requestedAnisotropy = minecraft.options.textureFiltering().get() == TextureFilteringMethod.ANISOTROPIC
             ? minecraft.options.maxAnisotropyValue() : 1;
         if (terrainSampler == null || requestedAnisotropy != anisotropy) {
@@ -383,7 +479,7 @@ public final class ClientPortalRenderer {
             portal.target = null;
         }
         for (Portal portal : portals.values()) {
-            if (!portal.scene.fullWorld() && portal.scene.geometry().parentPortalKey() == 0
+            if (sourceCurrent(portal.scene, minecraft.level) && !portal.scene.fullWorld() && portal.scene.geometry().parentPortalKey() == 0
                 && !PortalStencilRenderer.instance().claims(portal.scene.geometry()) && renderTree(portal, new Matrix4d(), null, dimensions)
                 && shadedMaterials == null) {
                 if (portalLayer == null) {
@@ -410,13 +506,16 @@ public final class ClientPortalRenderer {
     }
 
     public boolean shadedViews() {
-        return shadedMaterials != null && !shaded.isEmpty();
+        return frameCurrent() && shadedMaterials != null && !shaded.isEmpty();
     }
 
     public void renderShadedViews() {
+        if (!frameCurrent()) {
+            return;
+        }
         try {
             for (Portal portal : shaded) {
-                if (!portal.active || portal.apertureMesh == null || portal.environment == null) {
+                if (!sourceCurrent(portal.scene, frameLevel) || !portal.active || portal.apertureMesh == null || portal.environment == null) {
                     continue;
                 }
                 try {
@@ -434,7 +533,7 @@ public final class ClientPortalRenderer {
     }
 
     public void composite(RenderPass pass) {
-        if (PortalShaderScope.shadowPass() || PortalShaderScope.shaders()) {
+        if (PortalShaderScope.shadowPass() || PortalShaderScope.shaders() || !frameCurrent()) {
             return;
         }
         compositeLayer(pass);
@@ -444,7 +543,7 @@ public final class ClientPortalRenderer {
         if (PortalStencilRenderer.instance().nested() || !PortalShaderScope.shaders()) {
             return;
         }
-        if (layerMesh == null || visible.isEmpty() || portalLayer == null) {
+        if (!frameCurrent() || layerMesh == null || visible.isEmpty() || portalLayer == null) {
             return;
         }
         RenderTarget main = Minecraft.getInstance().gameRenderer.mainRenderTarget();
@@ -498,7 +597,7 @@ public final class ClientPortalRenderer {
     }
 
     private boolean renderTreeContent(Portal portal, Matrix4d toRoot, PortalViewport parentViewport, RenderDimensions dimensions) {
-        if (!portal.active || portal.scene.environment() == null || portal.rendering || portal.rendered || dimensions.depth() >= PortalRenderTargets.DEPTHS) {
+        if (!sourceCurrent(portal.scene, activeLevel()) || !portal.active || portal.scene.environment() == null || portal.rendering || portal.rendered || dimensions.depth() >= PortalRenderTargets.DEPTHS) {
             return false;
         }
         if (!portal.toRoot.equals(toRoot) && portal.parentClip != null) {
@@ -1212,7 +1311,7 @@ public final class ClientPortalRenderer {
     }
 
     private void drawTerrain(Portal portal, ChunkSectionLayer layer, RenderPass pass) {
-        pass.setPipeline(pipelines.terrain(layer, portal.toRoot.determinant3x3() < 0));
+        pass.setPipeline(pipelines.terrain(layer, portal.toRoot.determinant3x3() < 0, rgss));
         RenderSystem.bindDefaultUniforms(pass);
         pass.setUniform("Sampler0", Minecraft.getInstance().getTextureManager().getTexture(TextureAtlas.LOCATION_BLOCKS).getTextureView(),
             terrainSampler);

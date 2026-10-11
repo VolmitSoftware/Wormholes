@@ -6,7 +6,7 @@ import com.mojang.blaze3d.platform.Window;
 import com.mojang.renderpearl.api.device.GpuBackend;
 import org.lwjgl.sdl.SDLVideo;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Pseudo;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
@@ -16,27 +16,23 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(Window.class)
 public abstract class WindowMixin {
-    @Shadow
-    private int width;
-    @Shadow
-    private int height;
-    @Shadow
-    private int windowedWidth;
-    @Shadow
-    private int windowedHeight;
-    @Shadow
-    private boolean fullscreenRequested;
+    @Redirect(method = "<init>(Lcom/mojang/blaze3d/platform/WindowEventHandler;Lcom/mojang/blaze3d/platform/DisplayData;Ljava/lang/String;ZLjava/lang/String;Lcom/mojang/blaze3d/platform/MonitorManager;Lcom/mojang/renderpearl/api/device/GpuBackend;I)V",
+        at = @At(value = "INVOKE", target = "Lcom/mojang/blaze3d/platform/DisplayData;width()I"), require = 1, allow = 1)
+    private int initialWidth(DisplayData display) {
+        return HiddenRenderer.enabled() ? HiddenRenderer.width() : display.width();
+    }
 
-    @Redirect(method = "createWindow", at = @At(value = "INVOKE",
-        target = "Lcom/mojang/renderpearl/api/device/GpuBackend;createWindow(Ljava/lang/String;IIJ)J"))
-    private long hiddenWindow(GpuBackend backend, String title, int initialWidth, int initialHeight, long flags) {
+    @Redirect(method = "<init>(Lcom/mojang/blaze3d/platform/WindowEventHandler;Lcom/mojang/blaze3d/platform/DisplayData;Ljava/lang/String;ZLjava/lang/String;Lcom/mojang/blaze3d/platform/MonitorManager;Lcom/mojang/renderpearl/api/device/GpuBackend;I)V",
+        at = @At(value = "INVOKE", target = "Lcom/mojang/blaze3d/platform/DisplayData;height()I"), require = 1, allow = 1)
+    private int initialHeight(DisplayData display) {
+        return HiddenRenderer.enabled() ? HiddenRenderer.height() : display.height();
+    }
+
+    @Redirect(method = {"createWindow", "createWindowStatic"}, at = @At(value = "INVOKE",
+        target = "Lcom/mojang/renderpearl/api/device/GpuBackend;createWindow(Ljava/lang/String;IIJ)J"), require = 1, allow = 1)
+    private static long hiddenWindow(GpuBackend backend, String title, int initialWidth, int initialHeight, long flags) {
         if (HiddenRenderer.enabled()) {
-            width = HiddenRenderer.width();
-            height = HiddenRenderer.height();
-            windowedWidth = width;
-            windowedHeight = height;
-            fullscreenRequested = false;
-            return backend.createWindow(title, width, height, HiddenRenderer.windowFlags(flags));
+            return backend.createWindow(title, HiddenRenderer.width(), HiddenRenderer.height(), HiddenRenderer.windowFlags(flags));
         }
         return backend.createWindow(title, initialWidth, initialHeight, flags);
     }
@@ -81,6 +77,16 @@ public abstract class WindowMixin {
     private void renderHiddenWindow(CallbackInfoReturnable<Boolean> callback) {
         if (HiddenRenderer.enabled()) {
             callback.setReturnValue(false);
+        }
+    }
+
+    @Pseudo
+    @Mixin(targets = "net.neoforged.neoforge.client.loading.earlydisplay.EarlyWindowHandoff", remap = false)
+    public static abstract class NeoForgeEarlyWindowHandoff {
+        @Redirect(method = "completeWindowHandoff(Lcom/mojang/blaze3d/platform/Window;)V", at = @At(value = "INVOKE",
+            target = "Lorg/lwjgl/sdl/SDLVideo;SDL_ShowWindow(J)Z"), require = 2, allow = 2)
+        private static boolean suppressShow(long window) {
+            return HiddenRenderer.enabled() || SDLVideo.SDL_ShowWindow(window);
         }
     }
 }

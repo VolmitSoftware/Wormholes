@@ -30,6 +30,10 @@ import art.arcane.optics.fidelity.AcousticsProfile;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.recursion.ClientRecursionPlanner;
 import art.arcane.optics.stream.ViewStreamEndpoints;
+import art.arcane.optics.stream.ViewStreamMessage;
+import art.arcane.wormholes.network.client.ClientViewExtensions;
+import art.arcane.wormholes.network.client.RootSource;
+import art.arcane.wormholes.network.client.RootSourceExtension;
 import art.arcane.optics.plate.ViewPlate;
 import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.view.ContentView;
@@ -132,7 +136,24 @@ public final class MinecraftClientViewPortalAccess implements ViewStreamEndpoint
     public ApertureDescriptor geometry(MinecraftClientViewPeer peer, UUID portalId, SessionPalette palette) {
         MinecraftPortal portal = portal(peer, portalId);
         ServerPlayer player = peer.player();
-        return portal == null || player == null ? null : geometry(peer, player, portal, palette, front(player, portal));
+        MinecraftProjectorPortalAccess access = peer.portals();
+        return portal == null || player == null || access == null || access.world(portal) != player.level()
+            ? null : geometry(peer, player, portal, palette, front(player, portal));
+    }
+
+    @Override
+    public GeometryMetadata geometryMetadata(MinecraftClientViewPeer peer, UUID portalId, GeometryMetadataContext context) {
+        if (context.geometry().parentPortalKey() != 0 || (context.caps() & ClientViewExtensions.ROOT_SOURCE) == 0L) {
+            return GeometryMetadata.NONE;
+        }
+        MinecraftPortal portal = portal(peer, portalId);
+        MinecraftProjectorPortalAccess access = peer.portals();
+        ServerLevel source = portal == null || access == null ? null : access.world(portal);
+        if (source == null) {
+            throw new IllegalStateException("Missing source world for portal " + portalId);
+        }
+        String sourceWorld = source.dimension().identifier().toString();
+        return revision -> List.of(RootSourceExtension.INSTANCE.wrap(new RootSource(context.portalKey(), revision, sourceWorld)));
     }
 
     @Override

@@ -48,6 +48,7 @@ public final class WormholesClient {
     private final ClientMeshViews meshViews = new ClientMeshViews();
     private final ClientReflectionEntity reflections;
     private final Consumer<byte[]> sender;
+    private final ClientViewOutbound outbound;
     private final int dataVersion;
     private final String brandTag;
     private volatile ClientViewSession session;
@@ -61,6 +62,7 @@ public final class WormholesClient {
     private WormholesClient(WormholesClientConfig config, Consumer<byte[]> sender) {
         this.config = Objects.requireNonNull(config, "config");
         this.sender = Objects.requireNonNull(sender, "sender");
+        this.outbound = new ClientViewOutbound(this::sendNow, System::nanoTime);
         this.stats = new ClientViewStats();
         Consumer<TravelMessage> travel = message -> send(TravelExtension.INSTANCE.wrap(message));
         this.seamlessTravel = new ClientSeamlessTravel(travel, new ResidentLevels(travel, config.residentLevelMemoryBytes()));
@@ -210,6 +212,7 @@ public final class WormholesClient {
     }
 
     public void tick(Minecraft minecraft) {
+        outbound.flush();
         ClientPortalRenderer.instance().finishBuilds();
         seamlessTravel.tick();
         tick.effectsActive(!minecraft.isPaused() && minecraft.isWindowActive());
@@ -280,6 +283,10 @@ public final class WormholesClient {
         return stats;
     }
 
+    public int outboundPending() {
+        return outbound.pending();
+    }
+
     public ClientMeshViews meshViews() {
         return meshViews;
     }
@@ -296,11 +303,13 @@ public final class WormholesClient {
     }
 
     private void freshSession() {
+        outbound.clear();
         localMeshes.clear();
         ClientViewSession next = new ClientViewSession(config, new ClientPalette(BuiltInRegistries.BLOCK), dataVersion, brandTag);
         next.meshes().otherMemory(() -> next.plates().bytes() + localMeshes.bytes());
         ClientViewReceiver nextReceiver = new ClientViewReceiver(next);
         nextReceiver.travel(seamlessTravel::deliver);
+        nextReceiver.negotiationReset(outbound::clear);
         ClientViewTick nextTick = new ClientViewTick(next, nextReceiver, config, stats);
         nextTick.sender(this::send);
         session = next;
@@ -310,6 +319,10 @@ public final class WormholesClient {
     }
 
     private void send(ViewStreamMessage message) {
+        outbound.send(message);
+    }
+
+    private void sendNow(ViewStreamMessage message) {
         try {
             sender.accept(MinecraftClientViewExtensions.CODEC.encodeC2S(message));
         } catch (ViewStreamProtocolException failure) {

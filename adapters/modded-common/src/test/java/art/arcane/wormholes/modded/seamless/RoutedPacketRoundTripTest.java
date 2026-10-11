@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded.seamless;
 
+import art.arcane.wormholes.modded.MinecraftTestAccess;
 import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.modded.clientview.ClientViewPayload;
 import art.arcane.wormholes.network.client.TravelMessage;
@@ -70,7 +71,7 @@ public class RoutedPacketRoundTripTest extends MinecraftTestBase {
             assertTrue(fragment.payload().length <= TravelMessage.TRAVEL_FRAGMENT_BYTES);
         }
         ClientboundRemoveEntitiesPacket decoded = (ClientboundRemoveEntitiesPacket) RoutedPackets.decode(protocol, RoutedPackets.join(fragments));
-        assertEquals(ids, decoded.entityIds());
+        assertEquals(ids, MinecraftTestAccess.removed(decoded));
     }
 
     @Test
@@ -91,7 +92,7 @@ public class RoutedPacketRoundTripTest extends MinecraftTestBase {
         assertEquals(4, ((ClientboundSetChunkCacheCenterPacket) decoded.get(0)).getX());
         assertEquals(-2, ((ClientboundSetChunkCacheCenterPacket) decoded.get(0)).getZ());
         assertEquals(new ChunkPos(5, 6), ((ClientboundForgetLevelChunkPacket) decoded.get(1)).pos());
-        assertEquals(IntArrayList.of(9, 10), ((ClientboundRemoveEntitiesPacket) decoded.get(2)).entityIds());
+        assertEquals(IntArrayList.of(9, 10), MinecraftTestAccess.removed((ClientboundRemoveEntitiesPacket) decoded.get(2)));
         assertEquals(List.of(new ClientboundForgetLevelChunkPacket(new ChunkPos(1, 1))),
             RoutedPackets.flatten(new ClientboundForgetLevelChunkPacket(new ChunkPos(1, 1))));
     }

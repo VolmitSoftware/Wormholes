@@ -61,7 +61,7 @@ public final class BukkitClientView implements ClientViewRouting {
         ViewStreamCapability.DEST_LIGHT, ViewStreamCapability.ENTITY_FRAMES, ViewStreamCapability.ENTITY_EVENTS, ViewStreamCapability.ATMOSPHERE,
         ViewStreamCapability.CONFIG_PHASE, ViewStreamCapability.LINK_UNCOMPRESSED, ViewStreamCapability.VIEW_STATS,
         ViewStreamCapability.CLIENT_MIRROR, ViewStreamCapability.CLIENT_RECURSION, ViewStreamCapability.MESH_RENDER, ViewStreamCapability.LOCAL_MESH, ViewStreamCapability.MESH_REUSE)
-        | ClientViewExtensions.FX_EMITTERS;
+        | ClientViewExtensions.FX_EMITTERS | ClientViewExtensions.ROOT_SOURCE;
     private static final long SOURCE_STALE_TICKS = 40L;
     private static final double PARTICLE_RANGE_SQUARED = 32.0D * 32.0D;
     private static final String CONFIGURE_EVENT_CLASS = "io.papermc.paper.event.connection.configuration.AsyncPlayerConnectionConfigureEvent";

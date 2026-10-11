@@ -424,7 +424,7 @@ public final class PortalProjector {
         }
 
         long scanGeneration = invalidationGeneration.get();
-        schedule.beginBlockPass();
+        schedule.beginBlockPass(scheduler.tick());
         blockPasses++;
         if (dissolve.retireComplete(blockPasses)) {
             close();
@@ -628,6 +628,7 @@ public final class PortalProjector {
             blockEntityLayer.invalidateSent();
         }
         blockEntityLayer.update(cellScan.blockEntities(), destination.localView::sampleBlockEntity);
+        claimArbiter.trackBlockEntities(observer, portal.getId(), submitWorld, blockEntityLayer, cellScan.claims());
 
         if (forceFullSend && initialFullSendPassesRemaining > 0) {
             initialFullSendPassesRemaining--;
@@ -712,7 +713,7 @@ public final class PortalProjector {
         if (closed || budget <= 0 || !blockEntityLayer.hasPending()) {
             return 0;
         }
-        return blockEntityLayer.flush(observer, budget, claimArbiter.output());
+        return claimArbiter.flushBlockEntities(observer, portal.getId(), blockEntityLayer, budget);
     }
 
     private void updateEntitiesOnly(long startNanos, Location eye) {
@@ -1000,15 +1001,15 @@ public final class PortalProjector {
             blockEntityLayer.clear();
             return;
         }
-        blockEntityLayer.retireAll(localView::sampleBlockEntity);
+        blockEntityLayer.retireAll((x, y, z) -> claimArbiter.localBlockEntity(observer, claimWorld, x, y, z));
         if (!blockEntityLayer.hasPending()) {
             return;
         }
         Wormholes plugin = Wormholes.instance;
         boolean scheduled = plugin != null && FoliaScheduler.runEntity(plugin, observer,
-            () -> blockEntityLayer.flush(observer, Integer.MAX_VALUE, claimArbiter.output()), 1L);
+            () -> claimArbiter.restoreBlockEntities(observer, claimWorld, blockEntityLayer, Integer.MAX_VALUE), 1L);
         if (!scheduled) {
-            blockEntityLayer.flush(observer, Integer.MAX_VALUE, claimArbiter.output());
+            claimArbiter.restoreBlockEntities(observer, claimWorld, blockEntityLayer, Integer.MAX_VALUE);
         }
     }
 

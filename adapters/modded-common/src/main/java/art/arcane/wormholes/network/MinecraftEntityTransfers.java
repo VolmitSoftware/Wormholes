@@ -1,5 +1,6 @@
 package art.arcane.wormholes.network;
 
+import art.arcane.wormholes.modded.MinecraftTransitProtection;
 import art.arcane.optics.crossing.Pose;
 import art.arcane.optics.crossing.PoseTransform;
 import art.arcane.optics.crossing.ScaleRule;
@@ -18,6 +19,7 @@ import art.arcane.wormholes.transit.OrientationPolicy;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
@@ -42,6 +44,7 @@ public final class MinecraftEntityTransfers implements AutoCloseable {
     private static final String STAMP_KEY = "wormholes:entity_transit_state";
 
     private final WormholesModRuntime runtime;
+    private final MinecraftServer server;
     private final TraversalTransferLocks locks = new TraversalTransferLocks();
     private final ReentrantReadWriteLock lifecycle = new ReentrantReadWriteLock();
     private final AtomicLong completed = new AtomicLong();
@@ -56,10 +59,11 @@ public final class MinecraftEntityTransfers implements AutoCloseable {
     private final TraversalEntityTransit<Entity, PlaneCrossing> transit;
     private final OutboundEntityTransfers<Entity, PlaneCrossing> outbound;
     private final InboundEntityTransfers<Entity, MinecraftPortal, PlaneCrossing, Vec3d> inbound;
-    private boolean closed;
+    private volatile boolean closed;
 
     public MinecraftEntityTransfers(WormholesModRuntime runtime, NetworkManager network) {
         this.runtime = runtime;
+        server = runtime.server();
         transit = new TraversalEntityTransit<>(new TraversalEntityTransit.Options(this::liveTransfer, failures), host);
         outbound = new OutboundEntityTransfers<>(new OutboundEntityTransfers.Options<>(network, locks, failures, transit,
             () -> closed, lifecycle.readLock(), completed, System::currentTimeMillis), host);
@@ -252,6 +256,31 @@ public final class MinecraftEntityTransfers implements AutoCloseable {
         }
     }
 
+    private void preparationReady(Preparation preparation, Boolean ready, Throwable error) {
+        if (closed) {
+            return;
+        }
+        if (error != null) {
+            LOGGER.error("Could not prepare Wormholes entity arrival {}", preparation.transferId(), error);
+        }
+        try {
+            server.execute(() -> completePreparation(preparation, error == null && Boolean.TRUE.equals(ready)));
+        } catch (RuntimeException dispatchError) {
+            LOGGER.error("Could not schedule Wormholes entity arrival {}", preparation.transferId(), dispatchError);
+        }
+    }
+
+    private void completePreparation(Preparation preparation, boolean ready) {
+        if (closed) {
+            return;
+        }
+        try {
+            finishPreparation(preparation, ready);
+        } catch (RuntimeException error) {
+            LOGGER.error("Could not complete Wormholes entity arrival {}", preparation.transferId(), error);
+        }
+    }
+
     private boolean schedule(Entity entity, TraversalEntityTransit.Task task) {
         if (task.delayTicks() <= 0L) {
             if (!entity.isRemoved()) {
@@ -328,12 +357,12 @@ public final class MinecraftEntityTransfers implements AutoCloseable {
             reject(entity, rejection.sourcePortalId(), rejection.traversive());
         }
         public TraversalEntityTransit.TransitState capture(Entity entity) {
-            return new TraversalEntityTransit.TransitState(entity.isPermanentlyInvulnerable(), entity.isSilent(), !entity.isNoGravity(), geometry(entity.getDeltaMovement()));
+            return new TraversalEntityTransit.TransitState(MinecraftTransitProtection.invulnerable(entity), entity.isSilent(), !entity.isNoGravity(), geometry(entity.getDeltaMovement()));
         }
         public void freeze(Entity entity, byte flags) {
             pinned.put(entity.getUUID(), new Pin(entity, entity.position()));
             MinecraftEntityTransfers.stamp(entity, Byte.valueOf(flags));
-            entity.setPermanentlyInvulnerable(true);
+            MinecraftTransitProtection.invulnerable(entity, true);
             entity.setSilent(true);
             entity.setNoGravity(true);
             entity.setDeltaMovement(Vec3.ZERO);
@@ -342,7 +371,7 @@ public final class MinecraftEntityTransfers implements AutoCloseable {
             pinned.remove(entity.getUUID());
             ruleSources.remove(entity.getUUID());
             runtime.rules().failed(entity);
-            entity.setPermanentlyInvulnerable(state.invulnerable());
+            MinecraftTransitProtection.invulnerable(entity, state.invulnerable());
             entity.setSilent(state.silent());
             entity.setNoGravity(!state.gravity());
             entity.setDeltaMovement(vector(state.velocity()));
@@ -350,7 +379,7 @@ public final class MinecraftEntityTransfers implements AutoCloseable {
         }
         public Byte stamp(Entity entity) { return data(entity).getByte(STAMP_KEY).orElse(null); }
         public void restoreStamp(Entity entity, byte flags) {
-            entity.setPermanentlyInvulnerable(TraversalEntityTransit.stampInvulnerable(flags));
+            MinecraftTransitProtection.invulnerable(entity, TraversalEntityTransit.stampInvulnerable(flags));
             entity.setSilent(TraversalEntityTransit.stampSilent(flags));
             entity.setNoGravity(!TraversalEntityTransit.stampGravity(flags));
             MinecraftEntityTransfers.stamp(entity, null);
@@ -397,12 +426,7 @@ public final class MinecraftEntityTransfers implements AutoCloseable {
             Preparation preparation = new Preparation(arrival.transfer().transferId(), lease, task,
                 System.currentTimeMillis() + runtime.configuration().settings().getNetwork().handoffTimeoutMs);
             preparations.put(preparation.transferId(), preparation);
-            lease.ready().whenComplete((ready, error) -> runtime.server().execute(() -> {
-                if (error != null) {
-                    LOGGER.error("Could not prepare Wormholes entity arrival {}", preparation.transferId(), error);
-                }
-                finishPreparation(preparation, error == null && Boolean.TRUE.equals(ready));
-            }));
+            lease.ready().whenComplete((ready, error) -> preparationReady(preparation, ready, error));
             return true;
         }
         public Entity spawn(InboundEntityTransfers.Arrival<MinecraftPortal, PlaneCrossing, Vec3d> arrival) {

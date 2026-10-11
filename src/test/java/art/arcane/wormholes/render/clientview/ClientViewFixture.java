@@ -18,6 +18,7 @@ import java.util.logging.Logger;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
 import org.bukkit.World;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Player;
@@ -92,6 +93,7 @@ final class ClientViewFixture implements AutoCloseable {
         bukkit.when(() -> Bukkit.createBlockData(anyString())).thenReturn(stone);
         bukkit.when(() -> Bukkit.createBlockData(any(Material.class))).thenAnswer(call -> call.getArgument(0) == Material.AIR ? air : stone);
         when(world.getUID()).thenReturn(UUID.randomUUID());
+        when(world.getKey()).thenReturn(NamespacedKey.minecraft("overworld"));
         when(world.getMinHeight()).thenReturn(-64);
         when(world.getMaxHeight()).thenReturn(320);
         PortalStructure structure = new PortalStructure();

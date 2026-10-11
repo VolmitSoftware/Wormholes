@@ -11,6 +11,7 @@ import art.arcane.optics.spi.OpticsScheduler;
 
 public final class QueuedOpticsScheduler implements OpticsScheduler<Player, World> {
     private final Queue<Runnable> owned = new ConcurrentLinkedQueue<Runnable>();
+    private long tick;
 
     @Override
     public boolean runForObserver(Player observer, Runnable task) {
@@ -34,7 +35,11 @@ public final class QueuedOpticsScheduler implements OpticsScheduler<Player, Worl
 
     @Override
     public long tick() {
-        return 0L;
+        return tick;
+    }
+
+    public void advanceTo(long tick) {
+        this.tick = tick;
     }
 
     public int pending() {

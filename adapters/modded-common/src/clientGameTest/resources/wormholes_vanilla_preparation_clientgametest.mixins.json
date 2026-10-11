@@ -1,0 +1,18 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "art.arcane.wormholes.clientgametest.vanillamixin",
+  "compatibilityLevel": "JAVA_21",
+  "client": [
+    "VanillaPipelinePreparationAccess",
+    "VanillaPipelinePreparationAccess$Renderer",
+    "VanillaPipelinePreparationAccess$Lifecycle",
+    "VanillaPipelinePreparationAccess$ResourceCompletion",
+    "VanillaPipelinePreparationNativeTap",
+    "VanillaPipelinePreparationNativeTap$Program",
+    "VanillaPipelinePreparationNativeTap$Frames"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

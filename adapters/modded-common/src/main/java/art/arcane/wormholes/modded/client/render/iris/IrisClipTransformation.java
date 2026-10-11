@@ -28,6 +28,7 @@ import java.util.regex.Pattern;
 
 public final class IrisClipTransformation {
     public static final String UNIFORM = "wormholes_ClipPlane";
+    public static final String DISTANT_DEPTH = "wormholes_ClipDepth";
     public static final int MAX_DISTANCES = 8;
 
     private static final String MAIN = "wormholes_clipMain";
@@ -41,6 +42,14 @@ public final class IrisClipTransformation {
     }
 
     public static Map<PatchShaderType, String> transform(Map<PatchShaderType, String> sources) {
+        return transform(sources, false);
+    }
+
+    public static Map<PatchShaderType, String> transformDistant(Map<PatchShaderType, String> sources) {
+        return transform(sources, true);
+    }
+
+    private static Map<PatchShaderType, String> transform(Map<PatchShaderType, String> sources, boolean distant) {
         ASTParser parser = new ASTParser();
         EnumMap<PatchShaderType, TranslationUnit> trees = new EnumMap<>(PatchShaderType.class);
         BitSet occupied = new BitSet(MAX_DISTANCES);
@@ -62,6 +71,7 @@ public final class IrisClipTransformation {
             throw new IllegalArgumentException("Shader uses every available clip distance");
         }
         PatchShaderType emitting = emittingStage(trees);
+        String distantProjection = distant && emitting != PatchShaderType.VERTEX ? distantProjection(trees, emitting) : null;
         EnumMap<PatchShaderType, String> result = new EnumMap<>(PatchShaderType.class);
         result.putAll(sources);
         for (Map.Entry<PatchShaderType, TranslationUnit> entry : trees.entrySet()) {
@@ -69,7 +79,7 @@ public final class IrisClipTransformation {
             parser.getLexer().version = tree.getVersionStatement().version;
             boolean resized = resizeDeclarations(parser, tree, distance);
             if (entry.getKey() == emitting) {
-                inject(parser, tree, emitting, distance);
+                inject(parser, tree, emitting, distance, distant, distantProjection);
             }
             if (resized || entry.getKey() == emitting) {
                 result.put(entry.getKey(), ASTPrinter.printSimple(tree));
@@ -81,7 +91,7 @@ public final class IrisClipTransformation {
     private static void inspect(TranslationUnit tree, BitSet occupied) {
         for (Identifier identifier : tree.getRoot().nodeIndex.getStream(Identifier.class).toList()) {
             String name = identifier.getName();
-            if (name.startsWith(UNIFORM) || name.equals(MAIN)) {
+            if (name.startsWith(UNIFORM) || name.equals(MAIN) || name.equals(DISTANT_DEPTH)) {
                 throw new IllegalArgumentException("Shader uses reserved portal clipping identifier: " + name);
             }
             if (!name.equals("gl_ClipDistance")) {
@@ -150,12 +160,53 @@ public final class IrisClipTransformation {
         return resized;
     }
 
-    private static void inject(ASTParser parser, TranslationUnit tree, PatchShaderType stage, int distance) {
+    private static String distantProjection(Map<PatchShaderType, TranslationUnit> trees, PatchShaderType stage) {
+        TranslationUnit emitting = trees.get(stage);
+        TranslationUnit vertex = trees.get(PatchShaderType.VERTEX);
+        for (TranslationUnit tree : new TranslationUnit[]{emitting, vertex}) {
+            if (tree == null) {
+                continue;
+            }
+            for (String projection : new String[]{"dhProjection", "iris_ProjectionMatrix"}) {
+                for (Identifier identifier : tree.getRoot().nodeIndex.getStream(Identifier.class).toList()) {
+                    if (identifier.getName().equals(projection) && identifier.getParent() instanceof ReferenceExpression) {
+                        return projection;
+                    }
+                }
+            }
+        }
+        throw new IllegalArgumentException("Distant shader has no projection uniform");
+    }
+
+    private static void inject(ASTParser parser, TranslationUnit tree, PatchShaderType stage, int distance,
+                               boolean distant, String distantProjection) {
         Root root = tree.getRoot();
         String uniform = uniform(distance);
-        String assignment = "gl_ClipDistance[" + distance + "] = dot(gl_Position, " + uniform + ")";
+        String position = "gl_Position";
+        if (distant) {
+            if (stage == PatchShaderType.VERTEX) {
+                if (!root.identifierIndex.has("getVertexPosition")) {
+                    throw new IllegalArgumentException("Distant vertex shader has no decoded camera-relative position");
+                }
+                position = "getVertexPosition()";
+            } else {
+                String inverse = distantProjection.equals("dhProjection") ? "dhProjectionInverse" : "iris_ProjectionMatrixInverse";
+                position = "iris_ModelViewMatrixInverse * " + inverse + " * vec4(gl_Position.xy, dot(gl_Position.zw, "
+                    + DISTANT_DEPTH + "), gl_Position.w)";
+            }
+        }
+        String assignment = "gl_ClipDistance[" + distance + "] = dot(" + position + ", " + uniform + ")";
         root.indexBuildSession(() -> {
             tree.parseAndInjectNode(parser, ASTInjectionPoint.BEFORE_FUNCTIONS, "uniform vec4 " + uniform + ";");
+            if (distant && stage != PatchShaderType.VERTEX) {
+                tree.parseAndInjectNode(parser, ASTInjectionPoint.BEFORE_FUNCTIONS, "uniform vec2 " + DISTANT_DEPTH + ";");
+                String inverse = distantProjection.equals("dhProjection") ? "dhProjectionInverse" : "iris_ProjectionMatrixInverse";
+                for (String matrix : new String[]{"iris_ModelViewMatrixInverse", inverse}) {
+                    if (!root.identifierIndex.has(matrix)) {
+                        tree.parseAndInjectNode(parser, ASTInjectionPoint.BEFORE_FUNCTIONS, "uniform mat4 " + matrix + ";");
+                    }
+                }
+            }
             if (stage == PatchShaderType.GEOMETRY) {
                 injectEmissions(parser, tree, assignment);
                 return;

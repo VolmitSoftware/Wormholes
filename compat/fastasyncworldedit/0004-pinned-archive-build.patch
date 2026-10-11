@@ -1,0 +1,40 @@
+diff --git a/build.gradle.kts b/build.gradle.kts
+--- a/build.gradle.kts
++++ b/build.gradle.kts
+@@ -26,8 +26,10 @@
+         workingDir = rootDir
+     }.standardOutput.asText.get().trim()
+ 
+-date = gitOutput("show", "-s", "--format=%cd", "--date=format:%y.%m.%d", "HEAD")
+-revision = "-" + gitOutput("rev-parse", "--short=7", "HEAD")
++val sourceCommit = providers.gradleProperty("sourceCommit").orNull
++val sourceDate = providers.gradleProperty("sourceDate").orNull
++date = sourceDate ?: gitOutput("show", "-s", "--format=%cd", "--date=format:%y.%m.%d", "HEAD")
++revision = "-" + (sourceCommit?.take(7) ?: gitOutput("rev-parse", "--short=7", "HEAD"))
+     buildNumber = if (project.hasProperty("buildnumber")) {
+         snapshot + "-" + (project.findProperty("buildnumber") as? String ?: "")
+     } else {
+@@ -44,7 +46,7 @@
+ 
+ if (!project.hasProperty("gitCommitHash")) {
+     ext["gitCommitHash"] = try {
+-        gitOutput("rev-parse", "--short=7", "HEAD")
++        sourceCommit?.take(7) ?: gitOutput("rev-parse", "--short=7", "HEAD")
+     } catch (e: Exception) {
+         logger.warn("Error getting commit hash", e)
+ 
+diff --git a/settings.gradle.kts b/settings.gradle.kts
+--- a/settings.gradle.kts
++++ b/settings.gradle.kts
+@@ -25,7 +25,10 @@
+     }
+ }
+ 
+-if (!File("$rootDir/.git").exists()) {
++val sourceCommit = providers.gradleProperty("sourceCommit").orNull
++val sourceDate = providers.gradleProperty("sourceDate").orNull
++if (!File("$rootDir/.git").exists() &&
++    (sourceCommit != "9e5e49efe4f48ab6418831d241113e3f3b8d1691" || sourceDate != "26.10.09")) {
+     logger.lifecycle("""
+     **************************************************************************************
+     You need to fork and clone this repository! Don't download a .zip file.

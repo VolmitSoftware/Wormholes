@@ -1,0 +1,63 @@
+import java.nio.charset.StandardCharsets
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
+import java.security.MessageDigest
+
+String patchedFaweVersion = '2.16.1-wormholes-1'
+File patchedFaweSupport = file('compat/fastasyncworldedit')
+def patchedFaweApi = layout.buildDirectory.dir('compat/fastasyncworldedit/api')
+def preparePatchedFaweApi = tasks.register('preparePatchedFaweApi') {
+    inputs.files(fileTree(patchedFaweSupport) {
+        include('*.patch', '*.py', '*.sh')
+    })
+    inputs.property('version', patchedFaweVersion)
+    inputs.property('cacheRoot', new File(gradle.gradleUserHomeDir, 'wormholes-builds/fastasyncworldedit').absolutePath)
+    inputs.property('sourceDirectory', providers.gradleProperty('fawePatchedSourceDirectory').getOrElse(''))
+    outputs.dir(patchedFaweApi)
+    doLast {
+        MessageDigest digest = MessageDigest.getInstance('SHA-256')
+        List<File> supportFiles = inputs.files.files.toList().sort { File left, File right -> left.name <=> right.name }
+        for (File supportFile : supportFiles) {
+            digest.update(supportFile.name.getBytes(StandardCharsets.UTF_8))
+            digest.update(Files.readAllBytes(supportFile.toPath()))
+        }
+        String fingerprint = HexFormat.of().formatHex(digest.digest())
+        File sourceDirectory = providers.gradleProperty('fawePatchedSourceDirectory').isPresent()
+                ? file(providers.gradleProperty('fawePatchedSourceDirectory').get())
+                : new File(gradle.gradleUserHomeDir, "wormholes-builds/fastasyncworldedit/${fingerprint}/source")
+        def invocation = providers.exec {
+            commandLine('sh', new File(patchedFaweSupport, 'build-patched.sh').absolutePath,
+                    sourceDirectory.absolutePath, ':worldedit-core:jar', ':worldedit-bukkit:jar',
+                    '--console=plain', '--max-workers=2', '--no-watch-fs')
+            ignoreExitValue = true
+        }
+        int exitCode = invocation.result.get().exitValue
+        logger.lifecycle(invocation.standardOutput.asText.get())
+        String errorOutput = invocation.standardError.asText.get()
+        if (!errorOutput.isBlank()) {
+            logger.lifecycle(errorOutput)
+        }
+        if (exitCode != 0) {
+            throw new GradleException("Patched FAWE API build failed with exit code ${exitCode}")
+        }
+        File outputDirectory = patchedFaweApi.get().asFile
+        outputDirectory.mkdirs()
+        for (String platform : ['core', 'bukkit']) {
+            File sourceArtifact = new File(sourceDirectory, "worldedit-${platform}/build/libs/worldedit-${platform}-${patchedFaweVersion}.jar")
+            if (!sourceArtifact.isFile()) {
+                throw new GradleException("Missing patched FAWE API artifact: ${sourceArtifact}")
+            }
+            Files.copy(sourceArtifact.toPath(), new File(outputDirectory, "FastAsyncWorldEdit-${platform}.jar").toPath(),
+                    StandardCopyOption.REPLACE_EXISTING)
+        }
+    }
+}
+
+FileCollection patchedFaweApiFiles = files(
+        patchedFaweApi.map { Directory directory -> directory.file('FastAsyncWorldEdit-core.jar') },
+        patchedFaweApi.map { Directory directory -> directory.file('FastAsyncWorldEdit-bukkit.jar') })
+        .builtBy(preparePatchedFaweApi)
+dependencies {
+    compileOnly(patchedFaweApiFiles)
+    testImplementation(patchedFaweApiFiles)
+}

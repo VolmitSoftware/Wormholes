@@ -303,6 +303,21 @@ public final class RemoteRoutes implements AutoCloseable {
         }
     }
 
+    public void columnChanged(ServerLevel level, int chunkX, int chunkZ) {
+        runtime.requireServerThread();
+        List<RemoteRoute> routes = resident.get(level);
+        if (routes == null) {
+            return;
+        }
+        long key = ChunkPos.pack(chunkX, chunkZ);
+        for (int index = 0; index < routes.size(); index++) {
+            RemoteRoute route = routes.get(index);
+            if (route.opened() && route.window().contains(key)) {
+                route.stream().changed(key);
+            }
+        }
+    }
+
     public void forget(UUID player, boolean notify) {
         PlayerRoutes state = players.remove(player);
         if (state == null) {

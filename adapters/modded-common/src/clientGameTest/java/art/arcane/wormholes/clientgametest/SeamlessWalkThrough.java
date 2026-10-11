@@ -1,21 +1,26 @@
 package art.arcane.wormholes.clientgametest;
 
 import art.arcane.wormholes.clientgametest.mixin.ParticleGroupTap;
+import art.arcane.wormholes.modded.MinecraftAccessService;
 import art.arcane.wormholes.modded.MinecraftPortal;
 import art.arcane.wormholes.modded.WormholesModRuntime;
 import art.arcane.wormholes.modded.client.ClientSeamlessTravel;
 import art.arcane.wormholes.modded.client.WormholesClient;
 import art.arcane.wormholes.modded.mixin.client.ParticleEngineAccess;
+import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.transit.OrientationPolicy;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.particle.Particle;
 import net.minecraft.client.particle.ParticleGroup;
+import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.commands.Commands;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.players.ServerOpListEntry;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.item.ItemStack;
@@ -89,6 +94,8 @@ final class SeamlessWalkThrough {
         }
         client.restoreDefaultGameOptions();
         SeamlessScenario.assertTrue(failures.isEmpty(), label + ": " + failures);
+        LOGGER.info("WORMHOLES_NETHER_WALK_PASS {} trips={} native_ignition conversion walking_roundtrip no_respawn no_correction particles_preserved",
+            label, trips);
     }
 
     static void framePortal(SeamlessClient client, SeamlessServer server, String label, int trips) {
@@ -123,30 +130,88 @@ final class SeamlessWalkThrough {
     }
 
     static void light(MinecraftServer server, ServerPlayer player, BlockPos min) {
+        light(server, player, new NetherFrameFixture(min, 2));
+    }
+
+    static void light(MinecraftServer server, ServerPlayer player, NetherFrameFixture fixture) {
+        BlockPos min = fixture.minimum();
+        int width = fixture.width();
+        SeamlessScenario.assertTrue(width >= 2 && width <= 21, "invalid native Nether fixture width");
         ServerLevel level = server.overworld();
         fill(level, min.offset(-6, -1, -8), 16, 1, 22, Blocks.STONE.defaultBlockState());
         fill(level, min.offset(-6, 0, -8), 16, 7, 22, Blocks.AIR.defaultBlockState());
-        for (int x = -1; x <= 2; x++) {
+        for (int x = -1; x <= width; x++) {
             level.setBlockAndUpdate(min.offset(x, -1, 0), Blocks.OBSIDIAN.defaultBlockState());
             level.setBlockAndUpdate(min.offset(x, 3, 0), Blocks.OBSIDIAN.defaultBlockState());
         }
         for (int y = 0; y < 3; y++) {
             level.setBlockAndUpdate(min.offset(-1, y, 0), Blocks.OBSIDIAN.defaultBlockState());
-            level.setBlockAndUpdate(min.offset(2, y, 0), Blocks.OBSIDIAN.defaultBlockState());
+            level.setBlockAndUpdate(min.offset(width, y, 0), Blocks.OBSIDIAN.defaultBlockState());
         }
-        server.getPlayerList().op(player.nameAndId());
         player.teleportTo(level, min.getX() + 1.0D, min.getY(), min.getZ() + APPROACH_BLOCKS, Set.of(), 180.0F, 0.0F, false);
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.FLINT_AND_STEEL));
+        String prerequisite = netherDetails(server, player, min);
+        LOGGER.info("WORMHOLES_NETHER_IGNITION_READY {}", prerequisite);
+        if (server.isSingleplayer()) {
+            SeamlessScenario.assertTrue(server.isSingleplayerOwner(player.nameAndId()), "nether fixture actor is not the integrated owner: " + prerequisite);
+            SeamlessScenario.assertTrue(server.getWorldData().isAllowCommands(), "nether fixture world does not allow commands: " + prerequisite);
+        }
+        SeamlessScenario.assertTrue(runtime(server).access().permission(player, PortalType.PORTAL.permission()),
+            "nether fixture actor lacks portal conversion permission: " + prerequisite);
         BlockPos base = min.offset(0, -1, 0);
         InteractionResult result = player.gameMode.useItemOn(player, level, player.getItemInHand(InteractionHand.MAIN_HAND), InteractionHand.MAIN_HAND,
             new BlockHitResult(Vec3.atCenterOf(base).add(0.0D, 0.5D, 0.0D), Direction.UP, base, false));
-        SeamlessScenario.assertTrue(result.consumesAction(), "flint and steel was not used on the obsidian frame: " + result);
+        String ignited = netherDetails(server, player, min);
+        LOGGER.info("WORMHOLES_NETHER_IGNITION_RESULT result={} {}", result, ignited);
+        SeamlessScenario.assertTrue(result.consumesAction(), "flint and steel was not used on the obsidian frame: " + result + " " + ignited);
+        SeamlessScenario.assertTrue(level.getBlockState(min).is(Blocks.NETHER_PORTAL) || lit(server, min),
+            "flint and steel did not form a native nether portal: " + ignited);
     }
 
     static boolean lit(MinecraftServer server, BlockPos min) {
         WormholesModRuntime runtime = runtime(server);
         MinecraftPortal portal = runtime.portals().at(server.overworld(), min);
-        return portal != null && portal.isManaged() && portal.getDestinationId() != null;
+        boolean replaced = portal != null && portal.isManaged() && portal.getDestinationId() != null;
+        if (!replaced && server.overworld().getGameTime() % 100 == 0) {
+            for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+                LOGGER.info("WORMHOLES_NETHER_CONVERSION_WAIT {}", netherDetails(server, player, min));
+            }
+        }
+        return replaced;
+    }
+
+    private static String netherDetails(MinecraftServer server, ServerPlayer player, BlockPos min) {
+        WormholesModRuntime runtime = runtime(server);
+        ServerLevel level = server.overworld();
+        CommandSourceStack source = player.createCommandSourceStack();
+        ServerOpListEntry entry = server.getPlayerList().getOps().get(player.nameAndId());
+        List<BlockPos> cells = new ArrayList<>(6);
+        List<BlockState> interior = new ArrayList<>(6);
+        for (int x = 0; x < 2; x++) {
+            for (int y = 0; y < 3; y++) {
+                BlockPos cell = min.offset(x, y, 0);
+                cells.add(cell);
+                interior.add(level.getBlockState(cell));
+            }
+        }
+        MinecraftPortal portal = runtime.portals().at(level, min);
+        return "singleplayer=" + server.isSingleplayer() + " owner=" + server.isSingleplayerOwner(player.nameAndId())
+            + " commands=" + server.getWorldData().isAllowCommands() + " op=" + server.getPlayerList().isOp(player.nameAndId())
+            + " storedOpLevel=" + (entry == null ? null : entry.permissions().level())
+            + " profileLevel=" + server.getProfilePermissions(player.nameAndId()).level()
+            + " sourcePermissions=" + source.permissions() + " nativeAdmin=" + Commands.hasPermission(Commands.LEVEL_ADMINS).test(source)
+            + " portalPermission=" + runtime.access().permission(player, PortalType.PORTAL.permission())
+            + " canConstruct=" + runtime.access().canConstruct(player)
+            + " canPlace=" + runtime.access().canPlace(new MinecraftAccessService.Placement(player, level, cells, MinecraftAccessService.PlacementKind.VANILLA))
+            + " actorLevel=" + player.level().dimension().identifier() + " actorPosition=" + player.position()
+            + " hand=" + player.getItemInHand(InteractionHand.MAIN_HAND) + " running=" + runtime.running()
+            + " replace=" + runtime.configuration().settings().getMain().replaceNetherAndEndPortals
+            + " groups=" + runtime.configuration().settings().getDimensional().groups
+            + " scales=" + runtime.configuration().settings().getDimensional().scales
+            + " targetPresent=" + (server.getLevel(Level.NETHER) != null)
+            + " base=" + level.getBlockState(min.below()) + " interior=" + interior
+            + " managed=" + (portal == null ? null : portal.isManaged())
+            + " destination=" + (portal == null ? null : portal.getDestinationId());
     }
 
     private static void walk(SeamlessClient client, String label, List<String> failures) {
@@ -309,5 +374,8 @@ final class SeamlessWalkThrough {
                 }
             }
         }
+    }
+
+    record NetherFrameFixture(BlockPos minimum, int width) {
     }
 }

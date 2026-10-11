@@ -16,6 +16,8 @@ import net.irisshaders.iris.Iris;
 import net.irisshaders.iris.pipeline.PipelineManager;
 import net.irisshaders.iris.pipeline.WorldRenderingPipeline;
 import net.minecraft.client.renderer.LevelRenderer;
+import net.minecraft.client.renderer.state.level.CameraRenderState;
+import org.joml.Matrix4fc;
 import org.slf4j.Logger;
 
 import java.lang.invoke.MethodHandles;
@@ -42,6 +44,16 @@ public final class IrisPipelineBackend implements PipelineBackend {
     @Override
     public boolean deferred() {
         return Iris.isPackInUseQuick();
+    }
+
+    @Override
+    public void prepareViews(CameraRenderState camera, Matrix4fc projection) {
+        if (!deferred()) {
+            return;
+        }
+        IrisPipelines.requestViews(camera, projection);
+        while (!IrisViewPipelines.preparationStep()) {
+        }
     }
 
     @Override

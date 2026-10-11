@@ -1,0 +1,36 @@
+plugins {
+    id 'java'
+}
+
+version = '1.0.0'
+
+repositories {
+    mavenCentral()
+    maven { url = 'https://hub.spigotmc.org/nexus/content/repositories/snapshots/' }
+}
+
+dependencies {
+    compileOnly files(providers.gradleProperty('wormholesJar').get())
+    compileOnly files('../../../../build/compat/fastasyncworldedit/api/FastAsyncWorldEdit-core.jar',
+            '../../../../build/compat/fastasyncworldedit/api/FastAsyncWorldEdit-bukkit.jar')
+    compileOnly 'org.spigotmc:spigot-api:26.2-R0.1-SNAPSHOT'
+}
+
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(25)
+}
+
+sourceSets {
+    main {
+        java.srcDirs = ['src']
+        resources.srcDirs = ['resources']
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.compilerArgs += '-parameters'
+}
+
+tasks.named('jar') {
+    archiveBaseName = 'WormholesFaweFixture'
+}

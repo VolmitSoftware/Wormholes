@@ -59,17 +59,19 @@ final class CrossPortalEntities {
         Minecraft minecraft = Minecraft.getInstance();
         EntityRenderDispatcher dispatcher = minecraft.getEntityRenderDispatcher();
         for (Entity entity : from.getEntities((Entity) null, reach, EntitySelector.ENTITY_STILL_ALIVE)) {
-            if (entity == minecraft.player && minecraft.options.getCameraType().isFirstPerson()) {
-                continue;
-            }
             AABB bounds = entity.getBoundingBox();
             if (!surface.straddles(new Box(bounds.minX, bounds.maxX, bounds.minY, bounds.maxY, bounds.minZ, bounds.maxZ))) {
                 continue;
             }
             Vec3 position = entity.getPosition(partialTicks);
             Vec3d mapped = transform.point(new Vec3d(position.x, position.y, position.z));
-            if (entity == minecraft.player && playerAlreadyVisible(state.entityRenderStates, entity.getId(), mapped)) {
-                continue;
+            if (entity == minecraft.player) {
+                Vec3 eye = entity.getEyePosition(partialTicks);
+                Vec3d mappedEye = transform.point(new Vec3d(eye.x, eye.y, eye.z));
+                if (!PortalWorldRenderer.detached(new Vec3(mappedEye.x(), mappedEye.y(), mappedEye.z()), state.cameraRenderState.pos)
+                    || playerAlreadyVisible(state.entityRenderStates, entity.getId(), mapped)) {
+                    continue;
+                }
             }
             EntityRenderState copy = dispatcher.extractEntity(entity, partialTicks);
             if (copy instanceof LivingEntityRenderState living) {

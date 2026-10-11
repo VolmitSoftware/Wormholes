@@ -18,7 +18,6 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.players.PlayerList;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.InterpolationHandler;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.portal.TeleportTransition;
 import net.minecraft.world.phys.AABB;
@@ -253,7 +252,7 @@ public class MinecraftPortalRegistryTest extends MinecraftTestBase {
         when(player.isAlive()).thenReturn(true);
         when(player.getPassengers()).thenReturn(List.of());
         when(player.getSelfAndPassengers()).thenAnswer(ignored -> Stream.of(player));
-        when(player.getInterpolation()).thenReturn(InterpolationHandler.NO_OP);
+        when(player.getInterpolation()).thenReturn(MinecraftTestAccess.idleInterpolation());
         when(player.getBoundingBox()).thenReturn(new AABB(0, 64, 0, 0.5D, 65, 0.5D));
         player.xo = 1;
         player.yo = 64.2D;
@@ -400,7 +399,7 @@ public class MinecraftPortalRegistryTest extends MinecraftTestBase {
         when(entity.isAlive()).thenReturn(true);
         when(entity.getPassengers()).thenReturn(List.of());
         when(entity.getSelfAndPassengers()).thenAnswer(ignored -> Stream.of(entity));
-        when(entity.getInterpolation()).thenReturn(InterpolationHandler.NO_OP);
+        when(entity.getInterpolation()).thenReturn(MinecraftTestAccess.idleInterpolation());
         when(entity.getBoundingBox()).thenReturn(new AABB(0, 64, 0, 0.5, 65, 0.5));
         entity.xo = 1;
         entity.yo = 64.2;

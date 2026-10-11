@@ -1,0 +1,56 @@
+import groovy.json.JsonSlurper
+import org.gradle.api.tasks.WriteProperties
+import org.gradle.api.tasks.TaskProvider
+
+Properties rootProperties = new Properties()
+file('../../gradle.properties').withInputStream { InputStream stream -> rootProperties.load(stream) }
+String targetVersion = providers.gradleProperty('minecraftVersion').getOrElse(rootProperties.getProperty('minecraftVersion'))
+File targetManifest = file("../../gradle/minecraft-versions/${targetVersion}.json")
+if (!targetManifest.isFile()) {
+    throw new GradleException("Unsupported Minecraft target ${targetVersion}")
+}
+Map<String, Object> target = (Map<String, Object>) new JsonSlurper().parse(targetManifest)
+if (target['minecraft'] != targetVersion) {
+    throw new GradleException("Minecraft target manifest does not match ${targetVersion}")
+}
+String loader = projectDir.name
+Map<String, String> versionKeys = [fabric: 'fabricLoaderVersion', forge: 'forgeVersion', neoforge: 'neoForgeVersion']
+String loaderVersion = providers.gradleProperty(versionKeys[loader]).getOrElse(((Map<String, String>) target['loaders'])[loader])
+if (loader != 'fabric' && !loaderVersion.startsWith(targetVersion + (loader == 'forge' ? '-' : '.'))) {
+    throw new GradleException("${loader} ${loaderVersion} does not target Minecraft ${targetVersion}")
+}
+ext.minecraftTargetVersion = targetVersion
+ext.minecraftTarget = target
+ext.minecraftMetadata = [
+    version: providers.gradleProperty('wormholesVersion').getOrElse(rootProperties.getProperty('wormholesVersion')),
+    minecraftVersion: targetVersion,
+    fabricLoaderVersion: loader == 'fabric' ? loaderVersion : ((Map<String, String>) target['loaders'])['fabric'],
+    forgeLoaderRange: target['forgeLoaderRange'],
+    neoForgeRange: target['neoForgeRange']
+]
+layout.buildDirectory.set(project == rootProject
+    ? layout.projectDirectory.dir(targetVersion == rootProperties.getProperty('minecraftVersion') ? 'build' : "build/${targetVersion}")
+    : rootProject.layout.buildDirectory.dir("${project.name}/${targetVersion}"))
+
+TaskProvider<WriteProperties> targetProperties = tasks.register('generateMinecraftTarget', WriteProperties) {
+    destinationFile.set(layout.buildDirectory.file('generated/minecraft-target/wormholes-target.properties'))
+    property('minecraft', targetVersion)
+    property('loader', loader)
+    property('loaderVersion', loaderVersion)
+    Map<String, String> dependencies = (Map<String, String>) ((Map<String, Object>) target['renderDependencies'])[loader]
+    dependencies.each { String name, String coordinate -> property(name, coordinate) }
+    property('renderRuntimeSupported', ((List<String>) target['renderRuntimeLoaders']).contains(loader))
+}
+tasks.named('processResources').configure {
+    inputs.properties(project.ext.minecraftMetadata)
+    from(targetProperties)
+}
+tasks.matching { Task task -> task.name == 'processGameTestResources' || task.name == 'processClientGameTestResources' }.configureEach {
+    inputs.properties(project.ext.minecraftMetadata)
+    filesMatching('META-INF/mods.toml') {
+        filter { String line -> line.replace('[66,67)', (String) target['forgeLoaderRange']) }
+    }
+    filesMatching('META-INF/neoforge.mods.toml') {
+        filter { String line -> line.replace('[26.3,26.4)', (String) target['neoForgeRange']) }
+    }
+}

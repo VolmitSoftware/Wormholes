@@ -7,11 +7,13 @@ import art.arcane.wormholes.api.traversal.TraversalQuote;
 import art.arcane.wormholes.api.traversal.TraversalReceipt;
 import art.arcane.wormholes.api.traversal.TraversalRefundReason;
 import art.arcane.wormholes.api.traversal.TraversalReservation;
+import art.arcane.wormholes.modded.MinecraftChunkLeasePlatform;
 import art.arcane.wormholes.modded.MinecraftPortal;
 import art.arcane.wormholes.modded.MinecraftTraversalContext;
 import art.arcane.wormholes.modded.MinecraftTraversalCostProvider;
 import art.arcane.wormholes.modded.MinecraftTravelCosts;
 import art.arcane.wormholes.modded.WormholesModRuntime;
+import art.arcane.wormholes.modded.mixin.SeamlessChunkMapAccess;
 import art.arcane.wormholes.network.client.TravelMessage;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -20,6 +22,11 @@ import net.minecraft.network.protocol.game.ClientboundPlayerPositionPacket;
 import net.minecraft.network.protocol.game.ClientboundRespawnPacket;
 import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
 import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket;
+import net.minecraft.server.level.ChunkHolder;
+import net.minecraft.server.level.ChunkLevel;
+import net.minecraft.server.level.ChunkResult;
+import net.minecraft.server.level.GenerationChunkHolder;
+import net.minecraft.server.level.ServerChunkCache;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
@@ -27,7 +34,9 @@ import net.minecraft.world.entity.decoration.ArmorStand;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.LevelChunk;
+import net.minecraft.world.level.chunk.status.ChunkStatus;
 import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -88,8 +97,102 @@ public final class MinecraftSeamlessValidationGameTest {
         attempts.add(new Attempt("no_cost", Expect.REJECT));
         attempts.add(new Attempt("same_level_accept", Expect.ACCEPT_SAME_LEVEL));
         attempts.add(new Attempt("same_level_again", Expect.ACCEPT_SAME_LEVEL));
+        PendingRelease release = pendingRelease();
         next(0);
-        helper.runAfterDelay(1, this::step);
+        helper.runAfterDelay(1, () -> stepAfterRelease(release));
+    }
+
+    private PendingRelease pendingRelease() {
+        helper.assertTrue(runtime.server().isSameThread(), "Native pending release needs the logical server thread");
+        ServerLevel level = helper.getLevel();
+        ServerChunkCache chunks = level.getChunkSource();
+        ChunkPos queued = unusedChunk(chunks, 0);
+        ChunkPos dispatched = unusedChunk(chunks, 1024);
+        List<ChunkPos> held = new ArrayList<>(2);
+        try (MinecraftChunkLeasePlatform platform = new MinecraftChunkLeasePlatform(runtime)) {
+            try {
+                held.add(queued);
+                CompletableFuture<Boolean> queuedReady = platform.add(level, queued.x(), queued.z()).toCompletableFuture();
+                helper.assertTrue(!queuedReady.isDone(), "Queued native readiness must start unresolved");
+                removeHold(platform, level, queued);
+                held.remove(queued);
+                helper.assertTrue(queuedReady.isCancelled(), "Queued native release did not cancel its wrapper");
+                platform.tick();
+                helper.assertTrue(chunks.chunkMap.getUpdatingChunkIfPresent(queued.pack()) == null,
+                    "Queued release unexpectedly created a native holder");
+
+                held.add(dispatched);
+                CompletableFuture<Boolean> ready = platform.add(level, dispatched.x(), dispatched.z()).toCompletableFuture();
+                helper.assertTrue(!ready.isDone(), "Dispatched native readiness must start unresolved");
+                helper.assertTrue(chunks.pollTask(), "The new native ticket did not propagate");
+                helper.assertTrue(chunks.chunkMap.getUpdatingChunkIfPresent(queued.pack()) == null,
+                    "Queued release retained a native ticket after distance updates");
+                ChunkHolder holder = ((SeamlessChunkMapAccess) chunks.chunkMap).wormholesVisibleChunk(dispatched.pack());
+                helper.assertTrue(holder != null && holder.getTicketLevel() <= ChunkLevel.byStatus(ChunkStatus.FULL),
+                    "The native pending probe needs a visible FULL-ticket holder");
+                helper.assertTrue(runtime.server().getLevel(level.dimension()) == level, "The native pending level is not active");
+                CompletableFuture<ChunkResult<ChunkAccess>> loading = holder.scheduleChunkGenerationTask(ChunkStatus.FULL, chunks.chunkMap);
+                helper.assertTrue(!loading.isDone(), "The actual native FULL future must remain unresolved before dispatch");
+                int dependents = loading.getNumberOfDependents();
+                platform.tick();
+                helper.assertTrue(!ready.isDone() && !loading.isDone(), "Native dispatch did not preserve pending readiness");
+                helper.assertTrue(loading.getNumberOfDependents() > dependents, "Native dispatch did not attach to the shared FULL future");
+                helper.assertTrue(holder.scheduleChunkGenerationTask(ChunkStatus.FULL, chunks.chunkMap) == loading,
+                    "Native dispatch replaced the shared FULL future");
+                removeHold(platform, level, dispatched);
+                held.remove(dispatched);
+                helper.assertTrue(ready.isCancelled(), "Dispatched native release did not cancel its wrapper");
+                helper.assertTrue(!loading.isDone() && !loading.isCancelled(), "Wrapper release cancelled or completed the native FULL future");
+                helper.assertTrue(chunks.pollTask(), "The released native ticket did not propagate its downgrade");
+                helper.assertTrue(holder.getTicketLevel() > ChunkLevel.byStatus(ChunkStatus.FULL), "Native release retained the FULL ticket");
+                PendingRelease release = new PendingRelease(queuedReady, ready, loading);
+                assertReleased(release);
+                return release;
+            } finally {
+                for (ChunkPos pos : held) {
+                    removeHold(platform, level, pos);
+                }
+            }
+        }
+    }
+
+    private ChunkPos unusedChunk(ServerChunkCache chunks, int offset) {
+        BlockPos origin = helper.absolutePos(BlockPos.ZERO);
+        int x = 1_000_000 + Math.floorMod(origin.getX() >> 4, 4096) + offset;
+        int z = -1_000_000 + Math.floorMod(origin.getZ() >> 4, 4096);
+        for (int candidate = 0; candidate < 16; candidate++) {
+            ChunkPos pos = new ChunkPos(x + candidate * 64, z);
+            if (chunks.chunkMap.getUpdatingChunkIfPresent(pos.pack()) == null
+                && ((SeamlessChunkMapAccess) chunks.chunkMap).wormholesVisibleChunk(pos.pack()) == null
+                && chunks.getChunkNow(pos.x(), pos.z()) == null
+                && chunks.chunkMap.getDistanceManager().getChunkLevel(pos.pack(), false) > ChunkLevel.byStatus(ChunkStatus.FULL)) {
+                return pos;
+            }
+        }
+        throw new IllegalStateException("Native pending release could not find an unused remote chunk");
+    }
+
+    private void removeHold(MinecraftChunkLeasePlatform platform, ServerLevel level, ChunkPos pos) {
+        CompletableFuture<Boolean> removed = platform.remove(level, pos.x(), pos.z()).toCompletableFuture();
+        helper.assertTrue(removed.isDone(), "Native pending release must remove its own ticket in the current server callback");
+        helper.assertTrue(Boolean.TRUE.equals(removed.join()), "Native pending release did not remove its own ticket");
+    }
+
+    private void assertReleased(PendingRelease release) {
+        helper.assertTrue(release.queued().isCancelled() && release.dispatched().isCancelled(), "Released native readiness revived");
+        helper.assertTrue(release.loading().isDone() && !release.loading().isCancelled(), "Native downgrade cancelled or retained the shared FULL future");
+        helper.assertTrue(release.loading().getNow(null) == GenerationChunkHolder.UNLOADED_CHUNK,
+            "Native downgrade did not complete with the actual UNLOADED sentinel");
+    }
+
+    private void stepAfterRelease(PendingRelease release) {
+        try {
+            assertReleased(release);
+            LOGGER.info("WORMHOLES_GAME_TEST_ASSERT seamless_validation pending_chunk_release PASS");
+            step();
+        } catch (Throwable failure) {
+            finish(failure);
+        }
     }
 
     private void next(int index) throws Exception {
@@ -354,6 +457,10 @@ public final class MinecraftSeamlessValidationGameTest {
 
     private enum Phase {
         PREPARE, CROSS, RESULT
+    }
+
+    private record PendingRelease(CompletableFuture<Boolean> queued, CompletableFuture<Boolean> dispatched,
+                                  CompletableFuture<ChunkResult<ChunkAccess>> loading) {
     }
 
     private enum Expect {

@@ -85,7 +85,7 @@ public final class TravelExtension implements ViewStreamExtension<TravelMessage>
     @Override
     public long requires(long capability) {
         return capability == ClientViewExtensions.SEAMLESS_TRAVEL
-            ? ClientViewExtensions.REMOTE_VIEW | ViewStreamCapability.MESH_RENDER.mask()
+            ? ClientViewExtensions.REMOTE_VIEW | ClientViewExtensions.ROOT_SOURCE | ViewStreamCapability.MESH_RENDER.mask()
             : ViewStreamCapability.NONE;
     }
 

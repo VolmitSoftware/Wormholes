@@ -1,7 +1,13 @@
 package art.arcane.wormholes.modded.clientview;
 
 import art.arcane.wormholes.modded.WormholesModRuntime;
+import art.arcane.wormholes.modded.MinecraftPortal;
+import art.arcane.wormholes.modded.MinecraftTestBase;
+import art.arcane.optics.frame.OpticTransform;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.entity.EntitySnapshot;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import org.junit.Test;
 
 import java.util.UUID;
@@ -12,7 +18,7 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-public class MinecraftClientViewObserverTest {
+public class MinecraftClientViewObserverTest extends MinecraftTestBase {
     @Test
     public void observerMatchesOnlyItsOwnProjectedId() {
         MinecraftClientViewScene scene = new MinecraftClientViewScene(mock(WormholesModRuntime.class),
@@ -27,5 +33,48 @@ public class MinecraftClientViewObserverTest {
         assertTrue(scene.isObserver(observer, self));
         when(observer.id()).thenReturn(UUID.randomUUID());
         assertFalse(scene.isObserver(observer, self));
+    }
+
+    @Test
+    public void recursiveLinkedObserverUsesTheComposedDestinationEye() {
+        MinecraftClientViewPortalAccess access = mock(MinecraftClientViewPortalAccess.class);
+        MinecraftClientViewScene scene = new MinecraftClientViewScene(mock(WormholesModRuntime.class), access);
+        MinecraftClientViewPeer observer = mock(MinecraftClientViewPeer.class);
+        ServerPlayer player = mock(ServerPlayer.class);
+        ServerLevel world = mock(ServerLevel.class);
+        MinecraftPortal portal = mock(MinecraftPortal.class);
+        UUID portalId = UUID.randomUUID();
+        UUID child = UUID.randomUUID();
+        Vec3d eye = new Vec3d(0.0D, 65.6D, 0.0D);
+        when(observer.meshDepth()).thenReturn(64);
+        when(observer.player()).thenReturn(player);
+        when(player.level()).thenReturn(world);
+        when(player.getEyeY()).thenReturn(eye.y());
+        when(access.portal(observer, child)).thenReturn(portal);
+        OpticTransform transform = OpticTransform.translation(0.0D, 0.0D, -4.0D);
+        Vec3d parentEye = transform.inverse().point(eye);
+        when(observer.nestedContext(child)).thenReturn(new MinecraftClientViewPeer.NestedContext(portalId, parentEye,
+            transform.inverse().point(parentEye), world, transform));
+        assertTrue(scene.observerVisible(observer, child));
+        when(observer.nestedContext(portalId)).thenReturn(new MinecraftClientViewPeer.NestedContext(portalId, eye,
+            new Vec3d(0.0D, 65.6D, 8.0D), world, OpticTransform.IDENTITY));
+        assertFalse(scene.observerVisible(observer, portalId));
+        when(observer.nestedContext(child)).thenReturn(new MinecraftClientViewPeer.NestedContext(portalId, parentEye,
+            transform.point(parentEye), world, transform.inverse()));
+        assertFalse(scene.observerVisible(observer, child));
+        when(observer.nestedContext(child)).thenReturn(new MinecraftClientViewPeer.NestedContext(portalId, eye,
+            new Vec3d(0.0D, 65.6D, 1.0D), world, OpticTransform.IDENTITY));
+        assertFalse(scene.observerVisible(observer, child));
+        when(observer.nestedContext(child)).thenReturn(new MinecraftClientViewPeer.NestedContext(portalId, eye,
+            new Vec3d(0.0D, 65.6D, 1.001D), world, OpticTransform.IDENTITY));
+        assertTrue(scene.observerVisible(observer, child));
+        when(portal.isMirrorMode()).thenReturn(true);
+        assertFalse(scene.observerVisible(observer, child));
+        when(portal.isMirrorMode()).thenReturn(false);
+        when(player.level()).thenReturn(mock(ServerLevel.class));
+        assertFalse(scene.observerVisible(observer, child));
+        when(player.level()).thenReturn(world);
+        when(observer.meshDepth()).thenReturn(0);
+        assertFalse(scene.observerVisible(observer, child));
     }
 }

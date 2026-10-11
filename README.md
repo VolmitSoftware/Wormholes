@@ -6,14 +6,14 @@ The central [Wormholes manual](https://github.com/VolmitSoftware/docs/blob/maste
 
 The projection library lives in the [Optics](https://github.com/VolmitSoftware/Optics) submodule at `optics/`; clone with `git clone --recurse-submodules` or run `git submodule update --init` in an existing checkout.
 
-Build all platform distributions with Java 25 and `./gradlew buildAllToOut`. The jars are exported to the sibling `PluginOuts/` directory.
+Build the Bukkit distribution and all declared Minecraft versions for Fabric, Forge, and NeoForge with Java 25 and `./gradlew buildAllToOut`. The jars are exported to the sibling `PluginOuts/` directory. `buildAll`, `buildPsychoLT`, and the workspace `build-psycho-lt.sh` include the same versions automatically. Single-platform builds and consumer dropins default to Minecraft 26.3; select 26.2 with `-PminecraftVersion=26.2`. Use `./gradlew buildModdedVersionsToOut` to export only native distributions.
 
 ## Known issues
 
 These apply to players with the client mod. [ClientView](https://github.com/VolmitSoftware/docs/blob/master/wormholes/05-projection-modes-settings.md#clientview) describes world views and streamed views.
 
 - Streamed views, which Paper, Purpur, and Folia servers use for every linked portal and other servers use for random teleport portals and cross-server gateways, are shaded with the Iris shader programs of the dimension you are in instead of the destination's, and get no shadow pass of their own.
-- With an Iris shader pack, a streamed view or a view into the dimension you are in shares one shader pipeline with your own view, so temporal effects such as TAA or motion blur can smear inside it.
+- With an Iris shader pack, a streamed view shares temporal history with your own view, so TAA or motion blur can smear inside it. World views, including same-dimension portals and mirrors, keep separate histories.
 - Portal views into another dimension show no particles from that dimension.
 - `portal-edge-feather` draws its edge band only in streamed views.
 

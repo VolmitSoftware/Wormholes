@@ -1,0 +1,135 @@
+import java.nio.charset.StandardCharsets
+import java.util.zip.ZipFile
+
+Configuration packetEventsPatchSources = configurations.create('packetEventsPatchSources') {
+    canBeConsumed = false
+    canBeResolved = true
+    transitive = false
+}
+String packetEventsPatchVersion = libs.versions.packetevents.get()
+dependencies {
+    add('packetEventsPatchSources', "com.github.retrooper:packetevents-api:${packetEventsPatchVersion}:sources")
+    add('packetEventsPatchSources', "com.github.retrooper:packetevents-spigot:${packetEventsPatchVersion}:sources")
+}
+
+File packetEventsPatch = file("compat/packetevents/${packetEventsPatchVersion}-write-completion.patch")
+def patchedPacketEventsSources = layout.buildDirectory.dir('generated/packetevents-patch/sources')
+def patchedPacketEventsClasses = layout.buildDirectory.dir('classes/java/packeteventsPatch')
+
+def preparePatchedPacketEvents = tasks.register('preparePatchedPacketEvents') {
+    inputs.files(packetEventsPatchSources)
+    inputs.file(packetEventsPatch)
+    outputs.dir(patchedPacketEventsSources)
+    doLast {
+        List<String> patchLines = packetEventsPatch.readLines('UTF-8')
+        int patchCursor = 0
+        while (patchCursor < patchLines.size()) {
+            String fileHeader = patchLines[patchCursor++]
+            if (!fileHeader.startsWith('--- a/')) {
+                throw new GradleException("Invalid PacketEvents patch header: ${fileHeader}")
+            }
+            String sourcePath = fileHeader.substring(6)
+            if (patchCursor >= patchLines.size() || patchLines[patchCursor++] != "+++ b/${sourcePath}") {
+                throw new GradleException("Invalid PacketEvents patch target: ${sourcePath}")
+            }
+            String sourceText = null
+            for (File sourceArchive : packetEventsPatchSources.files) {
+                new ZipFile(sourceArchive).withCloseable { ZipFile archive ->
+                    def entry = archive.getEntry(sourcePath)
+                    if (entry != null) {
+                        if (sourceText != null) {
+                            throw new GradleException("Duplicate PacketEvents patch source: ${sourcePath}")
+                        }
+                        sourceText = new String(archive.getInputStream(entry).readAllBytes(), StandardCharsets.UTF_8)
+                    }
+                }
+            }
+            if (sourceText == null) {
+                throw new GradleException("Missing PacketEvents patch source: ${sourcePath}")
+            }
+            List<String> original = sourceText.readLines()
+            List<String> patched = new ArrayList<String>(original.size() + 64)
+            int sourceCursor = 0
+            while (patchCursor < patchLines.size() && !patchLines[patchCursor].startsWith('--- a/')) {
+                String hunkHeader = patchLines[patchCursor++]
+                def header = hunkHeader =~ /^@@ -(\d+)(?:,\d+)? \+\d+(?:,\d+)? @@.*$/
+                if (!header.matches()) {
+                    throw new GradleException("Invalid PacketEvents patch hunk: ${hunkHeader}")
+                }
+                int start = Integer.parseInt(header.group(1)) - 1
+                if (start < sourceCursor || start > original.size()) {
+                    throw new GradleException("Invalid PacketEvents patch position: ${sourcePath}")
+                }
+                while (sourceCursor < start) {
+                    patched.add(original[sourceCursor++])
+                }
+                while (patchCursor < patchLines.size() && !patchLines[patchCursor].startsWith('@@ ')
+                        && !patchLines[patchCursor].startsWith('--- a/')) {
+                    String line = patchLines[patchCursor++]
+                    if (line.startsWith('\\ No newline')) {
+                        continue
+                    }
+                    if (line.isEmpty() || ![' ', '+', '-'].contains(line.substring(0, 1))) {
+                        throw new GradleException("Invalid PacketEvents patch line: ${sourcePath}")
+                    }
+                    String content = line.substring(1)
+                    if (!line.startsWith('+')) {
+                        if (sourceCursor >= original.size() || original[sourceCursor++] != content) {
+                            throw new GradleException("PacketEvents ${packetEventsPatchVersion} source differs at ${sourcePath}:${sourceCursor}")
+                        }
+                    }
+                    if (!line.startsWith('-')) {
+                        patched.add(content)
+                    }
+                }
+            }
+            while (sourceCursor < original.size()) {
+                patched.add(original[sourceCursor++])
+            }
+            File target = new File(patchedPacketEventsSources.get().asFile, sourcePath)
+            target.parentFile.mkdirs()
+            target.setText(patched.join('\n') + '\n', 'UTF-8')
+        }
+    }
+}
+
+def compilePatchedPacketEvents = tasks.register('compilePatchedPacketEvents', JavaCompile) {
+    dependsOn(preparePatchedPacketEvents)
+    source(patchedPacketEventsSources)
+    classpath = configurations.compileClasspath
+    destinationDirectory.set(patchedPacketEventsClasses)
+    javaCompiler.set(javaToolchains.compilerFor {
+        languageVersion.set(JavaLanguageVersion.of(25))
+    })
+    options.release.set(25)
+    options.compilerArgs.add('-parameters')
+    options.encoding = 'UTF-8'
+}
+
+sourceSets.main.compileClasspath = files(patchedPacketEventsClasses).builtBy(compilePatchedPacketEvents) + sourceSets.main.compileClasspath
+sourceSets.main.output.dir([builtBy: compilePatchedPacketEvents], patchedPacketEventsClasses)
+tasks.named('compileJava').configure {
+    dependsOn(compilePatchedPacketEvents)
+}
+tasks.matching { Task task -> task.name == 'compileSpigotCompatibility' }.configureEach {
+    dependsOn(compilePatchedPacketEvents)
+}
+
+sourceSets {
+    packetEventsPatchTest {
+        java.srcDir('src/test/java')
+        java.include('art/arcane/wormholes/render/PacketEventsWriteCompletionTest.java')
+        compileClasspath = files(patchedPacketEventsClasses).builtBy(compilePatchedPacketEvents) + configurations.testCompileClasspath
+        runtimeClasspath = output + files(patchedPacketEventsClasses).builtBy(compilePatchedPacketEvents) + configurations.testRuntimeClasspath
+    }
+}
+
+def packetEventsPatchTest = tasks.register('packetEventsPatchTest', Test) {
+    testClassesDirs = sourceSets.packetEventsPatchTest.output.classesDirs
+    classpath = sourceSets.packetEventsPatchTest.runtimeClasspath
+    useJUnitPlatform()
+}
+tasks.named('test').configure {
+    dependsOn(packetEventsPatchTest)
+    exclude('**/PacketEventsWriteCompletionTest.class')
+}

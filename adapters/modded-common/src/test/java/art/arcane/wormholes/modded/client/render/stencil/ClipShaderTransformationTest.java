@@ -21,12 +21,12 @@ public class ClipShaderTransformationTest {
         """;
     private static final String TERRAIN = """
         #version 330
-        #include <minecraft:projection.glsl>
+        %s
         layout(location = 0) in vec3 Position;
         void main() {
             gl_Position = ProjMat * vec4(Position, 1.0);
         }
-        """;
+        """.formatted(ClipShaderTransformation.PROJECTION_INCLUDE);
 
     @Test
     public void projectionBlockGainsTheClipPlaneAfterTheMatrix() {
@@ -68,11 +68,11 @@ public class ClipShaderTransformationTest {
         String sodium = """
             #version 330
             #extension GL_ARB_separate_shader_objects : require
-            #include <sodium:globals.glsl>
+            %s
             void main() {
                 gl_Position = u_ProjectionMatrix * u_ModelViewMatrix * vec4(0.0, 0.0, 0.0, 1.0);
             }
-            """;
+            """.formatted(ClipShaderTransformation.SODIUM_GLOBALS_INCLUDE);
         String source = ClipShaderTransformation.vertex("sodium:blocks/block_layer_opaque", sodium).orElseThrow();
         assertTrue(source.contains("gl_ClipDistance[0] = dot(gl_Position, " + ClipShaderTransformation.CLIP_PLANE + ");"));
         assertTrue(source.contains("void wormholes_main()"));

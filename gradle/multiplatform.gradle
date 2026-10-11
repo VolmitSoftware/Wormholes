@@ -1,4 +1,14 @@
+import groovy.json.JsonSlurper
+
 String minecraftVersion = providers.gradleProperty('minecraftVersion').get()
+Properties buildDefaults = new Properties()
+file('gradle.properties').withInputStream { InputStream stream -> buildDefaults.load(stream) }
+File targetManifest = file("gradle/minecraft-versions/${minecraftVersion}.json")
+if (!targetManifest.isFile()) {
+    throw new GradleException("Unsupported Minecraft target ${minecraftVersion}")
+}
+Map<String, Object> minecraftTarget = (Map<String, Object>) new JsonSlurper().parse(targetManifest)
+String adapterBuildDirectory = minecraftVersion == buildDefaults.getProperty('minecraftVersion') ? 'build' : "build/${minecraftVersion}"
 String bukkitRange = providers.gradleProperty('bukkitMinecraftRange').get()
 String wrapper = System.getProperty('os.name').toLowerCase(Locale.ROOT).contains('windows') ? 'gradlew.bat' : 'gradlew'
 File outputDirectory = providers.gradleProperty('pluginOutDirectory')
@@ -30,7 +40,7 @@ Map<String, String> loaders = [fabric: 'Fabric', forge: 'Forge', neoforge: 'NeoF
 Map<String, String> versionKeys = [fabric: 'fabricLoaderVersion', forge: 'forgeVersion', neoforge: 'neoForgeVersion']
 loaders.each { String loader, String display ->
     String versionKey = versionKeys[loader]
-    String loaderVersion = providers.gradleProperty(versionKey).get()
+    String loaderVersion = providers.gradleProperty(versionKey).getOrElse(((Map<String, String>) minecraftTarget['loaders'])[loader])
     String displayVersion = loaderVersion.startsWith("${minecraftVersion}-")
         ? loaderVersion.substring(minecraftVersion.length() + 1)
         : loaderVersion
@@ -38,7 +48,7 @@ loaders.each { String loader, String display ->
         displayVersion = displayVersion.replaceFirst(/-beta$/, '')
     }
     String artifactName = "Wormholes v${project.version} [${display}] ${minecraftVersion}+${displayVersion}.jar"
-    moddedArtifacts[display] = file("adapters/${loader}/build/libs/${artifactName}")
+    moddedArtifacts[display] = file("adapters/${loader}/${adapterBuildDirectory}/libs/${artifactName}")
     TaskProvider<Exec> jarTask = tasks.register("${loader}Jar", Exec) {
         group = 'build'
         workingDir(file("adapters/${loader}"))
@@ -51,7 +61,7 @@ loaders.each { String loader, String display ->
         inputs.files(fileTree('core/src'), file('core/build.gradle'), fileTree('optics/src'), file('optics/build.gradle'), fileTree('adapters/modded-common/src'),
             fileTree("adapters/${loader}/src"), file("adapters/${loader}/build.gradle"),
             file("adapters/${loader}/settings.gradle"), file("adapters/game-test.gradle"), file("adapters/${loader}/gradle.properties"),
-            file('gradle.properties'), file('gradle/modded-artifact.gradle'), file('gradle/libs.versions.toml'), file('gradle/localization-settings.gradle'),
+            file('gradle.properties'), fileTree('gradle/minecraft-versions'), file('gradle/modded-target.gradle'), file('gradle/modded-sources.gradle'), file('gradle/modded-artifact.gradle'), file('gradle/libs.versions.toml'), file('gradle/localization-settings.gradle'),
             file('.gradle/local.properties'), fileTree('gradle/wrapper'),
             fileTree('src/main/resources/languages'), fileTree('src/main/resources/wormholes-pockets-pack/data'))
         if (loader == 'neoforge') {
@@ -66,7 +76,7 @@ loaders.each { String loader, String display ->
         inputs.property('minecraftVersion', minecraftVersion)
         inputs.property('loaderVersion', loaderVersion)
         inputs.property('wormholesVersion', project.version.toString())
-        outputs.file(file("adapters/${loader}/build/libs/${artifactName}"))
+        outputs.file(file("adapters/${loader}/${adapterBuildDirectory}/libs/${artifactName}"))
     }
     TaskProvider<Task> verifyTask = tasks.register("verify${display}Artifact") {
         group = 'verification'
@@ -80,7 +90,7 @@ loaders.each { String loader, String display ->
         from(jarTask.map { Task task -> task.outputs.files })
         into(outputDirectory)
         doFirst {
-            delete(previousArtifacts[display])
+            delete(fileTree(outputDirectory) { include("Wormholes v* [${display}] ${minecraftVersion}+*.jar") })
         }
     }
 }
@@ -97,7 +107,7 @@ tasks.named('neoforgeJar').configure {
 
 tasks.register('buildAllToOut') {
     group = 'distribution'
-    dependsOn('buildBukkit', 'buildFabric', 'buildForge', 'buildNeoforge')
+    dependsOn('buildBukkit', 'buildModdedVersionsToOut')
     doLast {
         logger.lifecycle("Wormholes distributions: ${outputDirectory}")
         previousArtifacts.values().each { FileTree artifacts ->
@@ -132,4 +142,35 @@ tasks.register('buildAll') {
             logger.lifecycle("  ${consumerPath}/${keep}")
         }
     }
+}
+
+List<String> minecraftVersions = fileTree('gradle/minecraft-versions') {
+    include('*.json')
+}.files.collect { File manifest -> manifest.name.substring(0, manifest.name.length() - 5) }.sort()
+TaskProvider<Exec> previousVersionBuild = null
+List<TaskProvider<Exec>> versionBuilds = []
+minecraftVersions.each { String targetVersion ->
+    TaskProvider<Exec> versionBuild = tasks.register("buildModded${targetVersion.replace('.', '_')}ToOut", Exec) {
+        group = 'distribution'
+        description = "Builds verified ${targetVersion} mod jars into the distribution directory."
+        mustRunAfter('buildBukkit', ':build', ':core:build')
+        workingDir(rootDir)
+        commandLine(file(wrapper).absolutePath, 'buildFabric', 'buildForge', 'buildNeoforge', '--console=plain',
+            "-PwormholesVersion=${project.version}", "-PminecraftVersion=${targetVersion}",
+            "-PpluginOutDirectory=${outputDirectory.absolutePath}", "-PuseLocalVolmLib=${useLocalVolmLib}")
+        if (localVolmLibCheckout != null) {
+            environment('ORG_GRADLE_PROJECT_localVolmLibDirectory', localVolmLibCheckout.absolutePath)
+        }
+    }
+    if (previousVersionBuild != null) {
+        TaskProvider<Exec> predecessor = previousVersionBuild
+        versionBuild.configure { mustRunAfter(predecessor) }
+    }
+    previousVersionBuild = versionBuild
+    versionBuilds.add(versionBuild)
+}
+tasks.register('buildModdedVersionsToOut') {
+    group = 'distribution'
+    description = 'Builds every supported Minecraft mod target without deploying jars.'
+    dependsOn(versionBuilds)
 }

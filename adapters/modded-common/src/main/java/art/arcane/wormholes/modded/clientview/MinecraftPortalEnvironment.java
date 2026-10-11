@@ -13,8 +13,6 @@ import net.minecraft.tags.FluidTags;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.phys.Vec3;
-import org.joml.Vector3fc;
-import org.joml.Vector4fc;
 
 public final class MinecraftPortalEnvironment {
     private MinecraftPortalEnvironment() {
@@ -28,17 +26,17 @@ public final class MinecraftPortalEnvironment {
         EnvironmentState.Sky sky = new EnvironmentState.Sky(EnvironmentState.Skybox.valueOf(dimension.skybox().name()),
             radians(attributes.getValue(EnvironmentAttributes.SUN_ANGLE, eye)), radians(attributes.getValue(EnvironmentAttributes.MOON_ANGLE, eye)),
             radians(attributes.getValue(EnvironmentAttributes.STAR_ANGLE, eye)), attributes.getValue(EnvironmentAttributes.STAR_BRIGHTNESS, eye),
-            color(attributes.getValue(EnvironmentAttributes.SUNRISE_SUNSET_COLOR, eye)), color(attributes.getValue(EnvironmentAttributes.SKY_COLOR, eye)),
+            MinecraftEnvironmentColors.alpha(attributes.getValue(EnvironmentAttributes.SUNRISE_SUNSET_COLOR, eye)), MinecraftEnvironmentColors.color(attributes.getValue(EnvironmentAttributes.SKY_COLOR, eye)),
             attributes.getValue(EnvironmentAttributes.MOON_PHASE, eye).ordinal(), world.getRainLevel(1.0F), world.getThunderLevel(1.0F));
-        EnvironmentState.Fog fog = new EnvironmentState.Fog(color(attributes.getValue(EnvironmentAttributes.FOG_COLOR, eye)),
+        EnvironmentState.Fog fog = new EnvironmentState.Fog(MinecraftEnvironmentColors.color(attributes.getValue(EnvironmentAttributes.FOG_COLOR, eye)),
             attributes.getValue(EnvironmentAttributes.FOG_START_DISTANCE, eye), attributes.getValue(EnvironmentAttributes.FOG_END_DISTANCE, eye),
             attributes.getValue(EnvironmentAttributes.SKY_FOG_END_DISTANCE, eye), attributes.getValue(EnvironmentAttributes.CLOUD_FOG_END_DISTANCE, eye),
-            color(attributes.getValue(EnvironmentAttributes.WATER_FOG_COLOR, eye)), attributes.getValue(EnvironmentAttributes.WATER_FOG_START_DISTANCE, eye),
+            MinecraftEnvironmentColors.color(attributes.getValue(EnvironmentAttributes.WATER_FOG_COLOR, eye)), attributes.getValue(EnvironmentAttributes.WATER_FOG_START_DISTANCE, eye),
             attributes.getValue(EnvironmentAttributes.WATER_FOG_END_DISTANCE, eye));
-        EnvironmentState.Lighting lighting = new EnvironmentState.Lighting(color(attributes.getValue(EnvironmentAttributes.BLOCK_LIGHT_TINT, eye)),
-            attributes.getValue(EnvironmentAttributes.SKY_LIGHT_FACTOR, eye), color(attributes.getValue(EnvironmentAttributes.SKY_LIGHT_COLOR, eye)),
-            color(attributes.getValue(EnvironmentAttributes.AMBIENT_LIGHT_COLOR, eye)));
-        EnvironmentState.Clouds clouds = new EnvironmentState.Clouds(color(attributes.getValue(EnvironmentAttributes.CLOUD_COLOR, eye)),
+        EnvironmentState.Lighting lighting = new EnvironmentState.Lighting(MinecraftEnvironmentColors.color(attributes.getValue(EnvironmentAttributes.BLOCK_LIGHT_TINT, eye)),
+            attributes.getValue(EnvironmentAttributes.SKY_LIGHT_FACTOR, eye), MinecraftEnvironmentColors.color(attributes.getValue(EnvironmentAttributes.SKY_LIGHT_COLOR, eye)),
+            MinecraftEnvironmentColors.color(attributes.getValue(EnvironmentAttributes.AMBIENT_LIGHT_COLOR, eye)));
+        EnvironmentState.Clouds clouds = new EnvironmentState.Clouds(MinecraftEnvironmentColors.alpha(attributes.getValue(EnvironmentAttributes.CLOUD_COLOR, eye)),
             attributes.getValue(EnvironmentAttributes.CLOUD_HEIGHT, eye));
         return new EnvironmentState(world.getGameTime(), sky, fog, lighting, clouds, transform,
             new EnvironmentState.Dimension(dimension.minY(), dimension.height(), dimension.hasSkyLight(),
@@ -52,7 +50,7 @@ public final class MinecraftPortalEnvironment {
 
     private static EnvironmentState.EyeMedium eyeMedium(Level world, Vec3 eye, BlockPos position) {
         FluidState fluid = world.getFluidState(position);
-        if (fluid.is(FluidTags.WATER) && eye.y < position.getY() + fluid.getHeightForCamera(world, position)) {
+        if (fluid.is(FluidTags.WATER) && eye.y < position.getY() + MinecraftEnvironmentColors.fluidHeight(fluid, world, position)) {
             return EnvironmentState.EyeMedium.WATER;
         }
         if (fluid.is(FluidTags.LAVA) && eye.y < position.getY() + fluid.getHeight(world, position)) {
@@ -64,13 +62,5 @@ public final class MinecraftPortalEnvironment {
 
     private static float radians(float degrees) {
         return (float) Math.toRadians(degrees);
-    }
-
-    private static EnvironmentState.Color color(Vector3fc value) {
-        return new EnvironmentState.Color(value.x(), value.y(), value.z());
-    }
-
-    private static EnvironmentState.ColorAlpha color(Vector4fc value) {
-        return new EnvironmentState.ColorAlpha(value.x(), value.y(), value.z(), value.w());
     }
 }

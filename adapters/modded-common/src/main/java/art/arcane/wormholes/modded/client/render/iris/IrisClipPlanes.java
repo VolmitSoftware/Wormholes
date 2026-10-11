@@ -15,14 +15,28 @@ import org.lwjgl.opengl.GL30C;
 import java.util.ArrayDeque;
 
 public final class IrisClipPlanes {
+    private static final int MAX_DISTANCES = 8;
     private static final ArrayDeque<Vector4fc> PLANES = new ArrayDeque<>();
     private static int enabled = -1;
 
     private IrisClipPlanes() {
     }
 
+    public static State capture() {
+        int distances = 0;
+        for (int distance = 0; distance < MAX_DISTANCES; distance++) {
+            if (GL11C.glIsEnabled(GL30C.GL_CLIP_DISTANCE0 + distance)) {
+                distances |= 1 << distance;
+            }
+        }
+        return new State(distances, enabled);
+    }
+
     public static void apply(int location, int distance) {
-        Vector4fc plane = PLANES.peek();
+        apply(location, distance, PLANES.peek());
+    }
+
+    public static void apply(int location, int distance, Vector4fc plane) {
         if (plane == null || location < 0) {
             release();
             return;
@@ -49,5 +63,18 @@ public final class IrisClipPlanes {
     static void pop() {
         PLANES.pop();
         release();
+    }
+
+    public record State(int distances, int enabledDistance) {
+        public void restore() {
+            for (int distance = 0; distance < MAX_DISTANCES; distance++) {
+                if ((distances & (1 << distance)) != 0) {
+                    GL11C.glEnable(GL30C.GL_CLIP_DISTANCE0 + distance);
+                } else {
+                    GL11C.glDisable(GL30C.GL_CLIP_DISTANCE0 + distance);
+                }
+            }
+            enabled = enabledDistance;
+        }
     }
 }

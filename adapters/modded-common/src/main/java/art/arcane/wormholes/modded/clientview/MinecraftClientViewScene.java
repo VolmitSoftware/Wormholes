@@ -159,6 +159,24 @@ public final class MinecraftClientViewScene implements EntityScenes<MinecraftCli
     }
 
     @Override
+    public boolean observerVisible(MinecraftClientViewPeer peer, UUID portalId) {
+        MinecraftClientViewPeer.NestedContext context = peer.nestedContext(portalId);
+        if (peer.meshDepth() <= 0 || context == null || context.portal().equals(portalId)) {
+            return false;
+        }
+        MinecraftPortal portal = portals.portal(peer, portalId);
+        ServerPlayer player = peer.player();
+        if (portal == null || portal.isMirrorMode() || player == null || player.level() != context.destinationWorld()) {
+            return false;
+        }
+        Vec3d eye = context.destinationEye();
+        double dx = player.getX() - eye.x();
+        double dy = player.getEyeY() - eye.y();
+        double dz = player.getZ() - eye.z();
+        return dx * dx + dy * dy + dz * dz > 1.0D;
+    }
+
+    @Override
     public List<FxMessage.FxEmitter> emitters(MinecraftClientViewPeer peer, UUID portalId, long tick) {
         MinecraftPortal portal = portals.portal(peer, portalId);
         ServerPlayer player = peer.player();

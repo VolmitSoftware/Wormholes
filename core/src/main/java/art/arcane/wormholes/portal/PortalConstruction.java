@@ -67,7 +67,7 @@ public final class PortalConstruction {
 
 		if(ay >= az)
 		{
-			return lookY >= 0.0D ? Face.U : Face.D;
+			return Face.D;
 		}
 
 		return lookZ >= 0.0D ? Face.S : Face.N;

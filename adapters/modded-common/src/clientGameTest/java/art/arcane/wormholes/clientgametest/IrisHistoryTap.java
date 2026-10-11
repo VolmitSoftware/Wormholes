@@ -87,7 +87,8 @@ public final class IrisHistoryTap {
         }
         PortalLayer layer = LAYERS.peek().layer();
         if (camera.distanceTo(layer.camera().pos) > 0.0001D || !matrix.equals(layer.camera().viewRotationMatrix, 0.0001F)) {
-            fail("Iris camera uniforms differ from the portal's virtual camera");
+            fail("Iris camera uniforms differ from the portal's virtual camera: observed camera=" + camera + " expected camera="
+                + layer.camera().pos + " observed modelview=" + matrix + " expected modelview=" + layer.camera().viewRotationMatrix);
         }
         if (layer.depth() != 1) {
             return;

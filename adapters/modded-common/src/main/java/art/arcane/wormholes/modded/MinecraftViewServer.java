@@ -254,38 +254,13 @@ public final class MinecraftViewServer implements AutoCloseable {
     }
 
     public void blockChanged(ServerLevel level, BlockPos position) {
-        runtime.requireServerThread();
-        long chunk = CellKeys.chunkKey(position.getX() >> 4, position.getZ() >> 4);
-        if (closed || !capture.isRelevant(level, chunk)) {
-            return;
-        }
-        BlockState block = captureAccess.block(level, position.getX(), position.getY(), position.getZ());
-        if (block == null) {
-            return;
-        }
-        BlockEntitySample sample = null;
-        if (block.hasBlockEntity()) {
-            for (Session session : sessions.values()) {
-                if (session.level == level && session.box.contains(position.getX(), position.getY(), position.getZ())) {
-                    sample = session.view.sampleBlockEntity(position.getX(), position.getY(), position.getZ());
-                    break;
-                }
-            }
-        }
-        byte[] encoded = null;
-        if (sample != null) {
-            try {
-                encoded = BlockEntitySample.encode(sample);
-            } catch (IOException failure) {
-                LOGGER.error("Could not encode gateway block entity at {} in {}", position, level.dimension().identifier(), failure);
-            }
-        }
-        capture.recordBlockChange(level, position.getX(), position.getY(), position.getZ(), block,
-            encoded == null ? BlockChange.FLAG_NONE : BlockChange.FLAG_BLOCK_ENTITY_FOLLOWS);
-        if (encoded != null) {
-            capture.recordBlockEntityChange(level, position.getX(), position.getY(), position.getZ(), encoded);
-        }
+        captureBlockChange(level, position, false);
     }
+
+    public void metadataChanged(ServerLevel level, BlockPos position) {
+        captureBlockChange(level, position, true);
+    }
+
 
     public void biomesChanged(ServerLevel level, int chunkX, int chunkZ) {
         runtime.requireServerThread();
@@ -372,6 +347,43 @@ public final class MinecraftViewServer implements AutoCloseable {
         Session session = sessions.get(state.portalId());
         return !closed && session != null && session.entities == state;
     }
+
+    private void captureBlockChange(ServerLevel level, BlockPos position, boolean metadataOnly) {
+        runtime.requireServerThread();
+        long chunk = CellKeys.chunkKey(position.getX() >> 4, position.getZ() >> 4);
+        if (closed || !capture.isRelevant(level, chunk)) {
+            return;
+        }
+        BlockState block = captureAccess.block(level, position.getX(), position.getY(), position.getZ());
+        if (block == null) {
+            return;
+        }
+        BlockEntitySample sample = null;
+        if (block.hasBlockEntity()) {
+            for (Session session : sessions.values()) {
+                if (session.level == level && session.box.contains(position.getX(), position.getY(), position.getZ())) {
+                    sample = session.view.sampleBlockEntity(position.getX(), position.getY(), position.getZ());
+                    break;
+                }
+            }
+        }
+        byte[] encoded = null;
+        if (sample != null) {
+            try {
+                encoded = BlockEntitySample.encode(sample);
+            } catch (IOException failure) {
+                LOGGER.error("Could not encode gateway block entity at {} in {}", position, level.dimension().identifier(), failure);
+            }
+        }
+        if (!metadataOnly) {
+            capture.recordBlockChange(level, position.getX(), position.getY(), position.getZ(), block,
+                encoded == null ? BlockChange.FLAG_NONE : BlockChange.FLAG_BLOCK_ENTITY_FOLLOWS);
+        }
+        if (encoded != null) {
+            capture.recordBlockEntityChange(level, position.getX(), position.getY(), position.getZ(), encoded);
+        }
+    }
+
 
     private void refreshEntityScheduler() {
         NetworkConfig.ViewConfig view = network.activeConfig().view;

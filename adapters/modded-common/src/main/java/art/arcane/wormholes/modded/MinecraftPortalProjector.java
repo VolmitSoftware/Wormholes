@@ -137,7 +137,7 @@ public final class MinecraftPortalProjector implements AutoCloseable {
             return Result.IDLE;
         }
         lastPassTick = tick;
-        schedule.beginBlockPass();
+        schedule.beginBlockPass(tick);
         boolean remote = !(destination.destView() instanceof MinecraftProjectionWorldView);
         UUID destWorldId = remote ? null : destination.destView().worldId();
         boolean stable = schedule.stableResample(committedEye != null, destination.destView().getRevision(), remote, destWorldId,

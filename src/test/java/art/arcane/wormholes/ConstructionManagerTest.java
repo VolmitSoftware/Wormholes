@@ -142,7 +142,7 @@ public final class ConstructionManagerTest {
     public void planarNormalFollowsFlatAxis() {
         assertEquals(Face.E, PortalConstruction.derivePortalNormal(0, 3, 4, 1.0D, 0.0D, 0.0D));
         assertEquals(Face.W, PortalConstruction.derivePortalNormal(0, 3, 4, -0.2D, 0.9D, 0.1D));
-        assertEquals(Face.U, PortalConstruction.derivePortalNormal(5, 0, 2, 0.0D, 1.0D, 0.0D));
+        assertEquals(Face.D, PortalConstruction.derivePortalNormal(5, 0, 2, 0.0D, 1.0D, 0.0D));
         assertEquals(Face.D, PortalConstruction.derivePortalNormal(5, 0, 2, 0.9D, -0.1D, 0.3D));
         assertEquals(Face.S, PortalConstruction.derivePortalNormal(5, 2, 0, 0.0D, 0.0D, 1.0D));
         assertEquals(Face.N, PortalConstruction.derivePortalNormal(5, 2, 0, 0.1D, 0.2D, -0.9D));
@@ -158,7 +158,7 @@ public final class ConstructionManagerTest {
 
     @Test
     public void pointNormalPicksLookDominantAxis() {
-        assertEquals(Face.U, PortalConstruction.derivePortalNormal(0, 0, 0, 0.1D, 0.9D, 0.2D));
+        assertEquals(Face.D, PortalConstruction.derivePortalNormal(0, 0, 0, 0.1D, 0.9D, 0.2D));
         assertEquals(Face.S, PortalConstruction.derivePortalNormal(0, 0, 0, 0.0D, 0.0D, 1.0D));
         assertEquals(Face.W, PortalConstruction.derivePortalNormal(0, 0, 0, -0.8D, 0.1D, 0.2D));
     }

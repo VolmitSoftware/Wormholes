@@ -26,5 +26,9 @@ interface SeamlessServer {
 
     SeamlessFallLoop.Loop buildFallLoop();
 
+    void startFallLoop();
+
+    void releaseFallers(SeamlessFallLoop.Loop loop);
+
     void removeFallLoop(SeamlessFallLoop.Loop loop);
 }

@@ -5,7 +5,6 @@ import java.util.logging.Level;
 
 import org.bukkit.entity.Player;
 
-import com.github.retrooper.packetevents.PacketEvents;
 import com.github.retrooper.packetevents.protocol.nbt.NBTCompound;
 import com.github.retrooper.packetevents.protocol.world.blockentity.BlockEntityType;
 import com.github.retrooper.packetevents.protocol.world.blockentity.BlockEntityTypes;
@@ -13,6 +12,7 @@ import com.github.retrooper.packetevents.util.Vector3i;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerBlockEntityData;
 
 import art.arcane.wormholes.Wormholes;
+import art.arcane.wormholes.render.ProjectionPacketOrigin;
 import art.arcane.optics.math.CellKeys;
 import art.arcane.wormholes.service.WormholesTelemetry;
 import art.arcane.optics.fidelity.BlockEntitySample;
@@ -33,19 +33,19 @@ public final class BlockEntityPacketSink {
         }
         try {
             NBTCompound nbt = BlockEntityNbt.decode(sample.nbt());
-            PacketEvents.getAPI().getPlayerManager().sendPacket(observer,
+            ProjectionPacketOrigin.send(observer,
                 new WrapperPlayServerBlockEntityData(new Vector3i(CellKeys.unpackX(key), CellKeys.unpackY(key), CellKeys.unpackZ(key)), type, nbt));
             WormholesTelemetry.countPacket();
         } catch (IOException | RuntimeException failure) {
             WormholesTelemetry.countFailure(FAILURE_REASON);
-            if (failureLogged) {
-                return;
+            if (!failureLogged) {
+                failureLogged = true;
+                Wormholes plugin = Wormholes.instance;
+                if (plugin != null) {
+                    plugin.getLogger().log(Level.WARNING, "[blockentity] block entity packet failed for " + sample.typeKey(), failure);
+                }
             }
-            failureLogged = true;
-            Wormholes plugin = Wormholes.instance;
-            if (plugin != null) {
-                plugin.getLogger().log(Level.WARNING, "[blockentity] block entity packet failed for " + sample.typeKey(), failure);
-            }
+            throw new IllegalStateException("Block entity packet failed for " + sample.typeKey(), failure);
         }
     }
 }

@@ -13,7 +13,6 @@ import io.netty.channel.embedded.EmbeddedChannel;
 import com.mojang.authlib.GameProfile;
 import net.minecraft.network.Connection;
 import net.minecraft.network.protocol.PacketFlow;
-import net.minecraft.network.protocol.game.ClientboundSwingAnimationPacket;
 import net.minecraft.server.network.CommonListenerCookie;
 import net.minecraft.server.network.ServerGamePacketListenerImpl;
 import java.util.UUID;
@@ -143,7 +142,7 @@ public final class MinecraftEntityProjectionGameTest {
             renderer.event(EntityAnimation.hurt(remote.getUUID(), 27.0F));
             options.channel().runPendingTasks();
             options.helper().assertTrue(options.channel().outboundMessages().stream().anyMatch(packet ->
-                packet instanceof ClientboundSwingAnimationPacket swing && swing.entityId() == fakeId && swing.hand() == InteractionHand.MAIN_HAND),
+                MinecraftGameTestAccess.swing(packet, fakeId, InteractionHand.MAIN_HAND)),
                 "Projected entity swing did not reach the fake id");
             options.helper().assertTrue(options.channel().outboundMessages().stream().anyMatch(packet ->
                 packet instanceof ClientboundHurtAnimationPacket hurt && hurt.id() == fakeId && hurt.yaw() == 27.0F),
@@ -154,7 +153,7 @@ public final class MinecraftEntityProjectionGameTest {
             options.channel().runPendingTasks();
             boolean removed = false;
             for (Object packet : options.channel().outboundMessages()) {
-                if (packet instanceof ClientboundRemoveEntitiesPacket destroy && destroy.entityIds().contains(fakeId)) {
+                if (packet instanceof ClientboundRemoveEntitiesPacket destroy && MinecraftGameTestAccess.removed(destroy).contains(fakeId)) {
                     removed = true;
                 }
             }

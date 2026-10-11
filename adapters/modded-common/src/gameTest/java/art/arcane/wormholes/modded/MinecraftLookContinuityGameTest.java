@@ -4,7 +4,9 @@ import art.arcane.optics.crossing.ArrivalOrientation;
 import art.arcane.optics.crossing.LookTransfer;
 import art.arcane.optics.crossing.OrientationRule;
 import art.arcane.optics.crossing.PlaneCrossing;
+import art.arcane.optics.frame.Frame;
 import art.arcane.optics.math.Angles;
+import art.arcane.optics.math.Face;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.portal.PortalType;
 import net.minecraft.core.BlockPos;
@@ -52,6 +54,7 @@ public final class MinecraftLookContinuityGameTest {
         ServerPlayer player = connected.player();
         source = runtime.portals().create(player.getUUID(), helper.getLevel(), floor(SOURCE_X), PortalType.PORTAL, new Vec3(0, 1, 0));
         upward = runtime.portals().create(player.getUUID(), helper.getLevel(), floor(UPWARD_X), PortalType.PORTAL, new Vec3(0, -1, 0));
+        upward.setFrame(Frame.canonical(Face.U));
         wall = runtime.portals().create(player.getUUID(), helper.getLevel(), wall(), PortalType.PORTAL, new Vec3(0, 0, 1));
     }
 
@@ -65,6 +68,8 @@ public final class MinecraftLookContinuityGameTest {
         LookTransfer upwardLook = predicted(upward, YAW, 90.0F);
         LookTransfer wallLook = predicted(wall, 0.0F, 90.0F);
         helper.startSequence().thenExecute(() -> {
+            helper.assertTrue(source.getFrame().equals(Frame.canonical(Face.D)), "The floor source did not keep its canonical downward frame");
+            helper.assertTrue(upward.getFrame().equals(Frame.canonical(Face.U)), "The upward exit did not keep its explicit upward frame");
             helper.assertTrue(upwardLook.pitch() == -90.0F && Math.abs(upwardLook.roll()) < TOLERANCE,
                 "The upward pair should carry a straight-down look to straight up without roll: " + upwardLook);
             helper.assertTrue(runtime.portals().link(player, source.getId(), upward.getId()), "The floor portal did not link upward");
@@ -125,9 +130,27 @@ public final class MinecraftLookContinuityGameTest {
     }
 
     private LookTransfer predicted(MinecraftPortal exit, float yaw, float pitch) {
-        PlaneCrossing crossing = new PlaneCrossing(source.getFrame().view(true), source.getOrigin(), source.getOrigin(),
-            new Vec3d(0.0D, -0.4D, 0.0D), Angles.direction(yaw, pitch), true);
-        return ArrivalOrientation.transfer(crossing, LookTransfer.cameraUp(yaw, pitch), exit.getFrame(), OrientationRule.FRAME, false);
+        Vec3 start = position(SOURCE_X + 1.5D, FLOOR_Y + 1.1D, 1.5D);
+        Vec3 end = position(SOURCE_X + 1.5D, FLOOR_Y + 0.2D, 1.5D);
+        Vec3d startPoint = new Vec3d(start.x, start.y, start.z);
+        Vec3d endPoint = new Vec3d(end.x, end.y, end.z);
+        PlaneCrossing crossing = PlaneCrossing.create(source.getFrame(), source.getOrigin(),
+            new PlaneCrossing.Motion(startPoint, endPoint, endPoint.subtract(startPoint), Angles.direction(yaw, pitch)));
+        helper.assertTrue(!crossing.frontSide() && crossing.frame().getNormal() == Face.U,
+            "The falling crossing did not enter from above the downward source frame: " + crossing);
+        Vec3d intersection = PlaneCrossing.intersection(source.getFrame(), source.getOrigin(), startPoint, endPoint);
+        helper.assertTrue(intersection != null && source.admits(intersection, 0.0D), "The falling path did not cross the source aperture");
+        helper.assertTrue(crossing.rejectionPoint().y() > source.getOrigin().y(), "The rejection point did not stay above the source plane");
+        Vec3d outward = exit.getFrame().view(crossing.frontSide()).getNormal().toVector().multiply(-1.0D);
+        Vec3d velocity = crossing.outVelocity(exit.getFrame());
+        helper.assertTrue(velocity.subtract(outward.multiply(crossing.velocity().length())).length() < 1.0E-6D,
+            "The falling momentum did not leave along the exit: " + velocity + " instead of " + outward);
+        helper.assertTrue(crossing.outPoint(exit.getFrame(), exit.getOrigin()).subtract(exit.getOrigin()).dot(outward) > 0.0D,
+            "The arrival point did not emerge on the exit side");
+        LookTransfer look = ArrivalOrientation.transfer(crossing, LookTransfer.cameraUp(yaw, pitch), exit.getFrame(), OrientationRule.FRAME, false);
+        helper.assertTrue(Angles.direction(look.yaw(), look.pitch()).subtract(outward).length() < 0.02D,
+            "The straight-down look did not leave along the exit: " + look + " instead of " + outward);
+        return look;
     }
 
     private void placePlayer(double y, float yaw, float pitch) {

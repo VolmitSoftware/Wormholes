@@ -1,5 +1,6 @@
 {
   "required": true,
+  "minVersion": "0.8",
   "package": "art.arcane.automator.mixin",
   "compatibilityLevel": "JAVA_25",
   "client": [
@@ -10,6 +11,7 @@
     "KeyMappingAccessor",
     "DefaultPlayerSkinAccessor",
     "WindowMixin",
+    "WindowMixin$NeoForgeEarlyWindowHandoff",
     "InputConstantsMixin",
     "FramerateLimitTrackerMixin",
     "RenderSystemMixin",

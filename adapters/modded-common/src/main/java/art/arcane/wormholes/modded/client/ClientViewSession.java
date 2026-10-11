@@ -15,6 +15,7 @@ import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.ChatFormatting;
+import net.minecraft.client.multiplayer.ClientLevel;
 
 import java.util.Objects;
 import java.util.List;
@@ -25,6 +26,7 @@ import org.slf4j.LoggerFactory;
 import art.arcane.wormholes.network.client.ClientViewExtensions;
 import art.arcane.wormholes.network.client.TravelMessage;
 import art.arcane.wormholes.network.client.FxMessage;
+import art.arcane.wormholes.network.client.RootSource;
 import art.arcane.wormholes.modded.clientview.MinecraftClientViewExtensions;
 import art.arcane.wormholes.portal.ApertureKind;
 
@@ -37,6 +39,9 @@ public final class ClientViewSession {
     private final Int2ObjectOpenHashMap<ClientPortal> portals;
     private final Int2ObjectOpenHashMap<ApertureDescriptor> meshGeometry = new Int2ObjectOpenHashMap<>();
     private final Int2ObjectOpenHashMap<EnvironmentState> environments = new Int2ObjectOpenHashMap<>();
+    private final Int2ObjectOpenHashMap<RootSource> rootSources = new Int2ObjectOpenHashMap<>();
+    private final Int2ObjectOpenHashMap<String> localRootSources = new Int2ObjectOpenHashMap<>();
+    private String localSourceWorld;
     private final IntOpenHashSet dirtyPortals;
     private final Int2ObjectOpenHashMap<List<ViewStreamMessage.MeshClaim>> pendingClaims = new Int2ObjectOpenHashMap<>();
     private final Int2IntOpenHashMap cacheSequences = new Int2IntOpenHashMap();
@@ -81,7 +86,7 @@ public final class ClientViewSession {
             ViewStreamCapability.CONFIG_PHASE, ViewStreamCapability.LINK_UNCOMPRESSED, ViewStreamCapability.VIEW_STATS, ViewStreamCapability.MESH_RENDER,
             ViewStreamCapability.LOCAL_MESH, ViewStreamCapability.MESH_REUSE)
             | ClientViewExtensions.FX_EMITTERS
-            | ClientViewExtensions.REMOTE_VIEW | ClientViewExtensions.SEAMLESS_TRAVEL;
+            | ClientViewExtensions.REMOTE_VIEW | ClientViewExtensions.SEAMLESS_TRAVEL | ClientViewExtensions.ROOT_SOURCE;
         if (config.clientMirror) {
             capabilities |= ViewStreamCapability.CLIENT_MIRROR.mask();
         }
@@ -292,6 +297,8 @@ public final class ClientViewSession {
     }
 
     public void clearPortals() {
+        rootSources.clear();
+        localRootSources.clear();
         meshFailures.clear();
         cacheSequences.clear();
         pendingClaims.clear();
@@ -432,6 +439,40 @@ public final class ClientViewSession {
         return portals.get(portalKey);
     }
 
+    public void bindSourceWorld(String sourceWorld) {
+        localSourceWorld = Objects.requireNonNull(sourceWorld, "sourceWorld");
+        if (!has(ClientViewExtensions.ROOT_SOURCE)) {
+            for (ClientPortal portal : portals.values()) {
+                if (!portal.nested()) {
+                    localRootSources.putIfAbsent(portal.portalKey(), localSourceWorld);
+                }
+            }
+        }
+    }
+
+    public boolean matchesSource(int portalKey, ClientLevel level) {
+        return level != null && level.dimension().identifier().toString().equals(rootSourceWorld(portalKey));
+    }
+
+    public String rootSourceWorld(int portalKey) {
+        for (int remaining = portals.size(); remaining > 0; remaining--) {
+            ClientPortal portal = portals.get(portalKey);
+            if (portal == null) {
+                return null;
+            }
+            int parent = portal.geometry().parentPortalKey();
+            if (parent == 0) {
+                if (!has(ClientViewExtensions.ROOT_SOURCE)) {
+                    return localRootSources.get(portalKey);
+                }
+                RootSource source = rootSources.get(portalKey);
+                return source != null && source.geometryRevision() == portal.geometryRevision() ? source.sourceWorld() : null;
+            }
+            portalKey = parent;
+        }
+        return null;
+    }
+
     public IntOpenHashSet dirtyPortals() {
         return dirtyPortals;
     }
@@ -446,6 +487,7 @@ public final class ClientViewSession {
 
     private void extension(ViewStreamMessage.Extension extension, Sink sink) throws ViewStreamProtocolException {
         switch (extension.payload()) {
+            case RootSource source -> rootSource(source);
             case TravelMessage ignored -> {
             }
             case FxMessage.Fx fx -> {
@@ -470,6 +512,9 @@ public final class ClientViewSession {
             throw new ViewStreamProtocolException("invalid geometry for portal " + message.portalKey());
         }
         ClientPortal portal = portals.get(message.portalKey());
+        if (message.geometry().parentPortalKey() == 0 && !has(ClientViewExtensions.ROOT_SOURCE) && localSourceWorld != null) {
+            localRootSources.putIfAbsent(message.portalKey(), localSourceWorld);
+        }
         if (portal == null) {
             portals.put(message.portalKey(), new ClientPortal(message.portalKey(), message.geometry(), message.geometryRevision(),
                 config.hysteresisBlocks));
@@ -482,6 +527,8 @@ public final class ClientViewSession {
     }
 
     private void drop(int portalKey, Sink sink) {
+        rootSources.remove(portalKey);
+        localRootSources.remove(portalKey);
         cacheSequences.remove(portalKey);
         pendingClaims.remove(portalKey);
         meshFailures.remove(portalKey);
@@ -494,6 +541,25 @@ public final class ClientViewSession {
         if (portal != null) {
             sink.dropped(portal);
         }
+    }
+
+    private void rootSource(RootSource source) throws ViewStreamProtocolException {
+        if (!has(ClientViewExtensions.ROOT_SOURCE)) {
+            throw new ViewStreamProtocolException("Portal root source was not negotiated");
+        }
+        ClientPortal portal = portals.get(source.portalKey());
+        if (portal == null || source.geometryRevision() < portal.geometryRevision()) {
+            ignoredSceneMessages++;
+            return;
+        }
+        if (portal.geometry().parentPortalKey() != 0 || portal.geometryRevision() != source.geometryRevision()) {
+            throw new ViewStreamProtocolException("Portal root source does not match current geometry");
+        }
+        RootSource previous = rootSources.get(source.portalKey());
+        if (previous != null && !previous.sourceWorld().equals(source.sourceWorld())) {
+            throw new ViewStreamProtocolException("Portal root source changed within its lifetime");
+        }
+        rootSources.put(source.portalKey(), source);
     }
 
     private void meshBegin(ViewStreamMessage.MeshBegin message, Sink sink) throws ViewStreamProtocolException {

@@ -10,6 +10,7 @@ import art.arcane.optics.frame.Similarity;
 import art.arcane.optics.math.Angles;
 import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Vec3d;
+import art.arcane.wormholes.modded.client.render.dh.DhPortalRendering;
 import art.arcane.wormholes.modded.client.render.stencil.PortalSurface;
 import art.arcane.wormholes.modded.client.render.stencil.PortalView;
 import art.arcane.wormholes.modded.client.render.stencil.PortalViews;
@@ -92,6 +93,9 @@ public final class ClientCrossingView {
                 throughDistance = eyeDistance;
             }
         }
+        if (returning != null && returning.source() == minecraft.level) {
+            nearest = Math.min(nearest, returning.surface().distance(new Vec3d(eye.x, eye.y, eye.z)));
+        }
         bobFactor = dampedBob(bobFactor, nearest);
         if (through != null) {
             enter(minecraft, camera, player, through, eye);
@@ -122,7 +126,7 @@ public final class ClientCrossingView {
         gameRenderer.setLevel(destination);
         lightmapChanged(gameRenderer);
         minecraft.level = destination;
-        try {
+        try (DhPortalRendering.Scope dhContext = DhPortalRendering.openMain(destination)) {
             ClientWorldLoader.withWorldRenderer(destination, action);
         } finally {
             minecraft.level = source;

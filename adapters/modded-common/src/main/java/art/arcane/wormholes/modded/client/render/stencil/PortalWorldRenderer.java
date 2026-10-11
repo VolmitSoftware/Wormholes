@@ -9,6 +9,7 @@ package art.arcane.wormholes.modded.client.render.stencil;
 import art.arcane.optics.frame.Similarity;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.client.WormholesClient;
+import art.arcane.wormholes.modded.client.render.dh.DhPortalRendering;
 import art.arcane.wormholes.modded.client.world.ClientWorldLoader;
 import art.arcane.wormholes.modded.mixin.client.ClientWorldExtractorAccess;
 import art.arcane.wormholes.modded.mixin.client.ClientWorldGameRendererAccess;
@@ -187,91 +188,99 @@ final class PortalWorldRenderer {
         boolean contextPushed = false;
         boolean terrainStarted = false;
         boolean pipelineStarted = false;
-        modelView.pushMatrix().identity();
-        minecraft.level = destination;
-        camera = portalCamera;
-        layerClipPlane = clipPlane;
-        shared = sharedRenderer;
-        renderers.push(renderer);
-        try {
-            ClientWorldLoader.pushRenderContext(destination);
-            contextPushed = true;
-            Lightmap lightmap = ClientWorldLoader.lightmap(destination);
-            if (lightmap != previousLightmap) {
-                lightAccess.wormholes$lightmap(lightmap);
-                refreshLightmap(gameRenderer, destination, lightmap, layer);
+        try (DhPortalRendering.Scope dhContext = DhPortalRendering.open(view, destination, view3, projection, partialTicks, worldPlane, inner)) {
+            modelView.pushMatrix().identity();
+            minecraft.level = destination;
+            camera = portalCamera;
+            layerClipPlane = clipPlane;
+            shared = sharedRenderer;
+            renderers.push(renderer);
+            try {
+                ClientWorldLoader.pushRenderContext(destination);
+                contextPushed = true;
+                Lightmap lightmap = ClientWorldLoader.lightmap(destination);
+                if (lightmap != previousLightmap) {
+                    lightAccess.wormholes$lightmap(lightmap);
+                    refreshLightmap(gameRenderer, destination, lightmap, layer);
+                }
+                lighting.updateLevel(destination.dimensionType().cardinalLightType());
+                FogData fog = gameAccess.wormholes$fogRenderer().setupFog(portalCamera, minecraft.options.getEffectiveRenderDistance(), deltaTracker,
+                    gameRenderer.bossOverlayWorldDarkening(partialTicks), destination);
+                fillCamera(state.cameraRenderState, outer, portalCamera, innerPosition, view3, projection, frustum, fog);
+                GpuBufferSlice fogSlice = layer.fog(fog);
+                updateGlobals(layer, gameRenderer.gameRenderState(), destination, partialTicks, innerPosition);
+                RenderSystem.setProjectionMatrix(layer.projection(projection, clipPlane), ProjectionType.PERSPECTIVE);
+                RenderSystem.setShaderFog(fogSlice);
+                ((ClientWorldLevelRendererAccess) renderer).wormholes$levelRenderState(state);
+                ((ClientWorldExtractorAccess) extractor).wormholes$levelRenderState(state);
+                rendererAccess.wormholes$targets(layer.targets());
+                rendererAccess.wormholes$submits(layer.submits());
+                rendererAccess.wormholes$features(layer.features(minecraft));
+                rendererAccess.wormholes$visibleSections(layer.visible());
+                rendererAccess.wormholes$nearbyVisibleSections(layer.nearby());
+                PortalStencil.mirrored(mirrored);
+                if (!deferred) {
+                    PortalStencil.clipping(true);
+                    PortalStencil.limit(depth);
+                }
+                portalLayer = new PortalLayer(depth, view, destination, renderer, sharedRenderer, state.cameraRenderState, worldPlane, clipPlane,
+                    layer.visible(), layer.nearby());
+                terrain.beginLayer(portalLayer);
+                terrainStarted = true;
+                pipeline.beginLayer(portalLayer);
+                pipelineStarted = true;
+                extractor.extract(deltaTracker, portalCamera, partialTicks);
+                state.playerCompiledSectionCallback = null;
+                state.shouldShowEntityOutlines = false;
+                if (destination != homeLevel) {
+                    state.particlesRenderState.reset();
+                }
+                CrossPortalEntities.inner(view, state, previousLevel, partialTicks);
+                renderer.render(gameAccess.wormholes$resourcePool(), false, state.cameraRenderState, fogSlice, fog.color, true, false);
+            } finally {
+                try {
+                    try {
+                        if (pipelineStarted) {
+                            pipeline.endLayer(portalLayer);
+                        }
+                    } finally {
+                        if (terrainStarted) {
+                            terrain.endLayer(portalLayer);
+                        }
+                    }
+                } finally {
+                    if (!deferred) {
+                        PortalStencil.clipping(depth > 1);
+                    }
+                    PortalStencil.mirrored(outerMirrored);
+                    rendererAccess.wormholes$visibleSections(previousVisible);
+                    rendererAccess.wormholes$nearbyVisibleSections(previousNearby);
+                    rendererAccess.wormholes$features(previousFeatures);
+                    rendererAccess.wormholes$submits(previousSubmits);
+                    rendererAccess.wormholes$targets(previousTargets);
+                    rendererAccess.wormholes$entityOutline(previousOutline);
+                    ((ClientWorldExtractorAccess) extractor).wormholes$levelRenderState(previousExtractorState);
+                    ((ClientWorldLevelRendererAccess) renderer).wormholes$levelRenderState(previousRendererState);
+                    RenderSystem.isRenderingLevel = previousRenderingLevel;
+                    RenderSystem.setShaderFog(previousFog);
+                    RenderSystem.setProjectionMatrix(previousProjection, previousProjectionType);
+                    RenderSystem.setGlobalSettingsUniform(previousGlobals);
+                    lighting.updateLevel(previousLevel.dimensionType().cardinalLightType());
+                    lightAccess.wormholes$lightmap(previousLightmap);
+                    if (contextPushed) {
+                        ClientWorldLoader.popRenderContext();
+                    }
+                    renderers.pop();
+                    shared = previousShared;
+                    layerClipPlane = previousClipPlane;
+                    camera = previousCamera;
+                    minecraft.level = previousLevel;
+                    modelView.popMatrix();
+                    Camera restored = gameRenderer.mainCamera();
+                    minecraft.getEntityRenderDispatcher().prepare(restored, minecraft.crosshairPickEntity);
+                    minecraft.getBlockEntityRenderDispatcher().prepare(restored.position());
+                }
             }
-            lighting.updateLevel(destination.dimensionType().cardinalLightType());
-            FogData fog = gameAccess.wormholes$fogRenderer().setupFog(portalCamera, minecraft.options.getEffectiveRenderDistance(), deltaTracker,
-                gameRenderer.bossOverlayWorldDarkening(partialTicks), destination);
-            fillCamera(state.cameraRenderState, outer, portalCamera, innerPosition, view3, projection, frustum, fog);
-            GpuBufferSlice fogSlice = layer.fog(fog);
-            updateGlobals(layer, gameRenderer.gameRenderState(), destination, partialTicks, innerPosition);
-            RenderSystem.setProjectionMatrix(layer.projection(projection, clipPlane), ProjectionType.PERSPECTIVE);
-            RenderSystem.setShaderFog(fogSlice);
-            ((ClientWorldLevelRendererAccess) renderer).wormholes$levelRenderState(state);
-            ((ClientWorldExtractorAccess) extractor).wormholes$levelRenderState(state);
-            rendererAccess.wormholes$targets(layer.targets());
-            rendererAccess.wormholes$submits(layer.submits());
-            rendererAccess.wormholes$features(layer.features(minecraft));
-            rendererAccess.wormholes$visibleSections(layer.visible());
-            rendererAccess.wormholes$nearbyVisibleSections(layer.nearby());
-            PortalStencil.mirrored(mirrored);
-            if (!deferred) {
-                PortalStencil.clipping(true);
-                PortalStencil.limit(depth);
-            }
-            portalLayer = new PortalLayer(depth, view, destination, renderer, sharedRenderer, state.cameraRenderState, worldPlane, clipPlane,
-                layer.visible(), layer.nearby());
-            terrain.beginLayer(portalLayer);
-            terrainStarted = true;
-            pipeline.beginLayer(portalLayer);
-            pipelineStarted = true;
-            extractor.extract(deltaTracker, portalCamera, partialTicks);
-            state.playerCompiledSectionCallback = null;
-            state.shouldShowEntityOutlines = false;
-            if (destination != homeLevel) {
-                state.particlesRenderState.reset();
-            }
-            CrossPortalEntities.inner(view, state, previousLevel, partialTicks);
-            renderer.render(gameAccess.wormholes$resourcePool(), false, state.cameraRenderState, fogSlice, fog.color, true, false);
-        } finally {
-            if (pipelineStarted) {
-                pipeline.endLayer(portalLayer);
-            }
-            if (terrainStarted) {
-                terrain.endLayer(portalLayer);
-            }
-            if (!deferred) {
-                PortalStencil.clipping(depth > 1);
-            }
-            PortalStencil.mirrored(outerMirrored);
-            rendererAccess.wormholes$visibleSections(previousVisible);
-            rendererAccess.wormholes$nearbyVisibleSections(previousNearby);
-            rendererAccess.wormholes$features(previousFeatures);
-            rendererAccess.wormholes$submits(previousSubmits);
-            rendererAccess.wormholes$targets(previousTargets);
-            rendererAccess.wormholes$entityOutline(previousOutline);
-            ((ClientWorldExtractorAccess) extractor).wormholes$levelRenderState(previousExtractorState);
-            ((ClientWorldLevelRendererAccess) renderer).wormholes$levelRenderState(previousRendererState);
-            RenderSystem.isRenderingLevel = previousRenderingLevel;
-            RenderSystem.setShaderFog(previousFog);
-            RenderSystem.setProjectionMatrix(previousProjection, previousProjectionType);
-            RenderSystem.setGlobalSettingsUniform(previousGlobals);
-            lighting.updateLevel(previousLevel.dimensionType().cardinalLightType());
-            lightAccess.wormholes$lightmap(previousLightmap);
-            if (contextPushed) {
-                ClientWorldLoader.popRenderContext();
-            }
-            renderers.pop();
-            shared = previousShared;
-            layerClipPlane = previousClipPlane;
-            camera = previousCamera;
-            minecraft.level = previousLevel;
-            modelView.popMatrix();
-            Camera restored = gameRenderer.mainCamera();
-            minecraft.getEntityRenderDispatcher().prepare(restored, minecraft.crosshairPickEntity);
-            minecraft.getBlockEntityRenderDispatcher().prepare(restored.position());
         }
     }
 
@@ -325,19 +334,21 @@ final class PortalWorldRenderer {
     }
 
     private static boolean showsPlayer(PortalView view, LocalPlayer player, ClientLevel destination, Vec3 camera) {
-        return selfVisible(view.kind(), Minecraft.getInstance().options.getCameraType().isFirstPerson(),
-            WormholesClient.instance().config().selfReflection) && detached(player, destination, camera);
+        return selfVisible(view.kind(), WormholesClient.instance().config().selfReflection) && detached(player, destination, camera);
     }
 
-    static boolean selfVisible(PortalView.Kind kind, boolean firstPerson, boolean selfReflection) {
+    static boolean selfVisible(PortalView.Kind kind, boolean selfReflection) {
         return switch (kind) {
             case MIRROR -> selfReflection;
-            case CROSSING -> true;
-            case ARM, RETURN -> !firstPerson;
+            case ARM, RETURN, CROSSING -> true;
         };
     }
 
     private static boolean detached(LocalPlayer player, ClientLevel destination, Vec3 camera) {
-        return player == null || player.level() != destination || player.getEyePosition().distanceToSqr(camera) > SELF_HIDE_BLOCKS * SELF_HIDE_BLOCKS;
+        return player == null || player.level() != destination || detached(player.getEyePosition(), camera);
+    }
+
+    static boolean detached(Vec3 eye, Vec3 camera) {
+        return eye.distanceToSqr(camera) > SELF_HIDE_BLOCKS * SELF_HIDE_BLOCKS;
     }
 }

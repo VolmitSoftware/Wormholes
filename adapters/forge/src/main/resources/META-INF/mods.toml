@@ -1,5 +1,5 @@
 modLoader = "javafml"
-loaderVersion = "[66,67)"
+loaderVersion = "${forgeLoaderRange}"
 license = "GPL-3.0"
 
 [[mods]]
@@ -12,7 +12,7 @@ authors = "Volmit Software"
 [[dependencies.wormholes]]
 modId = "forge"
 mandatory = true
-versionRange = "[66,67)"
+versionRange = "${forgeLoaderRange}"
 ordering = "NONE"
 side = "BOTH"
 

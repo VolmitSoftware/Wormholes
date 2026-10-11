@@ -15,6 +15,7 @@ import art.arcane.wormholes.portal.ILocalPortal;
 
 import art.arcane.volmlib.util.diagnostics.BukkitDebugDump;
 import art.arcane.volmlib.integration.ReloadAware;
+import art.arcane.volmlib.integration.ReloadPreparation;
 import art.arcane.volmlib.integration.VaultEconomy;
 import art.arcane.volmlib.util.bukkit.papi.PlaceholderRegistration;
 import art.arcane.volmlib.util.director.help.DirectorMiniMenu;
@@ -58,6 +59,7 @@ import art.arcane.wormholes.portal.vanilla.VanillaPortalReplacer;
 import art.arcane.wormholes.api.portal.NetherPortalShapes;
 import org.bukkit.plugin.ServicePriority;
 import art.arcane.wormholes.render.CitizensLocalEntityOcclusionListener;
+import art.arcane.wormholes.integration.fawe.FaweProjectionIntegration;
 import art.arcane.wormholes.service.PacketEventsRuntime;
 import art.arcane.wormholes.service.StatsSnapshotWriter;
 import art.arcane.wormholes.service.WormholesAudience;
@@ -77,6 +79,7 @@ import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.lang.reflect.Constructor;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -137,6 +140,7 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
     private PacketEventsRuntime packetEventsRuntime;
     private WormholesCommandService commandService;
     private WormholesIntegrationService integrationService;
+    private FaweProjectionIntegration faweProjectionIntegration;
 
     public Wormholes() {
         getLogger().info("Loading dependencies...");
@@ -210,6 +214,13 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
             portalManager = new PortalManager();
             traversableManager = new TraversableManager();
             projectionChangeTracker = new WorldChangeTracker();
+            if (getServer().getPluginManager().isPluginEnabled("FastAsyncWorldEdit")) {
+                try {
+                    faweProjectionIntegration = FaweProjectionIntegration.enable(this, projectionChangeTracker);
+                } catch (RuntimeException | LinkageError failure) {
+                    getLogger().log(Level.SEVERE, "FAWE projection integration requires the supported patched FAWE distribution", failure);
+                }
+            }
             projectionManager = new ProjectionManager(packetEvents().projectionChunkTracker(), opticsScheduler);
             arrivalWarmer = new ArrivalWarmer();
             rtpRuntime = new BukkitRtpEnvironment(this, portalManager).createRuntime();
@@ -333,6 +344,30 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
     }
 
     @Override
+    public CompletionStage<ReloadPreparation> prepareReload(ReloadAware.PreUnloadReason reason) {
+        FaweProjectionIntegration integration = faweProjectionIntegration;
+        if (integration == null) {
+            return CompletableFuture.completedFuture(ReloadPreparation.readyToUnload());
+        }
+        return integration.prepareReload(Duration.ofSeconds(90)).handle((ignored, failure) -> {
+            if (failure == null) {
+                return ReloadPreparation.readyToUnload();
+            }
+            getLogger().log(Level.WARNING, "Cannot unload Wormholes while FAWE edits are active", failure);
+            return ReloadPreparation.refuse("FAWE edits have not finished; Wormholes remains loaded");
+        });
+    }
+
+    @Override
+    public CompletionStage<Void> cancelReload() {
+        FaweProjectionIntegration integration = faweProjectionIntegration;
+        if (integration != null) {
+            integration.cancelReload();
+        }
+        return CompletableFuture.completedFuture(null);
+    }
+
+    @Override
     public CompletionStage<Void> commitReload(ReloadAware.PreUnloadReason reason) {
         getLogger().info("BileTools reload commit started (" + reason + "). Tearing down Wormholes managers and PacketEvents.");
     public CompletionStage<Void> commitReload(ReloadAware.PreUnloadReason reason) {
@@ -354,6 +389,15 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
         doors.shutdownManagerBeforeSchedulers();
         doors.shutdownPocketWorldService();
         shutdownRtpBeforeSchedulers();
+
+        if (faweProjectionIntegration != null) {
+            try {
+                faweProjectionIntegration.close();
+            } catch (Throwable ex) {
+                getLogger().log(Level.WARNING, "Error closing FAWE projection integration", ex);
+            }
+            faweProjectionIntegration = null;
+        }
         shutdownTraversalBeforeSchedulers();
         shutdownPortalManagerBeforeCostGateway();
         TraversalCostGateway gateway = traversalCostGateway;

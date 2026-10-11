@@ -9,10 +9,11 @@ plugins {
     id 'com.gradleup.shadow' version '9.5.1'
 }
 
-Properties rootProperties = new Properties()
-file('../../gradle.properties').withInputStream { InputStream stream -> rootProperties.load(stream) }
-String minecraftVersion = providers.gradleProperty('minecraftVersion').getOrElse(rootProperties.getProperty('minecraftVersion'))
-String loaderVersion = providers.gradleProperty('forgeVersion').getOrElse(rootProperties.getProperty('forgeVersion'))
+apply from: '../../gradle/modded-target.gradle'
+String minecraftVersion = project.ext.minecraftTargetVersion
+Map<String, Object> target = project.ext.minecraftTarget
+Map<String, String> renderDependencies = (Map<String, String>) ((Map<String, Object>) target['renderDependencies'])["forge"]
+String loaderVersion = providers.gradleProperty('forgeVersion').getOrElse(((Map<String, String>) target['loaders'])['forge'])
 project(':core') {
     layout.buildDirectory.set(rootProject.layout.buildDirectory.dir('core'))
 }
@@ -21,7 +22,7 @@ project(':optics') {
 }
 
 group = 'art.arcane'
-version = providers.gradleProperty('wormholesVersion').getOrElse(rootProperties.getProperty('wormholesVersion'))
+version = project.ext.minecraftMetadata['version']
 
 java {
     toolchain {
@@ -76,13 +77,15 @@ FileCollection irisParserClasses = files(
     layout.buildDirectory.file('iris-parser-api/META-INF/jars/antlr4-runtime-4.13.1.jar')).builtBy(extractIrisParserApi)
 
 dependencies {
-    irisParserApi('maven.modrinth:iris:vTN4NRGW')
+    irisParserApi(renderDependencies['iris'])
     compileOnly(irisParserClasses)
     testImplementation(irisParserClasses)
-    compileOnly('maven.modrinth:iris:vTN4NRGW') { transitive = false }
-    compileOnly('maven.modrinth:sodium:v4PSXean') { transitive = false }
-    testImplementation('maven.modrinth:iris:vTN4NRGW') { transitive = false }
-    testImplementation('maven.modrinth:sodium:v4PSXean') { transitive = false }
+    compileOnly(renderDependencies['iris']) { transitive = false }
+    compileOnly(renderDependencies['distantHorizons']) { transitive = false }
+    compileOnly(renderDependencies['sodium']) { transitive = false }
+    testImplementation(renderDependencies['iris']) { transitive = false }
+    testImplementation(renderDependencies['distantHorizons']) { transitive = false }
+    testImplementation(renderDependencies['sodium']) { transitive = false }
     implementation(project(':core'))
     bundle(project(':core'))
     implementation(project(':optics'))
@@ -92,7 +95,7 @@ dependencies {
     testImplementation('junit:junit:4.13.2')
     testImplementation('org.mockito:mockito-core:5.23.0')
     testRuntimeOnly('io.github.llamalad7:mixinextras-common:0.5.4')
-    testRuntimeOnly("net.fabricmc:fabric-loader:${rootProperties.getProperty('fabricLoaderVersion')}")
+    testRuntimeOnly("net.fabricmc:fabric-loader:${((Map<String, String>) target['loaders'])['fabric']}")
     implementation minecraft.dependency("net.minecraftforge:forge:${loaderVersion}")
 }
 
@@ -118,7 +121,7 @@ processResources {
     inputs.property('version', project.version)
     inputs.property('minecraftVersion', minecraftVersion)
     filesMatching('META-INF/mods.toml') {
-        expand('version': project.version, 'minecraftVersion': minecraftVersion)
+        expand(project.ext.minecraftMetadata)
     }
 }
 
@@ -198,7 +201,7 @@ tasks.named('processClientGameTestResources').configure {
     inputs.property('version', project.version)
     inputs.property('minecraftVersion', minecraftVersion)
     filesMatching('META-INF/mods.toml') {
-        expand('version': project.version, 'minecraftVersion': minecraftVersion)
+        expand(project.ext.minecraftMetadata)
     }
 }
 
@@ -218,7 +221,7 @@ tasks.matching { Task task -> task.name == 'runClientGameTestClient' }.configure
     dependsOn(clientGameTestMods)
     task.classpath(task.minecraftClasspath)
     doFirst {
-        File fmlConfig = file('build/run/clientGameTest/config/fml.toml')
+        File fmlConfig = layout.buildDirectory.file('run/clientGameTest/config/fml.toml').get().asFile
         fmlConfig.parentFile.mkdirs()
         fmlConfig.text = 'earlyWindowControl = false\nversionCheck = false\n'
     }
@@ -227,3 +230,5 @@ tasks.matching { Task task -> task.name == 'runClientGameTestClient' }.configure
 tasks.named('check').configure {
     dependsOn(tasks.named('clientGameTestClasses'))
 }
+
+apply from: '../../gradle/modded-sources.gradle'

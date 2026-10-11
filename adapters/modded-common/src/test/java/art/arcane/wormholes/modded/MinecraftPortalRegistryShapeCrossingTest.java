@@ -15,7 +15,6 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.players.PlayerList;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.InterpolationHandler;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -160,7 +159,7 @@ public class MinecraftPortalRegistryShapeCrossingTest extends MinecraftTestBase 
         when(entity.isAlive()).thenReturn(true);
         when(entity.getPassengers()).thenReturn(List.of());
         when(entity.getSelfAndPassengers()).thenAnswer(ignored -> Stream.of(entity));
-        when(entity.getInterpolation()).thenReturn(InterpolationHandler.NO_OP);
+        when(entity.getInterpolation()).thenReturn(MinecraftTestAccess.idleInterpolation());
         when(entity.getBoundingBox()).thenReturn(new AABB(-0.2D, 64.0D, z - 0.3D, 0.4D, 65.8D, z + 0.3D));
         entity.xo = 1.0D;
         entity.yo = 64.0D;

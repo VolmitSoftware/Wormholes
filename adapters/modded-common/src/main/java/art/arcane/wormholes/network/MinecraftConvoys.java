@@ -1,5 +1,6 @@
 package art.arcane.wormholes.network;
 
+import art.arcane.wormholes.modded.MinecraftTransitProtection;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.nexus.NetworkMember;
 import art.arcane.optics.plate.ChunkLease;
@@ -14,6 +15,7 @@ import art.arcane.optics.crossing.PlaneCrossing;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
@@ -39,6 +41,7 @@ final class MinecraftConvoys implements AutoCloseable {
     private static final String DISPATCHED_KEY = "wormholes:convoy_dispatched";
 
     private final WormholesModRuntime runtime;
+    private final MinecraftServer server;
     private final NetworkManager network;
     private final MinecraftEntityTransfers entities;
     private final Map<UUID, TraversalEntityTransit.TransitState> frozen = new HashMap<>();
@@ -48,10 +51,11 @@ final class MinecraftConvoys implements AutoCloseable {
     private final Map<UUID, Preparation> preparations = new HashMap<>();
     private final ConvoyTransferService<Entity, ServerPlayer, List<ConvoyTransferService.Member<Entity>>, NetworkMember, PlaneCrossing, MinecraftPortal> transfers;
     private final ConvoyArrivalPlacer<Entity, MinecraftPortal, PlaneCrossing, Destination> arrivals;
-    private boolean closed;
+    private volatile boolean closed;
 
     MinecraftConvoys(WormholesModRuntime runtime, NetworkManager network, MinecraftEntityTransfers entities) {
         this.runtime = runtime;
+        server = runtime.server();
         this.network = network;
         this.entities = entities;
         transfers = new ConvoyTransferService<>(new ConvoyLedger(), new Transport(), new Rig(), System::currentTimeMillis);
@@ -277,6 +281,31 @@ final class MinecraftConvoys implements AutoCloseable {
         }
     }
 
+    private void preparationReady(Preparation preparation, Boolean ready, Throwable error) {
+        if (closed) {
+            return;
+        }
+        if (error != null) {
+            LOGGER.error("Could not prepare convoy destination {}", preparation.id(), error);
+        }
+        try {
+            server.execute(() -> completePreparation(preparation, error == null && Boolean.TRUE.equals(ready)));
+        } catch (RuntimeException dispatchError) {
+            LOGGER.error("Could not schedule convoy destination {}", preparation.id(), dispatchError);
+        }
+    }
+
+    private void completePreparation(Preparation preparation, boolean ready) {
+        if (closed) {
+            return;
+        }
+        try {
+            finish(preparation, ready);
+        } catch (RuntimeException error) {
+            LOGGER.error("Could not complete convoy destination {}", preparation.id(), error);
+        }
+    }
+
     private void reject(Entity entity, MinecraftPortal source, PlaneCrossing crossing) {
         if (entity.isRemoved()) {
             return;
@@ -403,7 +432,7 @@ final class MinecraftConvoys implements AutoCloseable {
             held.put(entity.getUUID(), new Hold(entity, entity.position(), entities.captureState(entity), entity.isInvisible()));
             held(entity, true);
             entity.setInvisible(true);
-            entity.setPermanentlyInvulnerable(true);
+            MinecraftTransitProtection.invulnerable(entity, true);
             entity.setSilent(true);
             entity.setNoGravity(true);
             entity.setDeltaMovement(Vec3.ZERO);
@@ -413,7 +442,7 @@ final class MinecraftConvoys implements AutoCloseable {
             if (hold != null) {
                 held(entity, false);
                 entity.setInvisible(hold.invisible());
-                entity.setPermanentlyInvulnerable(hold.state().invulnerable());
+                MinecraftTransitProtection.invulnerable(entity, hold.state().invulnerable());
                 entity.setSilent(hold.state().silent());
                 entity.setNoGravity(!hold.state().gravity());
             }
@@ -441,12 +470,7 @@ final class MinecraftConvoys implements AutoCloseable {
             Preparation preparation = new Preparation(UUID.randomUUID(), lease, task, rejected, System.currentTimeMillis()
                 + Math.max(1L, runtime.configuration().settings().getTransit().convoyCrossServerTimeoutSec) * 1000L);
             preparations.put(preparation.id(), preparation);
-            lease.ready().whenComplete((ready, error) -> runtime.server().execute(() -> {
-                if (error != null) {
-                    LOGGER.error("Could not prepare convoy destination", error);
-                }
-                finish(preparation, error == null && Boolean.TRUE.equals(ready));
-            }));
+            lease.ready().whenComplete((ready, error) -> preparationReady(preparation, ready, error));
             return true;
         }
         public boolean schedule(Runnable task, long delayTicks) { return runtime.schedule(task, delayTicks); }

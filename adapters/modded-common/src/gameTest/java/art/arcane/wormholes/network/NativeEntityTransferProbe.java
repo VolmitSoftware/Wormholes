@@ -1,5 +1,6 @@
 package art.arcane.wormholes.network;
 
+import art.arcane.wormholes.modded.MinecraftGameTestAccess;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.nexus.NetworkMember;
 import art.arcane.wormholes.config.toml.NetworkConfig;
@@ -73,11 +74,11 @@ public final class NativeEntityTransferProbe {
             pig = pig("EntityTransferSource");
             assertThat(transfers.begin(pig, source, crossing, new NetworkMember(exit.getId(), "", "", 0, "destination")), "Native entity offer was rejected");
             entityOffer = network.last(WireMessage.EntityTransfer.class);
-            assertThat(pig.isPermanentlyInvulnerable() && pig.isSilent() && pig.isNoGravity(), "Source entity was not frozen");
+            assertThat(MinecraftGameTestAccess.invulnerable(pig) && pig.isSilent() && pig.isNoGravity(), "Source entity was not frozen");
             transfers.receive("impostor", new WireMessage.EntityTransferAck(entityOffer.transferId(), true));
             assertThat(!pig.isRemoved() && transfers.locked(pig.getUUID()), "Foreign peer acknowledged source entity");
             transfers.receive("destination", new WireMessage.EntityTransferAck(entityOffer.transferId(), false));
-            assertThat(!pig.isPermanentlyInvulnerable() && !pig.isSilent() && !transfers.locked(pig.getUUID()), "Denied source entity was not restored");
+            assertThat(!MinecraftGameTestAccess.invulnerable(pig) && !pig.isSilent() && !transfers.locked(pig.getUUID()), "Denied source entity was not restored");
             NetworkConfig config = runtime.configuration().settings().getNetwork();
             long timeout = config.handoffTimeoutMs;
             try {
@@ -99,7 +100,7 @@ public final class NativeEntityTransferProbe {
                 throw new IllegalStateException("Entity transfer runtime stage " + stage + " timed out");
             }
             transfers.tick();
-            if (stage == 0 && !transfers.locked(pig.getUUID()) && !pig.isPermanentlyInvulnerable()) {
+            if (stage == 0 && !transfers.locked(pig.getUUID()) && !MinecraftGameTestAccess.invulnerable(pig)) {
                 transfers.receive("destination", new WireMessage.EntityTransferAck(entityOffer.transferId(), true));
                 assertThat(pig.isRemoved(), "Late accepted ACK did not remove the restored source copy");
                 pig = pig("EntityTransferArrival");
@@ -122,9 +123,9 @@ public final class NativeEntityTransferProbe {
                 assertThat(actor.player().startRiding(pig, true, false), "Could not mount source convoy fixture");
                 assertThat(transfers.beginConvoy(pig, source, crossing, new NetworkMember(exit.getId(), "", "", 0, "destination")), "Native convoy was not handled");
                 convoy = network.last(WireMessage.ConvoyTransfer.class).manifest();
-                assertThat(convoy.members().size() == 2 && pig.isPermanentlyInvulnerable(), "Source convoy did not freeze its member");
+                assertThat(convoy.members().size() == 2 && MinecraftGameTestAccess.invulnerable(pig), "Source convoy did not freeze its member");
                 transfers.receive("destination", new WireMessage.ConvoyAck(convoy.groupId(), false, "fixture denial"));
-                assertThat(!pig.isPermanentlyInvulnerable() && actor.player().getVehicle() == pig, "Source convoy denial did not restore its rig");
+                assertThat(!MinecraftGameTestAccess.invulnerable(pig) && actor.player().getVehicle() == pig, "Source convoy denial did not restore its rig");
                 transfers.receive("source", new WireMessage.ConvoyTransfer(convoy));
                 stage = 2;
             } else if (stage == 2 && network.convoyAccepted(convoy.groupId())) {
@@ -132,10 +133,10 @@ public final class NativeEntityTransferProbe {
                 assertThat(members.size() == 2, "Destination convoy snapshot duplicated passengers or lost its member");
                 Entity arrived = members.stream().filter(entity -> entity != pig).findFirst().orElseThrow();
                 created.add(arrived);
-                assertThat(arrived.isInvisible() && arrived.isPermanentlyInvulnerable(), "Destination convoy member was not held");
+                assertThat(arrived.isInvisible() && MinecraftGameTestAccess.invulnerable(arrived), "Destination convoy member was not held");
                 transfers.playerPlaced(actor.player(), exit, crossing);
                 assertThat(actor.player().getVehicle() == arrived, "Destination did not restore the passenger attachment");
-                assertThat(!arrived.isInvisible() && !arrived.isPermanentlyInvulnerable(), "Destination did not reveal and restore the convoy member");
+                assertThat(!arrived.isInvisible() && !MinecraftGameTestAccess.invulnerable(arrived), "Destination did not reveal and restore the convoy member");
                 transfers.receive("source", new WireMessage.ConvoyTransfer(convoy));
                 assertThat(named("ConvoyTransferMember").size() == 2, "Completed convoy replay duplicated its member");
                 transfers.receive("impostor", new WireMessage.ConvoyTransfer(convoy));

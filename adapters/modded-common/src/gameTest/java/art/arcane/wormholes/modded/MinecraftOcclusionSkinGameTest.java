@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded;
 
+import art.arcane.optics.aperture.ApertureCells;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.mixin.DoorDisplayDataAccess;
 import art.arcane.wormholes.portal.PortalType;
@@ -110,6 +111,7 @@ public final class MinecraftOcclusionSkinGameTest {
     }
 
     private void verifySkinFace() {
+        Box opening = sourceOpening();
         ClaimSet<BlockClaim<BlockState, ContentView<BlockState, BlockState>>> claims = new ClaimSet<>();
         LongOpenHashSet staged = new LongOpenHashSet();
         source.setSurfaceSkin("minecraft:glass");
@@ -145,14 +147,32 @@ public final class MinecraftOcclusionSkinGameTest {
             }
         }
         helper.assertTrue(scale != null && translation != null, "Skin display metadata did not carry its transformation");
-        Box area = source.getGeometry().getArea();
         double plane = source.getOrigin().z();
+        helper.assertTrue(near(plane, (opening.getZa() + opening.getZb()) / 2.0D), "Source portal plane is not centered in its construction cells");
         helper.assertTrue(near(scale.z(), SKIN_DEPTH), "Skin face depth along the portal normal is " + scale.z() + " instead of " + SKIN_DEPTH);
         helper.assertTrue(near(spawn.getZ() + translation.z() + scale.z() / 2.0D, plane), "Skin face is not centered on the portal plane");
-        helper.assertTrue(near(scale.x(), area.sizeX()) && near(scale.y(), area.sizeY()),
-            "Skin face " + scale.x() + "x" + scale.y() + " does not span the " + area.sizeX() + "x" + area.sizeY() + " opening");
-        helper.assertTrue(near(spawn.getX() + translation.x(), area.getXa()) && near(spawn.getY() + translation.y(), area.getYa()),
+        helper.assertTrue(near(scale.x(), opening.sizeX()) && near(scale.y(), opening.sizeY()),
+            "Skin face " + scale.x() + "x" + scale.y() + " does not span the " + opening.sizeX() + "x" + opening.sizeY() + " opening");
+        helper.assertTrue(near(spawn.getX() + translation.x(), opening.getXa()) && near(spawn.getY() + translation.y(), opening.getYa()),
             "Skin face is not aligned with the opening corner");
+        helper.assertTrue(near(spawn.getX() + translation.x() + scale.x(), opening.getXb())
+                && near(spawn.getY() + translation.y() + scale.y(), opening.getYb()),
+            "Skin face does not reach the opposite opening corner");
+    }
+
+    private Box sourceOpening() {
+        List<BlockPos> constructionCells = cells(2);
+        ApertureCells geometry = source.getGeometry();
+        helper.assertTrue(geometry.getBlockPositions().size() == 9, "Source aperture does not contain nine construction cells");
+        BlockPos first = constructionCells.getFirst();
+        Box opening = new Box(first.getX(), first.getX() + 1.0D, first.getY(), first.getY() + 1.0D, first.getZ(), first.getZ() + 1.0D);
+        for (BlockPos cell : constructionCells) {
+            helper.assertTrue(geometry.containsBlock(cell.getX(), cell.getY(), cell.getZ()), "Source aperture is missing construction cell " + cell);
+            opening.encapsulate(cell.getX(), cell.getY(), cell.getZ(), cell.getX() + 1.0D, cell.getY() + 1.0D, cell.getZ() + 1.0D);
+        }
+        helper.assertTrue(near(opening.sizeX(), 3.0D) && near(opening.sizeY(), 3.0D) && near(opening.sizeZ(), 1.0D),
+            "Source aperture construction is not a 3x3 wall opening");
+        return opening;
     }
 
     private void setRemote(ServerLevel level, BlockPos local, BlockState state) {

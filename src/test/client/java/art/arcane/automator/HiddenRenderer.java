@@ -22,7 +22,8 @@ public final class HiddenRenderer implements PreLaunchEntrypoint {
             return flags;
         }
         return (flags & ~(SDLVideo.SDL_WINDOW_FULLSCREEN | SDLVideo.SDL_WINDOW_HIGH_PIXEL_DENSITY
-            | SDLVideo.SDL_WINDOW_MINIMIZED | SDLVideo.SDL_WINDOW_MAXIMIZED))
+            | SDLVideo.SDL_WINDOW_MINIMIZED | SDLVideo.SDL_WINDOW_MAXIMIZED | SDLVideo.SDL_WINDOW_MOUSE_GRABBED
+            | SDLVideo.SDL_WINDOW_KEYBOARD_GRABBED | SDLVideo.SDL_WINDOW_MOUSE_CAPTURE | SDLVideo.SDL_WINDOW_MOUSE_RELATIVE_MODE))
             | SDLVideo.SDL_WINDOW_HIDDEN | SDLVideo.SDL_WINDOW_NOT_FOCUSABLE;
     }
 

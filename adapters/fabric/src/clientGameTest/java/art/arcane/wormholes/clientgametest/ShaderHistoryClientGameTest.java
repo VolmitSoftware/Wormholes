@@ -3,6 +3,7 @@ package art.arcane.wormholes.clientgametest;
 import art.arcane.wormholes.modded.MinecraftPortal;
 import art.arcane.wormholes.modded.WormholesModRuntime;
 import art.arcane.wormholes.modded.client.WormholesClient;
+import art.arcane.wormholes.modded.client.render.iris.IrisViewPipelines;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.portal.ProjectionMode;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
@@ -20,6 +21,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.gamerules.GameRules;
 import net.minecraft.world.phys.Vec3;
+import org.lwjgl.opengl.GL11C;
 
 import java.util.Set;
 import java.util.UUID;
@@ -38,6 +40,7 @@ public final class ShaderHistoryClientGameTest implements FabricClientGameTest {
     @Override
     public void runTest(ClientGameTestContext context) {
         ClientViewTestConfig.enable();
+        IrisHistoryTap.Sample[] closedViews = new IrisHistoryTap.Sample[2];
         try (TestSingleplayerContext singleplayer = context.worldBuilder().create()) {
             singleplayer.getConnection().waitForChunksDownload();
             context.waitFor(client -> WormholesClient.instance() != null && WormholesClient.instance().session().active(), TIMEOUT_TICKS);
@@ -75,13 +78,17 @@ public final class ShaderHistoryClientGameTest implements FabricClientGameTest {
                 });
                 context.waitFor(client -> IrisHistoryTap.failure() != null || enoughFrames(FIRST) && enoughFrames(SECOND), TIMEOUT_TICKS);
                 context.runOnClient(client -> verify(originalMain));
-                context.takeScreenshot("shader-history-two-views");
+                ShaderComposedImageAssertions.assertMirrors(context.takeScreenshot("shader-history-two-views"));
                 for (float yaw : new float[]{175.0F, 185.0F, 180.0F}) {
                     context.getInput().lookAt(yaw, 0.0F);
                     context.waitTicks(OBSERVATION_TICKS);
                     context.runOnClient(client -> verify(originalMain));
                 }
-                context.takeScreenshot("shader-history-stable-after-motion");
+                ShaderComposedImageAssertions.assertMirrors(context.takeScreenshot("shader-history-stable-after-motion"));
+                context.runOnClient(client -> {
+                    closedViews[0] = IrisHistoryTap.view(FIRST);
+                    closedViews[1] = IrisHistoryTap.view(SECOND);
+                });
             } finally {
                 context.runOnClient(client -> IrisHistoryTap.stop());
                 singleplayer.getServer().runOnServer(server -> {
@@ -92,6 +99,15 @@ public final class ShaderHistoryClientGameTest implements FabricClientGameTest {
                 });
             }
         }
+        context.runOnClient(client -> {
+            assertTrue(IrisViewPipelines.diagnostics().cached() == 0 && IrisViewPipelines.diagnostics().pending() == 0,
+                "Closing the client world retained portal shader pipelines or preparation work");
+            for (IrisHistoryTap.Sample view : closedViews) {
+                assertTrue(view != null && !GL11C.glIsTexture(view.mainTexture()) && !GL11C.glIsTexture(view.altTexture()),
+                    "Closing the client world retained a portal camera's actual history textures");
+            }
+            System.out.println("WORMHOLES_IRIS_WORLD_CLOSE_PASS cached=0 pending=0 history-textures-released=true");
+        });
     }
 
     private static void verify(IrisHistoryTap.Sample originalMain) {

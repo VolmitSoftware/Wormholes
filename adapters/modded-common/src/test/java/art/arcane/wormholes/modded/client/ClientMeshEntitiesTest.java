@@ -243,7 +243,7 @@ public class ClientMeshEntitiesTest extends MinecraftTestBase {
             return null;
         }).when(entity).tick();
         scene.tickEntity(entity, transform);
-        verify(entity).commonTick();
+        NativeClientClock.verifyTick(entity, times(1));
         verify(entity).tick();
         assertNull(ClientMeshEntities.active());
         verifyNoInteractions(level);

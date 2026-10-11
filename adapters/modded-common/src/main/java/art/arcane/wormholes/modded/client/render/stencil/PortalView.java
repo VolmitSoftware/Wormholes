@@ -6,6 +6,7 @@ import art.arcane.optics.frame.Similarity;
 import art.arcane.optics.shape.ShapeMesh;
 import art.arcane.wormholes.modded.client.render.PortalApertureMesh;
 import art.arcane.wormholes.modded.client.render.PortalGpuMesh;
+import art.arcane.wormholes.modded.client.render.dh.DhPortalRendering;
 import net.minecraft.client.multiplayer.ClientLevel;
 
 import java.util.Objects;
@@ -103,6 +104,7 @@ public final class PortalView implements AutoCloseable {
     @Override
     public void close() {
         PortalBackends.pipeline().closeView(this);
+        DhPortalRendering.closeView(this);
         closeMesh();
     }
 

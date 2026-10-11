@@ -1,7 +1,5 @@
 package art.arcane.wormholes;
 
-import art.arcane.wormholes.util.BukkitGeometry;
-
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.BooleanSupplier;
@@ -147,7 +145,7 @@ public class ConstructionManager implements Listener
 			{
 				portal.setOwner(ownerId);
 			}
-			portal.setFrame(Frame.fromDirectionAndLook(normal, BukkitGeometry.vector(look)));
+			portal.setFrame(Frame.canonical(normal));
 			portal.open();
 			portal.save();
 			Wormholes.portalManager.addLocalPortal(portal);

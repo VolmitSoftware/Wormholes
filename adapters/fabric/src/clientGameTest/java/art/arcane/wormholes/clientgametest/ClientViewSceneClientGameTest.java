@@ -1,5 +1,6 @@
 package art.arcane.wormholes.clientgametest;
 
+import art.arcane.optics.math.Box;
 import art.arcane.wormholes.modded.client.ClientMeshEntities;
 import art.arcane.wormholes.modded.MinecraftPortal;
 import art.arcane.wormholes.modded.WormholesModRuntime;
@@ -19,6 +20,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.ParticleStatus;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityTypes;
@@ -32,6 +34,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Predicate;
 
 import static art.arcane.wormholes.clientgametest.NativeClientViewAssertions.cells;
 import static art.arcane.wormholes.clientgametest.NativeClientViewAssertions.runtime;
@@ -75,10 +78,7 @@ public final class ClientViewSceneClientGameTest implements FabricClientGameTest
         assertDestinationLight(context, server, connection);
         context.takeScreenshot("clientview-scene-" + label);
         context.waitFor(client -> rimEmitters() >= 8, STREAM_TIMEOUT_TICKS);
-        long fired = context.computeOnClient(client -> WormholesClient.instance().tickState().fx().fired());
-        context.waitTicks(20);
-        long firedLater = context.computeOnClient(client -> WormholesClient.instance().tickState().fx().fired());
-        assertTrue(firedLater > fired, "rim dust emitters did not fire locally");
+        assertRimParticles(context, scene.rim());
         server.runOnServer(minecraftServer -> {
             WormholesModRuntime runtime = runtime(minecraftServer);
             runtime.portals().remove(player, scene.source());
@@ -96,6 +96,56 @@ public final class ClientViewSceneClientGameTest implements FabricClientGameTest
             return count;
         });
         assertTrue(leftovers == 0, leftovers + " projected armour stands survived the portal drop");
+    }
+
+    private static void assertRimParticles(ClientGameTestContext context, Box rim) {
+        ParticleStatus previous = context.computeOnClient(client -> client.options.particles().get());
+        try {
+            context.runOnClient(client -> {
+                client.options.particles().set(ParticleStatus.ALL);
+                ClientViewRimParticles.begin(rim);
+            });
+            ClientViewRimParticles.Snapshot inactive = waitForRim(context, "inactive production activity checks",
+                snapshot -> snapshot.focusChecks() >= 20L);
+            assertTrue(inactive.dustCalls() == 0L && inactive.createdParticles() == 0L,
+                "inactive client emitted rim dust: " + inactive);
+            context.runOnClient(client -> ClientViewRimParticles.focused(true));
+            ClientViewRimParticles.Snapshot active = waitForRim(context, "active native queue acceptance",
+                snapshot -> snapshot.createdParticles() >= 8L);
+            assertTrue(active.focusedChecks() > 0L && active.dustCalls() >= 8L && active.createdParticles() >= 8L,
+                "production rim dust did not reach the native particle queue: " + active);
+            context.runOnClient(client -> ClientViewRimParticles.focused(false));
+            context.waitTicks(1);
+            ClientViewRimParticles.Snapshot suspended = context.computeOnClient(client -> ClientViewRimParticles.snapshot());
+            context.waitTicks(20);
+            ClientViewRimParticles.Snapshot later = context.computeOnClient(client -> ClientViewRimParticles.snapshot());
+            assertTrue(later.createdParticles() == suspended.createdParticles() && later.dustCalls() == suspended.dustCalls(),
+                "rim dust continued after the logical client became inactive: suspended=" + suspended + ", later=" + later);
+        } finally {
+            context.runOnClient(client -> {
+                ClientViewRimParticles.end();
+                client.options.particles().set(previous);
+            });
+        }
+    }
+
+    private static ClientViewRimParticles.Snapshot waitForRim(ClientGameTestContext context, String phase,
+                                                            Predicate<ClientViewRimParticles.Snapshot> ready) {
+        for (int elapsed = 0; elapsed <= STREAM_TIMEOUT_TICKS; elapsed++) {
+            ClientViewRimParticles.Snapshot snapshot = context.computeOnClient(client -> ClientViewRimParticles.snapshot());
+            if (ready.test(snapshot)) {
+                return snapshot;
+            }
+            if (elapsed == STREAM_TIMEOUT_TICKS) {
+                String runtime = context.computeOnClient(client -> "rtpEmitters=" + rimEmitters()
+                    + ", fired=" + WormholesClient.instance().tickState().fx().fired()
+                    + ", player=" + (client.player == null ? null : client.player.position()));
+                throw new AssertionError("Rim acceptance timed out after " + elapsed + " ticks during " + phase
+                    + ": " + snapshot + ", " + runtime);
+            }
+            context.waitTicks(1);
+        }
+        throw new AssertionError("Rim acceptance wait exceeded its tick bound");
     }
 
     private static void assertProjectedStand(ClientGameTestContext context) {
@@ -151,7 +201,7 @@ public final class ClientViewSceneClientGameTest implements FabricClientGameTest
         RtpSettings settings = runtime.rtp().settings(rtp).toBuilder().radii(12, 24).rotationMode(RtpRotationMode.STATIC).soundEnabled(false).build();
         rtp.setRtpSettings(settings);
         runtime.portals().save(rtp);
-        return new Scene(source.getId(), destination.getId(), rtp.getId());
+        return new Scene(source.getId(), destination.getId(), rtp.getId(), new Box(rtp.getGeometry().getArea()));
     }
 
     private static int spawnedEntities() {
@@ -168,7 +218,8 @@ public final class ClientViewSceneClientGameTest implements FabricClientGameTest
 
     private static int rimEmitters() {
         WormholesClient wormholes = WormholesClient.instance();
-        return wormholes == null || wormholes.tickState().fx() == null ? 0 : wormholes.tickState().fx().emitters();
+        int key = NativeClientViewAssertions.portalKey(RTP_MIN);
+        return wormholes == null || wormholes.tickState().fx() == null || key == 0 ? 0 : wormholes.tickState().fx().emitters(key);
     }
 
     private static void fill(ServerLevel level, BlockPos min, int sizeX, int sizeY, int sizeZ, BlockState state) {
@@ -187,6 +238,6 @@ public final class ClientViewSceneClientGameTest implements FabricClientGameTest
         }
     }
 
-    private record Scene(UUID source, UUID destination, UUID rtp) {
+    private record Scene(UUID source, UUID destination, UUID rtp, Box rim) {
     }
 }
