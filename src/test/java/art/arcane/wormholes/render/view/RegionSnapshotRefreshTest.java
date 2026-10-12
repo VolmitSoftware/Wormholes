@@ -5,6 +5,7 @@ import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.optics.entity.EntitySnapshot;
 import art.arcane.wormholes.network.view.PacketBlobs;
 import art.arcane.wormholes.platform.WormholesPlatform;
+import art.arcane.wormholes.transit.AttributeTestSupport;
 import art.arcane.optics.view.WorldChangeTracker;
 
 import org.bukkit.Bukkit;
@@ -14,6 +15,8 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Server;
 import org.bukkit.World;
+import org.bukkit.attribute.Attribute;
+import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
@@ -23,6 +26,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.util.Vector;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeAll;
 import org.mockito.MockedStatic;
 
 import java.lang.reflect.Field;
@@ -45,9 +49,13 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
-import static org.mockito.Mockito.CALLS_REAL_METHODS;
 
 final class RegionSnapshotRefreshTest {
+    @BeforeAll
+    static void initializeAttributes() {
+        AttributeTestSupport.initialize();
+    }
+
     @Test
     void evictedSignedColumnsBecomeUnavailableWithoutRetiringAnEntityThatMovedToAnotherColumn() throws ReflectiveOperationException {
         try (Fixture fixture = new Fixture();
@@ -173,12 +181,11 @@ final class RegionSnapshotRefreshTest {
     @Test
     void shortMetadataTransitionsRefreshRegionVisualsBeforeTheStateBackstop() throws ReflectiveOperationException {
         try (Fixture fixture = new Fixture();
-             MockedStatic<WormholesPlatform> platform = mockStatic(WormholesPlatform.class, CALLS_REAL_METHODS);
              MockedStatic<PacketBlobs> blobs = mockStatic(PacketBlobs.class)) {
             AtomicLong revision = new AtomicLong();
             AtomicInteger captures = new AtomicInteger();
             AtomicReference<byte[]> values = new AtomicReference<>(new byte[] {0, 0, 0});
-            platform.when(() -> WormholesPlatform.entityMetadataFingerprint(fixture.entities.get()[0]))
+            blobs.when(() -> PacketBlobs.metadataRevision(fixture.entities.get()[0]))
                 .thenAnswer(call -> revision.get());
             blobs.when(() -> PacketBlobs.captureMetadata(fixture.entities.get()[0])).thenAnswer(call -> {
                 captures.incrementAndGet();
@@ -238,6 +245,10 @@ final class RegionSnapshotRefreshTest {
         private final AtomicReference<Material> material = new AtomicReference<Material>(Material.STONE);
         private final AtomicReference<Entity[]> entities = new AtomicReference<Entity[]>();
         private final AtomicBoolean itemVisible = new AtomicBoolean();
+        private final AttributeInstance scale = proxy(AttributeInstance.class, (instance, method, arguments) -> switch (method.getName()) {
+            case "getValue", "getBaseValue" -> Double.valueOf(1.0D);
+            default -> objectValue(instance, method, arguments);
+        });
         private final WorldChangeTracker tracker = new WorldChangeTracker();
         private final WorldChangeTracker previousTracker;
         private final Plugin plugin;
@@ -316,6 +327,7 @@ final class RegionSnapshotRefreshTest {
                 case "getVelocity" -> new Vector();
                 case "getType" -> EntityType.ZOMBIE;
                 case "getHeight" -> Double.valueOf(1.8D);
+                case "getAttribute" -> arguments[0] == Attribute.SCALE ? scale : null;
                 case "getEquipment" -> {
                     equipmentCaptures.incrementAndGet();
                     yield null;

@@ -24,4 +24,6 @@ public interface PortalMutations {
     CompletableFuture<Boolean> destroy(UUID portal);
 
     CompletableFuture<Boolean> rename(UUID portal, String name);
+
+    CompletableFuture<Boolean> projection(UUID portal, boolean enabled);
 }

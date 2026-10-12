@@ -3,6 +3,7 @@
   "minVersion": "0.8",
   "package": "art.arcane.automator.mixin",
   "compatibilityLevel": "JAVA_25",
+  "plugin": "art.arcane.automator.mixin.CrossingCostMixinPlugin",
   "client": [
     "MinecraftMixin",
     "MouseHandlerMixin",
@@ -15,7 +16,23 @@
     "InputConstantsMixin",
     "FramerateLimitTrackerMixin",
     "RenderSystemMixin",
-    "SignEditScreenAccessor"
+    "SignEditScreenAccessor",
+    "CrossingCostActivationMixin",
+    "CrossingCostExtractorMixin",
+    "CrossingCostForcedTerrainMixin",
+    "CrossingCostGameRendererMixin",
+    "CrossingCostIrisBeginMixin",
+    "CrossingCostIrisConstructionMixin",
+    "CrossingCostIrisPrepareMixin",
+    "CrossingCostLayerTerrainMixin",
+    "CrossingCostPortalRenderMixin",
+    "CrossingCostProjectedEntitiesMixin",
+    "CrossingCostResidentEstimateMixin",
+    "CrossingCostResidentsMixin",
+    "CrossingCostSodiumSectionsMixin",
+    "CrossingCostTaskSweepMixin",
+    "CrossingCostTravelMixin",
+    "CrossingCostWorldLoaderMixin"
   ],
   "injectors": {
     "defaultRequire": 1

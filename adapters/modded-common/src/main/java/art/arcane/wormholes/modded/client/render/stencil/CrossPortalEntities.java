@@ -8,7 +8,9 @@ package art.arcane.wormholes.modded.client.render.stencil;
 
 import art.arcane.optics.frame.Similarity;
 import art.arcane.optics.math.Box;
+import art.arcane.optics.math.Face;
 import art.arcane.optics.math.Vec3d;
+import art.arcane.wormholes.modded.client.GravityRenderState;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.entity.EntityRenderDispatcher;
@@ -25,10 +27,7 @@ import java.util.List;
 
 final class CrossPortalEntities {
     private static final double REACH_BLOCKS = 2.0D;
-    private static final double YAW_EPSILON = 1.0E-6D;
     private static final double POSITION_EPSILON_SQUARED = 1.0E-10D;
-    private static final Vec3d SOUTH = new Vec3d(0.0D, 0.0D, 1.0D);
-    private static final Vec3d UP = new Vec3d(0.0D, 1.0D, 0.0D);
 
     private CrossPortalEntities() {
     }
@@ -50,10 +49,9 @@ final class CrossPortalEntities {
     }
 
     private static void copy(ClientLevel from, PortalSurface surface, Similarity transform, LevelRenderState state, float partialTicks) {
-        if (!yawOnly(transform)) {
+        if (transform.rigid().reflects()) {
             return;
         }
-        float yaw = yaw(transform);
         Box area = surface.area();
         AABB reach = new AABB(area.getXa(), area.getYa(), area.getZa(), area.getXb(), area.getYb(), area.getZb()).inflate(REACH_BLOCKS);
         Minecraft minecraft = Minecraft.getInstance();
@@ -74,10 +72,7 @@ final class CrossPortalEntities {
                 }
             }
             EntityRenderState copy = dispatcher.extractEntity(entity, partialTicks);
-            if (copy instanceof LivingEntityRenderState living) {
-                living.bodyRot += yaw;
-                living.scale *= (float) transform.scale();
-            } else if (!transform.isRigid()) {
+            if (!transform(copy, transform)) {
                 continue;
             }
             copy.x = mapped.x();
@@ -86,6 +81,38 @@ final class CrossPortalEntities {
             copy.leashStates = null;
             state.entityRenderStates.add(copy);
         }
+    }
+
+    static boolean transform(EntityRenderState copy, Similarity transform) {
+        if (transform.rigid().reflects()) {
+            return false;
+        }
+        if (copy instanceof LivingEntityRenderState living) {
+            GravityRenderState gravity = (GravityRenderState) copy;
+            gravity.wormholes$gravity(gravity.wormholes$gravity().transformed(transform.rigid().permutation()));
+            living.scale *= (float) transform.scale();
+        } else if (!transform.isRigid() || transform.rigid().permutation().face(Face.U) != Face.U) {
+            return false;
+        }
+        float scale = (float) transform.scale();
+        copy.boundingBoxWidth *= scale;
+        copy.boundingBoxHeight *= scale;
+        copy.eyeHeight *= scale;
+        if (!transform.isRigid() || transform.rigid().permutation().face(Face.U) != Face.U) {
+            copy.shadowPieces.clear();
+            copy.shadowRadius = 0.0F;
+        }
+        if (copy.nameTagAttachment != null) {
+            Vec3 attachment = copy.nameTagAttachment;
+            Vec3d mapped = transform.vector(new Vec3d(attachment.x, attachment.y, attachment.z));
+            copy.nameTagAttachment = new Vec3(mapped.x(), mapped.y(), mapped.z());
+        }
+        if (copy.passengerOffset != null) {
+            Vec3 offset = copy.passengerOffset;
+            Vec3d mapped = transform.vector(new Vec3d(offset.x, offset.y, offset.z));
+            copy.passengerOffset = new Vec3(mapped.x(), mapped.y(), mapped.z());
+        }
+        return true;
     }
 
 
@@ -104,12 +131,4 @@ final class CrossPortalEntities {
         return false;
     }
 
-    private static boolean yawOnly(Similarity transform) {
-        return !transform.rigid().reflects() && Math.abs(transform.direction(UP).y() - 1.0D) <= YAW_EPSILON;
-    }
-
-    private static float yaw(Similarity transform) {
-        Vec3d south = transform.direction(SOUTH);
-        return (float) Math.toDegrees(Math.atan2(-south.x(), south.z()));
-    }
 }

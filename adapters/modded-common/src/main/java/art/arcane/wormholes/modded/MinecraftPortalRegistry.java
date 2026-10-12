@@ -2,7 +2,11 @@ package art.arcane.wormholes.modded;
 
 import art.arcane.optics.aperture.SizeRatio;
 import art.arcane.optics.crossing.Pose;
-import art.arcane.optics.crossing.PoseTransform;
+import art.arcane.optics.crossing.GravityFrame;
+import art.arcane.wormholes.modded.gravity.MinecraftGravity;
+import art.arcane.wormholes.modded.gravity.MinecraftGravityTransit;
+import art.arcane.wormholes.transit.TransitOrientation;
+import art.arcane.wormholes.localization.TransitMessages;
 import art.arcane.optics.crossing.ScaleRule;
 import art.arcane.optics.frame.Similarity;
 import art.arcane.optics.math.Vec3d;
@@ -430,7 +434,7 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
         }
         OrientationPolicy orientation = OrientationPolicy.parse((String) source.setting("transit.orientation"),
             OrientationPolicy.parse(config.orientationDefault, OrientationPolicy.FRAME));
-        return TravelMessage.ArrivalRules.of(orientation, momentum, config.gravityFlipEnabled, config.momentumMaxSpeed, source.getScaleRule());
+        return TravelMessage.ArrivalRules.of(orientation, momentum, config.gravityFlipEnabled, config.momentumMaxSpeed, source.getScaleRule()).withGravityRotation(source.isGravityRotationEnabled());
     }
 
     public TravelMessage.ArrivalRules doorArrivalRules() {
@@ -490,9 +494,9 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
             return false;
         }
         ServerLevel targetLevel = resolveLevel(destination);
-        Vec3d target = passage(source, destination, crossing).toward().point(crossing.point());
-        if (targetLevel == null || !targetLevel.noCollision(player, player.getBoundingBox().move(
-            target.x() - player.getX(), target.y() - player.getY(), target.z() - player.getZ()))
+        Passage passage = passage(source, destination, crossing);
+        Vec3d target = passage.toward().point(crossing.point());
+        if (targetLevel == null || !targetLevel.noCollision(player, arrivalBounds(player, source, passage, target))
             || !MinecraftTransit.depart(runtime, source, player, crossing)) {
             return false;
         }
@@ -675,8 +679,7 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
                 || entity.position().distanceToSqr(departure.point()) > 1.0D
                 || departure.expiresAt() <= System.currentTimeMillis() || !admit(entity, source, destination)
                 || !screenRules(entity, source) || flight.predicted() && !runtime.clientViews().crossing(entity.getUUID(), flight.attempted())
-                || flight.predicted() && !flight.targetLevel().noCollision(entity, entity.getBoundingBox().move(
-                    flight.target().x() - entity.getX(), flight.target().y() - entity.getY(), flight.target().z() - entity.getZ()))) {
+                || flight.predicted() && !flight.targetLevel().noCollision(entity, arrivalBounds(flight))) {
                 return;
             }
             arrive(entity, destination, flight.crossing(), flight.targetLevel(), flight.passage(), source, flight.predicted());
@@ -697,6 +700,19 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
                 departure.lease().close();
             }
         }
+    }
+
+    private AABB arrivalBounds(Flight flight) {
+        return arrivalBounds(flight.entity(), flight.source(), flight.passage(), flight.target());
+    }
+
+    static AABB arrivalBounds(Entity entity, MinecraftPortal source, Passage passage, Vec3d target) {
+        GravityFrame gravity = MinecraftGravity.frame(entity);
+        if (source.isGravityRotationEnabled()) {
+            gravity = gravity.transformed(passage.toward().rigid().permutation());
+        }
+        double scale = passage.rule().entityFactor(TRAVELLER_SCALE.factor(entity), passage.ratio());
+        return MinecraftGravity.arrivalBounds(entity, vector(target), gravity, scale);
     }
 
     private boolean screenRules(Entity entity, MinecraftPortal source) {
@@ -722,6 +738,10 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
                 return false;
             }
             if (member instanceof ServerPlayer player) {
+                if (source.isGravityRotationEnabled() && !runtime.clientViews().supportsGravity(player)) {
+                    player.sendSystemMessage(runtime.localization().text(player, TransitMessages.GRAVITY_CLIENT_REQUIRED, Map.of()));
+                    return false;
+                }
                 if (!canDepart(player, source) || !canArrive(player, destination)) {
                     return false;
                 }
@@ -736,8 +756,9 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
                         Passage passage, MinecraftPortal source, boolean predicted) {
         TransitConfig config = runtime.configuration().settings().getTransit();
         TravelMessage.ArrivalRules rules = arrivalRules(source);
-        Pose landed = PoseTransform.arrive(MinecraftArrivalPose.departure(entity, crossing), crossing, passage.toward(), destination.getFrame(),
-            rules.orientation(), rules.gravityFlip(), rules.momentum(), rules.momentum().maxSpeed());
+        MinecraftGravityTransit.Arrival arrival = MinecraftGravityTransit.arrive(MinecraftArrivalPose.departure(entity, crossing), MinecraftGravity.frame(entity),
+            new MinecraftGravityTransit.Passage(crossing, passage.toward(), destination.getFrame(), rules));
+        Pose landed = arrival.pose();
         Vec3d target = landed.position();
         Vec3d velocity = landed.velocity();
         List<ChunkPreSendTicket<ServerLevel, ServerPlayer>> preSend = new ArrayList<>();
@@ -748,6 +769,7 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
         List<Entity> rig = entity.getSelfAndPassengers().toList();
         TravelMessage.TravelPose pose = new TravelMessage.TravelPose(target.x(), target.y(), target.z(), landed.yaw(), landed.pitch());
         List<Double> departureScales = new ArrayList<>(rig.size());
+        List<GravityFrame> departureGravity = new ArrayList<>(rig.size());
         boolean seamlessCrossing = predicted && rig.size() == 1 && entity instanceof ServerPlayer traveler
             && runtime.clientViews().seamlessCrossing(traveler);
         MinecraftClientViewService.SeamlessTicket seamless = null;
@@ -793,9 +815,16 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
                 }
             }
             if (!reloadExpected) {
-                announceCrossing(rig, crossing, passage.toward(), velocity);
+                announceCrossing(rig, crossing, passage.toward(), velocity, rules.rotateGravity());
             }
             grow(rig, rules.scale(), passage.ratio(), departureScales);
+            for (Entity member : rig) {
+                GravityFrame frame = MinecraftGravity.frame(member);
+                departureGravity.add(frame);
+                if (rules.rotateGravity()) {
+                    MinecraftGravity.set(member, frame.transformed(passage.toward().rigid().permutation()));
+                }
+            }
             try (WormholesModRuntime.TeleportScope scope = runtime.beginTeleport(entity)) {
                 arrived = seamless != null ? runtime.clientViews().seamlessMove(seamless)
                     : entity.teleport(new TeleportTransition(targetLevel, vector(target), vector(velocity), landed.yaw(), landed.pitch(),
@@ -803,16 +832,19 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
             }
         } catch (RuntimeException exception) {
             restoreScales(rig, departureScales);
+            restoreGravity(rig, departureGravity);
             refund(payments);
             rollback(preSend);
             throw exception;
         }
         if (arrived == null) {
             restoreScales(rig, departureScales);
+            restoreGravity(rig, departureGravity);
             refund(payments);
             rollback(preSend);
             return;
         }
+        MinecraftGravity.set(arrived, arrival.gravity());
         MinecraftArrivalPose.apply(arrived, landed);
         if (arrived instanceof ServerPlayer player) {
             runtime.clientViews().crossed(player, originLevel, targetLevel, seamless != null);
@@ -860,7 +892,7 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
         return 0L;
     }
 
-    private void announceCrossing(List<Entity> rig, PlaneCrossing crossing, Similarity toward, Vec3d velocity) {
+    private void announceCrossing(List<Entity> rig, PlaneCrossing crossing, Similarity toward, Vec3d velocity, boolean rotateGravity) {
         for (Entity member : rig) {
             Vec3d position = vector(member.position());
             if (toward.isRigid() && toward.rigid().isTranslation()) {
@@ -868,7 +900,9 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
             } else {
                 MinecraftTransitInterpolation.clear(member);
             }
-            runtime.clientViews().entityCrossed(member, crossing, toward.rigid(), velocity);
+            GravityFrame gravity = MinecraftGravity.frame(member);
+            runtime.clientViews().entityCrossed(member, crossing, toward.rigid(), velocity,
+                rotateGravity ? gravity.transformed(toward.rigid().permutation()) : gravity);
         }
     }
 
@@ -879,6 +913,12 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
         for (Entity member : rig) {
             departureScales.add(TRAVELLER_SCALE.factor(member));
             TRAVELLER_SCALE.cross(member, rule, ratio);
+        }
+    }
+
+    private static void restoreGravity(List<Entity> rig, List<GravityFrame> frames) {
+        for (int index = 0; index < frames.size(); index++) {
+            MinecraftGravity.set(rig.get(index), frames.get(index));
         }
     }
 

@@ -1418,6 +1418,8 @@ profile = ["&6&lPerėjimo efektai&r", "&7Slenkstis {mode}", "&7Atvykimas {state}
 prompt = "&bĮveskite naują reikšmę pokalbyje (arba '{cancel}'):"
 scale = ["&6&lKeliautojo mastelis: {mode}&r", "&7Dydžio intervalas {value}. Pritaiko kelionę tarp skirtingo dydžio portalų.", "&eKairysis spustelėjimas keičia režimą", "&eDešinysis spustelėjimas: minimumas, Shift + dešinysis: maksimumas"]
 
+gravity = ["&6&lGravitacijos kryptis: {state}&r", "&7Žaidėjų su modifikacija grindys, judėjimas ir modelis pasisuka kartu su portalu.", "&eKairiuoju pelės mygtuku perjungti"]
+
 [transit.scale]
 current = "&8[&6Wormholes&8] &f{portal}&7 keliautojo mastelis: &f{mode}&7 ({value})"
 set = "&8[&6Wormholes&8] &f{portal}&a keliautojo mastelis nustatytas į &f{mode}&a ({value})."
@@ -1425,6 +1427,11 @@ invalid = "&8[&6Wormholes&8] &cNepavyko perskaityti keliautojo mastelio: {reason
 reset = "&8[&6Wormholes&8] &aAtkurtas įprastas {count} esybių dydis."
 reset_radius = "&8[&6Wormholes&8] &ctarget=all reikia spindulio nuo 1 iki {value}."
 reset_player = "&8[&6Wormholes&8] &cNėra prisijungusio žaidėjo vardu {name}."
+
+[transit.gravity]
+current = "&8[&6Wormholes&8] &f{portal}&7 gravitacijos kryptis: &f{state}"
+reset = "&8[&6Wormholes&8] &aŽaidėjui {name} atkurta įprasta gravitacija."
+client_required = "&8[&6Wormholes&8] &cŠiam portalui reikia Wormholes kliento modifikacijos, kad būtų galima keisti gravitacijos kryptį."
 # ---- end lane:transit ----
 
 # ---- lane:view (fidelity.*) ----

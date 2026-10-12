@@ -1,5 +1,7 @@
 package art.arcane.wormholes.modded;
 
+import art.arcane.optics.crossing.GravityFrame;
+
 import art.arcane.wormholes.rules.RuleDocument;
 import art.arcane.wormholes.nexus.NetworkMember;
 import art.arcane.optics.plate.ChunkLease;
@@ -136,7 +138,7 @@ public class MinecraftPortalRegistryTest extends MinecraftTestBase {
             fixture.tasks().removeFirst().run();
             InOrder order = inOrder(fixture.runtime().clientViews(), fixture.entity());
             order.verify(fixture.runtime().clientViews()).entityCrossed(eq(fixture.entity()), any(PlaneCrossing.class), any(OpticTransform.class),
-                eq(new Vec3d(-0.4D, 0.0D, 0.0D)));
+                eq(new Vec3d(-0.4D, 0.0D, 0.0D)), eq(GravityFrame.WORLD));
             order.verify(fixture.entity()).teleport(any(TeleportTransition.class));
             verify(fixture.lease()).close();
         }
@@ -242,7 +244,7 @@ public class MinecraftPortalRegistryTest extends MinecraftTestBase {
     }
 
     private ServerPlayer traveler(Fixture fixture) {
-        ServerPlayer player = mock(ServerPlayer.class);
+        ServerPlayer player = worldGravity(mock(ServerPlayer.class));
         when(player.getUUID()).thenReturn(UUID.randomUUID());
         when(player.getRootVehicle()).thenReturn(player);
         when(player.level()).thenReturn(fixture.level());
@@ -371,8 +373,8 @@ public class MinecraftPortalRegistryTest extends MinecraftTestBase {
         when(rules.reserve(any(), any())).thenReturn(true);
         MinecraftServer server = mock(MinecraftServer.class);
         ServerLevel level = mock(ServerLevel.class);
-        ServerPlayer actor = mock(ServerPlayer.class);
-        Entity entity = mock(Entity.class);
+        ServerPlayer actor = worldGravity(mock(ServerPlayer.class));
+        Entity entity = worldGravity(mock(Entity.class));
         PlayerList players = mock(PlayerList.class);
         WormholesModConfiguration configuration = mock(WormholesModConfiguration.class);
         ChunkLeaseRegistry<ServerLevel> leases = mock(ChunkLeaseRegistry.class);

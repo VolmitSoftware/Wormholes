@@ -5,6 +5,7 @@ import art.arcane.wormholes.config.toml.RenderConfig;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.MinecraftEntityMetadata;
 import art.arcane.wormholes.modded.MinecraftLocalEntityView;
+import art.arcane.optics.entity.EntityVisualMetadata;
 import art.arcane.wormholes.modded.MinecraftPacketBlobs;
 import art.arcane.wormholes.modded.MinecraftPortal;
 import art.arcane.wormholes.modded.MinecraftProjectionWorldView;
@@ -28,6 +29,7 @@ import art.arcane.optics.client.PlateLight;
 import art.arcane.wormholes.render.client.session.ClientViewSceneFx;
 import art.arcane.optics.plate.ViewPlate;
 import art.arcane.optics.frame.OpticTransform;
+import art.arcane.optics.frame.Similarity;
 import art.arcane.optics.frame.ViewWindow;
 import art.arcane.optics.frame.QuarterTurn;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -38,6 +40,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.Vec3;
 
 import java.security.SecureRandom;
 import java.util.ArrayList;
@@ -170,9 +173,10 @@ public final class MinecraftClientViewScene implements EntityScenes<MinecraftCli
             return false;
         }
         Vec3d eye = context.destinationEye();
-        double dx = player.getX() - eye.x();
-        double dy = player.getEyeY() - eye.y();
-        double dz = player.getZ() - eye.z();
+        Vec3 playerEye = player.getEyePosition();
+        double dx = playerEye.x - eye.x();
+        double dy = playerEye.y - eye.y();
+        double dz = playerEye.z - eye.z();
         return dx * dx + dy * dy + dz * dz > 1.0D;
     }
 
@@ -249,9 +253,10 @@ public final class MinecraftClientViewScene implements EntityScenes<MinecraftCli
             return null;
         }
         OpticTransform affine = destination.frame().transform().normalized();
-        EnvironmentState captured = environments.capture(new MinecraftEnvironmentCapture.Request(peer.id(), null, portalId, destination.world(),
-            affine.inverse().point(new Vec3d(player.getX(), player.getEyeY(), player.getZ())), affine, tick));
         float scale = portals.viewScale(peer, portalId);
+        Vec3 eye = player.getEyePosition();
+        EnvironmentState captured = environments.capture(new MinecraftEnvironmentCapture.Request(peer.id(), null, portalId, destination.world(),
+            destinationEye(destination.frame(), scale, new Vec3d(eye.x, eye.y, eye.z)), affine, tick));
         return captured == null || scale == 1.0F ? captured : captured.withScale(scale);
     }
 
@@ -268,12 +273,20 @@ public final class MinecraftClientViewScene implements EntityScenes<MinecraftCli
             return null;
         }
         MinecraftClientViewPeer.NestedContext context = peer.nestedContext(parent);
+        Vec3 playerEye = player.getEyePosition();
         Vec3d eye = context == null
-            ? mirror.frame().transform().normalized().inverse().point(new Vec3d(player.getX(), player.getEyeY(), player.getZ()))
+            ? destinationEye(mirror.frame(), portals.viewScale(peer, parent), new Vec3d(playerEye.x, playerEye.y, playerEye.z))
             : context.destinationEye();
         OpticTransform affine = destination.frame().transform().normalized();
-        return environments.capture(new MinecraftEnvironmentCapture.Request(peer.id(), parent, portalId, destination.world(),
-            affine.inverse().point(new Vec3d(eye.x(), eye.y(), eye.z())), affine, tick));
+        float scale = portals.viewScale(peer, portalId);
+        EnvironmentState captured = environments.capture(new MinecraftEnvironmentCapture.Request(peer.id(), parent, portalId, destination.world(),
+            destinationEye(destination.frame(), scale, eye), affine, tick));
+        return captured == null || scale == 1.0F ? captured : captured.withScale(scale);
+    }
+
+    static Vec3d destinationEye(ViewWindow window, float scale, Vec3d eye) {
+        Similarity content = Similarity.between(window.localFrame(), window.localOrigin(), window.localFrame(), window.localOrigin(), scale);
+        return content.compose(Similarity.of(window.transform().normalized(), 1.0D)).inverse().point(eye);
     }
 
     public BrickLightSource light(MinecraftClientViewPeer peer, UUID portalId, ViewPlate<BlockState> plate) {
@@ -358,7 +371,7 @@ public final class MinecraftClientViewScene implements EntityScenes<MinecraftCli
             values = visual.isPlayer() ? MinecraftEntityMetadata.ENTITIES.upsideDownPlayer(values)
                 : MinecraftEntityMetadata.ENTITIES.upsideDownEntity(values, false);
         }
-        byte[] patched = blobs.writeMetadata(values);
+        byte[] patched = blobs.writeMetadata(values, EntityVisualMetadata.decode(raw));
         metadata.put(source.id(), new PatchedMetadata(raw, metadataTransform, upsideDown, patched, tick));
         return copy(visual, patched);
     }

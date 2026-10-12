@@ -1418,6 +1418,8 @@ profile = ["&6&l전환 연출&r", "&7경계 {mode}", "&7도착 {state}", "&e왼�
 prompt = "&b채팅에 새 값을 입력하세요 (또는 '{cancel}'):"
 scale = ["&6&l여행자 크기: {mode}&r", "&7크기 범위 {value}. 크기가 다른 포털 사이의 이동을 맞춥니다.", "&e좌클릭으로 모드 전환", "&e우클릭: 최소, Shift + 우클릭: 최대"]
 
+gravity = ["&6&l중력 방향: {state}&r", "&7모드를 사용하는 플레이어의 바닥, 이동 방향, 모델이 포털과 함께 회전합니다.", "&e왼쪽 클릭으로 전환"]
+
 [transit.scale]
 current = "&8[&6Wormholes&8] &f{portal}&7 여행자 크기: &f{mode}&7 ({value})"
 set = "&8[&6Wormholes&8] &f{portal}&a 여행자 크기를 &f{mode}&a ({value})(으)로 설정했습니다."
@@ -1425,6 +1427,11 @@ invalid = "&8[&6Wormholes&8] &c여행자 크기를 읽을 수 없습니다: {rea
 reset = "&8[&6Wormholes&8] &a엔티티 {count}개의 기본 크기를 복원했습니다."
 reset_radius = "&8[&6Wormholes&8] &ctarget=all 에는 1부터 {value} 사이의 반경이 필요합니다."
 reset_player = "&8[&6Wormholes&8] &c{name}(이)라는 접속 중인 플레이어가 없습니다."
+
+[transit.gravity]
+current = "&8[&6Wormholes&8] &f{portal}&7 중력 방향: &f{state}"
+reset = "&8[&6Wormholes&8] &a{name}의 중력을 기본 방향으로 되돌렸습니다."
+client_required = "&8[&6Wormholes&8] &c이 포털에서 중력 방향을 바꾸려면 Wormholes 클라이언트 모드가 필요합니다."
 # ---- end lane:transit ----
 
 # ---- lane:view (fidelity.*) ----

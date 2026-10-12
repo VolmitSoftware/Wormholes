@@ -1,5 +1,6 @@
 package art.arcane.wormholes.render.client.session;
 
+import art.arcane.optics.crossing.GravityFrame;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -106,7 +107,7 @@ final class ClientViewTravelTest {
         assertEquals(TravelExtension.INSTANCE.wrap(cancel()), CODEC.decodeS2C(frames.getLast(), ViewStreamCapability.ALL).message());
         assertFalse(travel.sendTravel(cross()), "serverbound travel is never sent");
         assertTrue(travel.sendTravel(new TravelMessage.EntityCrossed(0, 42, OpticTransform.IDENTITY, new Vec3d(0, 0, 0), Face.U,
-            new Vec3d(0, 0, 0))));
+            new Vec3d(0, 0, 0), GravityFrame.WORLD, GravityFrame.WORLD)));
         assertEquals(2, frames.size());
     }
 

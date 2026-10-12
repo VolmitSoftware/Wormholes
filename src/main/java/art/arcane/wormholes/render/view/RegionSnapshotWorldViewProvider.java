@@ -185,7 +185,7 @@ public final class RegionSnapshotWorldViewProvider implements ProjectionWorldVie
     private CapturedEntity captureEntity(SnapshotWorldView view, Entity entity, long chunkKey, long capturedAtMillis) {
         EntityState previousState = view.entityStates.get(entity.getUniqueId());
         CapturedEntity previous = previousState == null ? null : previousState.entity;
-        long metadataRevision = WormholesPlatform.entityMetadataFingerprint(entity);
+        long metadataRevision = PacketBlobs.metadataRevision(entity);
         boolean reuseState = previous != null
             && previous.metadataRevision == metadataRevision
             && capturedAtMillis - previous.stateCapturedAtMillis < ENTITY_STATE_REFRESH_MILLIS;

@@ -445,7 +445,7 @@ final class ViewEntityPipeline {
         Pose pose = entity.getPose();
         boolean onFire = entity.getFireTicks() > 0;
         int stateSignature = stateSignature(entity);
-        long metadataRevision = WormholesPlatform.entityMetadataFingerprint(entity);
+        long metadataRevision = PacketBlobs.metadataRevision(entity);
         byte[] metadata;
         byte[] equipment;
         byte[] mapData;

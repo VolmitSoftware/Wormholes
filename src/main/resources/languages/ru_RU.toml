@@ -1418,6 +1418,8 @@ profile = ["&6&lЭффекты перехода&r", "&7Порог {mode}", "&7П
 prompt = "&bВведите новое значение в чат (или '{cancel}'):"
 scale = ["&6&lМасштаб путника: {mode}&r", "&7Диапазон размера {value}. Согласует путь между порталами разного размера.", "&eЛКМ — сменить режим", "&eПКМ: минимум, Shift + ПКМ: максимум"]
 
+gravity = ["&6&lНаправление гравитации: {state}&r", "&7У игроков с модом пол, движение и модель поворачиваются вместе с порталом.", "&eЛевый щелчок для переключения"]
+
 [transit.scale]
 current = "&8[&6Wormholes&8] &f{portal}&7 масштаб путника: &f{mode}&7 ({value})"
 set = "&8[&6Wormholes&8] &f{portal}&a масштаб путника установлен: &f{mode}&a ({value})."
@@ -1425,6 +1427,11 @@ invalid = "&8[&6Wormholes&8] &cНе удалось прочитать масшт
 reset = "&8[&6Wormholes&8] &aОбычный размер восстановлен у {count} сущностей."
 reset_radius = "&8[&6Wormholes&8] &cДля target=all нужен радиус от 1 до {value}."
 reset_player = "&8[&6Wormholes&8] &cИгрок {name} не в сети."
+
+[transit.gravity]
+current = "&8[&6Wormholes&8] &f{portal}&7 направление гравитации: &f{state}"
+reset = "&8[&6Wormholes&8] &aДля {name} восстановлена обычная гравитация."
+client_required = "&8[&6Wormholes&8] &cДля изменения направления гравитации этот портал требует клиентский мод Wormholes."
 # ---- end lane:transit ----
 
 # ---- lane:view (fidelity.*) ----

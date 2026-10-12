@@ -46,11 +46,12 @@ import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
 
 public class ClientMeshInteractionTest extends MinecraftTestBase {
+    private final ClientLevel level = mock(ClientLevel.class);
+
     @Test
     public void loadedNativeCopiesNeverReachWorldTickHandlersWhileRealEntitiesTickNormally() {
         Entity nativeCopy = entity(-100, new AABB(0, 0, 0, 1, 2, 1));
         Entity real = entity(100, new AABB(2, 0, 0, 3, 2, 1));
-        ClientLevel level = mock(ClientLevel.class);
         when(level.isClientSide()).thenReturn(true);
         when(level.getEntity(-100)).thenReturn(nativeCopy);
         when(nativeCopy.level()).thenReturn(level);
@@ -60,6 +61,7 @@ public class ClientMeshInteractionTest extends MinecraftTestBase {
         list.add(nativeCopy);
         list.add(real);
         WormholesClient client = mock(WormholesClient.class);
+        when(client.viewsAttachedTo(level)).thenReturn(true);
         when(client.localMeshes()).thenReturn(new ClientLocalMeshSources(ignored -> {}));
         ClientViewTick tick = mock(ClientViewTick.class);
         ClientProjectedEntities projected = mock(ClientProjectedEntities.class);
@@ -104,6 +106,7 @@ public class ClientMeshInteractionTest extends MinecraftTestBase {
     @Test
     public void mirrorAndProjectedHitboxesDoNotReplaceWorldClickTargets() throws ReflectiveOperationException {
         WormholesClient client = mock(WormholesClient.class);
+        when(client.viewsAttachedTo(level)).thenReturn(true);
         when(client.localMeshes()).thenReturn(new ClientLocalMeshSources(ignored -> {}));
         ClientViewTick tick = mock(ClientViewTick.class);
         ClientProjectedEntities projected = mock(ClientProjectedEntities.class);
@@ -137,6 +140,7 @@ public class ClientMeshInteractionTest extends MinecraftTestBase {
     @Test
     public void nativeCopiesCannotContributeCollisionShapesOrPushTheWorld() throws ReflectiveOperationException {
         WormholesClient client = mock(WormholesClient.class);
+        when(client.viewsAttachedTo(level)).thenReturn(true);
         when(client.localMeshes()).thenReturn(new ClientLocalMeshSources(ignored -> {}));
         ClientViewTick tick = mock(ClientViewTick.class);
         ClientProjectedEntities projected = mock(ClientProjectedEntities.class);
@@ -153,7 +157,6 @@ public class ClientMeshInteractionTest extends MinecraftTestBase {
         Entity source = entity(21, new AABB(-0.3, 0, -0.3, 0.3, 2, 0.3));
         when(projected.meshEntity(-101)).thenReturn(true);
         when(projected.hasMeshEntities()).thenReturn(true);
-        ClientLevel level = mock(ClientLevel.class);
         List<Entity> candidates = List.of(reflection, projection, real);
         when(level.getEntities(eq(source), any(AABB.class), any())).thenAnswer(call -> {
             Predicate<? super Entity> filter = ClientMeshEntities.worldEntityPredicate(source, call.getArgument(2));
@@ -198,12 +201,12 @@ public class ClientMeshInteractionTest extends MinecraftTestBase {
         ClientSceneWorld world = mock(ClientSceneWorld.class);
         ClientProjectedEntities projected = new ClientProjectedEntities(world);
         WormholesClient client = mock(WormholesClient.class);
+        when(client.viewsAttachedTo(level)).thenReturn(true);
         when(client.localMeshes()).thenReturn(new ClientLocalMeshSources(ignored -> {}));
         ClientViewTick tick = mock(ClientViewTick.class);
         when(client.tickState()).thenReturn(tick);
         when(tick.entities()).thenReturn(projected);
         when(client.reflections()).thenReturn(new ClientReflectionEntity());
-        ClientLevel level = mock(ClientLevel.class);
         Map<Integer, Entity> copies = new HashMap<>();
         Entity source = entity(21, new AABB(-0.3, 0, -0.3, 0.3, 2, 0.3));
         Entity real = entity(20, new AABB(-0.3, 0, 2, 0.3, 2, 2.5));
@@ -276,8 +279,9 @@ public class ClientMeshInteractionTest extends MinecraftTestBase {
         assertEquals(1.7, Shapes.collide(Direction.Axis.Z, source.getBoundingBox(), shapes, 4), 1.0E-9);
     }
 
-    private static Entity entity(int id, AABB bounds) {
+    private Entity entity(int id, AABB bounds) {
         Entity entity = mock(Entity.class, withSettings().extraInterfaces(SeamlessEntityAccess.class));
+        when(entity.level()).thenReturn(level);
         when(entity.getId()).thenReturn(id);
         when(((SeamlessEntityAccess) entity).wormholesEntityId()).thenReturn(id);
         when(entity.isPickable()).thenReturn(true);
@@ -287,8 +291,7 @@ public class ClientMeshInteractionTest extends MinecraftTestBase {
         return entity;
     }
 
-    private static EntityHitResult pick(List<Entity> candidates, Predicate<Entity> predicate) {
-        ClientLevel level = mock(ClientLevel.class);
+    private EntityHitResult pick(List<Entity> candidates, Predicate<Entity> predicate) {
         Entity camera = mock(Entity.class);
         when(camera.level()).thenReturn(level);
         when(camera.getRootVehicle()).thenReturn(camera);

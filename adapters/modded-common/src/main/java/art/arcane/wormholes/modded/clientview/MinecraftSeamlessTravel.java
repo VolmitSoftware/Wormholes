@@ -2,9 +2,14 @@ package art.arcane.wormholes.modded.clientview;
 
 import art.arcane.optics.aperture.ApertureCells;
 import art.arcane.optics.aperture.ApertureDescriptor;
+import art.arcane.optics.aperture.SizeRatio;
+import art.arcane.wormholes.modded.MinecraftScaleAccess;
 import art.arcane.optics.crossing.PlaneCrossing;
 import art.arcane.optics.crossing.Pose;
-import art.arcane.optics.crossing.PoseTransform;
+import art.arcane.optics.crossing.GravityFrame;
+import art.arcane.wormholes.modded.gravity.MinecraftGravity;
+import art.arcane.wormholes.modded.gravity.MinecraftGravityTransit;
+import art.arcane.wormholes.transit.TransitOrientation;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.frame.Similarity;
@@ -146,9 +151,14 @@ final class MinecraftSeamlessTravel {
         }
         long tick = runtime.server().getTickCount();
         TravelMessage.TravelPose pose = flight.request == null ? arrival : pose(arrival, flight.request, flight.crossing,
-            flight.arm.begin().rules(), flight.arm.destination().getFrame(), flight.arm.destination().getOrigin());
+            flight.arm.begin().rules(), flight.arm.destination().getFrame(), flight.arm.destination().getOrigin(), MinecraftGravity.frame(player));
+        GravityFrame departureGravity = MinecraftGravity.frame(player);
+        TravelMessage.ArrivalRules rules = flight.arm.begin().rules();
+        GravityFrame arrivalGravity = rules.rotateGravity()
+            ? departureGravity.transformed(flight.arm.begin().sourceToDestination().rigid().permutation()) : departureGravity;
+        double entityScale = rules.scale().entityFactor(MinecraftScaleAccess.scaleAttribute().scale(player), new SizeRatio(flight.arm.begin().scale(), true));
         TravelMessage.TravelAccept accept = new TravelMessage.TravelAccept(flight.arm.begin().token(), flight.arm.begin().generation(),
-            ACCEPT_REVISION, pose, velocity, route.handle(), changed, tick);
+            ACCEPT_REVISION, pose, velocity, route.handle(), changed, tick, arrivalGravity, entityScale);
         return new MinecraftSeamlessMove.Context(runtime, player, world, new PositionMoveRotation(new Vec3(pose.x(), pose.y(), pose.z()),
             new Vec3(velocity.x(), velocity.y(), velocity.z()), pose.yaw(), pose.pitch()), route,
             route.resident() ? returnRoute(travel, player, flight.arm, route.handle()) : null, accept, travel::sendTravel, tick);
@@ -204,20 +214,20 @@ final class MinecraftSeamlessTravel {
     }
 
     static TravelMessage.TravelPose pose(TravelMessage.TravelPose arrival, TravelMessage.TravelCross cross, PlaneCrossing crossing,
-                                         TravelMessage.ArrivalRules rules, Frame destination, Vec3d destinationOrigin) {
+                                         TravelMessage.ArrivalRules rules, Frame destination, Vec3d destinationOrigin, GravityFrame gravity) {
         TravelMessage.TravelPose source = cross.sourcePose();
         Vec3d position = new Vec3d(source.x(), source.y(), source.z());
         Pose departed = new Pose(position, position, position, crossing.velocity(), source.yaw(), source.pitch(),
             source.yaw(), source.pitch(), source.yaw(), source.yaw(), source.yaw(), source.yaw());
-        Pose arrived = PoseTransform.arrive(departed, crossing, Similarity.of(crossing.toward(destination, destinationOrigin), 1.0D), destination,
-            rules.orientation(), rules.gravityFlip(), rules.momentum(), rules.momentum().maxSpeed());
+        Pose arrived = MinecraftGravityTransit.arrive(departed, gravity, new MinecraftGravityTransit.Passage(crossing,
+            Similarity.of(crossing.toward(destination, destinationOrigin), 1.0D), destination, rules)).pose();
         return new TravelMessage.TravelPose(arrival.x(), arrival.y(), arrival.z(), arrived.yaw(), arrived.pitch());
     }
 
     static SeamlessCrossCheck.Server authority(ServerPlayer player, ApertureDescriptor geometry, Vec3d velocity) {
         return new SeamlessCrossCheck.Server(player.level().dimension().identifier().toString(), geometry,
             new TravelMessage.TravelPose(player.getX(), player.getY(), player.getZ(), player.getYRot(), player.getXRot()), velocity,
-            player.getEyeHeight(), ((SeamlessListenerAccess) player.connection).wormholesAwaitingPosition() != null, player.isChangingDimension());
+            player.getEyeHeight(), MinecraftGravity.frame(player), ((SeamlessListenerAccess) player.connection).wormholesAwaitingPosition() != null, player.isChangingDimension());
     }
 
     static boolean residentArrival(RemoteRoute route, ServerPlayer player, Vec3d arrival) {
@@ -316,7 +326,11 @@ final class MinecraftSeamlessTravel {
         }
         Vec3d feet = PlaneCrossing.planePoint(source.getFrame(), source.getOrigin(), new Vec3d(player.getX(), player.getY(), player.getZ()),
             destination.getFrame(), destination.getOrigin());
-        Vec3d eye = feet.add(new Vec3d(0, player.getEyeHeight(), 0));
+        GravityFrame gravity = MinecraftGravity.frame(player);
+        if (rules(peer, source).rotateGravity()) {
+            gravity = gravity.transformed(MinecraftPortalRegistry.towardDestination(source, destination, front).rigid().permutation());
+        }
+        Vec3d eye = gravity.eyePosition(feet, player.getEyeHeight());
         Similarity toward = MinecraftPortalRegistry.towardDestination(source, destination, front);
         OpticTransform destinationToSource = toward.isRigid() ? mapped.frame().transform() : TravelMessage.TravelBegin.destinationToSource(toward);
         TravelMessage.TravelBegin begin = new TravelMessage.TravelBegin(UUID.randomUUID(), ++generation, source.getId(),

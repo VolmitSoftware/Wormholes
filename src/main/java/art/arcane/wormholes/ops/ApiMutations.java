@@ -7,6 +7,7 @@ import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.LocalPortal;
 import art.arcane.optics.frame.Frame;
 import art.arcane.wormholes.portal.PortalType;
+import art.arcane.wormholes.portal.ProjectionMode;
 import art.arcane.wormholes.portal.vanilla.PortalFactory;
 import art.arcane.optics.math.Face;
 import org.bukkit.Location;
@@ -68,6 +69,15 @@ public final class ApiMutations implements PortalMutations {
     public CompletableFuture<Boolean> rename(UUID portalId, String name) {
         return onPortal(portalId, portal -> {
             portal.setName(name);
+            portal.save();
+            return Boolean.TRUE;
+        });
+    }
+
+    @Override
+    public CompletableFuture<Boolean> projection(UUID portalId, boolean enabled) {
+        return onPortal(portalId, portal -> {
+            portal.setProjectionMode(enabled ? ProjectionMode.ON : ProjectionMode.OFF);
             portal.save();
             return Boolean.TRUE;
         });

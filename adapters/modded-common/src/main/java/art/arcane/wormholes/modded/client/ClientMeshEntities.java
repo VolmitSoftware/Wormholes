@@ -1,6 +1,10 @@
 package art.arcane.wormholes.modded.client;
 
 import art.arcane.optics.math.Vec3d;
+import art.arcane.optics.aperture.ApertureDescriptor;
+import art.arcane.optics.frame.Frame;
+import art.arcane.optics.stream.ViewStreamMessage;
+import art.arcane.optics.transform.Affine;
 import art.arcane.optics.fidelity.BlockEntitySample;
 import art.arcane.optics.stream.EnvironmentState;
 import art.arcane.optics.stream.ViewStreamLimits;
@@ -41,6 +45,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.storage.TagValueInput;
 import org.slf4j.Logger;
 import org.joml.Vector3f;
+import org.joml.Vector3d;
 import org.joml.Vector3fc;
 
 import java.io.ByteArrayInputStream;
@@ -89,8 +94,11 @@ public final class ClientMeshEntities {
     }
 
     public static boolean hiddenFromWorld(Entity entity) {
+        if (!(entity.level() instanceof ClientLevel level)) {
+            return false;
+        }
         WormholesClient client = WormholesClient.instance();
-        if (client == null) {
+        if (client == null || !client.viewsAttachedTo(level)) {
             return false;
         }
         int entityId = ProjectedEntityGuard.entityId(entity);
@@ -150,7 +158,8 @@ public final class ClientMeshEntities {
             if (sceneCamera == null) {
                 sceneCamera = new SceneCamera();
             }
-            sceneCamera.update(camera, space(portalKey), transform);
+            WormholesClient client = WormholesClient.instance();
+            sceneCamera.update(camera, cameraSpace(client == null ? null : client.session(), portalKey, transform));
             blockRenderer.prepare(sceneCamera.position());
             entityRenderer.prepare(sceneCamera, minecraft.crosshairPickEntity);
             inDestinationWorld(() -> {
@@ -439,32 +448,41 @@ public final class ClientMeshEntities {
         }
     }
 
-    private static List<OpticTransform> space(int portalKey) {
-        WormholesClient client = WormholesClient.instance();
-        if (client == null) {
-            return List.of();
+    static Affine cameraSpace(ClientViewSession session, int portalKey, OpticTransform destination) {
+        if (session == null || session.portal(portalKey) == null) {
+            return Affine.of(destination).inverse();
         }
-        List<OpticTransform> ancestors = new ArrayList<>();
-        ClientPortal portal = client.session().portal(portalKey);
-        for (int depth = 0; depth < ViewStreamLimits.MAX_GEOMETRY_DEPTH && portal != null
-            && portal.geometry().parentPortalKey() != 0; depth++) {
-            int parent = portal.geometry().parentPortalKey();
-            EnvironmentState environment = client.session().environment(parent);
+        List<Affine> ancestors = new ArrayList<>();
+        ClientPortal portal = session.portal(portalKey);
+        for (int depth = 0; depth < ViewStreamLimits.MAX_GEOMETRY_DEPTH && portal != null; depth++) {
+            EnvironmentState environment = session.environment(portal.portalKey());
             if (environment == null) {
-                return List.of();
+                return Affine.of(destination).inverse();
             }
-            ancestors.addFirst(environment.transform());
-            portal = client.session().portal(parent);
+            ancestors.addFirst(destinationSpace(portal.geometry(), environment, session.affine(portal.portalKey())));
+            portal = portal.geometry().parentPortalKey() == 0 ? null : session.portal(portal.geometry().parentPortalKey());
         }
-        return ancestors;
+        Affine space = Affine.IDENTITY;
+        for (Affine ancestor : ancestors) {
+            space = ancestor.compose(space);
+        }
+        return space;
     }
 
-    static Vec3d contentPoint(List<OpticTransform> ancestors, double x, double y, double z) {
-        Vec3d point = new Vec3d(x, y, z);
-        for (OpticTransform transform : ancestors) {
-            point = transform.inverse().point(point);
+    static Affine destinationSpace(ApertureDescriptor geometry, EnvironmentState environment, ViewStreamMessage.PortalAffine sample) {
+        if (sample != null) {
+            return sample.sourceToDestination();
         }
-        return point;
+        Affine destination = Affine.of(environment.transform()).inverse();
+        if (environment.scale() == 1.0F) {
+            return destination;
+        }
+        Frame canonical = Frame.canonical(geometry.facingDirection());
+        double[] center = {geometry.originX(), geometry.originY(), geometry.originZ()};
+        center[canonical.getRight().axisIndex()] += geometry.apertureWidth() / 2.0D;
+        center[canonical.getUp().axisIndex()] += geometry.apertureHeight() / 2.0D;
+        center[geometry.facingDirection().axisIndex()] = geometry.planeCoordinate();
+        return destination.compose(Affine.about(new Vec3d(center[0], center[1], center[2]), Affine.scale(1.0D / environment.scale())));
     }
 
     private static int cell(BlockPos position) {
@@ -512,25 +530,31 @@ public final class ClientMeshEntities {
         }
     }
 
-    private static final class SceneCamera extends Camera {
+    static final class SceneCamera extends Camera {
         private final Vector3f forward = new Vector3f();
         private final Vector3f up = new Vector3f();
         private final Vector3f left = new Vector3f();
+        private final Vector3d forwardBasis = new Vector3d();
+        private final Vector3d upBasis = new Vector3d();
+        private final Vector3d leftBasis = new Vector3d();
         private Camera source;
 
-        void update(Camera source, List<OpticTransform> space, OpticTransform destination) {
+        void update(Camera source, Affine rootToDestination) {
             this.source = source;
             Vec3 eye = source.position();
-            Vec3d point = contentPoint(space, eye.x, eye.y, eye.z);
-            Vec3d nativeEye = destination.inverse().point(point);
+            Vec3d nativeEye = rootToDestination.point(new Vec3d(eye.x, eye.y, eye.z));
             setPosition(nativeEye.x(), nativeEye.y(), nativeEye.z());
-            transform(space, destination, eye, source.forwardVector(), forward);
-            transform(space, destination, eye, source.upVector(), up);
-            forward.cross(up, left).negate().normalize();
+            transform(rootToDestination, source.forwardVector(), forwardBasis);
+            transform(rootToDestination, source.upVector(), upBasis);
+            forwardBasis.cross(upBasis, leftBasis).negate().normalize();
+            forwardBasis.cross(leftBasis, upBasis).normalize();
+            forward.set((float) forwardBasis.x, (float) forwardBasis.y, (float) forwardBasis.z);
+            up.set((float) upBasis.x, (float) upBasis.y, (float) upBasis.z);
+            left.set((float) leftBasis.x, (float) leftBasis.y, (float) leftBasis.z);
             float yaw = (float) Math.toDegrees(Math.atan2(-forward.x, forward.z));
-            float pitch = (float) Math.toDegrees(Math.asin(-forward.y));
+            float pitch = (float) Math.toDegrees(Math.asin(Math.max(-1.0F, Math.min(1.0F, -forward.y))));
             setRotation(yaw, pitch);
-            rotation().identity().lookAlong(forward, up).conjugate();
+            rotation().identity().lookAlong(forward, up).conjugate().normalize();
             setEntity(source.entity());
         }
 
@@ -559,10 +583,9 @@ public final class ClientMeshEntities {
             return left;
         }
 
-        private void transform(List<OpticTransform> space, OpticTransform destination, Vec3 eye, Vector3fc direction, Vector3f result) {
-            Vec3d point = contentPoint(space, eye.x + direction.x(), eye.y + direction.y(), eye.z + direction.z());
-            Vec3d nativePoint = destination.inverse().point(point);
-            result.set((float) (nativePoint.x() - position().x), (float) (nativePoint.y() - position().y), (float) (nativePoint.z() - position().z)).normalize();
+        private void transform(Affine rootToDestination, Vector3fc direction, Vector3d result) {
+            Vec3d vector = rootToDestination.vector(new Vec3d(direction.x(), direction.y(), direction.z()));
+            result.set(vector.x(), vector.y(), vector.z()).normalize();
         }
     }
 

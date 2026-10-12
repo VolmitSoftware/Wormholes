@@ -20,6 +20,9 @@
       "art.arcane.wormholes.clientgametest.ApertureShapeClientGameTest",
       "art.arcane.wormholes.clientgametest.DimensionalDoorClientGameTest",
       "art.arcane.wormholes.clientgametest.SeamlessFallLoopClientGameTest",
+      "art.arcane.wormholes.clientgametest.VerticalCameraLoopAcceptanceClientGameTest",
+      "art.arcane.wormholes.clientgametest.GravityPortalAcceptanceClientGameTest",
+      "art.arcane.wormholes.clientgametest.NestedHorizontalPortalAcceptanceClientGameTest",
       "art.arcane.wormholes.clientgametest.ScaledPairClientGameTest",
       "art.arcane.wormholes.clientgametest.AdjacentSourcePortalsClientGameTest"
     ],
@@ -31,6 +34,7 @@
       "art.arcane.wormholes.clientgametest.SeamlessSameDimensionClientGameTest",
       "art.arcane.wormholes.clientgametest.SeamlessCrossDimensionClientGameTest",
       "art.arcane.wormholes.clientgametest.CrossingCompositionClientGameTest",
+      "art.arcane.wormholes.clientgametest.ArrivalTerrainClientGameTest",
       "art.arcane.wormholes.clientgametest.NetherCrossingCompositionClientGameTest",
       "art.arcane.wormholes.clientgametest.NetherCrossingEffectsClientGameTest",
       "art.arcane.wormholes.clientgametest.CardinalLightingClientGameTest",
@@ -47,6 +51,7 @@
     "wormholes-shader-gametest": [
       "art.arcane.wormholes.clientgametest.ShaderOcclusionClientGameTest",
       "art.arcane.wormholes.clientgametest.ShaderHistoryClientGameTest",
+      "art.arcane.wormholes.clientgametest.ShaderStreamHistoryClientGameTest",
       "art.arcane.wormholes.clientgametest.ShaderPipelineReuseClientGameTest"
     ]
   },

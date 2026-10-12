@@ -14,7 +14,7 @@ import java.util.UUID;
 public final class ApiSnapshotDiff {
     /** Portals that appeared, portals whose link changed, and portals that went away. */
     public record Change(List<PortalSnapshot> created, List<PortalSnapshot> linked,
-                         List<PortalSnapshot> destroyed) {
+                         List<PortalSnapshot> destroyed, List<PortalSnapshot> projectionChanged) {
     }
 
     /** Peers whose link came up, and the names of peers whose link went down or vanished. */
@@ -27,6 +27,7 @@ public final class ApiSnapshotDiff {
     public static Change portals(Map<UUID, PortalSnapshot> previous, Collection<PortalSnapshot> current) {
         List<PortalSnapshot> created = new ArrayList<>();
         List<PortalSnapshot> linked = new ArrayList<>();
+        List<PortalSnapshot> projectionChanged = new ArrayList<>();
         List<UUID> seen = new ArrayList<>();
         for (PortalSnapshot snapshot : current) {
             seen.add(snapshot.id());
@@ -40,6 +41,9 @@ public final class ApiSnapshotDiff {
             if (!sameDestination) {
                 linked.add(snapshot);
             }
+            if (before.projectionEnabled() != snapshot.projectionEnabled()) {
+                projectionChanged.add(snapshot);
+            }
         }
         List<PortalSnapshot> destroyed = new ArrayList<>();
         for (Map.Entry<UUID, PortalSnapshot> before : previous.entrySet()) {
@@ -47,7 +51,7 @@ public final class ApiSnapshotDiff {
                 destroyed.add(before.getValue());
             }
         }
-        return new Change(List.copyOf(created), List.copyOf(linked), List.copyOf(destroyed));
+        return new Change(List.copyOf(created), List.copyOf(linked), List.copyOf(destroyed), List.copyOf(projectionChanged));
     }
 
     public static PeerChange peers(Map<String, PeerSnapshot> previous, Collection<PeerSnapshot> current) {

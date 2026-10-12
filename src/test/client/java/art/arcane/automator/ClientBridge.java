@@ -66,6 +66,7 @@ public final class ClientBridge {
     private static final Set<String> CLICK_DRIVEN_KEYS = Set.of("swapHands", "drop", "inventory");
     private static final Set<Identifier> DEFAULT_SKIN_TEXTURES = defaultSkinTextures();
     private static final Map<String, Boolean> HELD_KEYS = new HashMap<>();
+    private static final FrameTimings FRAME_TIMINGS = new FrameTimings(4096);
 
     private static LoopbackServer server;
     private static Path output;
@@ -142,7 +143,11 @@ public final class ClientBridge {
     }
 
     public static void captureFrame(Minecraft client) {
+        FRAME_TIMINGS.record(System.nanoTime());
         frames++;
+        if (CrossingCosts.enabled()) {
+            CrossingCosts.frame(frames, client.level == null ? null : client.level.dimension().identifier().toString());
+        }
         if (capture != null) {
             capture.frame(client);
         }
@@ -241,6 +246,8 @@ public final class ClientBridge {
         }
         switch (operation) {
             case "state" -> { }
+            case "reset-frame-metrics" -> FRAME_TIMINGS.reset();
+            case "reset-crossing-costs" -> CrossingCosts.reset();
             case "connect" -> connect(client, text(input, "address"));
             case "open-world" -> openWorld(client, text(input, "name"));
             case "server-command" -> {
@@ -800,12 +807,34 @@ public final class ClientBridge {
         }
     }
 
+    private static JsonObject frameMetrics() {
+        FrameTimings.Snapshot timings = FRAME_TIMINGS.snapshot();
+        JsonObject metrics = new JsonObject();
+        metrics.addProperty("measurement", "Frame intervals include pacing, scheduler, CPU and GPU work; not render-only timings");
+        metrics.addProperty("window", "Latest intervals since reset");
+        metrics.addProperty("quantiles", "nearest-rank");
+        metrics.addProperty("samples", timings.samples());
+        metrics.addProperty("capacity", timings.capacity());
+        metrics.addProperty("totalSamples", timings.totalSamples());
+        metrics.addProperty("p50Ms", timings.p50Nanos() / 1_000_000.0);
+        metrics.addProperty("p95Ms", timings.p95Nanos() / 1_000_000.0);
+        metrics.addProperty("p99Ms", timings.p99Nanos() / 1_000_000.0);
+        metrics.addProperty("maxMs", timings.maxNanos() / 1_000_000.0);
+        metrics.addProperty("over50Ms", timings.over50Ms());
+        metrics.addProperty("over100Ms", timings.over100Ms());
+        metrics.addProperty("over250Ms", timings.over250Ms());
+        return metrics;
+    }
+
     private static JsonObject snapshot(Minecraft client) {
         JsonObject result = new JsonObject();
         result.addProperty("ok", true);
         result.addProperty("ticks", ticks);
         result.addProperty("processId", ProcessHandle.current().pid());
         result.addProperty("frames", frames);
+        result.add("frameMetrics", frameMetrics());
+        result.add("crossingCosts", CrossingCosts.snapshot());
+        result.addProperty("dimension", client.level == null ? null : client.level.dimension().identifier().toString());
         result.addProperty("frameWidth", client.gameRenderer.mainRenderTarget().width);
         result.addProperty("frameHeight", client.gameRenderer.mainRenderTarget().height);
         result.addProperty("paused", client.isPaused());
@@ -813,6 +842,7 @@ public final class ClientBridge {
         result.addProperty("masterVolume", client.options.getSoundSourceVolume(SoundSource.MASTER));
         result.addProperty("windowActive", client.isWindowActive());
         result.addProperty("hudVisible", !client.gui.hud.isHidden());
+        result.addProperty("firstPerson", client.options.getCameraType().isFirstPerson());
         NativeClientPlatform.appendWindowState(result, client);
         result.addProperty("bridgeAttackActive", hasActiveAttackLease());
         result.addProperty("turning", turningPlayer != null);

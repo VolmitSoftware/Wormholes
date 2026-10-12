@@ -6,6 +6,7 @@ import art.arcane.wormholes.network.client.ClientViewExtensions;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.stream.EnvironmentState;
+import art.arcane.optics.stream.ViewStreamMessage;
 import art.arcane.optics.frame.OpticTransform;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntIterator;
@@ -171,6 +172,11 @@ public final class ClientMeshViews {
         @Override
         public ApertureDescriptor geometry() {
             return session.portal(portalKey).geometry();
+        }
+
+        @Override
+        public ViewStreamMessage.PortalAffine affine() {
+            return session.affine(portalKey);
         }
 
         @Override

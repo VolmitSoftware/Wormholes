@@ -54,10 +54,11 @@ class PortalQueryTest {
         assertFalse(unlinked.linked());
         assertTrue(unlinked.destination().isEmpty());
         assertTrue(unlinked.server().isEmpty());
+        assertTrue(linked.projectionEnabled());
     }
 
     private static PortalSnapshot snapshot(String name, String worldKey, UUID owner, UUID destination) {
         return new PortalSnapshot(UUID.randomUUID(), name, "PORTAL", worldKey, 1.0D, 2.0D, 3.0D, "N",
-            true, destination, null, owner, true);
+            true, destination, null, owner, true, true);
     }
 }

@@ -541,6 +541,7 @@ public class TraversalCostEngine<P, C extends TraversalCostEngine.Context<P>, R 
                 commitAll(ticket, traveler);
             } else {
                 refundAll(ticket, request.refundReason());
+                refunded(ticket, traveler, request.refundReason());
             }
             ticket.providerSettled.set(true);
         } finally {
@@ -570,6 +571,14 @@ public class TraversalCostEngine<P, C extends TraversalCostEngine.Context<P>, R 
 
     private void releaseSettlement(Ticket ticket) {
         ticket.state.compareAndSet(TICKET_SETTLING, TICKET_IDLE);
+    }
+
+    private void refunded(Ticket ticket, P traveler, TraversalRefundReason reason) {
+        try {
+            events.refunded(traveler, new Completion<>(ticket.context(), ticket.outcome(), List.of()), reason);
+        } catch (Throwable error) {
+            logger.log(Level.WARNING, "Failed to dispatch traversal refund event for " + ticket.traversalId(), error);
+        }
     }
 
     private void settlementRetired(Ticket ticket) {
@@ -980,6 +989,7 @@ public class TraversalCostEngine<P, C extends TraversalCostEngine.Context<P>, R 
     public interface Events<P, C> {
         String before(C context);
         void committed(P traveler, Completion<C> completion);
+        void refunded(P traveler, Completion<C> completion, TraversalRefundReason reason);
     }
 
     public record Completion<C>(C context, TraversalOutcome outcome, List<String> chargedProviders) {

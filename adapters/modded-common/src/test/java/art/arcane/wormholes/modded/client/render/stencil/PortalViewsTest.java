@@ -7,6 +7,7 @@ import art.arcane.optics.frame.Similarity;
 import art.arcane.optics.math.Face;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.shape.ShapeDescriptor;
+import art.arcane.optics.stream.EnvironmentState;
 import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.optics.stream.ViewStreamMessage;
@@ -18,6 +19,9 @@ import art.arcane.wormholes.modded.client.ResidentLevels;
 import art.arcane.wormholes.modded.client.WormholesClient;
 import art.arcane.wormholes.modded.client.WormholesClientConfig;
 import art.arcane.wormholes.modded.client.world.ClientWorldLoader;
+import art.arcane.wormholes.network.client.ClientViewExtensions;
+import art.arcane.wormholes.network.client.LocalDestination;
+import art.arcane.wormholes.network.client.LocalDestinationExtension;
 import art.arcane.wormholes.network.client.TravelMessage;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.LevelRenderer;
@@ -27,6 +31,7 @@ import org.junit.Test;
 import org.mockito.MockedStatic;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.Assert.assertEquals;
@@ -42,6 +47,724 @@ import static org.mockito.Mockito.when;
 
 public class PortalViewsTest extends MinecraftTestBase {
     private static final Vec3d EYE = new Vec3d(1.0D, 65.0D, 4.0D);
+
+    @Test
+    public void canonicalMirrorTraversalResolvesLateInverseBranchesWithoutLosingTheirRoutes() throws Exception {
+        try (CrossingMirrors mirrors = new CrossingMirrors()) {
+            PortalViews views = mirrors.travel.scene.views;
+            List<Object> keys = List.of(mirrors.first.historyKey(), mirrors.second.historyKey());
+            mirrors.cross();
+            mirrors.frame(List.of(), List.of());
+            assertEquals(List.of(mirrors.first, mirrors.second), views.crossingTraversal(keys));
+            assertNull(views.continuedTraversal(keys));
+            environment(mirrors.travel.scene, mirrors.reverseRoot, "minecraft:overworld", translation(200.0D).rigid());
+            mirrors.frame(List.of(), mirrors.portals());
+            PortalViews.TraversalContinuation continuation = views.continuedTraversal(keys);
+            assertEquals(List.of(mirrors.first, mirrors.second), continuation.previous());
+            assertEquals(3, continuation.next().size());
+            PortalView returning = continuation.next().getFirst();
+            assertEquals(PortalView.Kind.RETURN, returning.kind());
+            PortalView first = continuation.next().get(1);
+            PortalView second = continuation.next().get(2);
+            assertSame(views.children(returning).getFirst(), first);
+            assertSame(views.children(first).getFirst(), second);
+            assertEquals(mirrors.first.historyKey(), first.historyKey());
+            assertEquals(mirrors.second.historyKey(), second.historyKey());
+            assertNotEquals(mirrors.first.key(), first.key());
+            assertEquals(20, views.streamKey(first));
+            assertEquals(21, views.streamKey(second));
+            mirrors.frame(List.of(mirrors.reverse), mirrors.portals());
+            continuation = views.continuedTraversal(keys);
+            assertEquals(PortalView.Kind.ARM, continuation.next().getFirst().kind());
+            assertEquals(keys.get(0), continuation.next().get(1).historyKey());
+            assertEquals(keys.get(1), continuation.next().get(2).historyKey());
+            assertEquals(20, views.streamKey(continuation.next().get(1)));
+        }
+    }
+
+    @Test
+    public void preparationAnchorsSurviveDepartureAndLateChildrenButLoseInvalidReturnOrReachProof() throws Exception {
+        try (CrossingMirrors mirrors = new CrossingMirrors()) {
+            PortalViews views = mirrors.travel.scene.views;
+            PortalView anchor = mirrors.first;
+            assertTrue(views.retainsPreparation(anchor, mirrors.travel.scene.home, EYE, 128.0D, 112.0D));
+            assertFalse(views.retainsPreparation(anchor, mirrors.travel.scene.home, EYE, 8.0D, 8.0D));
+            assertFalse(views.retainsPreparation(anchor, mirrors.travel.scene.home, EYE, 128.0D, 1.0D));
+            mirrors.cross();
+            mirrors.frame(List.of(), List.of());
+            Vec3d arrived = mirrors.travel.toward.point(EYE);
+            assertNull(views.continuedTraversal(List.of(anchor.key())));
+            assertTrue(views.retainsPreparation(anchor, mirrors.travel.destination, arrived, 128.0D, 112.0D));
+            mirrors.discover();
+            assertTrue(views.retainsPreparation(anchor, mirrors.travel.destination, arrived, 128.0D, 112.0D));
+            assertFalse(views.retainsPreparation(anchor, mirrors.travel.destination,
+                arrived.add(new Vec3d(256.0D, 0.0D, 0.0D)), 128.0D, 112.0D));
+            views.resetReturn(mirrors.travel.destination);
+            assertFalse(views.retainsPreparation(anchor, mirrors.travel.destination, arrived, 128.0D, 112.0D));
+        }
+    }
+
+    @Test
+    public void preparationClaimsRejectChangedRealmGeometryScaleAndAmbiguousInverse() throws Exception {
+        for (String mismatch : List.of("realm", "geometry", "scale", "inverse", "duplicate-source")) {
+            try (CrossingMirrors mirrors = new CrossingMirrors()) {
+                PortalViews views = mirrors.travel.scene.views;
+                PortalView anchor = mirrors.first;
+                if (mismatch.equals("realm")) {
+                    ClientLevel alias = mock(ClientLevel.class);
+                    when(alias.dimension()).thenReturn(Level.OVERWORLD);
+                    assertFalse(views.retainsPreparation(anchor, alias, EYE, 128.0D, 112.0D));
+                } else if (mismatch.equals("geometry")) {
+                    mirrors.firstRoot.geometry(mirrors.firstRoot.geometry().withShape(ShapeDescriptor.parse("circle")), 2);
+                    mirrors.depart();
+                    assertFalse(views.retainsPreparation(anchor, mirrors.travel.scene.home, EYE, 128.0D, 112.0D));
+                } else if (mismatch.equals("scale")) {
+                    PortalView altered = new PortalView(anchor.kind(), anchor.key(), anchor.source(), anchor.destination(),
+                        anchor.surface(), Similarity.of(anchor.toDestination().rigid(), 2.0D), anchor.recursion());
+                    assertFalse(views.retainsPreparation(altered, mirrors.travel.scene.home, EYE, 128.0D, 112.0D));
+                } else if (mismatch.equals("duplicate-source")) {
+                    PortalView duplicate = new PortalView(anchor.kind(), "duplicate", anchor.source(), anchor.destination(),
+                        anchor.surface(), anchor.toDestination(), anchor.recursion());
+                    assertFalse(PortalViews.uniqueSourceCamera(anchor, List.of(anchor, duplicate)));
+                } else {
+                    mirrors.cross();
+                    TravelMessage.TravelBegin duplicate = mirrors.travel.reverse(UUID.randomUUID(), reverseGeometry(false));
+                    mirrors.frame(List.of(mirrors.reverse, duplicate), mirrors.portals());
+                    assertFalse(views.retainsPreparation(anchor, mirrors.travel.destination, mirrors.travel.toward.point(EYE),
+                        128.0D, 112.0D));
+                }
+            }
+        }
+    }
+
+    @Test
+    public void linkedParentDiscoversPhysicalChildrenInItsDestinationWorld() throws Exception {
+        try (TravelScene travel = new TravelScene()) {
+            ClientPortal root = new ClientPortal(7, travel.forward.sourceGeometry(), 1, 0.0D);
+            ClientPortal child = new ClientPortal(8, reverseGeometry(true).withParent(7), 1, 0.0D);
+            travel.scene.source(root, travel.scene.home);
+            travel.scene.session.portals().put(child.portalKey(), child);
+            environment(travel.scene, child, "minecraft:overworld", translation(200.0D).rigid());
+            travel.scene.views.frame(travel.scene.home, EYE, List.of(travel.forward), false, true, List.of(root, child), null);
+
+            PortalView parent = travel.scene.views.current().getFirst();
+            assertEquals(1, travel.scene.views.current().size());
+            assertEquals(7, travel.scene.views.streamKey(parent));
+            PortalView discovered = travel.scene.views.children(parent).getFirst();
+            assertSame(travel.destination, discovered.source());
+            assertSame(travel.scene.home, discovered.destination());
+            assertSame(child.geometry(), discovered.surface().geometry());
+            assertEquals(Similarity.IDENTITY, discovered.surface().placement());
+            assertEquals(8, travel.scene.views.streamKey(discovered));
+            assertFalse(discovered.surface().servesEye(EYE));
+            Vec3d virtualEye = parent.toDestination().point(EYE);
+            assertTrue(discovered.surface().servesEye(virtualEye));
+            assertEquals(EYE, discovered.toDestination().point(virtualEye));
+            assertEquals(3, discovered.recursion());
+        }
+    }
+
+    @Test
+    public void nativeChildrenKeepBranchIdentityAcrossStreamSlotsAndCloseWhenDetached() throws Exception {
+        try (TravelScene travel = new TravelScene()) {
+            ClientPortal root = new ClientPortal(7, travel.forward.sourceGeometry(), 1, 0.0D);
+            ClientPortal first = new ClientPortal(8, reverseGeometry(true).withParent(7), 1, 0.0D);
+            travel.scene.source(root, travel.scene.home);
+            travel.scene.session.portals().put(first.portalKey(), first);
+            environment(travel.scene, first, "minecraft:overworld", translation(200.0D).rigid());
+            travel.scene.views.frame(travel.scene.home, EYE, List.of(travel.forward), false, true, List.of(root, first), null);
+            PortalView parent = travel.scene.views.current().getFirst();
+            PortalView original = travel.scene.views.children(parent).getFirst();
+
+            ClientPortal replacement = new ClientPortal(9, first.geometry(), 2, 0.0D);
+            travel.scene.session.portals().remove(first.portalKey());
+            travel.scene.session.portals().put(replacement.portalKey(), replacement);
+            environment(travel.scene, replacement, "minecraft:overworld", translation(200.0D).rigid());
+            travel.scene.views.frame(travel.scene.home, EYE, List.of(travel.forward), false, true, List.of(root, replacement), null);
+            assertSame(original, travel.scene.views.children(parent).getFirst());
+            assertEquals(9, travel.scene.views.streamKey(original));
+
+            travel.scene.views.frame(travel.scene.home, EYE, List.of(travel.forward), false, true, List.of(root), null);
+            assertTrue(travel.scene.views.children(parent).isEmpty());
+            assertEquals(0, travel.scene.views.streamKey(original));
+            travel.scene.views.frame(travel.scene.home, EYE, List.of(travel.forward), false, true, List.of(root, replacement), null);
+            PortalView reopened = travel.scene.views.children(parent).getFirst();
+            assertNotSame(original, reopened);
+            assertEquals(original.key(), reopened.key());
+        }
+    }
+
+    @Test
+    public void descendantKeysRewriteTheirParentOwnershipAtEveryDepth() throws Exception {
+        try (TravelScene travel = new TravelScene()) {
+            ClientPortal root = new ClientPortal(7, travel.forward.sourceGeometry(), 1, 0.0D);
+            ClientPortal child = new ClientPortal(8, reverseGeometry(true).withParent(7), 1, 0.0D);
+            ClientPortal grandchild = new ClientPortal(9, geometry(16, true).withParent(8), 1, 0.0D);
+            travel.scene.source(root, travel.scene.home);
+            travel.scene.session.portals().put(child.portalKey(), child);
+            travel.scene.session.portals().put(grandchild.portalKey(), grandchild);
+            environment(travel.scene, child, "minecraft:overworld", translation(200.0D).rigid());
+            environment(travel.scene, grandchild, "minecraft:overworld", PortalSurface.mirrorTransform(grandchild.geometry()));
+            List<ClientPortal> portals = List.of(root, child, grandchild);
+            travel.scene.views.frame(travel.scene.home, EYE, List.of(travel.forward), true, true, portals, null);
+            PortalView previous = travel.scene.views.current().getFirst();
+            PortalView previousChild = travel.scene.views.children(previous).getFirst();
+            PortalView previousGrandchild = travel.scene.views.children(previousChild).getFirst();
+            TravelMessage.TravelBegin replacement = residentArm(UUID.randomUUID(), root.geometry());
+            when(replacement.sourceToDestination()).thenReturn(travel.toward);
+            travel.scene.views.frame(travel.scene.home, EYE, List.of(replacement), true, true, portals, null);
+            PortalView next = travel.scene.views.current().getFirst();
+            PortalView nextChild = travel.scene.views.children(next).getFirst();
+            PortalView nextGrandchild = travel.scene.views.children(nextChild).getFirst();
+            Map<Object, Object> ownership = Map.of(previous.key(), next.key());
+            assertNotEquals(previousChild.key(), nextChild.key());
+            assertNotEquals(previousGrandchild.key(), nextGrandchild.key());
+            assertEquals(nextChild.key(), PortalViews.continuedKey(previousChild.key(), ownership));
+            assertEquals(nextGrandchild.key(), PortalViews.continuedKey(previousGrandchild.key(), ownership));
+            assertEquals(previousChild.key(), PortalViews.continuedKey(previousChild.key(), Map.of()));
+        }
+    }
+
+    @Test
+    public void crossingContinuesANativeMirrorSuffixAsItsPhysicalRoot() throws Exception {
+        try (TravelScene travel = new TravelScene()) {
+            ClientPortal root = new ClientPortal(7, travel.forward.sourceGeometry(), 1, 0.0D);
+            ApertureDescriptor mirrorGeometry = geometry(0, true);
+            ClientPortal child = new ClientPortal(8, mirrorGeometry.withParent(7), 1, 0.0D);
+            travel.scene.source(root, travel.scene.home);
+            travel.scene.session.portals().put(child.portalKey(), child);
+            environment(travel.scene, child, "minecraft:the_end", PortalSurface.mirrorTransform(mirrorGeometry));
+            travel.scene.views.frame(travel.scene.home, EYE, List.of(travel.forward), true, true, List.of(root, child), null);
+            PortalView parent = travel.scene.views.current().getFirst();
+            PortalView previous = travel.scene.views.children(parent).getFirst();
+            travel.scene.views.crossed(travel.forward, travel.scene.home, travel.destination, true);
+            ClientPortal arrived = new ClientPortal(9, mirrorGeometry, 1, 0.0D);
+            travel.scene.source(arrived, travel.destination);
+            travel.scene.views.frame(travel.destination, travel.toward.point(EYE), List.of(), true, true, List.of(arrived), null);
+            PortalView next = travel.scene.views.current().getFirst();
+            List<PortalViews.TraversalContinuation> continuations = travel.scene.views.takeTraversalContinuations();
+            assertEquals(1, continuations.size());
+            assertEquals(List.of(parent, previous), continuations.getFirst().previous());
+            assertEquals(List.of(next), continuations.getFirst().next());
+            assertNotEquals(previous.key(), next.key());
+            assertTrue(PortalViews.sameCamera(previous, next));
+            assertTrue(travel.scene.views.takeTraversalContinuations().isEmpty());
+        }
+    }
+
+    @Test
+    public void coincidentIndependentArrivalCamerasCannotClaimOneNestedHistory() throws Exception {
+        try (TravelScene travel = new TravelScene()) {
+            ClientPortal root = new ClientPortal(7, travel.forward.sourceGeometry(), 1, 0.0D);
+            ApertureDescriptor mirrorGeometry = geometry(0, true);
+            ClientPortal child = new ClientPortal(8, mirrorGeometry.withParent(7), 1, 0.0D);
+            travel.scene.source(root, travel.scene.home);
+            travel.scene.session.portals().put(child.portalKey(), child);
+            environment(travel.scene, child, "minecraft:the_end", PortalSurface.mirrorTransform(mirrorGeometry));
+            travel.scene.views.frame(travel.scene.home, EYE, List.of(travel.forward), false, true, List.of(root, child), null);
+            travel.scene.views.crossed(travel.forward, travel.scene.home, travel.destination, true);
+            TravelMessage.TravelBegin first = arm(UUID.randomUUID(), mirrorGeometry);
+            TravelMessage.TravelBegin second = arm(UUID.randomUUID(), mirrorGeometry);
+            for (TravelMessage.TravelBegin candidate : List.of(first, second)) {
+                when(candidate.sourceWorld()).thenReturn("minecraft:the_end");
+                when(candidate.sourceToDestination()).thenReturn(Similarity.of(PortalSurface.mirrorTransform(mirrorGeometry), 1.0D));
+            }
+            travel.scene.views.frame(travel.destination, travel.toward.point(EYE), List.of(first, second), false, true, List.of(), null);
+            assertTrue(travel.scene.views.takeTraversalContinuations().isEmpty());
+        }
+    }
+
+    @Test
+    public void departedRootsExpandAfterTheReverseArmAndItsChildrenArriveOnLaterFrames() throws Exception {
+        try (CrossingMirrors mirrors = new CrossingMirrors()) {
+            mirrors.cross();
+            mirrors.frame(List.of(), List.of());
+            assertNull(mirrors.travel.scene.views.continuedTraversal(List.of(mirrors.first.key())));
+            mirrors.frame(List.of(mirrors.reverse), List.of(mirrors.reverseRoot));
+            assertNull(mirrors.travel.scene.views.continuedTraversal(List.of(mirrors.first.key())));
+            mirrors.discover();
+            PortalViews.TraversalContinuation continued = mirrors.travel.scene.views.continuedTraversal(List.of(mirrors.first.key()));
+            assertEquals(List.of(mirrors.first), continued.previous());
+            assertEquals(2, continued.next().size());
+            assertEquals(mirrors.travel.scene.views.current().getFirst(), continued.next().getFirst());
+            assertTrue(PortalViews.sameCamera(mirrors.first, continued.next().getLast()));
+            assertNotEquals(mirrors.first.key(), continued.next().getLast().key());
+            Vec3d arrivedEye = mirrors.travel.toward.point(EYE);
+            assertEquals(mirrors.first.toDestination().point(EYE),
+                continued.next().getLast().toDestination().point(continued.next().getFirst().toDestination().point(arrivedEye)));
+        }
+    }
+
+    @Test
+    public void returnRootDiscoversExactChildrenBeforeTheReverseArmArrives() throws Exception {
+        try (CrossingMirrors mirrors = new CrossingMirrors()) {
+            environment(mirrors.travel.scene, mirrors.reverseRoot, "minecraft:overworld", translation(200.0D).rigid());
+            mirrors.cross();
+            mirrors.frame(List.of(), List.of(mirrors.reverseRoot));
+            assertEquals(List.of(mirrors.first), mirrors.travel.scene.views.crossingTraversal(List.of(mirrors.first.key())));
+            assertNull(mirrors.travel.scene.views.continuedTraversal(List.of(mirrors.first.key())));
+            mirrors.frame(List.of(), mirrors.portals());
+            PortalViews.TraversalContinuation continued = mirrors.travel.scene.views.continuedTraversal(List.of(mirrors.first.key()));
+            assertEquals(PortalView.Kind.RETURN, continued.next().getFirst().kind());
+            assertEquals(9, mirrors.travel.scene.views.streamKey(continued.next().getFirst()));
+            assertEquals(20, mirrors.travel.scene.views.streamKey(continued.next().getLast()));
+            List<Object> returnKeys = List.of(continued.next().getFirst().key(), continued.next().getLast().key());
+            mirrors.discover();
+            PortalViews.TraversalContinuation armed = mirrors.travel.scene.views.continuedTraversal(List.of(mirrors.first.key()));
+            assertEquals(PortalView.Kind.ARM, armed.next().getFirst().kind());
+            assertEquals(armed.next().getLast().key(), PortalViews.continuedKey(returnKeys.getLast(),
+                Map.of(returnKeys.getFirst(), armed.next().getFirst().key())));
+            assertTrue(PortalViews.sameCamera(continued.next().getLast(), armed.next().getLast()));
+        }
+    }
+
+    @Test
+    public void placedReturnRootsRequireCurrentLocalEnvironmentAndExactPhysicalOpening() throws Exception {
+        for (int mismatch = 0; mismatch < 8; mismatch++) {
+            try (CrossingMirrors mirrors = new CrossingMirrors()) {
+                if (mismatch == 0) {
+                    streamEnvironment(mirrors.travel.scene, mirrors.reverseRoot, "minecraft:overworld", translation(200.0D).rigid());
+                } else {
+                    environment(mirrors.travel.scene, mirrors.reverseRoot, "minecraft:overworld", translation(200.0D).rigid());
+                }
+                if (mismatch == 1) {
+                    mirrors.reverseRoot.geometry(mirrors.reverseRoot.geometry(), 2);
+                } else if (mismatch == 2) {
+                    streamEnvironment(mirrors.travel.scene, mirrors.reverseRoot, "minecraft:overworld", translation(201.0D).rigid());
+                } else if (mismatch == 3) {
+                    mirrors.reverseRoot.geometry(reverseGeometry(true), 1);
+                } else if (mismatch == 4) {
+                    mirrors.reverseRoot.geometry(reverseGeometry(false, 31L), 1);
+                } else if (mismatch == 5) {
+                    mirrors.reverseRoot.geometry(mirrors.reverseRoot.geometry().withShape(ShapeDescriptor.parse("circle")), 1);
+                } else if (mismatch == 6) {
+                    streamEnvironment(mirrors.travel.scene, mirrors.reverseRoot, "minecraft:the_end", translation(200.0D).rigid());
+                } else if (mismatch == 7) {
+                    when(mirrors.travel.scene.session.environment(9).scale()).thenReturn(2.0F);
+                }
+                mirrors.cross();
+                mirrors.frame(List.of(), mirrors.portals());
+                PortalView returning = mirrors.travel.scene.views.current().getFirst();
+                assertEquals(PortalView.Kind.RETURN, returning.kind());
+                assertEquals(0, mirrors.travel.scene.views.streamKey(returning));
+                assertTrue(mirrors.travel.scene.views.children(returning).isEmpty());
+                assertNull(mirrors.travel.scene.views.continuedTraversal(List.of(mirrors.first.key())));
+            }
+        }
+    }
+
+    @Test
+    public void duplicatePlacedRootsNeverChooseOneWireBranch() throws Exception {
+        try (CrossingMirrors mirrors = new CrossingMirrors()) {
+            environment(mirrors.travel.scene, mirrors.reverseRoot, "minecraft:overworld", translation(200.0D).rigid());
+            ClientPortal duplicate = new ClientPortal(30, mirrors.reverseRoot.geometry(), 1, 0.0D);
+            mirrors.travel.scene.source(duplicate, mirrors.travel.destination);
+            environment(mirrors.travel.scene, duplicate, "minecraft:overworld", translation(200.0D).rigid());
+            mirrors.cross();
+            mirrors.frame(List.of(), List.of(mirrors.reverseRoot, mirrors.firstChild, duplicate));
+            PortalView returning = mirrors.travel.scene.views.current().getFirst();
+            assertEquals(0, mirrors.travel.scene.views.streamKey(returning));
+            assertTrue(mirrors.travel.scene.views.children(returning).isEmpty());
+        }
+    }
+
+    @Test
+    public void changedChildTargetCannotClaimTheSamePhysicalHistory() throws Exception {
+        try (TravelScene travel = new TravelScene()) {
+            ClientPortal root = new ClientPortal(7, travel.forward.sourceGeometry(), 1, 0.0D);
+            ClientPortal child = new ClientPortal(8, identity(reverseGeometry(true).withParent(7), 40L), 1, 0.0D);
+            travel.scene.source(root, travel.scene.home);
+            travel.scene.session.portals().put(child.portalKey(), child);
+            environment(travel.scene, child, "minecraft:overworld", translation(200.0D).rigid());
+            travel.scene.views.frame(travel.scene.home, EYE, List.of(travel.forward), false, true, List.of(root, child), null);
+            PortalView previous = travel.scene.views.children(travel.scene.views.current().getFirst()).getFirst();
+            child.geometry(identity(child.geometry(), 41L), 2);
+            environment(travel.scene, child, "minecraft:overworld", translation(200.0D).rigid());
+            travel.scene.views.frame(travel.scene.home, EYE, List.of(travel.forward), false, true, List.of(root, child), null);
+            PortalView next = travel.scene.views.children(travel.scene.views.current().getFirst()).getFirst();
+            assertFalse(PortalViews.sameCamera(previous, next));
+        }
+    }
+
+    @Test
+    public void recursiveCurrentRootsExpandToTheirExactNativeChildTraversal() throws Exception {
+        try (CrossingMirrors mirrors = new CrossingMirrors()) {
+            mirrors.cross();
+            mirrors.discover();
+            assertTrue(mirrors.second.surface().servesEye(mirrors.first.toDestination().point(EYE)));
+            PortalViews.TraversalContinuation continued = mirrors.travel.scene.views.continuedTraversal(
+                List.of(mirrors.first.key(), mirrors.second.key()));
+            assertEquals(List.of(mirrors.first, mirrors.second), continued.previous());
+            assertEquals(3, continued.next().size());
+            assertTrue(PortalViews.sameCamera(mirrors.first, continued.next().get(1)));
+            assertTrue(PortalViews.sameCamera(mirrors.second, continued.next().get(2)));
+            assertEquals(21, mirrors.travel.scene.views.streamKey(continued.next().getLast()));
+            PortalViews.TraversalContinuation independent = mirrors.travel.scene.views.continuedTraversal(List.of(mirrors.second.key()));
+            assertEquals(22, mirrors.travel.scene.views.streamKey(independent.next().getLast()));
+            assertNotEquals(independent.next().getLast().key(), continued.next().getLast().key());
+        }
+    }
+
+    @Test
+    public void returnCrossingCollapsesTheExpandedHistoryAndInvalidatesOlderCandidates() throws Exception {
+        try (CrossingMirrors mirrors = new CrossingMirrors()) {
+            for (int crossing = 0; crossing < 3; crossing++) {
+                mirrors.cross();
+                mirrors.discover();
+                PortalViews.TraversalContinuation expanded = mirrors.travel.scene.views.continuedTraversal(List.of(mirrors.first.key()));
+                List<Object> expandedKeys = List.of(expanded.next().getFirst().key(), expanded.next().getLast().key());
+                long epoch = mirrors.travel.scene.views.continuityEpoch();
+                mirrors.travel.scene.views.crossed(mirrors.reverse, mirrors.travel.destination, mirrors.travel.scene.home, true);
+                mirrors.depart();
+                assertTrue(mirrors.travel.scene.views.continuityEpoch() > epoch);
+                PortalViews.TraversalContinuation collapsed = mirrors.travel.scene.views.continuedTraversal(expandedKeys);
+                assertEquals(expanded.next(), collapsed.previous());
+                assertEquals(List.of(mirrors.first), collapsed.next());
+                assertNull(mirrors.travel.scene.views.continuedTraversal(List.of(mirrors.first.key())));
+            }
+        }
+    }
+
+    @Test
+    public void ambiguousReverseRootsAndCoincidentChildIdentitiesNeverBorrowHistory() throws Exception {
+        for (boolean duplicateRoot : new boolean[]{true, false}) {
+            try (CrossingMirrors mirrors = new CrossingMirrors()) {
+                mirrors.cross();
+                if (duplicateRoot) {
+                    TravelMessage.TravelBegin duplicate = mirrors.travel.reverse(UUID.randomUUID(), reverseGeometry(false));
+                    mirrors.frame(List.of(mirrors.reverse, duplicate), mirrors.portals());
+                } else {
+                    ApertureDescriptor geometry = mirrors.firstChild.geometry();
+                    ClientPortal duplicate = new ClientPortal(23, identity(geometry, 88L), 1, 0.0D);
+                    mirrors.travel.scene.session.portals().put(duplicate.portalKey(), duplicate);
+                    environment(mirrors.travel.scene, duplicate, "minecraft:overworld", PortalSurface.mirrorTransform(geometry));
+                    mirrors.frame(List.of(mirrors.reverse), List.of(mirrors.reverseRoot, mirrors.firstChild, duplicate));
+                }
+                assertNull(mirrors.travel.scene.views.continuedTraversal(List.of(mirrors.first.key())));
+            }
+        }
+    }
+
+    @Test
+    public void changedChildGeometryTransformOrResidentCannotClaimDepartedHistory() throws Exception {
+        for (int mismatch = 0; mismatch < 5; mismatch++) {
+            try (CrossingMirrors mirrors = new CrossingMirrors()) {
+                mirrors.cross();
+                if (mismatch == 0) {
+                    mirrors.firstChild.geometry(mirrors.firstChild.geometry().withShape(ShapeDescriptor.parse("circle")), 2);
+                } else if (mismatch == 1) {
+                    ApertureDescriptor changed = new ApertureDescriptor(16, 64, 0, Face.S.ordinal(), true, 0, true, 2, 3,
+                        new long[]{31L}, ShapeDescriptor.FULL, 0.0F, 0.0F, 0.0F, 16, 3, 0, 0, 0, 0, 0, 0, 0.0D, 9, 0L, List.of());
+                    mirrors.firstChild.geometry(changed, 2);
+                } else if (mismatch == 2) {
+                    environment(mirrors.travel.scene, mirrors.firstChild, "minecraft:overworld", translation(1.0D).rigid());
+                } else if (mismatch == 3) {
+                    when(mirrors.travel.scene.session.environment(20).scale()).thenReturn(0.5F);
+                } else {
+                    ClientLevel replacement = mock(ClientLevel.class);
+                    when(replacement.dimension()).thenReturn(Level.OVERWORLD);
+                    when(mirrors.travel.scene.residents.level(2)).thenReturn(replacement);
+                }
+                mirrors.discover();
+                assertNull(mirrors.travel.scene.views.continuedTraversal(List.of(mirrors.first.key())));
+            }
+        }
+    }
+
+    @Test
+    public void rollbackReturnExpiryAndMissingReverseBranchInvalidateCrossingHistory() throws Exception {
+        for (int invalidation = 0; invalidation < 3; invalidation++) {
+            try (CrossingMirrors mirrors = new CrossingMirrors()) {
+                mirrors.cross();
+                if (invalidation == 0) {
+                    mirrors.discover();
+                    mirrors.travel.scene.views.resetReturn(mirrors.travel.destination);
+                } else if (invalidation == 1) {
+                    mirrors.travel.scene.views.frame(mirrors.travel.destination, new Vec3d(100.0D, 65.0D, 200.0D),
+                        List.of(), true, true, List.of(), null);
+                } else {
+                    mirrors.discover();
+                    mirrors.frame(List.of(), List.of());
+                }
+                long epoch = mirrors.travel.scene.views.continuityEpoch();
+                mirrors.discover();
+                assertEquals(epoch, mirrors.travel.scene.views.continuityEpoch());
+                assertNull(mirrors.travel.scene.views.continuedTraversal(List.of(mirrors.first.key())));
+            }
+        }
+    }
+
+    @Test
+    public void floorAndCeilingChildrenUseTranslatedVirtualEyeAndParentRecursionCeiling() throws Exception {
+        for (Face face : List.of(Face.U, Face.D)) {
+            try (TravelScene travel = new TravelScene()) {
+                Similarity toward = Similarity.of(OpticTransform.of(OpticTransform.IDENTITY.permutation(), 0.0D, 200.0D, 0.0D), 1.0D);
+                when(travel.forward.sourceToDestination()).thenReturn(toward);
+                ClientPortal root = new ClientPortal(7, travel.forward.sourceGeometry(), 1, 0.0D);
+                ApertureDescriptor opening = new ApertureDescriptor(0, 264, 0, face.ordinal(), face == Face.U, 0, false, 2, 3,
+                    new long[]{63L}, ShapeDescriptor.FULL, 0.0F, 0.0F, 0.0F, 16, 7, 0, 0, 0, 0, 0, 0, 0.0D, 7, 0L, List.of());
+                ClientPortal child = new ClientPortal(8, opening, 1, 0.0D);
+                ClientPortal grandchild = new ClientPortal(9, opening.withParent(8), 1, 0.0D);
+                travel.scene.source(root, travel.scene.home);
+                travel.scene.session.portals().put(child.portalKey(), child);
+                travel.scene.session.portals().put(grandchild.portalKey(), grandchild);
+                environment(travel.scene, child, "minecraft:the_end", OpticTransform.IDENTITY);
+                environment(travel.scene, grandchild, "minecraft:the_end", OpticTransform.IDENTITY);
+                travel.scene.views.frame(travel.scene.home, EYE, List.of(travel.forward), false, true,
+                    List.of(root, child, grandchild), null);
+                PortalView parent = travel.scene.views.current().getFirst();
+                PortalView discovered = travel.scene.views.children(parent).getFirst();
+                assertFalse(discovered.surface().servesEye(EYE));
+                assertTrue(discovered.surface().servesEye(parent.toDestination().point(EYE)));
+                assertEquals(3, discovered.recursion());
+                PortalView second = travel.scene.views.children(discovered).getFirst();
+                assertEquals(3, second.recursion());
+                assertTrue(travel.scene.views.children(second).isEmpty());
+                travel.scene.views.frame(travel.scene.home, EYE, List.of(travel.forward), false, false,
+                    List.of(root, child, grandchild), null);
+                assertTrue(travel.scene.views.children(travel.scene.views.current().getFirst()).isEmpty());
+            }
+        }
+    }
+
+    @Test
+    public void unresolvedAndAmbiguousResidentWorldsStayAvailableForStreamedFallback() throws Exception {
+        try (TravelScene travel = new TravelScene()) {
+            ClientPortal root = new ClientPortal(7, travel.forward.sourceGeometry(), 1, 0.0D);
+            ClientPortal child = new ClientPortal(8, reverseGeometry(true).withParent(7), 1, 0.0D);
+            travel.scene.source(root, travel.scene.home);
+            travel.scene.session.portals().put(child.portalKey(), child);
+            environment(travel.scene, child, "minecraft:the_nether", OpticTransform.IDENTITY);
+            travel.scene.views.frame(travel.scene.home, EYE, List.of(travel.forward), false, true, List.of(root, child), null);
+            PortalView parent = travel.scene.views.current().getFirst();
+            assertTrue(travel.scene.views.children(parent).isEmpty());
+            assertEquals(7, travel.scene.views.streamKey(parent));
+
+            ClientLevel duplicate = mock(ClientLevel.class);
+            when(duplicate.dimension()).thenReturn(Level.END);
+            when(travel.scene.residents.level(3)).thenReturn(duplicate);
+            TravelMessage.TravelBegin other = residentArm(UUID.randomUUID(), geometry(16, false));
+            when(other.levelHandle()).thenReturn(3);
+            child.geometry(child.geometry(), 2);
+            environment(travel.scene, child, "minecraft:overworld", OpticTransform.IDENTITY);
+            when(duplicate.dimension()).thenReturn(Level.OVERWORLD);
+            travel.scene.views.frame(travel.scene.home, EYE, List.of(travel.forward, other), false, true, List.of(root, child), null);
+            assertTrue(travel.scene.views.children(parent).isEmpty());
+        }
+    }
+
+    @Test
+    public void sameWorldFloorAndCeilingChildrenUseTheirParentsExactResidentCopy() throws Exception {
+        for (Face face : List.of(Face.U, Face.D)) {
+            try (TravelScene travel = new TravelScene()) {
+                when(travel.destination.dimension()).thenReturn(Level.OVERWORLD);
+                ClientPortal root = new ClientPortal(7, travel.forward.sourceGeometry(), 1, 0.0D);
+                ApertureDescriptor opening = new ApertureDescriptor(0, 64, 200, face.ordinal(), face == Face.U, 0, false, 2, 3,
+                    new long[]{63L}, ShapeDescriptor.FULL, 0.0F, 0.0F, 0.0F, 16, 3, 0, 0, 0, 0, 0, 0, 0.0D, 7, 0L, List.of());
+                ClientPortal child = new ClientPortal(8, opening, 1, 0.0D);
+                ClientPortal grandchild = new ClientPortal(9, opening.withParent(8), 1, 0.0D);
+                travel.scene.source(root, travel.scene.home);
+                travel.scene.session.portals().put(child.portalKey(), child);
+                travel.scene.session.portals().put(grandchild.portalKey(), grandchild);
+                environment(travel.scene, child, "minecraft:overworld", OpticTransform.IDENTITY);
+                environment(travel.scene, grandchild, "minecraft:overworld", OpticTransform.IDENTITY);
+                travel.scene.views.frame(travel.scene.home, EYE, List.of(travel.forward), false, true,
+                    List.of(root, child, grandchild), null);
+                PortalView parent = travel.scene.views.current().getFirst();
+                PortalView discovered = travel.scene.views.children(parent).getFirst();
+                assertSame(travel.destination, discovered.source());
+                assertSame(travel.destination, discovered.destination());
+                assertSame(travel.destination, travel.scene.views.children(discovered).getFirst().destination());
+                assertEquals(8, travel.scene.views.streamKey(discovered));
+            }
+        }
+    }
+
+    @Test
+    public void nativeMirrorChildReflectsTheParentsExactResidentCopyWithoutDimensionLookup() throws Exception {
+        try (TravelScene travel = new TravelScene()) {
+            when(travel.destination.dimension()).thenReturn(Level.OVERWORLD);
+            ClientPortal root = new ClientPortal(7, travel.forward.sourceGeometry(), 1, 0.0D);
+            ClientPortal child = new ClientPortal(8, geometry(16, true).withParent(7), 1, 0.0D);
+            travel.scene.source(root, travel.scene.home);
+            travel.scene.session.portals().put(child.portalKey(), child);
+            streamEnvironment(travel.scene, child, "minecraft:overworld", PortalSurface.mirrorTransform(child.geometry()));
+            travel.scene.views.frame(travel.scene.home, EYE, List.of(travel.forward), true, true, List.of(root, child), null);
+            PortalView parent = travel.scene.views.current().getFirst();
+            PortalView mirror = travel.scene.views.children(parent).getFirst();
+            assertEquals(PortalView.Kind.MIRROR, mirror.kind());
+            assertSame(travel.destination, mirror.source());
+            assertSame(travel.destination, mirror.destination());
+            assertEquals(Similarity.of(PortalSurface.mirrorTransform(child.geometry()), 1.0D), mirror.toDestination());
+            streamEnvironment(travel.scene, child, "minecraft:the_end", PortalSurface.mirrorTransform(child.geometry()));
+            travel.scene.views.frame(travel.scene.home, EYE, List.of(travel.forward), true, true, List.of(root, child), null);
+            assertTrue(travel.scene.views.children(parent).isEmpty());
+        }
+    }
+
+    @Test
+    public void provenChildrenResolveADifferentLocalResidentDimension() throws Exception {
+        try (TravelScene travel = new TravelScene()) {
+            ClientLevel nether = mock(ClientLevel.class);
+            when(nether.dimension()).thenReturn(Level.NETHER);
+            when(travel.scene.residents.level(3)).thenReturn(nether);
+            TravelMessage.TravelBegin other = residentArm(UUID.randomUUID(), geometry(16, false));
+            when(other.levelHandle()).thenReturn(3);
+            ClientPortal root = new ClientPortal(7, travel.forward.sourceGeometry(), 1, 0.0D);
+            ClientPortal child = new ClientPortal(8, reverseGeometry(true).withParent(7), 1, 0.0D);
+            travel.scene.source(root, travel.scene.home);
+            travel.scene.session.portals().put(child.portalKey(), child);
+            environment(travel.scene, child, "minecraft:the_nether", OpticTransform.IDENTITY);
+            travel.scene.views.frame(travel.scene.home, EYE, List.of(travel.forward, other), false, true, List.of(root, child), null);
+            PortalView parent = travel.scene.views.current().getFirst();
+            assertSame(nether, travel.scene.views.children(parent).getFirst().destination());
+            when(travel.scene.residents.level(3)).thenReturn(null);
+            travel.scene.views.frame(travel.scene.home, EYE, List.of(travel.forward, other), false, true, List.of(root, child), null);
+            assertTrue(travel.scene.views.children(parent).isEmpty());
+        }
+    }
+
+    @Test
+    public void sameDimensionRemoteStreamsRequireLocalProofEvenWhenTheDimensionIsUnique() throws Exception {
+        for (boolean sameDimensionCopy : new boolean[]{false, true}) {
+            try (TravelScene travel = new TravelScene()) {
+                if (sameDimensionCopy) {
+                    when(travel.destination.dimension()).thenReturn(Level.OVERWORLD);
+                }
+                ClientPortal root = new ClientPortal(7, travel.forward.sourceGeometry(), 1, 0.0D);
+                ClientPortal child = new ClientPortal(8, reverseGeometry(true).withParent(7), 1, 0.0D);
+                travel.scene.source(root, travel.scene.home);
+                travel.scene.session.portals().put(child.portalKey(), child);
+                String world = travel.destination.dimension().identifier().toString();
+                streamEnvironment(travel.scene, child, world, OpticTransform.IDENTITY);
+                travel.scene.views.frame(travel.scene.home, EYE, List.of(travel.forward), false, true, List.of(root, child), null);
+                PortalView parent = travel.scene.views.current().getFirst();
+                assertTrue(travel.scene.views.children(parent).isEmpty());
+                assertEquals(7, travel.scene.views.streamKey(parent));
+                assertSame(child, travel.scene.session.portal(8));
+            }
+        }
+    }
+
+    @Test
+    public void nativeChildrenWaitForMatchingDestinationRevisionAndEnvironment() throws Exception {
+        try (TravelScene travel = new TravelScene()) {
+            ClientPortal root = new ClientPortal(7, travel.forward.sourceGeometry(), 1, 0.0D);
+            ClientPortal child = new ClientPortal(8, reverseGeometry(true).withParent(7), 1, 0.0D);
+            travel.scene.source(root, travel.scene.home);
+            travel.scene.session.portals().put(child.portalKey(), child);
+            environment(travel.scene, child, "minecraft:the_end", OpticTransform.IDENTITY);
+            travel.scene.views.frame(travel.scene.home, EYE, List.of(travel.forward), false, true, List.of(root, child), null);
+            PortalView parent = travel.scene.views.current().getFirst();
+            assertEquals(1, travel.scene.views.children(parent).size());
+            child.geometry(child.geometry(), 2);
+            travel.scene.views.frame(travel.scene.home, EYE, List.of(travel.forward), false, true, List.of(root, child), null);
+            assertTrue(travel.scene.views.children(parent).isEmpty());
+            environment(travel.scene, child, "minecraft:the_end", OpticTransform.IDENTITY);
+            streamEnvironment(travel.scene, child, "minecraft:overworld", OpticTransform.IDENTITY);
+            travel.scene.views.frame(travel.scene.home, EYE, List.of(travel.forward), false, true, List.of(root, child), null);
+            assertTrue(travel.scene.views.children(parent).isEmpty());
+            streamEnvironment(travel.scene, child, "minecraft:the_end", OpticTransform.IDENTITY);
+            travel.scene.views.frame(travel.scene.home, EYE, List.of(travel.forward), false, true, List.of(root, child), null);
+            assertEquals(1, travel.scene.views.children(parent).size());
+            travel.scene.session.handle(new ViewStreamMessage.PortalDrop(8), mock(ClientViewSession.Sink.class));
+            travel.scene.views.frame(travel.scene.home, EYE, List.of(travel.forward), false, true, List.of(root, child), null);
+            assertTrue(travel.scene.views.children(parent).isEmpty());
+        }
+    }
+
+    @Test
+    public void affineChildrenStayAvailableForStreamedFallback() throws Exception {
+        try (TravelScene travel = new TravelScene()) {
+            ClientPortal root = new ClientPortal(7, travel.forward.sourceGeometry(), 1, 0.0D);
+            ClientPortal child = new ClientPortal(8, reverseGeometry(true).withParent(7), 1, 0.0D);
+            travel.scene.source(root, travel.scene.home);
+            travel.scene.session.portals().put(child.portalKey(), child);
+            environment(travel.scene, child, "minecraft:overworld", translation(200.0D).rigid());
+            ClientViewSession announced = mock(ClientViewSession.class);
+            when(announced.matchesSource(7, travel.scene.home)).thenReturn(true);
+            when(announced.environment(8)).thenReturn(travel.scene.session.environment(8));
+            when(announced.affine(8)).thenReturn(mock(ViewStreamMessage.PortalAffine.class));
+            when(travel.scene.client.session()).thenReturn(announced);
+            travel.scene.views.frame(travel.scene.home, EYE, List.of(travel.forward), false, true, List.of(root, child), null);
+            PortalView parent = travel.scene.views.current().getFirst();
+            assertEquals(7, travel.scene.views.streamKey(parent));
+            assertTrue(travel.scene.views.children(parent).isEmpty());
+        }
+    }
+
+    @Test
+    public void ambiguousAndMismatchedStreamRootsDoNotBindChildren() throws Exception {
+        try (TravelScene travel = new TravelScene()) {
+            ClientPortal root = new ClientPortal(7, travel.forward.sourceGeometry(), 1, 0.0D);
+            ClientPortal duplicate = new ClientPortal(9, root.geometry(), 1, 0.0D);
+            ClientPortal child = new ClientPortal(8, reverseGeometry(true).withParent(7), 1, 0.0D);
+            travel.scene.source(root, travel.scene.home);
+            travel.scene.source(duplicate, travel.scene.home);
+            travel.scene.session.portals().put(child.portalKey(), child);
+            environment(travel.scene, child, "minecraft:overworld", translation(200.0D).rigid());
+            travel.scene.views.frame(travel.scene.home, EYE, List.of(travel.forward), false, true, List.of(root, child, duplicate), null);
+            PortalView parent = travel.scene.views.current().getFirst();
+            assertEquals(0, travel.scene.views.streamKey(parent));
+            assertTrue(travel.scene.views.children(parent).isEmpty());
+
+            environment(travel.scene, root, "minecraft:the_end", OpticTransform.IDENTITY);
+            travel.scene.views.frame(travel.scene.home, EYE, List.of(travel.forward), false, true, List.of(root, child), null);
+            assertEquals(0, travel.scene.views.streamKey(parent));
+            assertTrue(travel.scene.views.children(parent).isEmpty());
+            environment(travel.scene, root, "minecraft:the_end", translation(-200.0D).rigid());
+            travel.scene.views.frame(travel.scene.home, EYE, List.of(travel.forward), false, true, List.of(root, child), null);
+            assertEquals(7, travel.scene.views.streamKey(parent));
+            assertEquals(1, travel.scene.views.children(parent).size());
+        }
+    }
+
+    @Test
+    public void childScaleAppliesAroundItsSourceApertureCenterBeforeDestinationMapping() {
+        ApertureDescriptor geometry = geometry(16, false);
+        EnvironmentState environment = mock(EnvironmentState.class);
+        when(environment.transform()).thenReturn(translation(200.0D).rigid());
+        when(environment.scale()).thenReturn(0.5F);
+        Similarity toward = PortalViews.toward(geometry, environment);
+        Vec3d sourceCenter = new Vec3d(17.0D, 65.5D, geometry.planeCoordinate());
+        Vec3d destinationCenter = environment.transform().inverse().point(sourceCenter);
+        assertEquals(destinationCenter, toward.point(sourceCenter));
+        assertEquals(destinationCenter.add(new Vec3d(4.0D, 6.0D, 8.0D)),
+            toward.point(sourceCenter.add(new Vec3d(2.0D, 3.0D, 4.0D))));
+        assertEquals(2.0D, toward.scale(), 0.0D);
+    }
+
+    @Test
+    public void identicalMirrorSurfacesInDifferentWorldsKeepDistinctCameraKeys() {
+        try (Scene scene = new Scene()) {
+            ClientLevel destination = mock(ClientLevel.class);
+            when(destination.dimension()).thenReturn(Level.END);
+            ClientPortal home = new ClientPortal(1, geometry(0, true), 1, 0.0D);
+            ClientPortal remote = new ClientPortal(2, geometry(0, true), 1, 0.0D);
+            scene.source(home, scene.home);
+            scene.source(remote, destination);
+            scene.views.frame(scene.home, EYE, List.of(), true, true, List.of(home, remote), null);
+            Object original = scene.views.current().getFirst().key();
+            scene.views.frame(destination, EYE, List.of(), true, true, List.of(home, remote), null);
+            assertNotEquals(original, scene.views.current().getFirst().key());
+        }
+    }
+
+    private static void environment(Scene scene, ClientPortal portal, String destination, OpticTransform transform) throws Exception {
+        streamEnvironment(scene, portal, destination, transform);
+        scene.session.handle(LocalDestinationExtension.INSTANCE.wrap(new LocalDestination(portal.portalKey(),
+            portal.geometryRevision(), destination)), mock(ClientViewSession.Sink.class));
+    }
+
+    private static void streamEnvironment(Scene scene, ClientPortal portal, String destination, OpticTransform transform) throws Exception {
+        EnvironmentState environment = mock(EnvironmentState.class);
+        EnvironmentState.World world = mock(EnvironmentState.World.class);
+        when(world.dimensionKey()).thenReturn(destination);
+        when(environment.world()).thenReturn(world);
+        when(environment.transform()).thenReturn(transform);
+        when(environment.scale()).thenReturn(1.0F);
+        scene.session.handle(new ViewStreamMessage.Environment(portal.portalKey(), environment), mock(ClientViewSession.Sink.class));
+    }
 
     @Test
     public void secondCoplanarPortalOwnsReturnRegardlessOfArmOrder() {
@@ -575,6 +1298,67 @@ public class PortalViewsTest extends MinecraftTestBase {
             List.of(geometry.withDepth(8)));
     }
 
+    private static ApertureDescriptor identity(ApertureDescriptor geometry, long identity) {
+        return new ApertureDescriptor(geometry.originX(), geometry.originY(), geometry.originZ(), geometry.facing(), geometry.frontSide(),
+            geometry.quarterTurns(), geometry.mirror(), geometry.apertureWidth(), geometry.apertureHeight(), geometry.apertureMask(),
+            geometry.shape(), 0.0F, 0.0F, 0.0F, 16, 3, 0, 0, 0, 0, 0, 0, geometry.planeOffset(), geometry.parentPortalKey(), identity, List.of());
+    }
+
+    private static final class CrossingMirrors implements AutoCloseable {
+        private final TravelScene travel = new TravelScene();
+        private final ClientPortal firstRoot = new ClientPortal(10, geometry(16, true), 1, 0.0D);
+        private final ClientPortal secondRoot = new ClientPortal(11,
+            new ApertureDescriptor(48, 64, 8, Face.S.ordinal(), false, 0, true, 2, 3, new long[]{63L}, ShapeDescriptor.FULL,
+                0.0F, 0.0F, 0.0F, 16, 3, 0, 0, 0, 0, 0, 0, 0.0D, 0, 0L, List.of()), 1, 0.0D);
+        private final TravelMessage.TravelBegin reverse = travel.reverse(UUID.randomUUID(), reverseGeometry(false));
+        private final ClientPortal reverseRoot = new ClientPortal(9, reverse.sourceGeometry(), 1, 0.0D);
+        private final ClientPortal firstChild = new ClientPortal(20, firstRoot.geometry().withParent(9), 1, 0.0D);
+        private final ClientPortal secondChild = new ClientPortal(22, secondRoot.geometry().withParent(9), 1, 0.0D);
+        private final ClientPortal grandchild = new ClientPortal(21, secondRoot.geometry().withParent(20), 1, 0.0D);
+        private PortalView first;
+        private PortalView second;
+
+        private CrossingMirrors() throws Exception {
+            travel.scene.source(firstRoot, travel.scene.home);
+            travel.scene.source(secondRoot, travel.scene.home);
+            travel.scene.source(reverseRoot, travel.destination);
+            for (ClientPortal portal : List.of(firstChild, secondChild, grandchild)) {
+                travel.scene.session.portals().put(portal.portalKey(), portal);
+            }
+            environment(travel.scene, firstChild, "minecraft:overworld", PortalSurface.mirrorTransform(firstChild.geometry()));
+            environment(travel.scene, secondChild, "minecraft:overworld", PortalSurface.mirrorTransform(secondChild.geometry()));
+            environment(travel.scene, grandchild, "minecraft:overworld", PortalSurface.mirrorTransform(grandchild.geometry()));
+            depart();
+        }
+
+        private void depart() {
+            travel.scene.views.frame(travel.scene.home, EYE, List.of(travel.forward), true, true, List.of(firstRoot, secondRoot), null);
+            first = travel.scene.views.current().get(1);
+            second = travel.scene.views.current().get(2);
+        }
+
+        private void cross() {
+            travel.scene.views.crossed(travel.forward, travel.scene.home, travel.destination, true);
+        }
+
+        private void frame(List<TravelMessage.TravelBegin> arms, List<ClientPortal> portals) {
+            travel.scene.views.frame(travel.destination, travel.toward.point(EYE), arms, true, true, portals, null);
+        }
+
+        private List<ClientPortal> portals() {
+            return List.of(reverseRoot, firstChild, secondChild, grandchild);
+        }
+
+        private void discover() {
+            frame(List.of(reverse), portals());
+        }
+
+        @Override
+        public void close() {
+            travel.close();
+        }
+    }
+
     private static final class Scene implements AutoCloseable {
         private final ClientLevel home = mock(ClientLevel.class);
         private final ResidentLevels residents = mock(ResidentLevels.class);
@@ -590,7 +1374,7 @@ public class PortalViewsTest extends MinecraftTestBase {
             WormholesClientConfig config = new WormholesClientConfig();
             config.normalize();
             session = new ClientViewSession(config, new ClientPalette(BuiltInRegistries.BLOCK), 1, "test");
-            session.accept(new ViewStreamMessage.Accept(1, ViewStreamCapability.CLIENT_MIRROR.mask(), 20,
+            session.accept(new ViewStreamMessage.Accept(1, ViewStreamCapability.CLIENT_MIRROR.mask() | ClientViewExtensions.LOCAL_DESTINATION, 20,
                 ViewStreamLimits.DEFAULT_MAX_FRAME_BYTES, 7L, 8));
             clients.when(WormholesClient::instance).thenReturn(client);
             when(client.session()).thenReturn(session);

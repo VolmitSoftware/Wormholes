@@ -52,8 +52,7 @@ public final class IrisPipelineBackend implements PipelineBackend {
             return;
         }
         IrisPipelines.requestViews(camera, projection);
-        while (!IrisViewPipelines.preparationStep()) {
-        }
+        IrisViewPipelines.preparePlannedViews();
     }
 
     @Override

@@ -16,6 +16,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.IntBuffer;
@@ -27,7 +28,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.locks.LockSupport;
 import java.util.function.Consumer;
 
@@ -42,6 +46,7 @@ public final class LiveCapture {
     private static final int GPU_BUFFERS = 3;
     private static final int QUEUED_FRAMES = 32;
     private static final long PROBE_TIMEOUT_SECONDS = 10;
+    private static final int MAX_PROBE_BYTES = 1024 * 1024;
     private static final long FINISH_TIMEOUT_NANOS = TimeUnit.SECONDS.toNanos(10);
     private static final long DRAIN_TIMEOUT_NANOS = TimeUnit.MILLISECONDS.toNanos(250);
     private static final long DRAIN_POLL_NANOS = TimeUnit.MILLISECONDS.toNanos(1);
@@ -81,16 +86,21 @@ public final class LiveCapture {
         for (int index = 0; index < QUEUED_FRAMES; index++) {
             spareFrames.add(new byte[frameBytes]);
         }
-        GpuDevice device = RenderSystem.getDevice();
-        for (int index = 0; index < GPU_BUFFERS; index++) {
-            idleBuffers.add(device.createBuffer(() -> "Instance Automator live capture", GpuBuffer.USAGE_MAP_READ | GpuBuffer.USAGE_COPY_DST, frameBytes));
-        }
         try {
-            process = new ProcessBuilder(command()).redirectOutput(ProcessBuilder.Redirect.DISCARD).redirectError(log.toFile()).start();
-        } catch (IOException failure) {
-            for (GpuBuffer buffer : idleBuffers) {
-                buffer.close();
+            GpuDevice device = RenderSystem.getDevice();
+            for (int index = 0; index < GPU_BUFFERS; index++) {
+                idleBuffers.add(device.createBuffer(() -> "Instance Automator live capture", GpuBuffer.USAGE_MAP_READ | GpuBuffer.USAGE_COPY_DST, frameBytes));
             }
+            process = new ProcessBuilder(command()).redirectOutput(ProcessBuilder.Redirect.DISCARD).redirectError(log.toFile()).start();
+        } catch (IOException | RuntimeException | Error failure) {
+            for (GpuBuffer buffer : idleBuffers) {
+                try {
+                    buffer.close();
+                } catch (RuntimeException | Error cleanupFailure) {
+                    failure.addSuppressed(cleanupFailure);
+                }
+            }
+            idleBuffers.clear();
             throw failure;
         }
         startNanos = System.nanoTime();
@@ -270,19 +280,118 @@ public final class LiveCapture {
     }
 
     private static String probeEncoder(Path ffmpeg) {
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(PROBE_TIMEOUT_SECONDS);
+        Path listingPath = null;
+        Process probe = null;
+        FutureTask<String> reading = null;
+        Throwable primaryFailure = null;
         try {
-            Process probe = new ProcessBuilder(ffmpeg.toString(), "-hide_banner", "-encoders").redirectErrorStream(true).start();
-            String listing = new String(probe.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-            if (!probe.waitFor(PROBE_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
-                probe.destroyForcibly();
-                throw new IllegalStateException("Listing the encoders of " + ffmpeg + " took longer than " + PROBE_TIMEOUT_SECONDS + " s");
+            listingPath = Files.createTempFile("instance-automator-encoders-", ".txt");
+            probe = new ProcessBuilder(ffmpeg.toString(), "-hide_banner", "-encoders")
+                    .redirectErrorStream(true).redirectOutput(listingPath.toFile()).start();
+            probe.getOutputStream().close();
+            if (!probe.waitFor(Math.max(0L, deadline - System.nanoTime()), TimeUnit.NANOSECONDS)) {
+                throw new TimeoutException("Encoder probe process did not exit");
+            }
+            Path completedListing = listingPath;
+            reading = new FutureTask<>(() -> readProbeListing(completedListing));
+            Thread.ofVirtual().name("InstanceAutomator encoder listing").start(reading);
+            String listing = reading.get(Math.max(0L, deadline - System.nanoTime()), TimeUnit.NANOSECONDS);
+            if (probe.exitValue() != 0) {
+                throw new IOException("Encoder probe exited with code " + probe.exitValue() + ": " + listing);
             }
             return listing.contains(" " + HARDWARE_ENCODER + " ") ? HARDWARE_ENCODER : SOFTWARE_ENCODER;
-        } catch (IOException failure) {
-            throw new IllegalStateException("Cannot list the encoders of " + ffmpeg + ": " + failure.getMessage(), failure);
+        } catch (IOException | ExecutionException failure) {
+            IllegalStateException contextual = new IllegalStateException("Cannot list the encoders of " + ffmpeg + ": " + failure.getMessage(), failure);
+            primaryFailure = contextual;
+            throw contextual;
+        } catch (TimeoutException failure) {
+            IllegalStateException contextual = new IllegalStateException("Listing the encoders of " + ffmpeg + " took longer than " + PROBE_TIMEOUT_SECONDS + " s", failure);
+            primaryFailure = contextual;
+            throw contextual;
         } catch (InterruptedException interrupted) {
             Thread.currentThread().interrupt();
-            throw new IllegalStateException("Interrupted while listing the encoders of " + ffmpeg, interrupted);
+            IllegalStateException contextual = new IllegalStateException("Interrupted while listing the encoders of " + ffmpeg, interrupted);
+            primaryFailure = contextual;
+            throw contextual;
+        } catch (RuntimeException | Error failure) {
+            primaryFailure = failure;
+            throw failure;
+        } finally {
+            if (reading != null) {
+                reading.cancel(true);
+            }
+            cleanupProbe(probe, listingPath, primaryFailure);
+        }
+    }
+
+    private static String readProbeListing(Path listingPath) throws IOException {
+        try (InputStream input = Files.newInputStream(listingPath)) {
+            byte[] bytes = input.readNBytes(MAX_PROBE_BYTES + 1);
+            if (bytes.length > MAX_PROBE_BYTES) {
+                throw new IOException("Encoder listing exceeds " + MAX_PROBE_BYTES + " bytes");
+            }
+            return new String(bytes, StandardCharsets.UTF_8);
+        }
+    }
+
+    private static void cleanupProbe(Process probe, Path listingPath, Throwable primaryFailure) {
+        RuntimeException cleanupFailure = null;
+        if (probe != null) {
+            try {
+                terminateProbe(probe);
+            } catch (RuntimeException failure) {
+                cleanupFailure = failure;
+            }
+        }
+        if (listingPath != null) {
+            try {
+                Files.deleteIfExists(listingPath);
+            } catch (IOException | RuntimeException failure) {
+                IllegalStateException contextual = new IllegalStateException("Cannot remove encoder listing " + listingPath, failure);
+                if (cleanupFailure == null) {
+                    cleanupFailure = contextual;
+                } else {
+                    cleanupFailure.addSuppressed(contextual);
+                }
+            }
+        }
+        if (cleanupFailure != null) {
+            if (primaryFailure == null) {
+                throw cleanupFailure;
+            }
+            primaryFailure.addSuppressed(cleanupFailure);
+        }
+    }
+
+    private static void terminateProbe(Process probe) {
+        boolean interrupted = Thread.interrupted();
+        try {
+            if (probe.isAlive()) {
+                probe.destroyForcibly();
+            }
+            long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(ABORT_TIMEOUT_SECONDS);
+            while (true) {
+                long remaining = deadline - System.nanoTime();
+                if (remaining <= 0L) {
+                    if (probe.isAlive()) {
+                        throw new IllegalStateException("Encoder probe " + probe.pid() + " did not exit after forced termination");
+                    }
+                    return;
+                }
+                try {
+                    if (!probe.waitFor(remaining, TimeUnit.NANOSECONDS)) {
+                        throw new IllegalStateException("Encoder probe " + probe.pid() + " did not exit after forced termination");
+                    }
+                    return;
+                } catch (InterruptedException failure) {
+                    interrupted = true;
+                }
+            }
+        } finally {
+            if (interrupted) {
+                Thread.currentThread().interrupt();
+            }
         }
     }
 

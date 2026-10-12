@@ -1418,6 +1418,8 @@ profile = ["&6&lאפקטי מעבר&r", "&7סף {mode}", "&7הגעה {state}", "
 prompt = "&bהקלד את הערך החדש בצ'אט (או '{cancel}'):"
 scale = ["&6&lקנה מידה של נוסע: {mode}&r", "&7טווח גודל {value}. ממפה מסע בין פורטלים בגדלים שונים.", "&eקליק שמאלי למעבר בין מצבים", "&eקליק ימני: מינימום, Shift + קליק ימני: מקסימום"]
 
+gravity = ["&6&lכיוון כוח הכבידה: {state}&r", "&7אצל נוסעים עם המוד, הרצפה, התנועה והמודל מסתובבים יחד עם הפורטל.", "&eלחיצה שמאלית להפעלה או לכיבוי"]
+
 [transit.scale]
 current = "&8[&6Wormholes&8] &f{portal}&7 קנה מידה של נוסע: &f{mode}&7 ({value})"
 set = "&8[&6Wormholes&8] &f{portal}&a קנה המידה של הנוסע הוגדר ל-&f{mode}&a ({value})."
@@ -1425,6 +1427,11 @@ invalid = "&8[&6Wormholes&8] &cלא ניתן לקרוא את קנה המידה �
 reset = "&8[&6Wormholes&8] &aהגודל הרגיל שוחזר עבור {count} ישויות."
 reset_radius = "&8[&6Wormholes&8] &ctarget=all דורש רדיוס בין 1 ל-{value}."
 reset_player = "&8[&6Wormholes&8] &cאין שחקן מחובר בשם {name}."
+
+[transit.gravity]
+current = "&8[&6Wormholes&8] &f{portal}&7 כיוון כוח הכבידה: &f{state}"
+reset = "&8[&6Wormholes&8] &aכוח הכבידה הרגיל הוחזר עבור {name}."
+client_required = "&8[&6Wormholes&8] &cפורטל זה דורש את מוד הלקוח של Wormholes לשינוי כיוון כוח הכבידה."
 # ---- end lane:transit ----
 
 # ---- lane:view (fidelity.*) ----

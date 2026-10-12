@@ -2,6 +2,7 @@ package art.arcane.wormholes.render.client.session;
 
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.crossing.ScaleRule;
+import art.arcane.optics.crossing.GravityFrame;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.network.client.TravelMessage;
 
@@ -49,8 +50,9 @@ public final class SeamlessCrossCheck {
         if (cross.previousEye().distance(cross.currentEye()) > BASE_SEGMENT + speed * SPEED_SEGMENT) {
             return Refusal.SEGMENT_TOO_LONG;
         }
-        double eyeRise = cross.currentEye().y() - feet.y();
-        double drift = Math.hypot(cross.currentEye().x() - feet.x(), cross.currentEye().z() - feet.z());
+        Vec3d eyeOffset = server.gravity().toLocal(cross.currentEye().subtract(feet));
+        double eyeRise = eyeOffset.y();
+        double drift = Math.hypot(eyeOffset.x(), eyeOffset.z());
         if (drift > EYE_DRIFT || eyeRise < 0.0D || eyeRise > server.eyeHeight() + EYE_SLACK) {
             return Refusal.INCONSISTENT_EYE;
         }
@@ -80,10 +82,11 @@ public final class SeamlessCrossCheck {
         WRONG_SIDE, NO_CROSSING, OUTSIDE_APERTURE
     }
 
-    public record Server(String world, ApertureDescriptor geometry, TravelMessage.TravelPose pose, Vec3d velocity, double eyeHeight,
+    public record Server(String world, ApertureDescriptor geometry, TravelMessage.TravelPose pose, Vec3d velocity, double eyeHeight, GravityFrame gravity,
                          boolean awaitingTeleport, boolean changingDimension) {
         public Server {
             Objects.requireNonNull(world, "world");
+            Objects.requireNonNull(gravity, "gravity");
             Objects.requireNonNull(pose, "pose");
             Objects.requireNonNull(velocity, "velocity");
             if (!Double.isFinite(eyeHeight) || eyeHeight <= 0.0D || eyeHeight > MAX_EYE_HEIGHT || !Double.isFinite(velocity.x())

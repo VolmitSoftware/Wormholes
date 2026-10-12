@@ -1,5 +1,9 @@
 package art.arcane.wormholes.modded;
 
+import art.arcane.optics.crossing.GravityFrame;
+import art.arcane.optics.entity.EntityVisualMetadata;
+import art.arcane.optics.frame.AxisPermutation;
+import art.arcane.optics.math.Face;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
@@ -19,12 +23,24 @@ public class MinecraftPacketBlobsTest extends MinecraftTestBase {
     public void metadataUsesVanillaSerializerIdsAndTerminator() {
         MinecraftPacketBlobs codec = new MinecraftPacketBlobs(RegistryAccess.EMPTY);
         byte[] wire = {0, 0, 32, (byte) 255};
-        List<SynchedEntityData.DataValue<?>> decoded = codec.readMetadata(wire);
+        List<SynchedEntityData.DataValue<?>> decoded = codec.readMetadata(new EntityVisualMetadata(GravityFrame.WORLD, 1.0D, wire).encode());
         assertEquals(1, decoded.size());
         assertEquals(0, decoded.getFirst().id());
         assertSame(EntityDataSerializers.BYTE, decoded.getFirst().serializer());
         assertEquals((byte) 32, decoded.getFirst().value());
-        assertArrayEquals(wire, codec.writeMetadata(decoded));
+        assertArrayEquals(wire, EntityVisualMetadata.decode(codec.writeMetadata(decoded)).data());
+    }
+
+    @Test
+    public void metadataRewritesPreserveTheGravityAndEffectiveScaleHeader() {
+        MinecraftPacketBlobs codec = new MinecraftPacketBlobs(RegistryAccess.EMPTY);
+        GravityFrame sideways = new GravityFrame(AxisPermutation.of(Face.D, Face.E, Face.S));
+        EntityVisualMetadata source = new EntityVisualMetadata(sideways, 2.5D, new byte[] {0, 0, 32, (byte) 255});
+        List<SynchedEntityData.DataValue<?>> values = codec.readMetadata(source.encode());
+        EntityVisualMetadata patched = EntityVisualMetadata.decode(codec.writeMetadata(values, source));
+        assertEquals(sideways, patched.gravity());
+        assertEquals(2.5D, patched.effectiveScale(), 0.0D);
+        assertArrayEquals(source.data(), patched.data());
     }
 
     @Test
@@ -49,6 +65,6 @@ public class MinecraftPacketBlobsTest extends MinecraftTestBase {
         assertTrue(codec.readMetadata(new byte[0]).isEmpty());
         assertTrue(codec.readEquipment(null).isEmpty());
         assertArrayEquals(new byte[0], codec.writeEquipment(List.of()));
-        assertArrayEquals(new byte[0], codec.writeMetadata(List.of()));
+        assertArrayEquals(new byte[0], EntityVisualMetadata.decode(codec.writeMetadata(List.of())).data());
     }
 }

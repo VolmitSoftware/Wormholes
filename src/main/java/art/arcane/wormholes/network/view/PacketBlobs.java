@@ -1,6 +1,8 @@
 package art.arcane.wormholes.network.view;
 
 import art.arcane.wormholes.platform.WormholesPlatform;
+import art.arcane.optics.crossing.GravityFrame;
+import art.arcane.optics.entity.EntityVisualMetadata;
 import com.github.retrooper.packetevents.PacketEvents;
 import com.github.retrooper.packetevents.netty.buffer.ByteBufHelper;
 import com.github.retrooper.packetevents.netty.buffer.UnpooledByteBufAllocationHelper;
@@ -12,6 +14,8 @@ import com.github.retrooper.packetevents.wrapper.PacketWrapper;
 import io.github.retrooper.packetevents.util.SpigotConversionUtil;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
+import org.bukkit.attribute.Attribute;
+import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.inventory.EntityEquipment;
 import org.bukkit.inventory.ItemStack;
 
@@ -25,24 +29,27 @@ public final class PacketBlobs {
     }
 
     public static byte[] writeMetadata(List<EntityData<?>> metadata) {
-        if (metadata == null || metadata.isEmpty()) {
-            return EntitySnapshot.EMPTY;
-        }
-        Object buffer = UnpooledByteBufAllocationHelper.buffer();
-        try {
-            PacketWrapper<?> wrapper = PacketWrapper.createUniversalPacketWrapper(buffer, PacketEvents.getAPI().getServerManager().getVersion());
-            wrapper.writeEntityMetadata(metadata);
-            return ByteBufHelper.copyBytes(buffer);
-        } finally {
-            ByteBufHelper.release(buffer);
-        }
+        return new EntityVisualMetadata(GravityFrame.WORLD, 1.0D, metadataBytes(metadata)).encode();
+    }
+
+    public static byte[] replaceMetadata(byte[] original, List<EntityData<?>> metadata) {
+        return EntityVisualMetadata.decode(original).withData(metadataBytes(metadata)).encode();
+    }
+
+    public static long metadataRevision(Entity entity) {
+        return WormholesPlatform.entityMetadataFingerprint(entity)
+            ^ Long.rotateLeft(Double.doubleToLongBits(effectiveScale(entity)), 23);
     }
 
     public static List<EntityData<?>> readMetadata(byte[] blob) {
         if (blob == null || blob.length == 0) {
             return List.of();
         }
-        Object buffer = UnpooledByteBufAllocationHelper.wrappedBuffer(blob);
+        byte[] data = EntityVisualMetadata.decode(blob).data();
+        if (data.length == 0) {
+            return List.of();
+        }
+        Object buffer = UnpooledByteBufAllocationHelper.wrappedBuffer(data);
         try {
             PacketWrapper<?> wrapper = PacketWrapper.createUniversalPacketWrapper(buffer, PacketEvents.getAPI().getServerManager().getVersion());
             return wrapper.readEntityMetadata();
@@ -53,7 +60,8 @@ public final class PacketBlobs {
 
     public static byte[] captureMetadata(Entity entity) {
         try {
-            return writeMetadata(SpigotConversionUtil.getEntityMetadata(entity));
+            return new EntityVisualMetadata(GravityFrame.WORLD, effectiveScale(entity),
+                metadataBytes(SpigotConversionUtil.getEntityMetadata(entity))).encode();
         } catch (Throwable e) {
             return EntitySnapshot.EMPTY;
         }
@@ -126,6 +134,25 @@ public final class PacketBlobs {
         addEquipment(collected, living, equipment, org.bukkit.inventory.EquipmentSlot.BODY, EquipmentSlot.BODY);
         addEquipment(collected, living, equipment, org.bukkit.inventory.EquipmentSlot.SADDLE, EquipmentSlot.SADDLE);
         return collected;
+    }
+
+    private static byte[] metadataBytes(List<EntityData<?>> metadata) {
+        if (metadata == null || metadata.isEmpty()) {
+            return EntitySnapshot.EMPTY;
+        }
+        Object buffer = UnpooledByteBufAllocationHelper.buffer();
+        try {
+            PacketWrapper<?> wrapper = PacketWrapper.createUniversalPacketWrapper(buffer, PacketEvents.getAPI().getServerManager().getVersion());
+            wrapper.writeEntityMetadata(metadata);
+            return ByteBufHelper.copyBytes(buffer);
+        } finally {
+            ByteBufHelper.release(buffer);
+        }
+    }
+
+    private static double effectiveScale(Entity entity) {
+        AttributeInstance scale = entity instanceof LivingEntity living ? living.getAttribute(Attribute.SCALE) : null;
+        return scale == null ? 1.0D : scale.getValue();
     }
 
     private static void addEquipment(List<Equipment> collected,

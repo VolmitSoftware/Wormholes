@@ -110,7 +110,7 @@ public class SeamlessArmTimingTest {
 
     private static TravelMessage.ArrivalRules withScale(ScaleRule scale) {
         TravelMessage.ArrivalRules frame = TravelMessage.ArrivalRules.FRAME;
-        return new TravelMessage.ArrivalRules(frame.orientation(), frame.gravityFlip(), frame.momentum(), scale);
+        return new TravelMessage.ArrivalRules(frame.orientation(), frame.gravityFlip(), frame.momentum(), scale, false);
     }
 
     private static ApertureDescriptor geometry(Face facing, long mask, ShapeDescriptor shape) {

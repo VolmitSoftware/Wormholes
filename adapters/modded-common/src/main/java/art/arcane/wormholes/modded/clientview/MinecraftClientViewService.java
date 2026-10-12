@@ -1,6 +1,8 @@
 package art.arcane.wormholes.modded.clientview;
 
 import art.arcane.optics.crossing.PlaneCrossing;
+import art.arcane.optics.crossing.GravityFrame;
+import art.arcane.wormholes.modded.gravity.MinecraftGravity;
 import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.MinecraftPortal;
@@ -63,7 +65,7 @@ public final class MinecraftClientViewService implements AutoCloseable {
         ViewStreamCapability.ZERO_COPY, ViewStreamCapability.CONFIG_PHASE, ViewStreamCapability.LINK_UNCOMPRESSED,
         ViewStreamCapability.VIEW_STATS, ViewStreamCapability.CLIENT_MIRROR, ViewStreamCapability.CLIENT_RECURSION, ViewStreamCapability.MESH_RENDER, ViewStreamCapability.LOCAL_MESH, ViewStreamCapability.MESH_REUSE)
         | ClientViewExtensions.FX_EMITTERS | ClientViewExtensions.REMOTE_VIEW | ClientViewExtensions.SEAMLESS_TRAVEL
-        | ClientViewExtensions.ROOT_SOURCE;
+        | ClientViewExtensions.ROOT_SOURCE | ClientViewExtensions.LOCAL_DESTINATION;
     private static final Logger LOGGER = LoggerFactory.getLogger("Wormholes");
     private static final long HANDLE_PURGE_INTERVAL_TICKS = 20L;
     private static final double PARTICLE_RANGE_SQUARED = 32.0D * 32.0D;
@@ -75,6 +77,7 @@ public final class MinecraftClientViewService implements AutoCloseable {
     private final Map<UUID, Seamless> seamless = new HashMap<>();
     private final Set<UUID> levelHandoffs = new HashSet<>();
     private final Map<UUID, String> fallbacks = new HashMap<>();
+    private final Map<UUID, ViewStreamSession<MinecraftClientViewPeer, BlockState>> gravitySessions = new HashMap<>();
     private volatile ViewStreamSessionRegistry<MinecraftClientViewPeer, BlockState> registry;
     private volatile MinecraftClientViewNegotiator negotiator;
     private ViewStreamOptions applied;
@@ -112,6 +115,11 @@ public final class MinecraftClientViewService implements AutoCloseable {
         }
         ViewStreamOptions options = runtime.configuration().clientViewOptions();
         if (!options.equals(applied)) {
+            if (!options.enabled() && active.enabled()) {
+                for (ServerPlayer player : players) {
+                    MinecraftGravity.reset(player);
+                }
+            }
             applied = options;
             if (active.configure(options)) {
                 current.reoffer();
@@ -123,6 +131,9 @@ public final class MinecraftClientViewService implements AutoCloseable {
             LocalPlateHandles.purgeExpired(System.nanoTime());
         }
         if (active.sessions().isEmpty()) {
+            for (ServerPlayer player : players) {
+                MinecraftGravity.reset(player);
+            }
             return;
         }
         portals.frame(candidates);
@@ -130,6 +141,7 @@ public final class MinecraftClientViewService implements AutoCloseable {
             ServerPlayer player = players.get(i);
             ViewStreamSession<MinecraftClientViewPeer, BlockState> session = active.session(player.getUUID());
             if (session == null) {
+                MinecraftGravity.reset(player);
                 continue;
             }
             try {
@@ -142,6 +154,16 @@ public final class MinecraftClientViewService implements AutoCloseable {
                 session.player().meshDepth(ViewStreamCapability.MESH_RENDER.in(session.caps())
                     ? Math.clamp(player.requestedViewDistance(), 2, 32) * 16 : 0);
                 session.tick(serverTick);
+                if (!travel.remoteViewSelected() && session.state() != ViewStreamSessionState.PENDING) {
+                    MinecraftGravity.reset(player);
+                }
+                if (travel.remoteViewSelected()) {
+                    if (gravitySessions.put(player.getUUID(), session) != session) {
+                        synchronizeGravity(player);
+                    }
+                } else {
+                    gravitySessions.remove(player.getUUID());
+                }
                 if (travel.seamlessSelected()) {
                     seamlessTravel.tick(travel, player);
                 }
@@ -155,6 +177,11 @@ public final class MinecraftClientViewService implements AutoCloseable {
     public void runtimeEnabled(boolean enabled) {
         ViewStreamSessionRegistry<MinecraftClientViewPeer, BlockState> active = registry;
         MinecraftClientViewNegotiator current = negotiator;
+        if (!enabled && active != null) {
+            for (ServerPlayer player : runtime.server().getPlayerList().getPlayers()) {
+                MinecraftGravity.reset(player);
+            }
+        }
         if (active != null && current != null && active.runtimeEnabled(enabled)) {
             current.reoffer();
         }
@@ -287,7 +314,7 @@ public final class MinecraftClientViewService implements AutoCloseable {
         }
     }
 
-    public void entityCrossed(Entity entity, PlaneCrossing crossing, OpticTransform toward, Vec3d velocity) {
+    public void entityCrossed(Entity entity, PlaneCrossing crossing, OpticTransform toward, Vec3d velocity, GravityFrame destinationGravity) {
         runtime.requireServerThread();
         if (!(entity.level() instanceof ServerLevel level)
             || !(((ProjectionEntityMapAccess) level.getChunkSource().chunkMap).wormholesEntityMap().get(entity.getId()) instanceof RemoteTrackedEntityAccess tracked)) {
@@ -299,9 +326,32 @@ public final class MinecraftClientViewService implements AutoCloseable {
             ClientViewTravel<MinecraftClientViewPeer> travel = handle < 0 || observer == entity ? null : travel(observer.getUUID());
             if (travel != null && travel.seamlessSelected()) {
                 travel.sendTravel(new TravelMessage.EntityCrossed(handle, entity.getId(), toward, crossing.origin(), crossing.frame().getNormal(),
-                    velocity));
+                    velocity, MinecraftGravity.frame(entity), destinationGravity));
             }
         }
+    }
+
+    public void entityGravity(Entity entity) {
+        entityGravity(entity, false);
+    }
+
+    public void entityGravity(Entity entity, boolean restoreWorldOrientation) {
+        runtime.requireServerThread();
+        if (!(entity.level() instanceof ServerLevel level)) {
+            return;
+        }
+        if (((ProjectionEntityMapAccess) level.getChunkSource().chunkMap).wormholesEntityMap().get(entity.getId()) instanceof RemoteTrackedEntityAccess tracked) {
+            for (ServerPlayerConnection connection : tracked.wormholesSeenBy()) {
+                sendGravity(entity, connection, restoreWorldOrientation);
+            }
+        }
+        if (entity instanceof ServerPlayer player) {
+            sendGravity(entity, player.connection, restoreWorldOrientation);
+        }
+    }
+
+    public void entityGravity(Entity entity, ServerPlayerConnection connection) {
+        sendGravity(entity, connection, false);
     }
 
     static int observerHandle(ServerPlayerConnection connection, ServerLevel level) {
@@ -314,6 +364,11 @@ public final class MinecraftClientViewService implements AutoCloseable {
     public boolean receiver(ServerPlayer player) {
         ViewStreamSessionRegistry<MinecraftClientViewPeer, BlockState> active = registry;
         return active != null && !active.sessions().isEmpty() && active.effectsReceiver(player.getUUID());
+    }
+
+    public boolean supportsGravity(ServerPlayer player) {
+        ClientViewTravel<MinecraftClientViewPeer> travel = travel(player.getUUID());
+        return travel != null && travel.remoteViewSelected();
     }
 
     public void entityEvent(EntityAnimation event) {
@@ -400,6 +455,8 @@ public final class MinecraftClientViewService implements AutoCloseable {
     public void joined(ServerPlayer player, boolean channelPresent) {
         if (channelPresent) {
             channelRegistered(player);
+        } else {
+            MinecraftGravity.reset(player);
         }
     }
 
@@ -451,6 +508,7 @@ public final class MinecraftClientViewService implements AutoCloseable {
     }
 
     public void disconnected(ServerPlayer player) {
+        gravitySessions.remove(player.getUUID());
         seamless.remove(player.getUUID());
         levelHandoffs.remove(player.getUUID());
         fallbacks.remove(player.getUUID());
@@ -470,6 +528,7 @@ public final class MinecraftClientViewService implements AutoCloseable {
 
     @Override
     public void close() {
+        gravitySessions.clear();
         seamlessTravel.clear();
         seamless.clear();
         levelHandoffs.clear();
@@ -495,11 +554,39 @@ public final class MinecraftClientViewService implements AutoCloseable {
     }
 
     private void follow(ViewStreamSession<MinecraftClientViewPeer, BlockState> session, ServerPlayer player) {
+        if (session.player().player() != player || session.player().world() != player.level()) {
+            gravitySessions.remove(player.getUUID());
+        }
         ViewStreamMessage.ResetReason reason = session.player().follow(player, runtime, levelHandoffs.remove(player.getUUID()));
         if (reason != null) {
             runtime.remoteRoutes().forget(player.getUUID(), false);
             seamlessTravel.forget(player.getUUID());
             session.reset(reason);
+        }
+    }
+
+    private void sendGravity(Entity entity, ServerPlayerConnection connection, boolean restoreWorldOrientation) {
+        runtime.requireServerThread();
+        if (!(entity.level() instanceof ServerLevel level)) {
+            return;
+        }
+        int handle = observerHandle(connection, level);
+        ClientViewTravel<MinecraftClientViewPeer> travel = handle < 0 ? null : travel(connection.getPlayer().getUUID());
+        if (travel != null && travel.remoteViewSelected()) {
+            travel.sendTravel(new TravelMessage.EntityGravity(handle, entity.getId(), entity.getUUID(), MinecraftGravity.frame(entity), restoreWorldOrientation));
+        }
+    }
+
+    private void synchronizeGravity(ServerPlayer player) {
+        entityGravity(player, player.connection);
+        for (Entity entity : player.level().getAllEntities()) {
+            if (entity == player || MinecraftGravity.frame(entity).equals(GravityFrame.WORLD)) {
+                continue;
+            }
+            if (((ProjectionEntityMapAccess) player.level().getChunkSource().chunkMap).wormholesEntityMap().get(entity.getId()) instanceof RemoteTrackedEntityAccess tracked
+                && tracked.wormholesSeenBy().contains(player.connection)) {
+                entityGravity(entity, player.connection);
+            }
         }
     }
 

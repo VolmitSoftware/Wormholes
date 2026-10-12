@@ -2,6 +2,10 @@ package art.arcane.wormholes.portal.rtp;
 
 import art.arcane.optics.crossing.Pose;
 import art.arcane.optics.crossing.PoseTransform;
+import art.arcane.optics.crossing.GravityFrame;
+import art.arcane.wormholes.modded.gravity.MinecraftGravity;
+import art.arcane.wormholes.modded.gravity.MinecraftGravityTransit;
+import art.arcane.wormholes.transit.TransitOrientation;
 import art.arcane.optics.crossing.ScaleRule;
 import art.arcane.optics.frame.Similarity;
 import art.arcane.optics.math.Angles;
@@ -446,9 +450,14 @@ public final class MinecraftRtpRuntime implements AutoCloseable {
                 OrientationPolicy.parse(config.orientationDefault, OrientationPolicy.FRAME));
             TravelMessage.ArrivalRules rules = TravelMessage.ArrivalRules.of(orientation, momentum, config.gravityFlipEnabled, config.momentumMaxSpeed,
                 ScaleRule.OFF);
-            Pose landed = PoseTransform.arrive(MinecraftArrivalPose.departure(active.entity, active.crossing), active.crossing,
-                Similarity.of(active.crossing.toward(frame, new Vec3d(target.x, target.y, target.z)), 1.0D), frame, rules.orientation(),
-                rules.gravityFlip(), rules.momentum(), rules.momentum().maxSpeed());
+            MinecraftGravityTransit.Passage passage = new MinecraftGravityTransit.Passage(active.crossing,
+                Similarity.of(active.crossing.toward(frame, new Vec3d(target.x, target.y, target.z)), 1.0D), frame, rules);
+            List<Entity> rig = active.entity.getSelfAndPassengers().toList();
+            Map<UUID, Pose> arrivalPoses = new HashMap<>(rig.size());
+            for (Entity member : rig) {
+                arrivalPoses.put(member.getUUID(), arrivalPose(member, passage));
+            }
+            Pose landed = arrivalPoses.get(active.entity.getUUID());
             Vec3d velocity = landed.velocity();
             Angles.Look look = new Angles.Look(landed.yaw(), landed.pitch());
             for (Entity member : active.entity.getSelfAndPassengers().toList()) {
@@ -478,7 +487,13 @@ public final class MinecraftRtpRuntime implements AutoCloseable {
                 cancel(active, TraversalRefundReason.TELEPORT_FAILED, true, "teleport rejected");
                 return;
             }
-            MinecraftArrivalPose.apply(arrived, landed);
+            for (Entity member : arrived.getSelfAndPassengers().toList()) {
+                MinecraftGravity.set(member, GravityFrame.WORLD);
+                Pose memberPose = arrivalPoses.get(member.getUUID());
+                if (memberPose != null) {
+                    MinecraftArrivalPose.apply(member, memberPose);
+                }
+            }
             active.finished = true;
             traversals.remove(active.entity.getUUID(), active);
             active.payments.forEach(MinecraftTravelCosts.Admission::commit);
@@ -565,9 +580,17 @@ public final class MinecraftRtpRuntime implements AutoCloseable {
         return new RtpWorld(UUID.nameUUIDFromBytes(key.getBytes(StandardCharsets.UTF_8)), key, level.getMinY(), level.getMaxY() + 1, level.getSeaLevel());
     }
 
-    private static RtpValidationRequest.EntityEnvelope envelope(Entity entity) {
-        AABB box = entity.getBoundingBox();
+    static Pose arrivalPose(Entity entity, MinecraftGravityTransit.Passage passage) {
+        Pose departed = PoseTransform.orient(MinecraftArrivalPose.departure(entity, passage.crossing()), MinecraftGravity.frame(entity).orientation());
+        TravelMessage.ArrivalRules rules = passage.rules();
+        return TransitOrientation.arrive(departed, passage.crossing(), passage.toward(), passage.exit(), rules.orientation(),
+            rules.gravityFlip(), rules.momentum(), rules.momentum().maxSpeed());
+    }
+
+    static RtpValidationRequest.EntityEnvelope envelope(Entity entity) {
         Vec3 position = entity.position();
+        AABB box = MinecraftGravity.frame(entity).equals(GravityFrame.WORLD) ? entity.getBoundingBox()
+            : entity.getDimensions(entity.getPose()).makeBoundingBox(position);
         return new RtpValidationRequest.EntityEnvelope(box.minX - position.x, box.maxX - position.x,
             box.minY - position.y, box.maxY - position.y, box.minZ - position.z, box.maxZ - position.z);
     }

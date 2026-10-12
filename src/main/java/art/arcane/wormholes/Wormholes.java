@@ -370,8 +370,6 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
     @Override
     public CompletionStage<Void> commitReload(ReloadAware.PreUnloadReason reason) {
         getLogger().info("BileTools reload commit started (" + reason + "). Tearing down Wormholes managers and PacketEvents.");
-    public CompletionStage<Void> commitReload(ReloadAware.PreUnloadReason reason) {
-        getLogger().info("BileTools pre-unload hook fired (" + reason + "). Tearing down Wormholes managers and PacketEvents.");
         tearDownBeforeDrain();
         return CompletableFuture.completedFuture(null);
     }

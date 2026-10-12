@@ -19,8 +19,8 @@ final class ClientViewHandshakeVersionTest {
     @Test
     void channelCarriesTheNativeProtocolVersion() {
         assertEquals("wormholes", ClientViewChannel.NAMESPACE);
-        assertEquals("v9", ClientViewChannel.PATH);
-        assertEquals("wormholes:v9", ClientViewChannel.CHANNEL);
+        assertEquals("v10", ClientViewChannel.PATH);
+        assertEquals("wormholes:v10", ClientViewChannel.CHANNEL);
     }
 
     @Test

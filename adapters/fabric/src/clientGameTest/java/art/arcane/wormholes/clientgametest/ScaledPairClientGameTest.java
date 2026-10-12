@@ -2,6 +2,10 @@ package art.arcane.wormholes.clientgametest;
 
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.crossing.ScaleRule;
+import art.arcane.optics.frame.Frame;
+import art.arcane.optics.frame.Similarity;
+import art.arcane.optics.math.Face;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.stream.EnvironmentState;
 import art.arcane.wormholes.modded.MinecraftPortal;
 import art.arcane.wormholes.modded.MinecraftScaleAccess;
@@ -26,6 +30,10 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.decoration.ArmorStand;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Blocks;
@@ -39,6 +47,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Predicate;
 
 import static art.arcane.wormholes.clientgametest.NativeClientViewAssertions.runtime;
 
@@ -49,7 +58,7 @@ public final class ScaledPairClientGameTest implements FabricClientGameTest {
     private static final int BACKDROP_Z = 392;
     private static final int BAND = 3;
     private static final double RATIO_FACTOR = 3.0D;
-    private static final double APPROACH = 6.0D;
+    private static final double APPROACH = 4.0D;
     private static final double ENTRY_OFFSET = 0.5D;
     private static final double EDGE_SAMPLE = 1.2D;
     private static final double OUTSIDE_SAMPLE = 2.5D;
@@ -72,6 +81,7 @@ public final class ScaledPairClientGameTest implements FabricClientGameTest {
     private static final BlockState LIME = Blocks.CONCRETE.pick(DyeColor.LIME).defaultBlockState();
     private static final BlockState MAGENTA = Blocks.CONCRETE.pick(DyeColor.MAGENTA).defaultBlockState();
     private static final BlockState YELLOW = Blocks.CONCRETE.pick(DyeColor.YELLOW).defaultBlockState();
+    private static final double MODEL_Z = BACKDROP_Z + 3.0D;
 
     @Override
     public void runTest(ClientGameTestContext context) {
@@ -83,15 +93,31 @@ public final class ScaledPairClientGameTest implements FabricClientGameTest {
 
     private void run(ClientGameTestContext context, TestServerConnection connection, TestServerContext server, String label) {
         connection.waitForChunksDownload();
-        context.waitFor(client -> WormholesClient.instance() != null && WormholesClient.instance().session().active(), NEGOTIATION_TIMEOUT_TICKS);
+        waitFor(context, "scaled-session-negotiation", client -> WormholesClient.instance() != null
+            && WormholesClient.instance().session().active(), NEGOTIATION_TIMEOUT_TICKS);
         ServerPlayer player = server.computeOnServer(minecraftServer -> connection.getServerPlayer());
-        UUID[] portals = server.computeOnServer(minecraftServer -> build(minecraftServer, player));
+        Scene scene = server.computeOnServer(minecraftServer -> build(minecraftServer, player));
+        UUID[] portals = scene.portals();
         boolean hidden = context.computeOnClient(client -> client.gui.hud.isHidden());
         CameraType camera = context.computeOnClient(client -> client.options.getCameraType());
         List<String> failures = new ArrayList<>();
         try {
-            context.runOnClient(client -> client.options.setCameraType(CameraType.FIRST_PERSON));
+            context.runOnClient(client -> {
+                assertHidden(client);
+                client.options.setCameraType(CameraType.FIRST_PERSON);
+                client.options.bobView().set(false);
+                client.options.fovEffectScale().set(0.0D);
+                client.options.fov().set(70);
+            });
             view(context, connection, server, player, label + " scaled view", failures);
+            Measurement reduced = measuredView(context, connection, server, player, SMALL, LARGE, 2 * BAND + 1, "reduced", failures);
+            Measurement enlarged = measuredView(context, connection, server, player, LARGE, SMALL, 1, "enlarged", failures);
+            if (reduced != null && enlarged != null) {
+                double actual = (double) enlarged.model().width() / reduced.model().width();
+                double expected = enlarged.modelReferenceWidth() / reduced.modelReferenceWidth();
+                assertTrue(Math.abs(actual / expected - 1.0D) <= 0.25D,
+                    "Native model size did not follow the same inverse portal ratio as terrain: observed " + actual + ", expected " + expected);
+            }
             place(context, server, player, SMALL.approach(ENTRY_OFFSET), 180.0F);
             List<TravelTap.Frame> grown = walk(context, portals[0], label + " ratio");
             crossed(context, grown, RATIO_FACTOR, SMALL, LARGE, label + " ratio", failures);
@@ -116,7 +142,14 @@ public final class ScaledPairClientGameTest implements FabricClientGameTest {
                 MinecraftScaleAccess.scaleAttribute().reset(player);
                 runtime(minecraftServer).portals().remove(player, portals[0]);
                 runtime(minecraftServer).portals().remove(player, portals[1]);
+                for (UUID id : scene.models()) {
+                    Entity entity = minecraftServer.overworld().getEntity(id);
+                    if (entity != null) {
+                        entity.discard();
+                    }
+                }
             });
+            context.restoreDefaultGameOptions();
         }
         assertTrue(failures.isEmpty(), label + ": " + failures);
     }
@@ -126,9 +159,9 @@ public final class ScaledPairClientGameTest implements FabricClientGameTest {
         place(context, server, player, SMALL.approach(0.0D), 180.0F);
         connection.waitForChunksRender();
         BlockPos marker = new BlockPos(LARGE.min().getX() + LARGE.edge() / 2, LARGE.min().getY() + LARGE.edge() / 2, BACKDROP_Z);
-        context.waitFor(client -> {
+        waitFor(context, "scaled-reduced-destination-ready", client -> {
             if (nativeRendering()) {
-                PortalView view = nativeView();
+                PortalView view = nativeView(SMALL);
                 return view != null && PortalStencilRenderer.instance().claims(view.surface().geometry())
                     && YELLOW.equals(view.destination().getBlockState(marker));
             }
@@ -137,7 +170,7 @@ public final class ScaledPairClientGameTest implements FabricClientGameTest {
         }, STREAM_TIMEOUT_TICKS);
         double scale = context.computeOnClient(client -> {
             if (nativeRendering()) {
-                PortalView view = nativeView();
+                PortalView view = nativeView(SMALL);
                 return view == null ? Double.NaN : 1.0D / view.toDestination().scale();
             }
             EnvironmentState environment = WormholesClient.instance().session().environment(NativeClientViewAssertions.portalKey(SMALL.min()));
@@ -156,7 +189,7 @@ public final class ScaledPairClientGameTest implements FabricClientGameTest {
         for (int attempt = 0; attempt < PROBE_ATTEMPTS; attempt++) {
             AtomicReference<FramebufferProbe> captured = new AtomicReference<>();
             context.runOnClient(client -> FramebufferProbe.capture(client, captured::set));
-            context.waitFor(client -> captured.get() != null, CAPTURE_TIMEOUT_TICKS);
+            waitFor(context, "scaled-aperture-framebuffer-" + attempt, client -> captured.get() != null, CAPTURE_TIMEOUT_TICKS);
             int[] colors = context.computeOnClient(client -> new int[] {sample(client, captured.get(), middle), sample(client, captured.get(), edge),
                 sample(client, captured.get(), outside)});
             if (colors[0] == OFF_SCREEN || colors[1] == OFF_SCREEN || colors[2] == OFF_SCREEN) {
@@ -177,6 +210,110 @@ public final class ScaledPairClientGameTest implements FabricClientGameTest {
         if (failure != null) {
             failures.add(label + ": " + failure);
         }
+    }
+
+    private static Measurement measuredView(ClientGameTestContext context, TestServerConnection connection, TestServerContext server,
+                                            ServerPlayer player, Square from, Square to, int bandWidth, String label, List<String> failures) {
+        place(context, server, player, from.approach(0.0D), 180.0F);
+        connection.waitForChunksRender();
+        waitFor(context, "scaled-" + label + "-native-view-ready", client -> nativeView(from) != null
+            && PortalStencilRenderer.instance().claims(nativeView(from).surface().geometry()),
+            STREAM_TIMEOUT_TICKS);
+        context.runOnClient(client -> hud(client, true));
+        context.waitTicks(SETTLE_TICKS);
+        double ratio = (double) to.edge() / from.edge();
+        Similarity toward = Similarity.between(Frame.canonical(Face.N), point(from.center()), Frame.canonical(Face.N), point(to.center()), ratio);
+        double middleX = to.min().getX() + to.edge() / 2;
+        Vec3 markerLeft = new Vec3(middleX - (bandWidth - 1) * 0.5D, to.center().y + 2.0D, BACKDROP_Z + 1.0D);
+        Vec3 markerRight = markerLeft.add(bandWidth, 0.0D, 0.0D);
+        Vec3 modelCenter = new Vec3(to.center().x + 0.75D, to.center().y + 0.75D, MODEL_Z);
+        String failure = "no framebuffer capture";
+        Measurement measurement = null;
+        for (int attempt = 0; attempt < PROBE_ATTEMPTS; attempt++) {
+            AtomicReference<FramebufferProbe> captured = new AtomicReference<>();
+            context.runOnClient(client -> {
+                assertHidden(client);
+                FramebufferProbe.capture(client, captured::set);
+            });
+            waitFor(context, "scaled-" + label + "-framebuffer-" + attempt, client -> captured.get() != null, CAPTURE_TIMEOUT_TICKS);
+            measurement = context.computeOnClient(client -> measure(client, captured.get(), toward, from, markerLeft, markerRight, modelCenter));
+            failure = measurement == null ? "a projected marker or model sample is off screen" : measurement.failure();
+            if (failure == null) {
+                break;
+            }
+            context.waitTicks(PROBE_INTERVAL_TICKS);
+        }
+        context.takeScreenshot("scaled-pair-" + label + "-size");
+        context.runOnClient(client -> hud(client, false));
+        if (failure != null) {
+            failures.add(label + ": " + failure + "; measurement=" + measurement);
+            return null;
+        }
+        LOGGER.info("WORMHOLES_SCALED_PROJECTION_SIZE {} inverse ratio {}: {}", label, 1.0D / ratio, measurement);
+        return measurement;
+    }
+
+    private static Measurement measure(Minecraft client, FramebufferProbe probe, Similarity toward, Square from, Vec3 markerLeft,
+                                       Vec3 markerRight, Vec3 modelCenter) {
+        Similarity back = toward.inverse();
+        int[] left = screen(client, back, markerLeft);
+        int[] right = screen(client, back, markerRight);
+        int[] modelLeft = screen(client, back, modelCenter.add(-0.5D, 0.0D, 0.0D));
+        int[] modelRight = screen(client, back, modelCenter.add(0.5D, 0.0D, 0.0D));
+        int[] modelTop = screen(client, back, modelCenter.add(-0.7D, 0.8D, 0.0D));
+        int[] modelBottom = screen(client, back, modelCenter.add(0.7D, -0.8D, 0.0D));
+        int[] outside = FramebufferProbe.screen(client, new Vec3(from.min().getX() - 0.125D,
+            client.gameRenderer.mainCamera().position().y, from.center().z));
+        if (outside == null) {
+            outside = FramebufferProbe.screen(client, new Vec3(from.center().x, from.min().getY() - 0.125D, from.center().z));
+        }
+        if (left == null || right == null || modelLeft == null || modelRight == null || modelTop == null || modelBottom == null || outside == null) {
+            return null;
+        }
+        int expectedLeft = Math.min(left[0], right[0]);
+        int expectedRight = Math.max(left[0], right[0]);
+        int expectedWidth = expectedRight - expectedLeft;
+        int row = (left[1] + right[1]) / 2;
+        PixelSpan marker = span(probe, Math.max(0, expectedLeft - expectedWidth), Math.min(probe.width() - 1, expectedRight + expectedWidth),
+            row, row, false);
+        PixelSpan model = span(probe, Math.min(modelTop[0], modelBottom[0]), Math.max(modelTop[0], modelBottom[0]),
+            Math.min(modelTop[1], modelBottom[1]), Math.max(modelTop[1], modelBottom[1]), true);
+        String failure = marker == null ? "yellow marker was not drawn" : model == null ? "cyan native model equipment was not drawn" : null;
+        if (failure == null && Math.abs((double) marker.width() / expectedWidth - 1.0D) > 0.20D) {
+            failure = "marker pixel width differs from its inverse-ratio projection";
+        }
+        if (failure == null && Math.abs(marker.center() - (expectedLeft + expectedRight) * 0.5D) > Math.max(3.0D, expectedWidth * 0.1D)) {
+            failure = "marker position differs from its portal-centred projection";
+        }
+        int exterior = probe.average(outside[0], outside[1], SAMPLE_RADIUS);
+        if (failure == null && (yellow(exterior) || cyan(exterior))) {
+            failure = "scaled destination geometry leaked outside the source aperture";
+        }
+        return new Measurement(marker, expectedWidth, model, Math.abs(modelRight[0] - modelLeft[0]), failure);
+    }
+
+    private static PixelSpan span(FramebufferProbe probe, int minX, int maxX, int minY, int maxY, boolean model) {
+        int left = Integer.MAX_VALUE;
+        int right = Integer.MIN_VALUE;
+        for (int y = Math.max(0, minY); y <= Math.min(probe.height() - 1, maxY); y++) {
+            for (int x = Math.max(0, minX); x <= Math.min(probe.width() - 1, maxX); x++) {
+                int color = probe.read(x, y);
+                if (model ? cyan(color) : yellow(color)) {
+                    left = Math.min(left, x);
+                    right = Math.max(right, x);
+                }
+            }
+        }
+        return left <= right ? new PixelSpan(left, right) : null;
+    }
+
+    private static int[] screen(Minecraft client, Similarity back, Vec3 target) {
+        Vec3d projected = back.point(point(target));
+        return FramebufferProbe.screen(client, new Vec3(projected.x(), projected.y(), projected.z()));
+    }
+
+    private static Vec3d point(Vec3 value) {
+        return new Vec3d(value.x, value.y, value.z);
     }
 
     private static void crossed(ClientGameTestContext context, List<TravelTap.Frame> frames, double expected, Square from, Square to, String label,
@@ -266,20 +403,30 @@ public final class ScaledPairClientGameTest implements FabricClientGameTest {
     private static void place(ClientGameTestContext context, TestServerContext server, ServerPlayer player, Vec3 position, float yaw) {
         server.runOnServer(minecraftServer -> {
             player.setGameMode(GameType.CREATIVE);
-            player.getAbilities().flying = false;
+            player.getAbilities().flying = true;
             player.onUpdateAbilities();
             player.teleportTo(player.level(), position.x, position.y, position.z, Set.of(), yaw, 0.0F, false);
             player.setDeltaMovement(Vec3.ZERO);
         });
-        context.waitFor(client -> client.player.position().distanceTo(position) < 0.05D
-            && !client.player.getAbilities().flying, ARRIVE_TIMEOUT_TICKS);
+        waitFor(context, "scaled-hover-" + position, client -> client.player.position().distanceTo(position) < 0.05D
+            && client.player.getAbilities().flying, ARRIVE_TIMEOUT_TICKS);
+        BlockPos support = BlockPos.containing(position).below();
+        waitFor(context, "scaled-support-" + support, client -> client.level.hasChunkAt(support)
+            && client.level.getBlockState(support).is(Blocks.STONE), PREPARE_TIMEOUT_TICKS);
+        server.runOnServer(minecraftServer -> {
+            player.getAbilities().flying = false;
+            player.setDeltaMovement(Vec3.ZERO);
+            player.onUpdateAbilities();
+        });
+        waitFor(context, "scaled-grounded-" + position, client -> !client.player.getAbilities().flying && client.player.onGround()
+            && client.player.position().distanceTo(position) < 0.05D, ARRIVE_TIMEOUT_TICKS);
         context.getInput().lookAt(yaw, 0.0F);
-        context.waitFor(client -> Math.abs(Math.IEEEremainder(client.player.getYRot() - yaw, 360.0D)) < 0.1D
+        waitFor(context, "scaled-look-" + yaw, client -> Math.abs(Math.IEEEremainder(client.player.getYRot() - yaw, 360.0D)) < 0.1D
             && Math.abs(client.player.getXRot()) < 0.1D, ARRIVE_TIMEOUT_TICKS);
         context.waitTicks(SETTLE_TICKS);
     }
 
-    private static UUID[] build(MinecraftServer server, ServerPlayer actor) {
+    private static Scene build(MinecraftServer server, ServerPlayer actor) {
         WormholesModRuntime runtime = runtime(server);
         ServerLevel level = server.overworld();
         server.getCommands().performPrefixedCommand(server.createCommandSourceStack(), "time set noon");
@@ -290,6 +437,7 @@ public final class ScaledPairClientGameTest implements FabricClientGameTest {
         fill(level, new BlockPos(smallMin.getX() - 6, smallMin.getY() - 1, BACKDROP_Z - 4), 15, 14, 25, air);
         fill(level, new BlockPos(smallMin.getX() - 6, smallMin.getY() - 1, BACKDROP_Z - 4), 15, 1, 25, stone);
         fill(level, new BlockPos(smallMin.getX() - 6, smallMin.getY(), BACKDROP_Z), 15, 13, 1, MAGENTA);
+        fill(level, new BlockPos(smallMin.getX() + SMALL.edge() / 2, smallMin.getY(), BACKDROP_Z), 1, 13, 1, YELLOW);
         fill(level, new BlockPos(largeMin.getX() - 8, largeMin.getY() - 1, BACKDROP_Z - 4), 25, 20, 25, air);
         fill(level, new BlockPos(largeMin.getX() - 8, largeMin.getY() - 1, BACKDROP_Z - 4), 25, 1, 25, stone);
         int middle = largeMin.getX() + LARGE.edge() / 2;
@@ -302,7 +450,15 @@ public final class ScaledPairClientGameTest implements FabricClientGameTest {
         assertTrue(runtime.portals().link(actor, large.getId(), small.getId()), "9x9 link rejected");
         rule(server, actor, small.getId(), RATIO);
         rule(server, actor, large.getId(), RATIO);
-        return new UUID[] {small.getId(), large.getId()};
+        return new Scene(new UUID[] {small.getId(), large.getId()}, List.of(model(level, SMALL), model(level, LARGE)));
+    }
+
+    private static UUID model(ServerLevel level, Square square) {
+        ArmorStand stand = new ArmorStand(level, square.center().x + 0.75D, square.center().y - 1.0D, MODEL_Z);
+        stand.setNoGravity(true);
+        stand.setItemSlot(EquipmentSlot.HEAD, new ItemStack(Blocks.CONCRETE.pick(DyeColor.CYAN)));
+        assertTrue(level.addFreshEntity(stand), "scaled native model spawn rejected");
+        return stand.getUUID();
     }
 
     private static MinecraftPortal portal(WormholesModRuntime runtime, ServerPlayer actor, ServerLevel level, Square square) {
@@ -332,8 +488,8 @@ public final class ScaledPairClientGameTest implements FabricClientGameTest {
         return WormholesClient.instance().session().has(ClientViewExtensions.SEAMLESS_TRAVEL);
     }
 
-    private static PortalView nativeView() {
-        BlockPos min = SMALL.min();
+    private static PortalView nativeView(Square source) {
+        BlockPos min = source.min();
         for (PortalView view : WormholesClient.instance().portalViews().current()) {
             ApertureDescriptor geometry = view.surface().geometry();
             if (view.kind() == PortalView.Kind.ARM && geometry.originX() == min.getX()
@@ -354,6 +510,35 @@ public final class ScaledPairClientGameTest implements FabricClientGameTest {
 
     private static boolean yellow(int color) {
         return red(color) > blue(color) * DOMINANCE && green(color) > blue(color) * DOMINANCE && !lime(color);
+    }
+
+    private static boolean cyan(int color) {
+        return green(color) > red(color) * 1.5D && blue(color) > red(color) * 1.5D;
+    }
+
+    private static void assertHidden(Minecraft client) {
+        assertTrue(Boolean.parseBoolean(System.getProperty("automator.hidden", "true")) && NativeTestWindow.hiddenAndUnfocused(client)
+            && NativeTestWindow.mouseReleased(client), "Scaled projection requires a hidden unfocused window with the mouse released");
+    }
+
+    private static void waitFor(ClientGameTestContext context, String stage, Predicate<Minecraft> condition, int ticks) {
+        try {
+            context.waitFor(condition::test, ticks);
+        } catch (AssertionError failure) {
+            String state = context.computeOnClient(client -> {
+                WormholesClient mod = WormholesClient.instance();
+                return "position=" + (client.player == null ? null : client.player.position())
+                    + ", velocity=" + (client.player == null ? null : client.player.getDeltaMovement())
+                    + ", flying=" + (client.player != null && client.player.getAbilities().flying)
+                    + ", grounded=" + (client.player != null && client.player.onGround())
+                    + ", scale=" + (client.player == null ? Double.NaN : client.player.getScale())
+                    + ", screen=" + (client.gui.screen() == null ? "none" : client.gui.screen().getClass().getSimpleName())
+                    + ", arms=" + (mod == null ? 0 : mod.seamlessTravel().arms().size())
+                    + ", unprepared=" + (mod == null ? null : mod.seamlessTravel().unprepared())
+                    + ", nativeViews=" + (mod == null ? 0 : mod.portalViews().current().size());
+            });
+            throw new AssertionError(stage + " timed out after " + ticks + " ticks: " + state, failure);
+        }
     }
 
     private static String hex(int color) {
@@ -402,5 +587,21 @@ public final class ScaledPairClientGameTest implements FabricClientGameTest {
         Vec3 approach(double offset) {
             return new Vec3(min.getX() + edge / 2.0D + offset, min.getY(), min.getZ() + 0.5D + APPROACH);
         }
+    }
+
+    private record Scene(UUID[] portals, List<UUID> models) {
+    }
+
+    private record PixelSpan(int left, int right) {
+        int width() {
+            return right - left + 1;
+        }
+
+        double center() {
+            return (left + right) * 0.5D;
+        }
+    }
+
+    private record Measurement(PixelSpan marker, double expectedMarkerWidth, PixelSpan model, double modelReferenceWidth, String failure) {
     }
 }

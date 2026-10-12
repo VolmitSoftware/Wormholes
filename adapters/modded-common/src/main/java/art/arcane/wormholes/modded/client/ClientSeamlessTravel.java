@@ -5,6 +5,8 @@ import art.arcane.optics.aperture.ApertureCells;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.aperture.SizeRatio;
 import art.arcane.optics.crossing.Pose;
+import art.arcane.optics.crossing.GravityFrame;
+import art.arcane.wormholes.modded.gravity.MinecraftGravity;
 import art.arcane.optics.crossing.ScaleRule;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.frame.Similarity;
@@ -55,6 +57,7 @@ public final class ClientSeamlessTravel {
     private final Map<UUID, TravelMessage.TravelBegin> arms = new LinkedHashMap<>();
     private final ArrayDeque<Crossing> pending = new ArrayDeque<>();
     private final ClientEntityCrossings entities = new ClientEntityCrossings();
+    private final ClientEntityGravity gravity = new ClientEntityGravity();
     private final ClientCameraRoll cameraRoll = new ClientCameraRoll();
     private final ClientCrossingView view;
     private Vec3 previousEye;
@@ -117,6 +120,12 @@ public final class ClientSeamlessTravel {
                 entities.receive(crossed.levelHandle() == 0 ? minecraft.level : residents.level(crossed.levelHandle()), minecraft.player, crossed);
                 yield true;
             }
+            case TravelMessage.EntityGravity state -> {
+                Minecraft minecraft = Minecraft.getInstance();
+                gravity.receive(state.levelHandle() == 0 ? minecraft.level : residents.level(state.levelHandle()), minecraft.player,
+                    !pending.isEmpty(), state, System.currentTimeMillis());
+                yield true;
+            }
             default -> false;
         };
     }
@@ -146,6 +155,7 @@ public final class ClientSeamlessTravel {
     }
 
     public void frame(Camera camera, DeltaTracker tracker) {
+        prepareArrival(camera);
         if (beforeFrame(camera, tracker)) {
             camera.update(tracker);
         }
@@ -184,6 +194,7 @@ public final class ClientSeamlessTravel {
         if (oldest != null && System.currentTimeMillis() >= oldest.deadline()) {
             rollback(oldest, "no server answer within " + ACCEPT_TIMEOUT_MILLIS + " ms");
         }
+        gravity.tick(handle -> handle == 0 ? minecraft.level : residents.level(handle), player, !pending.isEmpty(), System.currentTimeMillis());
         if (arms.isEmpty() && returning == null) {
             if (straddling) {
                 straddling = false;
@@ -206,6 +217,8 @@ public final class ClientSeamlessTravel {
         arms.clear();
         pending.clear();
         entities.clear();
+        gravity.clear();
+        cameraRoll.cancel();
         view.clear();
         residents.clear();
         previousEye = null;
@@ -214,6 +227,7 @@ public final class ClientSeamlessTravel {
         straddling = false;
         LocalPlayer player = Minecraft.getInstance().player;
         if (player != null) {
+            MinecraftGravity.reset(player);
             StraddleTracker.clear(player);
         }
     }
@@ -307,7 +321,7 @@ public final class ClientSeamlessTravel {
         TravelMessage.TravelPose crossingPose = crossingPose(player, partial);
         Vec3 feet = new Vec3(crossingPose.x(), crossingPose.y(), crossingPose.z());
         Vec3d crossingFeet = new Vec3d(feet.x, feet.y, feet.z);
-        Pose after = ClientTravelMotion.arrive(arm, before, crossingFeet);
+        Pose after = ClientTravelMotion.arrive(arm, before, crossingFeet, MinecraftGravity.frame(player));
         String refusal = target == null ? "resident level " + arm.levelHandle() + " is not open"
             : arrivalLoaded(target, after.position()) ? null : "arrival terrain not received";
         if (refusal != null) {
@@ -321,12 +335,17 @@ public final class ClientSeamlessTravel {
         Vec3 expected = ClientTravelMotion.point(toward, feet);
         ClientTravelMotion.Carry carry = ClientTravelMotion.carry(player);
         double scaleBefore = TRAVELLER_SCALE.factor(player);
+        GravityFrame gravityBefore = MinecraftGravity.frame(player);
         try {
             sender.accept(new TravelMessage.TravelCross(arm.token(), arm.generation(), CROSS_REVISION, crossingPose,
                 ClientTravelMotion.vector(previous), ClientTravelMotion.vector(eye)));
             ScaleRule rule = arm.rules().scale();
             if (rule.changesEntity()) {
                 TRAVELLER_SCALE.cross(player, rule, new SizeRatio(arm.scale(), true));
+            }
+            if (arm.rules().rotateGravity()) {
+                MinecraftGravity.set(player, gravityBefore.transformed(toward.rigid().permutation()));
+                cameraRoll.cancel();
             }
             ClientTravelMotion.Carry carried = carry.moved(before, after, toward);
             if (target != source) {
@@ -339,12 +358,15 @@ public final class ClientSeamlessTravel {
         } catch (RuntimeException failure) {
             LOGGER.warn("Unable to predict seamless portal crossing", failure);
             TRAVELLER_SCALE.set(player, scaleBefore);
+            MinecraftGravity.set(player, gravityBefore);
             return null;
         }
         crossedView(arm, source, target);
         long now = System.currentTimeMillis();
-        cameraRoll.start(ClientTravelMotion.roll(arm, before, crossingFeet), rollSeconds(), now);
-        pending.addLast(new Crossing(arm, source, target, before, carry, after, expected, now + ACCEPT_TIMEOUT_MILLIS, scaleBefore));
+        if (!arm.rules().rotateGravity() && MinecraftGravity.frame(player).equals(GravityFrame.WORLD)) {
+            cameraRoll.start(ClientTravelMotion.roll(arm, before, crossingFeet), rollSeconds(), now);
+        }
+        pending.addLast(new Crossing(arm, source, target, before, carry, after, expected, now + ACCEPT_TIMEOUT_MILLIS, scaleBefore, gravityBefore));
         residents.crossing(pending.peekFirst().source() == pending.peekFirst().target() ? null : pending.peekFirst().source());
         declined = null;
         returning = StraddleTracker.create(destinationEndpoint(arm), sourceEndpoint(arm, arm.sourceGeometry().aperture()), source,
@@ -384,6 +406,7 @@ public final class ClientSeamlessTravel {
         if (player == null || next != null) {
             return;
         }
+        authoritativeTraveller(player, accept);
         TravelMessage.TravelPose authoritative = accept.pose();
         Vec3d offset = new Vec3d(authoritative.x() - crossing.expected().x, authoritative.y() - crossing.expected().y,
             authoritative.z() - crossing.expected().z);
@@ -420,7 +443,7 @@ public final class ClientSeamlessTravel {
             return;
         }
         Pose before = ClientTravelMotion.capture(player);
-        Pose mapped = arm == null ? before : ClientTravelMotion.arrive(arm, before, before.position());
+        Pose mapped = arm == null ? before : ClientTravelMotion.arrive(arm, before, before.position(), sourceGravity(arm, accept.gravity()));
         TravelMessage.TravelPose pose = accept.pose();
         Vec3d offset = new Vec3d(pose.x() - mapped.position().x(), pose.y() - mapped.position().y(), pose.z() - mapped.position().z());
         Pose moved = mapped.moved(offset).withVelocity(accept.velocity());
@@ -428,7 +451,11 @@ public final class ClientSeamlessTravel {
             : ClientTravelMotion.turned(moved, Angles.unwrap(pose.yaw() - moved.yaw(), 0.0F), pose.pitch() - moved.pitch());
         ClientTravelMotion.Carry carried = arm == null ? ClientTravelMotion.carry(player)
             : ClientTravelMotion.carry(player).moved(before, placed, arm.sourceToDestination());
-        if (arm != null) {
+        authoritativeTraveller(player, accept);
+        if (arm != null && arm.rules().rotateGravity()) {
+            cameraRoll.cancel();
+        }
+        if (arm != null && !arm.rules().rotateGravity() && MinecraftGravity.frame(player).equals(GravityFrame.WORLD)) {
             cameraRoll.start(ClientTravelMotion.roll(arm, before, before.position()), rollSeconds(), System.currentTimeMillis());
         }
         if (target != source) {
@@ -447,6 +474,16 @@ public final class ClientSeamlessTravel {
         if (client != null && arm != null) {
             client.dropProjectedEntities(arm.sourceGeometry());
         }
+    }
+
+    static GravityFrame sourceGravity(TravelMessage.TravelBegin arm, GravityFrame arrival) {
+        return arm.rules().rotateGravity() ? arrival.transformed(arm.sourceToDestination().rigid().permutation().inverse()) : arrival;
+    }
+
+    private void authoritativeTraveller(LocalPlayer player, TravelMessage.TravelAccept accept) {
+        TRAVELLER_SCALE.set(player, accept.entityScale());
+        MinecraftGravity.set(player, accept.gravity());
+        gravity.discard(player.getUUID());
     }
 
     private boolean cancel(TravelMessage.TravelCancel cancel) {
@@ -488,6 +525,7 @@ public final class ClientSeamlessTravel {
         }
         StraddleTracker.clear(player);
         cameraRoll.cancel();
+        MinecraftGravity.set(player, from.gravityBefore());
         if (TRAVELLER_SCALE.factor(player) != from.scaleBefore()) {
             TRAVELLER_SCALE.set(player, from.scaleBefore());
         }
@@ -548,17 +586,31 @@ public final class ClientSeamlessTravel {
         TravelMessage.TravelBegin nearest = null;
         double nearestDistance = Double.POSITIVE_INFINITY;
         String dimension = current.dimension().identifier().toString();
+        Vec3 eye = player.getEyePosition();
         for (TravelMessage.TravelBegin arm : arms.values()) {
             if (!arm.resident() || !arm.sourceWorld().equals(dimension)) {
                 continue;
             }
-            double distance = Math.abs(arm.sourceGeometry().signedDistance(player.getX(), player.getEyeY(), player.getZ()));
+            double distance = Math.abs(arm.sourceGeometry().signedDistance(eye.x, eye.y, eye.z));
             if (distance < nearestDistance) {
                 nearest = arm;
                 nearestDistance = distance;
             }
         }
         return nearest;
+    }
+
+    private void prepareArrival(Camera camera) {
+        Minecraft minecraft = Minecraft.getInstance();
+        LocalPlayer player = minecraft.player;
+        if (minecraft.level == null || player == null || !camera.isInitialized() || camera.entity() != player) {
+            return;
+        }
+        TravelMessage.TravelBegin arm = nearestResident(minecraft.level, player);
+        ClientLevel target = arm == null ? null : residents.level(arm.levelHandle());
+        if (target != null && target != minecraft.level) {
+            ClientWorldLoader.prepareArrivalTerrain(target, ClientTravelMotion.point(arm.sourceToDestination(), camera.position()));
+        }
     }
 
     private TravelMessage.TravelBegin arm(UUID token, long generation) {
@@ -607,6 +659,6 @@ public final class ClientSeamlessTravel {
     }
 
     private record Crossing(TravelMessage.TravelBegin arm, ClientLevel source, ClientLevel target, Pose before, ClientTravelMotion.Carry carry,
-                            Pose after, Vec3 expected, long deadline, double scaleBefore) {
+                            Pose after, Vec3 expected, long deadline, double scaleBefore, GravityFrame gravityBefore) {
     }
 }

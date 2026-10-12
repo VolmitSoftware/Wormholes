@@ -125,6 +125,7 @@ public final class TravelTap {
             return;
         }
         SeamlessTurningTap.rendered(minecraft);
+        VerticalCameraLoopTap.rendered(minecraft);
         CrossingCompositionTap.frame(minecraft);
         NetherCrossingCompositionTap.frame(minecraft);
         captureCrossingFrames(minecraft, camera);

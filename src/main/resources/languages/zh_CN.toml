@@ -1418,6 +1418,8 @@ profile = ["&6&l过渡效果&r", "&7临界 {mode}", "&7到达 {state}", "&e左�
 prompt = "&b在聊天中输入新值（或输入 '{cancel}'）："
 scale = ["&6&l旅行者缩放：{mode}&r", "&7尺寸范围 {value}。在不同大小的传送门之间映射旅行。", "&e左键切换模式", "&e右键：最小值，Shift + 右键：最大值"]
 
+gravity = ["&6&l重力方向: {state}&r", "&7使用模组的玩家会随传送门旋转地面、移动方向和角色模型。", "&e左键点击切换"]
+
 [transit.scale]
 current = "&8[&6Wormholes&8] &f{portal}&7 旅行者缩放：&f{mode}&7（{value}）"
 set = "&8[&6Wormholes&8] &f{portal}&a 旅行者缩放已设为 &f{mode}&a（{value}）。"
@@ -1425,6 +1427,11 @@ invalid = "&8[&6Wormholes&8] &c无法读取旅行者缩放：{reason}"
 reset = "&8[&6Wormholes&8] &a已恢复 {count} 个实体的默认大小。"
 reset_radius = "&8[&6Wormholes&8] &ctarget=all 需要 1 到 {value} 的半径。"
 reset_player = "&8[&6Wormholes&8] &c没有名为 {name} 的在线玩家。"
+
+[transit.gravity]
+current = "&8[&6Wormholes&8] &f{portal}&7 重力方向: &f{state}"
+reset = "&8[&6Wormholes&8] &a已为 {name} 恢复正常重力。"
+client_required = "&8[&6Wormholes&8] &c此传送门需要 Wormholes 客户端模组才能改变重力方向。"
 # ---- end lane:transit ----
 
 # ---- lane:view (fidelity.*) ----

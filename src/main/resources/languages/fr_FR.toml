@@ -1418,6 +1418,8 @@ profile = ["&6&lEffets de transition&r", "&7Seuil {mode}", "&7Arrivée {state}",
 prompt = "&bSaisissez la nouvelle valeur dans le chat (ou '{cancel}') :"
 scale = ["&6&lÉchelle du voyageur : {mode}&r", "&7Plage de taille {value}. Adapte le voyage entre portails de tailles différentes.", "&eClic gauche pour changer de mode", "&eClic droit : minimum, Maj + clic droit : maximum"]
 
+gravity = ["&6&lGravité directionnelle: {state}&r", "&7Le sol, les déplacements et le modèle des voyageurs équipés du mod tournent avec le portail.", "&eClic gauche pour activer ou désactiver"]
+
 [transit.scale]
 current = "&8[&6Wormholes&8] &f{portal}&7 échelle du voyageur : &f{mode}&7 ({value})"
 set = "&8[&6Wormholes&8] &f{portal}&a échelle du voyageur réglée sur &f{mode}&a ({value})."
@@ -1425,6 +1427,11 @@ invalid = "&8[&6Wormholes&8] &cImpossible de lire l'échelle du voyageur : {reas
 reset = "&8[&6Wormholes&8] &aTaille normale rétablie pour {count} entités."
 reset_radius = "&8[&6Wormholes&8] &ctarget=all demande un rayon de 1 à {value}."
 reset_player = "&8[&6Wormholes&8] &cAucun joueur connecté ne s'appelle {name}."
+
+[transit.gravity]
+current = "&8[&6Wormholes&8] &f{portal}&7 gravité directionnelle: &f{state}"
+reset = "&8[&6Wormholes&8] &aGravité normale rétablie pour {name}."
+client_required = "&8[&6Wormholes&8] &cCe portail nécessite le mod client Wormholes pour la gravité directionnelle."
 # ---- end lane:transit ----
 
 # ---- lane:view (fidelity.*) ----

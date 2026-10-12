@@ -53,6 +53,66 @@ describe('ClientViewPeer', () => {
     assert.match(messages(peer)[0], /ZERO_COPY outside OFFER and HELLO/)
   })
 
+  it('accepts negotiated affine samples and retains the newest int64 revision', (t) => {
+    const caps = CAPS | capabilitySet('MESH_RENDER', 'AFFINE_PORTALS')
+    const { peer, sent, frame, accept } = harness(t, { caps })
+    accept(caps)
+    assert.equal(sent[0].clientCaps & capabilitySet('AFFINE_PORTALS'), 1n << 16n)
+    frame(CONTENT.palette)
+    frame(CONTENT.portal)
+    frame(CONTENT.portalAffine)
+    assert.deepEqual(peer.report().portals[0].affine, { portalKey: 7, sampleRevision: '123', apertureToSource: CONTENT.portalAffine.apertureToSource,
+      sourceToDestination: CONTENT.portalAffine.sourceToDestination, shape: CONTENT.portalAffine.shape.toString('hex') })
+    const newest = { ...CONTENT.portalAffine, sampleRevision: 0x7fffffffffffffffn, apertureToSource: [...CONTENT.portalAffine.apertureToSource] }
+    newest.apertureToSource[3] = -511.5
+    frame(newest)
+    frame(CONTENT.portalAffine)
+    frame({ ...newest, apertureToSource: CONTENT.portalAffine.apertureToSource })
+    assert.equal(peer.report().portals[0].affine.sampleRevision, '9223372036854775807')
+    assert.equal(peer.report().portals[0].affine.apertureToSource[3], -511.5)
+    assert.doesNotThrow(() => JSON.stringify(peer.report()))
+    assert.deepEqual(messages(peer), [])
+    frame({ type: 'PORTAL_DROP', portalKey: 7 })
+    assert.equal(peer.portals.size, 0)
+    frame({ ...CONTENT.portal, geometryRevision: 1 })
+    frame({ ...CONTENT.portalAffine, sampleRevision: 0n })
+    assert.equal(peer.report().portals[0].affine.sampleRevision, '0')
+    frame({ type: 'SESSION_RESET', reason: 'TELEPORT' }, FLAG_LAST)
+    assert.equal(peer.portals.size, 0)
+    assert.deepEqual(messages(peer), [])
+  })
+
+  it('flags affine samples without negotiated capability', (t) => {
+    const { peer, frame, accept } = harness(t)
+    accept()
+    frame(CONTENT.portalAffine)
+    assert.match(messages(peer)[0], /Affine portal capability was not negotiated/)
+    assert.equal(peer.portals.size, 0)
+  })
+
+  for (const required of ['PLATES', 'MESH_RENDER']) {
+    it(`flags affine capability grants with only ${required}`, (t) => {
+      const caps = capabilitySet('AFFINE_PORTALS', required)
+      const { peer, frame, accept } = harness(t, { caps })
+      accept(caps)
+      frame(CONTENT.portalAffine)
+      assert.ok(messages(peer).some((message) => /ACCEPT grants AFFINE_PORTALS without PLATES and MESH_RENDER/.test(message)))
+      assert.ok(messages(peer).some((message) => /PORTAL_AFFINE for portal 7 before PORTAL/.test(message)))
+      if (required === 'PLATES') assert.ok(messages(peer).some((message) => /PORTAL_AFFINE sent without the MESH_RENDER capability/.test(message)))
+    })
+  }
+
+  it('flags affine samples before PORTAL and outside the active session', (t) => {
+    const caps = CAPS | capabilitySet('MESH_RENDER', 'AFFINE_PORTALS')
+    const { peer, frame, accept } = harness(t, { caps })
+    accept(caps)
+    frame(CONTENT.portalAffine)
+    assert.match(messages(peer)[0], /PORTAL_AFFINE for portal 7 before PORTAL/)
+    frame({ type: 'SESSION_RESET', reason: 'PROTOCOL' }, FLAG_LAST)
+    frame(CONTENT.portalAffine)
+    assert.ok(messages(peer).some((message) => /Affine portal capability was not negotiated/.test(message)))
+  })
+
   it('accepts a clean golden stream and requests only uncached bricks', (t) => {
     const { peer, sent, frame, accept } = harness(t)
     accept()

@@ -1418,6 +1418,8 @@ profile = ["&6&lHiệu ứng chuyển tiếp&r", "&7Ngưỡng {mode}", "&7Đến
 prompt = "&bNhập giá trị mới vào khung chat (hoặc '{cancel}'):"
 scale = ["&6&lTỉ lệ người du hành: {mode}&r", "&7Khoảng kích thước {value}. Ánh xạ chuyến đi giữa các cổng có kích thước khác nhau.", "&eChuột trái để đổi chế độ", "&eChuột phải: tối thiểu, Shift + chuột phải: tối đa"]
 
+gravity = ["&6&lHướng trọng lực: {state}&r", "&7Sàn, chuyển động và mô hình của người chơi dùng mod xoay theo cổng.", "&eNhấp chuột trái để bật hoặc tắt"]
+
 [transit.scale]
 current = "&8[&6Wormholes&8] &f{portal}&7 tỉ lệ người du hành: &f{mode}&7 ({value})"
 set = "&8[&6Wormholes&8] &f{portal}&a đã đặt tỉ lệ người du hành thành &f{mode}&a ({value})."
@@ -1425,6 +1427,11 @@ invalid = "&8[&6Wormholes&8] &cKhông đọc được tỉ lệ người du hàn
 reset = "&8[&6Wormholes&8] &aĐã khôi phục kích thước gốc cho {count} thực thể."
 reset_radius = "&8[&6Wormholes&8] &ctarget=all cần bán kính từ 1 đến {value}."
 reset_player = "&8[&6Wormholes&8] &cKhông có người chơi trực tuyến tên {name}."
+
+[transit.gravity]
+current = "&8[&6Wormholes&8] &f{portal}&7 hướng trọng lực: &f{state}"
+reset = "&8[&6Wormholes&8] &aĐã khôi phục trọng lực bình thường cho {name}."
+client_required = "&8[&6Wormholes&8] &cCổng này cần mod Wormholes phía máy khách để thay đổi hướng trọng lực."
 # ---- end lane:transit ----
 
 # ---- lane:view (fidelity.*) ----

@@ -1418,6 +1418,8 @@ profile = ["&6&lÜbergangseffekte&r", "&7Schwelle {mode}", "&7Ankunft {state}", 
 prompt = "&bGib den neuen Wert im Chat ein (oder '{cancel}'):"
 scale = ["&6&lReisendengröße: {mode}&r", "&7Größenbereich {value}. Bildet Reisen zwischen Portalen unterschiedlicher Größe ab.", "&eLinksklick zum Wechseln des Modus", "&eRechtsklick: Minimum, Umschalt + Rechtsklick: Maximum"]
 
+gravity = ["&6&lGerichtete Schwerkraft: {state}&r", "&7Bei Reisenden mit Mod drehen sich Boden, Bewegung und Modell mit dem Portal.", "&eLinksklick zum Umschalten"]
+
 [transit.scale]
 current = "&8[&6Wormholes&8] &f{portal}&7 Reisendengröße: &f{mode}&7 ({value})"
 set = "&8[&6Wormholes&8] &f{portal}&a Reisendengröße auf &f{mode}&a ({value}) gesetzt."
@@ -1425,6 +1427,11 @@ invalid = "&8[&6Wormholes&8] &cReisendengröße nicht lesbar: {reason}"
 reset = "&8[&6Wormholes&8] &aStandardgröße von {count} Wesen wiederhergestellt."
 reset_radius = "&8[&6Wormholes&8] &ctarget=all braucht einen Radius von 1 bis {value}."
 reset_player = "&8[&6Wormholes&8] &cKein Spieler namens {name} ist online."
+
+[transit.gravity]
+current = "&8[&6Wormholes&8] &f{portal}&7 gerichtete Schwerkraft: &f{state}"
+reset = "&8[&6Wormholes&8] &aWelt-Schwerkraft für {name} wiederhergestellt."
+client_required = "&8[&6Wormholes&8] &cDieses Portal benötigt den Wormholes-Client-Mod für gerichtete Schwerkraft."
 # ---- end lane:transit ----
 
 # ---- lane:view (fidelity.*) ----

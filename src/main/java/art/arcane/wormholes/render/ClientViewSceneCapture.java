@@ -183,7 +183,7 @@ public final class ClientViewSceneCapture {
         if (flip) {
             metadata = EntityRenderMetadataBridge.upsideDown(visual.isPlayer(), metadata);
         }
-        byte[] bytes = PacketBlobs.writeMetadata(metadata);
+        byte[] bytes = PacketBlobs.replaceMetadata(raw, metadata);
         patched.put(source.id(), new Patched(raw, metadataTransform, flip, bytes, tick));
         return withMetadata(visual, bytes);
     }
@@ -194,7 +194,7 @@ public final class ClientViewSceneCapture {
         Vector look = look(entity, location);
         Vector velocity = entity.getVelocity();
         int signature = signature(entity);
-        long metadataRevision = WormholesPlatform.entityMetadataFingerprint(entity);
+        long metadataRevision = PacketBlobs.metadataRevision(entity);
         boolean onFire = entity.getFireTicks() > 0;
         Blobs previous = blobs.get(id);
         long interval = entity instanceof ItemFrame ? FRAME_RECAPTURE_TICKS : BLOB_RECAPTURE_TICKS;

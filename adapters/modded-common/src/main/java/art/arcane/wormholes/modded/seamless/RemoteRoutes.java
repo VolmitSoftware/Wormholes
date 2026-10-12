@@ -45,6 +45,7 @@ import net.minecraft.world.level.biome.BiomeManager;
 import net.minecraft.world.level.dimension.DimensionType;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
 
 import java.util.ArrayList;
 import java.util.BitSet;
@@ -461,6 +462,7 @@ public final class RemoteRoutes implements AutoCloseable {
     }
 
     private void straddle(ServerPlayer player, List<Candidate> ranked) {
+        Vec3 eye = player.getEyePosition();
         Box stretched = StraddleTracker.stretched(box(player.getBoundingBox()), runtime.portals().observedVelocity(player),
             new Vec3d(player.xo - player.getX(), player.yo - player.getY(), player.zo - player.getZ()));
         for (int index = 0; index < ranked.size(); index++) {
@@ -469,7 +471,7 @@ public final class RemoteRoutes implements AutoCloseable {
                 continue;
             }
             StraddleTracker.track(player, endpoint(candidate.source(), null), endpoint(candidate.destination(), candidate.doorCollision()), candidate.level(),
-                new Vec3d(player.getX(), player.getEyeY(), player.getZ()), MinecraftPortalRegistry.travelScale(candidate.source(), candidate.destination()));
+                new Vec3d(eye.x, eye.y, eye.z), MinecraftPortalRegistry.travelScale(candidate.source(), candidate.destination()));
             return;
         }
         StraddleTracker.clear(player);

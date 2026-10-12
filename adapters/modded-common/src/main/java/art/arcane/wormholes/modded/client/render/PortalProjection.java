@@ -7,6 +7,7 @@ import org.joml.Vector4f;
 import org.joml.Vector4fc;
 import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.frame.Similarity;
+import art.arcane.optics.transform.Affine;
 import art.arcane.optics.math.Vec3d;
 
 final class PortalProjection {
@@ -28,6 +29,13 @@ final class PortalProjection {
             .m10(transform.permutation().y().x()).m11(transform.permutation().y().y()).m12(transform.permutation().y().z())
             .m20(transform.permutation().z().x()).m21(transform.permutation().z().y()).m22(transform.permutation().z().z())
             .m30(transform.translationX()).m31(transform.translationY()).m32(transform.translationZ());
+    }
+
+    static Matrix4d matrix(Affine affine) {
+        return new Matrix4d().m00(affine.element(0, 0)).m01(affine.element(1, 0)).m02(affine.element(2, 0))
+            .m10(affine.element(0, 1)).m11(affine.element(1, 1)).m12(affine.element(2, 1))
+            .m20(affine.element(0, 2)).m21(affine.element(1, 2)).m22(affine.element(2, 2))
+            .m30(affine.element(0, 3)).m31(affine.element(1, 3)).m32(affine.element(2, 3));
     }
 
     static Matrix4d matrix(Similarity similarity) {

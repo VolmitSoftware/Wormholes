@@ -59,7 +59,8 @@ public final class PortalFeatureRenderer implements AutoCloseable {
         modelView.set(camera.viewRotationMatrix);
         try {
             submit(scene, camera, minecraft, entities, blockEntities, frustum);
-            try (WindingScope scope = new WindingScope(buffers.stagedVertexBuffer(), scene.environment() == null ? null : scene.environment().transform())) {
+            try (WindingScope scope = new WindingScope(buffers.stagedVertexBuffer(), reflected(camera,
+                scene.environment() == null ? null : scene.environment().transform()))) {
                 frame = dispatcher.prepareFrame(submits);
             }
         } finally {
@@ -85,6 +86,10 @@ public final class PortalFeatureRenderer implements AutoCloseable {
                 swapVertices(vertices, first * stride, last * stride, stride);
             }
         }
+    }
+
+    static boolean reflected(CameraRenderState camera, OpticTransform transform) {
+        return (camera.viewRotationMatrix.determinant3x3() < 0.0F) != (transform != null && transform.reflects());
     }
 
     static void blockPose(PoseStack pose, BlockPos position, Vec3 eye, OpticTransform transform, Matrix4f rotation) {
@@ -193,9 +198,9 @@ public final class PortalFeatureRenderer implements AutoCloseable {
     static final class WindingScope implements AutoCloseable {
         private final StagedVertexBuffer previous;
 
-        WindingScope(StagedVertexBuffer buffer, OpticTransform transform) {
+        WindingScope(StagedVertexBuffer buffer, boolean reflected) {
             previous = REFLECTED_BUFFER.get();
-            if (transform != null && transform.reflects()) {
+            if (reflected) {
                 REFLECTED_BUFFER.set(buffer);
             } else {
                 REFLECTED_BUFFER.remove();

@@ -23,6 +23,12 @@ public interface SodiumPortalSections {
 
     RemovableMultiForest wormholes$renderable();
 
+    RemovableMultiForest wormholes$arrivalSections();
+
+    SodiumArrivalPreparation wormholes$arrivalPreparation();
+
+    long wormholes$terrainRevision();
+
     ClientLevel wormholes$level();
 
     boolean wormholes$culling();

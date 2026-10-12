@@ -37,6 +37,7 @@ public final class MinecraftTransitMenu {
         window.setTitle(MinecraftPortalText.router(runtime, portal, true));
         window.setViewportHeight(3);
         window.setDecorator(Items.STAINED_GLASS_PANE.cyan());
+        window.setElement(-3, 1, gravityElement(window, viewer));
         window.setElement(-2, 1, momentumElement(window, viewer));
         window.setElement(-1, 1, orientationElement(window, viewer));
         window.setElement(0, 1, membraneElement(window, viewer));
@@ -211,6 +212,25 @@ public final class MinecraftTransitMenu {
             "mode", labelOrDefault(profile.thresholdEffect()),
             "state", labelOrDefault(profile.arrivalSound())
                 + (profile.overridesMask() ? " / " + profile.maskOverrideTicks() + "t" : "")));
+    }
+
+    private MinecraftElement gravityElement(MinecraftWindow window, ServerPlayer viewer) {
+        MinecraftElement element = new MinecraftElement("transit-gravity");
+        element.setMaterial(Items.FEATHER);
+        applyGravity(element, viewer);
+        element.onLeftClick(event -> {
+            changed(viewer, target -> target.setGravityRotationEnabled(!target.isGravityRotationEnabled()));
+            applyGravity(element, viewer);
+            window.updateInventory();
+        });
+        return element;
+    }
+
+    private void applyGravity(MinecraftElement element, ServerPlayer viewer) {
+        boolean enabled = portal.isGravityRotationEnabled();
+        element.setEnchanted(enabled);
+        MinecraftLegacyText.apply(viewer, element, TransitMessages.MENU_GRAVITY,
+            MinecraftPortalText.arguments("state", enabled ? "on" : "off"));
     }
 
     private MinecraftElement scaleElement(MinecraftWindow window, ServerPlayer viewer) {

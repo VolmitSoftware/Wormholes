@@ -1,12 +1,15 @@
 package art.arcane.wormholes.modded.client;
 
 import art.arcane.optics.frame.OpticTransform;
-import art.arcane.optics.math.Angles;
+import art.arcane.optics.crossing.Pose;
+import art.arcane.optics.crossing.PoseTransform;
+import art.arcane.wormholes.modded.gravity.MinecraftGravity;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.network.client.TravelMessage;
 import net.minecraft.client.multiplayer.ClientLevel;
 import art.arcane.wormholes.modded.MinecraftTransitInterpolation;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.InterpolationHandler;
 import net.minecraft.world.phys.Vec3;
 
@@ -28,6 +31,7 @@ final class ClientEntityCrossings {
             previous.resolve(entity);
         }
         ClientEntityCrossing crossing = new ClientEntityCrossing(crossed, ClientEntityCrossing.echoed(entity));
+        crossing.prepare(entity);
         if (crossing.reached(entity)) {
             crossing.resolve(entity);
         }
@@ -71,24 +75,41 @@ final class ClientEntityCrossings {
         pending.clear();
     }
 
-    static void cross(Entity entity, OpticTransform toward, Vec3d velocity) {
+    static void cross(Entity entity, TravelMessage.EntityCrossed crossing) {
+        OpticTransform toward = crossing.toward();
         Vec3 position = point(toward, entity.position());
         Vec3 old = point(toward, entity.oldPosition());
+        Pose pose = PoseTransform.orient(pose(entity), ClientEntityCrossing.localRotation(crossing));
         if (toward.isTranslation()) {
             carry(entity, position.subtract(entity.position()));
-            entity.setPos(position);
-            entity.setOldPosAndRot(old, entity.yRotO, entity.xRotO);
         } else {
             MinecraftTransitInterpolation.clear(entity);
-            Angles.Look look = toward.look(new Angles.Look(entity.getYRot(), entity.getXRot()));
-            Angles.Look previous = toward.look(new Angles.Look(entity.yRotO, entity.xRotO));
-            entity.setYRot(look.yaw());
-            entity.setXRot(look.pitch());
-            entity.setYHeadRot(toward.yaw(entity.getYHeadRot()));
-            entity.setPos(position);
-            entity.setOldPosAndRot(old, previous.yaw(), previous.pitch());
         }
+        MinecraftGravity.set(entity, crossing.destinationGravity());
+        entity.setYRot(pose.yaw());
+        entity.setXRot(pose.pitch());
+        entity.setYHeadRot(pose.headYaw());
+        if (entity instanceof LivingEntity living) {
+            living.yBodyRot = pose.bodyYaw();
+            living.yBodyRotO = pose.previousBodyYaw();
+            living.yHeadRotO = pose.previousHeadYaw();
+        }
+        entity.setPos(position);
+        entity.setOldPosAndRot(old, pose.previousYaw(), pose.previousPitch());
+        Vec3d velocity = crossing.velocity();
         entity.setDeltaMovement(new Vec3(velocity.x(), velocity.y(), velocity.z()));
+    }
+
+    private static Pose pose(Entity entity) {
+        Vec3 position = entity.position();
+        Vec3 old = entity.oldPosition();
+        Vec3 velocity = entity.getDeltaMovement();
+        float bodyYaw = entity instanceof LivingEntity living ? living.yBodyRot : entity.getYRot();
+        float previousBodyYaw = entity instanceof LivingEntity living ? living.yBodyRotO : entity.yRotO;
+        float previousHeadYaw = entity instanceof LivingEntity living ? living.yHeadRotO : entity.yRotO;
+        return new Pose(new Vec3d(position.x, position.y, position.z), new Vec3d(entity.xo, entity.yo, entity.zo),
+            new Vec3d(old.x, old.y, old.z), new Vec3d(velocity.x, velocity.y, velocity.z), entity.getYRot(), entity.getXRot(),
+            entity.yRotO, entity.xRotO, bodyYaw, previousBodyYaw, entity.getYHeadRot(), previousHeadYaw);
     }
 
     private static void carry(Entity entity, Vec3 delta) {

@@ -5,6 +5,7 @@ import { describe, it } from 'node:test'
 import {
   ALL_CAPS,
   BRICK_CELLS,
+  ByteWriter,
   CHANNEL,
   ClientViewProtocolError,
   FLAG_DEFLATED,
@@ -27,7 +28,8 @@ import {
   lightNibble,
   lightRuns,
   packBrick,
-  sectionOfBrick
+  sectionOfBrick,
+  settleCapabilities
 } from './clientview-codec.mjs'
 import { EXTENSION_GOLDENS, PROJECTION_GOLDENS } from './clientview-fake-server.mjs'
 
@@ -208,6 +210,102 @@ describe('ClientView golden vectors', () => {
     assert.deepEqual(decodeVector(vector('portal_drop')), { type: 'PORTAL_DROP', portalKey: 7 })
   })
 
+  it('decodes Java affine samples with row-major double matrices and signed int64 revisions', () => {
+    const entry = vector('portal_affine')
+    const sample = decodeVector(entry)
+    assert.deepEqual(sample, { type: 'PORTAL_AFFINE', portalKey: 7, sampleRevision: 123n,
+      apertureToSource: [1, 0.25, 0, 96, 0, 2, 0, 64, 0, 0, 1, 0],
+      sourceToDestination: [-1, 0, 0, 192, 0, 1, 0, 0, 0, 0, 0.5, 0],
+      shape: Buffer.from('02000000004000000040', 'hex') })
+    assert.equal(entry.bytes[0], 21)
+    const transformPoint = (matrix, point) => [0, 4, 8].map((row) => matrix[row] * point[0] + matrix[row + 1] * point[1] + matrix[row + 2] * point[2] + matrix[row + 3])
+    assert.deepEqual(transformPoint(sample.apertureToSource, [2, -4, 8]), [97, 56, 8])
+    assert.deepEqual(transformPoint(sample.sourceToDestination, [97, 56, 8]), [95, 56, 4])
+    const fractional = { ...sample, portalKey: 300, sampleRevision: 0x7fffffffffffffffn,
+      apertureToSource: [1, 0.125, -0.25, -511.5, 0.5, 2, 0.75, 81.125, -0.125, 0.25, -1, -159.5], shape: CIRCLE_SHAPE }
+    const encoded = encodeS2C(fractional, 18)
+    assert.deepEqual(decodeS2C(encoded, capabilitySet('AFFINE_PORTALS')).message, fractional)
+    assert.deepEqual(encodeS2C(decodeS2C(encoded, ALL_CAPS).message, 18), encoded)
+  })
+
+  it('rejects affine samples without negotiated capability or with invalid keys, revisions and transforms', () => {
+    const entry = vector('portal_affine')
+    const sample = decodeVector(entry)
+    assert.throws(() => decodeS2C(entry.bytes, ALL_CAPS & ~capabilitySet('AFFINE_PORTALS')), /Affine portal capability was not negotiated/)
+    const invalidKey = Buffer.from(entry.bytes)
+    invalidKey[6] = 0
+    assert.throws(() => decodeS2C(invalidKey, ALL_CAPS), /positive key/)
+    const invalidRevision = Buffer.from(entry.bytes)
+    invalidRevision.writeBigInt64LE(-1n, 7)
+    assert.throws(() => decodeS2C(invalidRevision, ALL_CAPS), /nonnegative signed int64 revision/)
+    for (const matrixOffset of [15, 111]) {
+      for (const value of [NaN, Infinity, -Infinity]) {
+        const invalid = Buffer.from(entry.bytes)
+        invalid.writeDoubleLE(value, matrixOffset + 24)
+        assert.throws(() => decodeS2C(invalid, ALL_CAPS), /must be finite/)
+      }
+      for (const value of [0, 1e-14]) {
+        const singular = Buffer.from(entry.bytes)
+        singular.writeDoubleLE(value, matrixOffset + 80)
+        assert.throws(() => decodeS2C(singular, ALL_CAPS), /must be invertible/)
+      }
+    }
+    for (const portalKey of [0, -1, 0x80000000, 1.5]) assert.throws(() => encodeS2C({ ...sample, portalKey }, 0), ClientViewProtocolError)
+    for (const sampleRevision of [-1n, 0x8000000000000000n, 123]) assert.throws(() => encodeS2C({ ...sample, sampleRevision }, 0), ClientViewProtocolError)
+    for (const field of ['apertureToSource', 'sourceToDestination']) {
+      assert.throws(() => encodeS2C({ ...sample, [field]: sample[field].slice(1) }, 0), /12 row-major elements/)
+      assert.throws(() => encodeS2C({ ...sample, [field]: new Array(12).fill(0) }, 0), /must be invertible/)
+      assert.throws(() => encodeS2C({ ...sample, [field]: sample[field].map((value, index) => index === 3 ? NaN : value) }, 0), /must be finite/)
+    }
+    const boundary = { ...sample, sampleRevision: 0n, sourceToDestination: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1e-12, 0] }
+    assert.deepEqual(decodeS2C(encodeS2C(boundary, 0), ALL_CAPS).message, boundary)
+  })
+
+  it('validates encoded affine shapes, lengths and ordinary frame errors', () => {
+    const entry = vector('portal_affine')
+    const sample = decodeVector(entry)
+    const withShape = (shape) => {
+      const writer = new ByteWriter()
+      writer.bytes(entry.bytes.subarray(0, 207))
+      writer.varint(shape.length)
+      writer.bytes(shape)
+      return writer.toBuffer()
+    }
+    const invalidDimension = Buffer.from(CIRCLE_SHAPE)
+    invalidDimension.writeFloatLE(-1, 2)
+    const invalidCoordinate = Buffer.from(CIRCLE_SHAPE)
+    invalidCoordinate.writeFloatLE(Infinity, 6)
+    const identityShapeTransform = Buffer.from('0f0000803f00000000000000000000803f0000000000000000', 'hex')
+    const nested = Buffer.concat([Buffer.from([0]), ...Array.from({ length: 8 }, () => identityShapeTransform), CIRCLE_SHAPE.subarray(1)])
+    const invalidShapes = [Buffer.from([3, 0]), Buffer.from([0, 255]), CIRCLE_SHAPE.subarray(0, 9), Buffer.concat([CIRCLE_SHAPE, Buffer.from([0])]),
+      invalidDimension, invalidCoordinate, nested, Buffer.alloc(2049), Buffer.from([0, 11, 0, 0])]
+    for (const shape of invalidShapes) {
+      assert.throws(() => decodeS2C(withShape(shape), ALL_CAPS), ClientViewProtocolError)
+      assert.throws(() => encodeS2C({ ...sample, shape }, 0), ClientViewProtocolError)
+    }
+    const union = Buffer.concat([Buffer.from([0, 12]), CIRCLE_SHAPE.subarray(1), sample.shape.subarray(1)])
+    const transformed = Buffer.concat([Buffer.from([0]), identityShapeTransform, CIRCLE_SHAPE.subarray(1)])
+    for (const shape of [Buffer.alloc(0), CIRCLE_SHAPE, union, transformed]) {
+      assert.deepEqual(decodeS2C(encodeS2C({ ...sample, shape }, 0), ALL_CAPS).message.shape, shape)
+    }
+    for (let length = 0; length < entry.bytes.length; length++) assert.throws(() => decodeS2C(entry.bytes.subarray(0, length), ALL_CAPS), ClientViewProtocolError)
+    assert.throws(() => decodeS2C(Buffer.concat([entry.bytes, Buffer.from([0])]), ALL_CAPS), /trailing/)
+    assert.throws(() => decodeC2S(entry.bytes), /unknown serverbound message type 21/)
+    const unknownOpcode = Buffer.from(entry.bytes)
+    unknownOpcode[0] = 22
+    assert.throws(() => decodeS2C(unknownOpcode, ALL_CAPS), /unknown clientbound message type 22/)
+  })
+
+  it('settles affine capabilities only with both plates and mesh rendering', () => {
+    const affine = capabilitySet('AFFINE_PORTALS')
+    assert.equal(affine, 1n << 16n)
+    for (const caps of [affine, affine | capabilitySet('PLATES'), affine | capabilitySet('MESH_RENDER')]) {
+      assert.equal(settleCapabilities(caps), caps & ~affine)
+    }
+    assert.equal(settleCapabilities(ALL_CAPS), ALL_CAPS)
+    assert.equal(settleCapabilities(affine | capabilitySet('PLATES', 'MESH_RENDER')), affine | capabilitySet('PLATES', 'MESH_RENDER'))
+  })
+
   it('decodes plate headers with and without the brick hash manifest', () => {
     const sections = { minSectionX: 37, minSectionY: 1, minSectionZ: -294, sizeX: 2, sizeY: 1, sizeZ: 2 }
     const cells = { minX: 595, minY: 22, minZ: -4700, sizeX: 25, sizeY: 16, sizeZ: 20 }
@@ -307,7 +405,7 @@ describe('ClientView golden vectors', () => {
       type: 'TRAVEL_BEGIN', token: TEST_UUID, generation: 3n, sourcePortal: '00000000-0000-0038-0000-00000000004e', sourceWorld: 'minecraft:the_nether',
       sourceGeometry: portalGeometry([], FULL_SHAPE), destinationToSource: begin.destinationToSource, scale: 1, world: TRAVEL_WORLD, arrival: TRAVEL_ARRIVAL,
       environment: fixtureEnvironment('minecraft:overworld', IDENTITY_TRANSFORM),
-      rules: { orientation: 'FRAME', gravityFlip: false, momentum: begin.rules.momentum, scale: { mode: 'OFF', min: 0.0625, max: 16 } },
+      rules: { orientation: 'FRAME', gravityFlip: false, rotateGravity: false, momentum: begin.rules.momentum, scale: { mode: 'OFF', min: 0.0625, max: 16 } },
       resident: false, levelHandle: 0, doorCollision: null
     })
     assert.deepEqual(begin.destinationToSource.translation, { x: 4, y: 0, z: 6 })
@@ -315,7 +413,7 @@ describe('ClientView golden vectors', () => {
     assert.deepEqual([resident.resident, resident.levelHandle], [true, 4])
     assert.equal(resident.doorCollision, null)
     assert.deepEqual(resident.sourceGeometry, portalGeometry([], CIRCLE_SHAPE))
-    assert.deepEqual(resident.rules, { orientation: 'LOOK', gravityFlip: true, momentum: { mode: 'SCALE', factor: 0.75, maxSpeed: 3.5, impulse: { x: 0, y: 0.25, z: 0 } },
+    assert.deepEqual(resident.rules, { orientation: 'LOOK', gravityFlip: true, rotateGravity: false, momentum: { mode: 'SCALE', factor: 0.75, maxSpeed: 3.5, impulse: { x: 0, y: 0.25, z: 0 } },
       scale: { mode: 'RATIO', min: 0.25, max: 4 } })
     assert.equal(resident.scale, 3)
     assert.equal(resident.environment.scale, f32(1 / 3))
@@ -324,8 +422,25 @@ describe('ClientView golden vectors', () => {
       sourcePose: { x: 635.5, y: 65, z: -4681.4, yaw: 90, pitch: -12 }, previousEye: { x: 635.5, y: 66.62, z: -4681.6 }, currentEye: { x: 635.5, y: 66.62, z: -4681.4 } })
   })
 
+  it('round-trips quarter-turn gravity and rejects reflection frames', () => {
+    const base = decodeVector(vector('travel_begin'))
+    const rotated = { ...base, rules: { ...base.rules, rotateGravity: true } }
+    assert.deepEqual(decodeS2C(encodeS2C(rotated, 18), ALL_CAPS).message, rotated)
+    const message = { type: 'ENTITY_GRAVITY', levelHandle: 2, entityId: 42, entityUuid: TEST_UUID, orientation: 3, restoreWorldOrientation: false }
+    assert.deepEqual(decodeS2C(encodeS2C(message, 18), ALL_CAPS).message, message)
+    for (const orientation of [1, 48, -1]) {
+      assert.throws(() => encodeS2C({ ...message, orientation }, 18), ClientViewProtocolError)
+    }
+    const reset = { ...message, orientation: 0, restoreWorldOrientation: true }
+    assert.deepEqual(decodeS2C(encodeS2C(reset, 18), ALL_CAPS).message, reset)
+    assert.throws(() => encodeS2C({ ...message, restoreWorldOrientation: true }, 18), ClientViewProtocolError)
+    const malformed = encodeS2C(message, 18)
+    malformed[malformed.length - 2] = 1
+    assert.throws(() => decodeS2C(malformed, ALL_CAPS), ClientViewProtocolError)
+  })
+
   it('uses the current native channel and round-trips bounded door collision targets', () => {
-    assert.equal(CHANNEL, 'wormholes:v9')
+    assert.equal(CHANNEL, 'wormholes:v10')
     const base = decodeVector(vector('travel_begin'))
     for (const doorCollision of [null, { x: 48, y: 70, z: 20, open: true },
       { x: -30_000_000, y: -20_000_000, z: 30_000_000, open: false }]) {
@@ -365,13 +480,13 @@ describe('ClientView golden vectors', () => {
     assert.deepEqual(decodeVector(vector('routed_packet')), { type: 'ROUTED_PACKET', levelHandle: 4, sequence: 17, fragmentIndex: 0, fragmentCount: 1, totalBytes: 4,
       payload: Buffer.from([5, 6, 7, 8]) })
     assert.deepEqual(decodeVector(vector('travel_accept')), { type: 'TRAVEL_ACCEPT', token: TEST_UUID, generation: 3n, contentRevision: 9n, pose: TRAVEL_ARRIVAL,
-      velocity: { x: 0.25, y: -0.5, z: 1 }, levelHandle: 4, dimensionChanged: true, serverTick: 1200n })
+      velocity: { x: 0.25, y: -0.5, z: 1 }, levelHandle: 4, dimensionChanged: true, serverTick: 1200n, gravity: 0, entityScale: 1 })
     assert.deepEqual(decodeVector(vector('remote_view_ack')), { type: 'REMOTE_VIEW_ACK', levelHandle: 4, lastSequence: 17, chunksPerTickHint: 8 })
   })
 
   it('names the extension capabilities at the bits the server offers', () => {
     assert.deepEqual(capabilityNames(decodeVector(vector('offer')).serverCaps), ['PLATES', 'BRICK_CACHE', 'DEST_LIGHT', 'ENTITY_FRAMES', 'ATMOSPHERE', 'ZERO_COPY', 'CLIENT_RECURSION',
-      'CLIENT_MIRROR', 'CONFIG_PHASE', 'LINK_UNCOMPRESSED', 'VIEW_STATS', 'MESH_RENDER', 'ENTITY_EVENTS', 'LOCAL_MESH', 'MESH_REUSE',
+      'CLIENT_MIRROR', 'CONFIG_PHASE', 'LINK_UNCOMPRESSED', 'VIEW_STATS', 'MESH_RENDER', 'ENTITY_EVENTS', 'LOCAL_MESH', 'MESH_REUSE', 'AFFINE_PORTALS',
       'FX_EMITTERS', 'REMOTE_VIEW', 'SEAMLESS_TRAVEL'])
     assert.equal(capabilitySet('FX_EMITTERS'), 1n << 32n)
     assert.equal(capabilitySet('SEAMLESS_TRAVEL'), 1n << 36n)

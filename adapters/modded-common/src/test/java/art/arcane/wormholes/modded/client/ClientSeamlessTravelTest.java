@@ -1,6 +1,7 @@
 package art.arcane.wormholes.modded.client;
 
 import art.arcane.optics.crossing.Pose;
+import art.arcane.optics.crossing.GravityFrame;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.wormholes.modded.MinecraftTestBase;
@@ -231,6 +232,8 @@ public class ClientSeamlessTravelTest extends MinecraftTestBase {
             clients.when(WormholesClient::instance).thenReturn(client);
             renderers.when(ClientPortalRenderer::instance).thenReturn(renderer);
             when(player.getId()).thenReturn(42);
+            when(player.getEyeHeight()).thenReturn(1.62F);
+            when(player.getEyePosition()).thenReturn(new Vec3(100.5D, 65.62D, 99.0D));
             scope.minecraft.player = player;
             nether = ResidentTestFixtures.level(ResidentTestFixtures.NETHER);
             ResidentTestFixtures.loaded(nether, 6, 6);
@@ -262,7 +265,7 @@ public class ClientSeamlessTravelTest extends MinecraftTestBase {
             Constructor<?> constructor = type.getDeclaredConstructors()[0];
             constructor.setAccessible(true);
             return constructor.newInstance(begin, from, to, before, carry, SeamlessTravelFixtures.DESTINATION, SeamlessTravelFixtures.EXPECTED_ARRIVAL,
-                System.currentTimeMillis() + 60_000L, 1.0D);
+                System.currentTimeMillis() + 60_000L, 1.0D, GravityFrame.WORLD);
         }
 
         @Override

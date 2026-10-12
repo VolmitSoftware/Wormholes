@@ -1,6 +1,7 @@
 package art.arcane.wormholes.modded;
 
 import art.arcane.wormholes.api.traversal.TraversalQuote;
+import art.arcane.wormholes.api.traversal.TraversalOutcome;
 import art.arcane.wormholes.api.traversal.TraversalReceipt;
 import art.arcane.wormholes.api.traversal.TraversalRefundReason;
 import art.arcane.wormholes.api.traversal.TraversalReservation;
@@ -20,16 +21,16 @@ import net.minecraft.world.item.ItemStack;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.LinkedHashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.Set;
 import java.util.UUID;
 import java.util.function.BooleanSupplier;
+import java.util.function.LongSupplier;
 import java.util.logging.Logger;
 import java.util.logging.Level;
 
@@ -38,9 +39,10 @@ public final class MinecraftTravelCosts {
     private static final ConcurrentMap<MinecraftServer, MinecraftTravelCosts> SERVICES = new ConcurrentHashMap<>();
 
     private final WormholesModRuntime runtime;
+    private final LongSupplier clock;
     private final List<Registration> registrations = new ArrayList<>();
     private final List<Listener> listeners = new ArrayList<>();
-    private final Set<Admission> pending = new LinkedHashSet<>();
+    private final Map<UUID, Admission> pending = new LinkedHashMap<>();
     private final Map<UUID, CachedItem> templates = new HashMap<>();
     private final Map<String, Long> failures = new HashMap<>();
     private List<Registration> ordered = List.of();
@@ -48,9 +50,15 @@ public final class MinecraftTravelCosts {
     private MinecraftRuleCostSubject.Currency currency;
     private MinecraftServer server;
     private boolean active;
+    private boolean closing;
 
     public MinecraftTravelCosts(WormholesModRuntime runtime) {
+        this(runtime, System::currentTimeMillis);
+    }
+
+    MinecraftTravelCosts(WormholesModRuntime runtime, LongSupplier clock) {
         this.runtime = Objects.requireNonNull(runtime);
+        this.clock = Objects.requireNonNull(clock);
     }
 
     public static Optional<MinecraftTravelCosts> forServer(MinecraftServer server) {
@@ -61,16 +69,17 @@ public final class MinecraftTravelCosts {
         runtime.requireServerThread();
         server = runtime.server();
         active = true;
+        closing = false;
         SERVICES.put(server, this);
         engine = new TraversalCostEngine<>(new TraversalCostEngine.Options<>(() -> ordered, this::policy,
-            new Events(), LOGGER, System::currentTimeMillis, new Executor(),
+            new Events(), LOGGER, clock, new Executor(),
             failure -> failures.merge(failure, 1L, Long::sum)));
     }
 
     public void tick() {
         runtime.requireServerThread();
-        long now = System.currentTimeMillis();
-        for (Admission admission : List.copyOf(pending)) {
+        long now = clock.getAsLong();
+        for (Admission admission : List.copyOf(pending.values())) {
             if (now >= admission.expiresAt) {
                 admission.refund(TraversalRefundReason.EXPIRED);
             }
@@ -80,7 +89,7 @@ public final class MinecraftTravelCosts {
 
     public void disconnected(ServerPlayer player) {
         runtime.requireServerThread();
-        for (Admission admission : List.copyOf(pending)) {
+        for (Admission admission : List.copyOf(pending.values())) {
             if (admission.playerId.equals(player.getUUID())) {
                 admission.refund(TraversalRefundReason.TRAVELER_LEFT);
             }
@@ -89,11 +98,12 @@ public final class MinecraftTravelCosts {
     }
 
     public void close() {
-        if (!active) {
+        if (!active || closing) {
             return;
         }
         runtime.requireServerThread();
-        for (Admission admission : List.copyOf(pending)) {
+        closing = true;
+        for (Admission admission : List.copyOf(pending.values())) {
             admission.refund(TraversalRefundReason.SERVER_SHUTDOWN);
         }
         engine.shutdown();
@@ -154,30 +164,45 @@ public final class MinecraftTravelCosts {
 
     public Admission open(MinecraftTraversalContext context) {
         runtime.requireServerThread();
-        if (!active) {
+        if (!active || closing) {
             throw new IllegalStateException("Traversal costs are not running");
         }
         TraversalCostEngine.Admission external = engine.open(context);
         if (!external.allowed()) {
-            return new Admission(context.travelerId(), external, null, false);
+            completed(new MinecraftTraversalCompletion(context, MinecraftTraversalCompletion.Status.DENIED,
+                external.decision().outcome(), List.of(), Optional.empty()));
+            return new Admission(context, external, null, false);
         }
         MinecraftPortal portal = runtime.portals().get(context.portalId());
         if (portal == null || portal.setting("travelCost") == null) {
-            Admission admission = new Admission(context.travelerId(), external, null, true);
-            pending.add(admission);
+            Admission admission = new Admission(context, external, null, true);
+            pending.put(context.traversalId(), admission);
             return admission;
         }
         try {
             PriceReservation price = reservePrice(context.traveler(), portal);
             if (price == null) {
                 external.refund(TraversalRefundReason.CHARGE_ROLLBACK);
-                return new Admission(context.travelerId(), external, null, false);
+                if (external.decision().outcome() == TraversalOutcome.DISABLED) {
+                    refunded(context, external, TraversalRefundReason.CHARGE_ROLLBACK);
+                }
+                return new Admission(context, external, null, false);
             }
-            Admission admission = new Admission(context.travelerId(), external, price, true);
-            pending.add(admission);
+            Admission admission = new Admission(context, external, price, true);
+            if (!active || closing || external.decision().outcome() != TraversalOutcome.DISABLED && !engine.isOpen(context.traversalId())) {
+                admission.refunded();
+                if (external.decision().outcome() == TraversalOutcome.DISABLED) {
+                    refunded(context, external, TraversalRefundReason.SERVER_SHUTDOWN);
+                }
+                return new Admission(context, external, null, false);
+            }
+            pending.put(context.traversalId(), admission);
             return admission;
         } catch (RuntimeException error) {
             external.refund(TraversalRefundReason.CHARGE_ROLLBACK);
+            if (external.decision().outcome() == TraversalOutcome.DISABLED) {
+                refunded(context, external, TraversalRefundReason.CHARGE_ROLLBACK);
+            }
             throw error;
         }
     }
@@ -244,15 +269,17 @@ public final class MinecraftTravelCosts {
     }
 
     public final class Admission {
+        private final MinecraftTraversalContext context;
         private final UUID playerId;
         private final TraversalCostEngine.Admission external;
         private final PriceReservation price;
         private final boolean allowed;
-        private final long expiresAt = System.currentTimeMillis() + TraversalCostEngine.TICKET_TTL_MILLIS;
+        private final long expiresAt = clock.getAsLong() + TraversalCostEngine.TICKET_TTL_MILLIS;
         private boolean settled;
 
-        private Admission(UUID playerId, TraversalCostEngine.Admission external, PriceReservation price, boolean allowed) {
-            this.playerId = playerId;
+        private Admission(MinecraftTraversalContext context, TraversalCostEngine.Admission external, PriceReservation price, boolean allowed) {
+            this.context = context;
+            this.playerId = context.travelerId();
             this.external = external;
             this.price = price;
             this.allowed = allowed;
@@ -267,16 +294,12 @@ public final class MinecraftTravelCosts {
             if (!allowed || settled) {
                 return;
             }
-            settled = true;
-            try {
-                if (price != null) {
-                    price.commit();
-                }
-            } catch (RuntimeException error) {
-                LOGGER.log(Level.SEVERE, "Could not commit portal travel cost for " + playerId, error);
-            } finally {
-                external.commit();
-                pending.remove(this);
+            external.commit();
+            if (external.decision().outcome() == TraversalOutcome.DISABLED) {
+                committed();
+                pending.remove(context.traversalId(), this);
+                completed(new MinecraftTraversalCompletion(context, MinecraftTraversalCompletion.Status.COMMITTED,
+                    external.decision().outcome(), List.of(), Optional.empty()));
             }
         }
 
@@ -285,18 +308,47 @@ public final class MinecraftTravelCosts {
             if (!allowed || settled) {
                 return;
             }
-            settled = true;
-            if (price != null) {
-                price.settlement().refund();
+            TraversalRefundReason normalized = reason == null ? TraversalRefundReason.TRAVERSAL_ABORTED : reason;
+            external.refund(normalized);
+            if (external.decision().outcome() == TraversalOutcome.DISABLED) {
+                refunded();
+                pending.remove(context.traversalId(), this);
+                MinecraftTravelCosts.this.refunded(context, external, normalized);
             }
-            external.refund(reason);
-            pending.remove(this);
+        }
+
+        private void committed() {
+            if (settled) {
+                return;
+            }
+            settled = true;
+            try {
+                if (price != null) {
+                    price.commit();
+                }
+            } catch (RuntimeException error) {
+                LOGGER.log(Level.SEVERE, "Could not commit portal travel cost for " + playerId, error);
+            }
+        }
+
+        private void refunded() {
+            if (settled) {
+                return;
+            }
+            settled = true;
+            try {
+                if (price != null) {
+                    price.settlement().refund();
+                }
+            } catch (RuntimeException error) {
+                LOGGER.log(Level.SEVERE, "Could not refund portal travel cost for " + playerId, error);
+            }
         }
     }
 
     public interface Listener {
         String before(MinecraftTraversalContext context);
-        void committed(TraversalCostEngine.Completion<MinecraftTraversalContext> completion);
+        void completed(MinecraftTraversalCompletion completion);
     }
 
     public record Registration(MinecraftTraversalCostProvider provider, String providerId, String ownerName,
@@ -321,9 +373,13 @@ public final class MinecraftTravelCosts {
         @Override
         public String before(MinecraftTraversalContext context) {
             for (Listener listener : List.copyOf(listeners)) {
-                String refusal = listener.before(context);
-                if (refusal != null) {
-                    return refusal;
+                try {
+                    String refusal = listener.before(context);
+                    if (refusal != null) {
+                        return refusal;
+                    }
+                } catch (RuntimeException error) {
+                    LOGGER.log(Level.WARNING, "Wormholes traversal listener failed before " + context.traversalId(), error);
                 }
             }
             return null;
@@ -331,8 +387,36 @@ public final class MinecraftTravelCosts {
 
         @Override
         public void committed(ServerPlayer player, TraversalCostEngine.Completion<MinecraftTraversalContext> completion) {
-            for (Listener listener : List.copyOf(listeners)) {
-                listener.committed(completion);
+            Admission admission = pending.remove(completion.context().traversalId());
+            if (admission != null) {
+                admission.committed();
+            }
+            completed(new MinecraftTraversalCompletion(completion.context(), MinecraftTraversalCompletion.Status.COMMITTED,
+                completion.outcome(), completion.chargedProviders(), Optional.empty()));
+        }
+
+        @Override
+        public void refunded(ServerPlayer player, TraversalCostEngine.Completion<MinecraftTraversalContext> completion, TraversalRefundReason reason) {
+            Admission admission = pending.remove(completion.context().traversalId());
+            if (admission != null) {
+                admission.refunded();
+            }
+            completed(new MinecraftTraversalCompletion(completion.context(), MinecraftTraversalCompletion.Status.REFUNDED,
+                completion.outcome(), List.of(), Optional.of(reason)));
+        }
+    }
+
+    private void refunded(MinecraftTraversalContext context, TraversalCostEngine.Admission admission, TraversalRefundReason reason) {
+        completed(new MinecraftTraversalCompletion(context, MinecraftTraversalCompletion.Status.REFUNDED,
+            admission.decision().outcome(), List.of(), Optional.of(reason)));
+    }
+
+    private void completed(MinecraftTraversalCompletion completion) {
+        for (Listener listener : List.copyOf(listeners)) {
+            try {
+                listener.completed(completion);
+            } catch (RuntimeException error) {
+                LOGGER.log(Level.WARNING, "Wormholes traversal listener failed after " + completion.context().traversalId(), error);
             }
         }
     }

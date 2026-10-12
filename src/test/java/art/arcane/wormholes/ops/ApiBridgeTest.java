@@ -39,9 +39,9 @@ class ApiBridgeTest {
     void aPortalDiffReportsCreationsDestructionsAndChangedLinks() {
         PortalSnapshot before = snapshot();
         PortalSnapshot relinked = new PortalSnapshot(PORTAL, "Hub", "PORTAL", "minecraft:overworld",
-            1.0D, 2.0D, 3.0D, "N", true, CHOSEN, null, TRAVELER, true);
+            1.0D, 2.0D, 3.0D, "N", true, CHOSEN, null, TRAVELER, true, true);
         PortalSnapshot fresh = new PortalSnapshot(UUID.randomUUID(), "New", "PORTAL", "minecraft:overworld",
-            0.0D, 0.0D, 0.0D, "S", true, null, null, TRAVELER, true);
+            0.0D, 0.0D, 0.0D, "S", true, null, null, TRAVELER, true, true);
 
         ApiSnapshotDiff.Change first = ApiSnapshotDiff.portals(Map.of(), List.of(before));
         assertEquals(1, first.created().size());
@@ -78,8 +78,19 @@ class ApiBridgeTest {
         assertEquals(List.of("beta"), forgotten.disconnected());
     }
 
+    @Test
+    void aProjectionChangeIsReportedOnceWithoutChangingTheLink() {
+        PortalSnapshot before = snapshot();
+        PortalSnapshot disabled = new PortalSnapshot(PORTAL, "Hub", "PORTAL", "minecraft:overworld",
+            1.0D, 2.0D, 3.0D, "N", true, null, null, TRAVELER, true, false);
+        ApiSnapshotDiff.Change changed = ApiSnapshotDiff.portals(Map.of(PORTAL, before), List.of(disabled));
+        assertEquals(List.of(disabled), changed.projectionChanged());
+        assertTrue(changed.linked().isEmpty());
+        assertTrue(ApiSnapshotDiff.portals(Map.of(PORTAL, disabled), List.of(disabled)).projectionChanged().isEmpty());
+    }
+
     private static PortalSnapshot snapshot() {
         return new PortalSnapshot(PORTAL, "Hub", "PORTAL", "minecraft:overworld", 1.0D, 2.0D, 3.0D, "N",
-            true, null, null, TRAVELER, true);
+            true, null, null, TRAVELER, true, true);
     }
 }

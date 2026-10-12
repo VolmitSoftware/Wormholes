@@ -1,5 +1,7 @@
 package art.arcane.wormholes.modded.client;
 
+import art.arcane.optics.crossing.GravityFrame;
+import art.arcane.optics.entity.EntityVisualMetadata;
 import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.modded.mixin.SeamlessEntityAccess;
 import art.arcane.optics.stream.ViewStreamMessage;
@@ -71,7 +73,7 @@ public class ClientProjectedEntityIdentityTest extends MinecraftTestBase {
         for (int index = 0; index < ids.length; index++) {
             assertEquals(ids[index], entities.entityId(index + 1, source));
             assertEquals(projections[index], scene.identities.get(ids[index]));
-            assertEquals(40, scene.metadata.get(ids[index])[0]);
+            assertEquals(40, EntityVisualMetadata.decode(scene.metadata.get(ids[index])).data()[0]);
         }
         assertEquals(8, scene.events.stream().filter(event -> event.startsWith("spawn ")).count());
         assertEquals(0, entities.spawnFailures());
@@ -92,7 +94,8 @@ public class ClientProjectedEntityIdentityTest extends MinecraftTestBase {
         ClientLevel level = mock(ClientLevel.class);
         ClientPacketListener connection = mock(ClientPacketListener.class);
         when(level.registryAccess()).thenReturn(RegistryAccess.EMPTY);
-        when(level.getEntity(-100)).thenReturn(mock(Entity.class));
+        Entity copy = worldGravity(mock(Entity.class));
+        when(level.getEntity(-100)).thenReturn(copy);
         when(connection.getLevel()).thenReturn(level);
         ClientLevelScene scene = new ClientLevelScene(level, () -> connection);
         UUID projection = UUID.randomUUID();
@@ -156,7 +159,8 @@ public class ClientProjectedEntityIdentityTest extends MinecraftTestBase {
         when(((SeamlessEntityAccess) stale).wormholesEntityId()).thenReturn(ClientEntityIds.PROJECTED_MAX);
         when(level.getEntity(projection)).thenReturn(stale);
         when(level.getEntity(ClientEntityIds.PROJECTED_MAX)).thenReturn(stale);
-        when(level.getEntity(ClientEntityIds.PROJECTED_MAX - 1)).thenReturn(mock(Entity.class));
+        Entity copy = worldGravity(mock(Entity.class));
+        when(level.getEntity(ClientEntityIds.PROJECTED_MAX - 1)).thenReturn(copy);
         ClientLevelScene scene = new ClientLevelScene(level, () -> connection);
         assertTrue(scene.spawn(ClientEntityIds.PROJECTED_MAX - 1, projection, visual(UUID.randomUUID(), "minecraft:pig", 1)));
         InOrder order = inOrder(level, connection);
@@ -189,6 +193,6 @@ public class ClientProjectedEntityIdentityTest extends MinecraftTestBase {
 
     private static EntitySnapshot visual(UUID id, String type, int revision) {
         return EntitySnapshot.full(id, type, 1.5, 64, 5.5, 1, 0, 0, 1, 0, 0, 0, 0, 0, true,
-            "Projection", "", "", null, null, new byte[] {(byte) revision}, EntitySnapshot.EMPTY, revision);
+            "Projection", "", "", null, null, new EntityVisualMetadata(GravityFrame.WORLD, 1.0D, new byte[] {(byte) revision}).encode(), EntitySnapshot.EMPTY, revision);
     }
 }

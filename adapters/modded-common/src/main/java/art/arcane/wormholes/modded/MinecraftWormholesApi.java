@@ -10,6 +10,7 @@ import art.arcane.wormholes.nexus.NetworkMember;
 import art.arcane.wormholes.ops.ApiSnapshotDiff;
 import art.arcane.wormholes.ops.SnapshotPortalQuery;
 import art.arcane.wormholes.portal.PortalType;
+import art.arcane.wormholes.portal.ProjectionMode;
 import art.arcane.wormholes.portal.RemotePortal;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.MinecraftServer;
@@ -39,6 +40,7 @@ public final class MinecraftWormholesApi implements NetworkQuery, AutoCloseable 
     private final SnapshotPortalQuery portals = new SnapshotPortalQuery();
     private final List<DestinationResolver> resolvers = new CopyOnWriteArrayList<>();
     private final List<Consumer<Event>> listeners = new CopyOnWriteArrayList<>();
+    private final List<AutoCloseable> traversalRegistrations = new ArrayList<>();
     private final Map<CompletableFuture<?>, Boolean> pending = new ConcurrentHashMap<>();
     private Map<UUID, PortalSnapshot> previousPortals = Map.of();
     private Map<String, PeerSnapshot> previousPeers = Map.of();
@@ -72,6 +74,7 @@ public final class MinecraftWormholesApi implements NetworkQuery, AutoCloseable 
 
     @Override
     public void close() {
+        runtime.requireServerThread();
         active = false;
         SERVICES.values().removeIf(service -> service == this);
         for (CompletableFuture<?> future : pending.keySet()) {
@@ -80,6 +83,14 @@ public final class MinecraftWormholesApi implements NetworkQuery, AutoCloseable 
         pending.clear();
         resolvers.clear();
         listeners.clear();
+        for (AutoCloseable registration : List.copyOf(traversalRegistrations)) {
+            try {
+                registration.close();
+            } catch (Exception error) {
+                LOGGER.error("Could not close Wormholes traversal listener", error);
+            }
+        }
+        traversalRegistrations.clear();
         portals.publish(List.of());
         previousPortals = Map.of();
         previousPeers = Map.of();
@@ -105,6 +116,21 @@ public final class MinecraftWormholesApi implements NetworkQuery, AutoCloseable 
     public AutoCloseable listen(Consumer<Event> listener) {
         listeners.add(Objects.requireNonNull(listener));
         return () -> listeners.remove(listener);
+    }
+
+    public AutoCloseable listenTraversal(MinecraftTravelCosts.Listener listener) {
+        runtime.requireServerThread();
+        if (!active) {
+            throw new IllegalStateException("Wormholes is not running");
+        }
+        AutoCloseable registration = runtime.costs().listen(Objects.requireNonNull(listener, "listener"));
+        traversalRegistrations.add(registration);
+        return () -> {
+            runtime.requireServerThread();
+            if (traversalRegistrations.remove(registration)) {
+                registration.close();
+            }
+        };
     }
 
     public CompletableFuture<UUID> create(ServerLevel level, Collection<BlockPos> cells, String name, UUID owner) {
@@ -152,6 +178,37 @@ public final class MinecraftWormholesApi implements NetworkQuery, AutoCloseable 
         });
     }
 
+    public CompletableFuture<Boolean> projection(UUID portalId, boolean enabled) {
+        return submit(() -> {
+            MinecraftPortal portal = runtime.portals().get(portalId);
+            if (portal == null) {
+                return false;
+            }
+            portal.setProjectionMode(enabled ? ProjectionMode.ON : ProjectionMode.OFF);
+            runtime.portals().save(portal);
+            return true;
+        });
+    }
+
+    public CompletableFuture<Boolean> gravityRotation(UUID portalId, boolean enabled) {
+        return submit(() -> {
+            MinecraftPortal portal = runtime.portals().get(portalId);
+            if (portal == null) {
+                return false;
+            }
+            portal.setGravityRotationEnabled(enabled);
+            runtime.portals().save(portal);
+            return true;
+        });
+    }
+
+    public CompletableFuture<Optional<Boolean>> gravityRotation(UUID portalId) {
+        return submit(() -> {
+            MinecraftPortal portal = runtime.portals().get(portalId);
+            return portal == null ? Optional.empty() : Optional.of(portal.isGravityRotationEnabled());
+        });
+    }
+
     public NetworkMember resolve(MinecraftPortal source, UUID traveler) {
         for (DestinationResolver resolver : resolvers) {
             try {
@@ -196,13 +253,14 @@ public final class MinecraftWormholesApi implements NetworkQuery, AutoCloseable 
         for (PortalSnapshot portal : changes.created()) { emit(new Event(Kind.PORTAL_CREATED, null, portal.id(), null, "", portal, null)); }
         for (PortalSnapshot portal : changes.linked()) { emit(new Event(Kind.PORTAL_LINKED, null, portal.id(), portal.destinationServer(), "", portal, null)); }
         for (PortalSnapshot portal : changes.destroyed()) { emit(new Event(Kind.PORTAL_DESTROYED, null, portal.id(), null, portal.name(), portal, null)); }
+        for (PortalSnapshot portal : changes.projectionChanged()) { emit(new Event(Kind.PORTAL_PROJECTION_CHANGED, null, portal.id(), null, "", portal, null)); }
         NetworkManager network = runtime.network().manager();
         localName = network.getLocalName();
         List<PortalSnapshot> remotes = new ArrayList<>();
         for (RemotePortal portal : runtime.network().remotePortals().all()) {
             remotes.add(new PortalSnapshot(portal.getId(), portal.getName(), portal.getType().name(), "",
                 portal.getOrigin().x(), portal.getOrigin().y(), portal.getOrigin().z(), portal.getDirection().name(),
-                portal.isOpen(), null, portal.getServer() == null ? null : portal.getServer().getName(), null, true));
+                portal.isOpen(), null, portal.getServer() == null ? null : portal.getServer().getName(), null, true, false));
         }
         remote = List.copyOf(remotes);
         List<PeerSnapshot> currentPeers = new ArrayList<>();
@@ -239,9 +297,10 @@ public final class MinecraftWormholesApi implements NetworkQuery, AutoCloseable 
     private static PortalSnapshot snapshot(MinecraftPortal portal) {
         return new PortalSnapshot(portal.getId(), portal.getName(), portal.getType().name(), portal.getWorldKey(),
             portal.getOrigin().x(), portal.getOrigin().y(), portal.getOrigin().z(), portal.getFrame().getNormal().name(),
-            portal.isOpen(), portal.getDestinationId(), portal.getDestinationServer(), portal.getOwner(), Boolean.TRUE.equals(portal.setting("publicLookLabel")));
+            portal.isOpen(), portal.getDestinationId(), portal.getDestinationServer(), portal.getOwner(), Boolean.TRUE.equals(portal.setting("publicLookLabel")),
+            portal.getProjectionMode() == ProjectionMode.ON);
     }
 
-    public enum Kind { PORTAL_CREATED, PORTAL_LINKED, PORTAL_DESTROYED, PEER_CONNECTED, PEER_DISCONNECTED, HANDOFF_ADMITTED, HANDOFF_DENIED, HANDOFF_COMPLETED }
+    public enum Kind { PORTAL_CREATED, PORTAL_LINKED, PORTAL_DESTROYED, PORTAL_PROJECTION_CHANGED, PEER_CONNECTED, PEER_DISCONNECTED, HANDOFF_ADMITTED, HANDOFF_DENIED, HANDOFF_COMPLETED }
     public record Event(Kind kind, UUID travelerId, UUID portalId, String server, String detail, PortalSnapshot portal, PeerSnapshot peer) { }
 }

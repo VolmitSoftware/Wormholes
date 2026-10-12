@@ -6,6 +6,9 @@
 package art.arcane.wormholes.modded.client;
 
 import art.arcane.optics.aperture.ApertureDescriptor;
+import art.arcane.optics.crossing.GravityFrame;
+import art.arcane.optics.crossing.LookTransfer;
+import art.arcane.optics.frame.AxisPermutation;
 import art.arcane.optics.frame.Similarity;
 import art.arcane.optics.math.Angles;
 import art.arcane.optics.math.Box;
@@ -15,6 +18,7 @@ import art.arcane.wormholes.modded.client.render.stencil.PortalSurface;
 import art.arcane.wormholes.modded.client.render.stencil.PortalView;
 import art.arcane.wormholes.modded.client.render.stencil.PortalViews;
 import art.arcane.wormholes.modded.client.world.ClientWorldLoader;
+import art.arcane.wormholes.modded.gravity.MinecraftGravity;
 import art.arcane.wormholes.modded.mixin.client.CameraPoseAccess;
 import art.arcane.wormholes.modded.mixin.client.ClientWorldCameraAccess;
 import art.arcane.wormholes.modded.mixin.client.ClientWorldExtractorAccess;
@@ -36,6 +40,7 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
+import org.joml.Quaternionf;
 
 import java.util.Collection;
 
@@ -44,6 +49,7 @@ public final class ClientCrossingView {
     private static final double BOB_NONE_DISTANCE = 1.0D;
     private static final double BOB_RECOVERY = 0.1D;
     private static final double DETACHED_CLEARANCE = 0.1D;
+    private static final double POLE_EPSILON = 1.0E-12D;
 
     private final ResidentLevels residents;
     private double bobFactor = 1.0D;
@@ -147,7 +153,9 @@ public final class ClientCrossingView {
         applied = null;
         CameraPoseAccess access = (CameraPoseAccess) camera;
         access.wormholes$rotation(current.yaw(), current.pitch());
+        ((GravityCameraAccess) camera).wormholes$orientation(current.orientation());
         access.wormholes$position(current.position());
+        access.wormholes$cullFrustum(camera.getViewRotationMatrix(new Matrix4f()), access.wormholes$cullingProjection(), current.position());
     }
 
     public void clear() {
@@ -203,12 +211,39 @@ public final class ClientCrossingView {
         Vec3 position = camera.position();
         Vec3 mapped = camera.isDetached() ? detachedPosition(level, player, before, after, toward, eye, position)
             : ClientTravelMotion.point(toward, position);
-        Angles.Look look = ClientTravelMotion.look(toward.rigid(), camera.yRot(), camera.xRot());
-        applied = new View(level, position, camera.yRot(), camera.xRot());
+        Quaternionf originalOrientation = new Quaternionf(camera.rotation());
+        applied = new View(level, position, camera.yRot(), camera.xRot(), originalOrientation);
         CameraPoseAccess access = (CameraPoseAccess) camera;
         access.wormholes$position(mapped);
-        access.wormholes$rotation(look.yaw(), Math.clamp(look.pitch(), -90.0F, 90.0F));
+        if (toward.rigid().permutation().reflects()) {
+            LookTransfer look = LookTransfer.of(new Angles.Look(camera.yRot(), camera.xRot()), toward);
+            access.wormholes$rotation(look.yaw(), Math.clamp(look.pitch(), -90.0F, 90.0F));
+            ClientCameraRoll.rotate(camera, -look.roll());
+        } else {
+            Quaternionf orientation = GravityRenderTransform.through(toward.rigid().permutation(), originalOrientation);
+            Angles.Look look = mappedLook(toward.rigid().permutation(), MinecraftGravity.frame(player), camera.yRot(), camera.xRot());
+            access.wormholes$rotation(look.yaw(), look.pitch());
+            ((GravityCameraAccess) camera).wormholes$orientation(orientation);
+        }
         access.wormholes$cullFrustum(camera.getViewRotationMatrix(new Matrix4f()), access.wormholes$cullingProjection(), mapped);
+    }
+
+    private static Angles.Look mappedLook(AxisPermutation rotation, GravityFrame gravity, float yaw, float pitch) {
+        if (rotation.equals(AxisPermutation.IDENTITY)) {
+            return new Angles.Look(yaw, pitch);
+        }
+        AxisPermutation worldRotation = rotation.compose(gravity.orientation());
+        double[] forward = new double[3];
+        Angles.directionInto(yaw, pitch, forward);
+        worldRotation.vectorInto(forward[0], forward[1], forward[2], forward);
+        if (Math.hypot(forward[0], forward[2]) > POLE_EPSILON) {
+            return Angles.look(forward[0], forward[1], forward[2]);
+        }
+        double[] up = new double[3];
+        Angles.directionInto(yaw, pitch - 90.0F, up);
+        worldRotation.vectorInto(up[0], up[1], up[2], up);
+        double sign = forward[1] < 0.0D ? 1.0D : -1.0D;
+        return new Angles.Look(Angles.yaw(sign * up[0], sign * up[2]), forward[1] < 0.0D ? 90.0F : -90.0F);
     }
 
     private static Vec3 detachedPosition(ClientLevel level, LocalPlayer player, double before, double after, Similarity toward, Vec3 eye,
@@ -234,6 +269,6 @@ public final class ClientCrossingView {
         ((ClientWorldLightmapAccess) ((ClientWorldGameRendererAccess) gameRenderer).wormholes$lightmapExtractor()).wormholes$needsUpdate(true);
     }
 
-    private record View(ClientLevel level, Vec3 position, float yaw, float pitch) {
+    private record View(ClientLevel level, Vec3 position, float yaw, float pitch, Quaternionf orientation) {
     }
 }

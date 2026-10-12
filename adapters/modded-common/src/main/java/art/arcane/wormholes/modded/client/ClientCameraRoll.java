@@ -1,6 +1,7 @@
 package art.arcane.wormholes.modded.client;
 
 import art.arcane.optics.animation.Easing;
+import art.arcane.optics.math.Angles;
 import art.arcane.wormholes.modded.mixin.client.CameraPoseAccess;
 import net.minecraft.client.Camera;
 import org.joml.Quaternionf;
@@ -8,17 +9,26 @@ import org.joml.Quaternionf;
 public final class ClientCameraRoll {
     private static final float NEGLIGIBLE_DEGREES = 0.5F;
 
-    private final Quaternionf turn = new Quaternionf();
     private float rollDegrees;
     private long startMillis;
     private long durationMillis;
 
     public void start(float roll, double seconds, long nowMillis) {
-        if (seconds <= 0.0D || !Float.isFinite(roll) || Math.abs(roll) <= NEGLIGIBLE_DEGREES) {
+        if (seconds <= 0.0D || !Float.isFinite(roll)) {
             cancel();
             return;
         }
-        rollDegrees = roll;
+        if (Math.abs(roll) <= NEGLIGIBLE_DEGREES) {
+            if (!active(nowMillis)) {
+                cancel();
+            }
+            return;
+        }
+        rollDegrees = Angles.unwrap(roll - degrees(nowMillis), 0.0F);
+        if (Math.abs(rollDegrees) <= NEGLIGIBLE_DEGREES) {
+            cancel();
+            return;
+        }
         startMillis = nowMillis;
         durationMillis = Math.max(1L, Math.round(seconds * 1000.0D));
     }
@@ -48,8 +58,15 @@ public final class ClientCameraRoll {
             }
             return;
         }
+        rotate(camera, degrees);
+    }
+
+    static void rotate(Camera camera, float degrees) {
+        if (degrees == 0.0F) {
+            return;
+        }
         Quaternionf rotation = camera.rotation();
-        rotation.mul(turn.rotationZ((float) Math.toRadians(degrees)));
+        rotation.rotateZ((float) Math.toRadians(degrees));
         CameraPoseAccess access = (CameraPoseAccess) camera;
         access.wormholes$up().set(0.0F, 1.0F, 0.0F).rotate(rotation);
         access.wormholes$left().set(-1.0F, 0.0F, 0.0F).rotate(rotation);

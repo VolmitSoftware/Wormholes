@@ -1,6 +1,6 @@
 import { deflateSync, inflateSync } from 'node:zlib'
 
-export const CHANNEL = 'wormholes:v9'
+export const CHANNEL = 'wormholes:v10'
 export const WIRE_VERSION = 8
 export const S2C_HEADER_BYTES = 6
 export const FLAG_DEFLATED = 1
@@ -90,6 +90,7 @@ export const MESSAGE_TYPES = Object.freeze({
   MESH_DROP: { id: 18, direction: 'S2C' },
   ENVIRONMENT: { id: 19, direction: 'S2C' },
   ENTITY_EVENT: { id: 20, direction: 'S2C' },
+  PORTAL_AFFINE: { id: 21, direction: 'S2C' },
   HELLO: { id: 32, direction: 'C2S' },
   BRICK_MISS: { id: 33, direction: 'C2S' },
   ACK: { id: 34, direction: 'C2S' },
@@ -106,7 +107,8 @@ export const MESSAGE_TYPES = Object.freeze({
   REMOTE_LEVEL_CLOSE: { id: 52, direction: 'S2C' },
   ROUTED_PACKET: { id: 53, direction: 'S2C' },
   TRAVEL_ACCEPT: { id: 54, direction: 'S2C' },
-  REMOTE_VIEW_ACK: { id: 55, direction: 'C2S' }
+  REMOTE_VIEW_ACK: { id: 55, direction: 'C2S' },
+  ENTITY_GRAVITY: { id: 58, direction: 'S2C' }
 })
 
 const TYPE_BY_ID = new Map(Object.entries(MESSAGE_TYPES).map(([name, type]) => [type.id, name]))
@@ -127,6 +129,7 @@ export const CAPABILITIES = Object.freeze({
   ENTITY_EVENTS: 13,
   LOCAL_MESH: 14,
   MESH_REUSE: 15,
+  AFFINE_PORTALS: 16,
   FX_EMITTERS: 32,
   REMOTE_VIEW: 35,
   SEAMLESS_TRAVEL: 36
@@ -160,6 +163,13 @@ export function hasCapability(caps, name) {
 
 export function capabilitySet(...names) {
   return names.reduce((set, name) => set | capabilityMask(name), 0n)
+}
+
+export function settleCapabilities(caps) {
+  let settled = BigInt(caps) & ALL_CAPS
+  const affineRequired = capabilitySet('PLATES', 'MESH_RENDER')
+  if ((settled & affineRequired) !== affineRequired) settled &= ~capabilityMask('AFFINE_PORTALS')
+  return settled
 }
 
 export function capabilityNames(caps) {
@@ -813,6 +823,145 @@ function finite(value, label) {
   return value
 }
 
+function validateAffine(matrix) {
+  if (!Array.isArray(matrix) || matrix.length !== 12) throw new ClientViewProtocolError('affine transform requires 12 row-major elements')
+  for (const value of matrix) finite(value, 'affine transform element')
+  const determinant = matrix[0] * (matrix[5] * matrix[10] - matrix[6] * matrix[9])
+    - matrix[1] * (matrix[4] * matrix[10] - matrix[6] * matrix[8])
+    + matrix[2] * (matrix[4] * matrix[9] - matrix[5] * matrix[8])
+  if (Math.abs(determinant) < 1e-12) throw new ClientViewProtocolError('affine transform must be invertible')
+}
+
+function validateShape(shape) {
+  if (!Buffer.isBuffer(shape) || shape.length > MAX_SHAPE_BYTES) throw new ClientViewProtocolError('invalid affine portal shape bytes')
+  if (shape.length === 0) return
+  const reader = new ByteReader(shape)
+  if (reader.u8() > 2) throw new ClientViewProtocolError('unknown shape fit')
+  const counter = { nodes: 0, points: 0 }
+  readShapeNode(reader, 1, counter)
+  reader.expectEnd()
+}
+
+function shapeRange(value, min, max, exclusiveMin = false) {
+  if (!Number.isFinite(value) || (exclusiveMin ? value <= min : value < min) || value > max) {
+    throw new ClientViewProtocolError(`shape parameter ${value} outside ${min}..${max}`)
+  }
+  return value
+}
+
+function readShapePoints(reader, count, counter) {
+  counter.points += count
+  if (counter.points > 512) throw new ClientViewProtocolError('shape exceeds 512 points')
+  reader.require(count * 8)
+  for (let i = 0; i < count * 2; i++) finite(reader.f32(), 'shape coordinate')
+}
+
+function readShapePath(reader, counter) {
+  const count = shapeRange(reader.u16(), 1, 512)
+  let open = false
+  let drawn = 0
+  for (let i = 0; i < count; i++) {
+    const kind = reader.u8()
+    if (kind > 4) throw new ClientViewProtocolError(`unknown shape path segment ${kind}`)
+    if (kind === 0) {
+      if (open) throw new ClientViewProtocolError('shape path moves before closing its subpath')
+      open = true
+      drawn = 0
+    } else {
+      if (!open) throw new ClientViewProtocolError('shape path segment before move')
+      if (kind === 4) {
+        if (drawn === 0) throw new ClientViewProtocolError('shape path closes without drawing')
+        open = false
+      } else drawn++
+    }
+    readShapePoints(reader, [1, 1, 2, 3, 0][kind], counter)
+  }
+  if (open) throw new ClientViewProtocolError('shape path is not closed')
+}
+
+function readShapeNode(reader, depth, counter) {
+  if (depth > 8 || ++counter.nodes > 64) throw new ClientViewProtocolError('shape exceeds node or depth limit')
+  const kind = reader.u8()
+  switch (kind) {
+    case 0:
+    case 1: {
+      const width = shapeRange(reader.f32(), 0, 4, true)
+      const height = shapeRange(reader.f32(), 0, 4, true)
+      if (kind === 1) shapeRange(reader.f32(), 0, Math.min(width, height) * 0.5 * (1 + 1e-6))
+      return
+    }
+    case 2:
+      shapeRange(reader.f32(), 0, 2, true)
+      shapeRange(reader.f32(), 0, 2, true)
+      return
+    case 3:
+    case 4:
+    case 5: {
+      shapeRange(reader.u8(), kind === 5 ? 2 : 3, kind === 3 ? 64 : 32)
+      const radius = shapeRange(reader.f32(), 0, 2, true)
+      if (kind === 4) {
+        const inner = shapeRange(reader.f32(), 0, radius, true)
+        if (inner >= radius) throw new ClientViewProtocolError('shape star inner radius must be below outer radius')
+      }
+      if (kind === 5) shapeRange(reader.f32(), 0, 1)
+      finite(reader.f32(), 'shape rotation')
+      return
+    }
+    case 6:
+      shapeRange(reader.f32(), 0, 2, true)
+      finite(reader.f32(), 'shape rotation')
+      return
+    case 7:
+      shapeRange(reader.f32(), 0, 2, true)
+      shapeRange(reader.f32(), 0, 2, true)
+      shapeRange(reader.f32(), -1, 1)
+      finite(reader.f32(), 'shape rotation')
+      return
+    case 8: {
+      const outer = shapeRange(reader.f32(), 0, 2, true)
+      const inner = shapeRange(reader.f32(), 0, outer)
+      if (inner >= outer) throw new ClientViewProtocolError('shape ring inner radius must be below outer radius')
+      return
+    }
+    case 9:
+    case 10: {
+      const count = shapeRange(reader.u16(), 3, kind === 9 ? 512 : 256)
+      if (kind === 10) shapeRange(reader.u8(), 2, 32)
+      readShapePoints(reader, count, counter)
+      return
+    }
+    case 11:
+      readShapePath(reader, counter)
+      return
+    case 12:
+    case 13:
+    case 14:
+      readShapeNode(reader, depth + 1, counter)
+      readShapeNode(reader, depth + 1, counter)
+      return
+    case 15: {
+      const matrix = Array.from({ length: 6 }, () => finite(reader.f32(), 'shape transform element'))
+      if (Math.abs(matrix[0] * matrix[3] - matrix[1] * matrix[2]) < 1e-12) throw new ClientViewProtocolError('shape transform must be invertible')
+      readShapeNode(reader, depth + 1, counter)
+      return
+    }
+    default:
+      throw new ClientViewProtocolError(`unknown shape kind ${kind}`)
+  }
+}
+
+function validatePortalAffine(message) {
+  if (!Number.isInteger(message.portalKey) || message.portalKey < 1 || message.portalKey > 0x7fffffff) {
+    throw new ClientViewProtocolError('affine portal requires a positive key')
+  }
+  if (typeof message.sampleRevision !== 'bigint' || message.sampleRevision < 0n || message.sampleRevision > 0x7fffffffffffffffn) {
+    throw new ClientViewProtocolError('affine portal requires a nonnegative signed int64 revision')
+  }
+  validateAffine(message.apertureToSource)
+  validateAffine(message.sourceToDestination)
+  validateShape(message.shape)
+}
+
 export function readTransform(reader) {
   reader.require(TRANSFORM_BYTES)
   const permutation = reader.u8()
@@ -1052,7 +1201,10 @@ function writeDoorCollision(writer, target) {
 
 function readArrivalRules(reader) {
   const orientation = enumName(ORIENTATION_RULES, reader.u8(), 'orientation rule')
-  const gravityFlip = readFlag(reader, 'gravity flip')
+  const gravityFlags = reader.u8()
+  if (gravityFlags > 3) throw new ClientViewProtocolError('gravity flags')
+  const gravityFlip = (gravityFlags & 1) !== 0
+  const rotateGravity = (gravityFlags & 2) !== 0
   const mode = enumName(MOMENTUM_MODES, reader.u8(), 'momentum mode')
   const factor = reader.f64()
   const maxSpeed = reader.f64()
@@ -1060,12 +1212,12 @@ function readArrivalRules(reader) {
   const scale = { mode: enumName(SCALE_MODES, reader.u8(), 'scale mode'), min: reader.f32(), max: reader.f32() }
   if (!Number.isFinite(factor) || !Number.isFinite(maxSpeed) || maxSpeed < 0 || !Number.isFinite(scale.min) || !Number.isFinite(scale.max)
     || scale.min > scale.max) throw new ClientViewProtocolError('invalid travel arrival rules')
-  return { orientation, gravityFlip, momentum: { mode, factor, maxSpeed, impulse }, scale }
+  return { orientation, gravityFlip, rotateGravity, momentum: { mode, factor, maxSpeed, impulse }, scale }
 }
 
 function writeArrivalRules(writer, rules) {
   writer.u8(enumId(ORIENTATION_RULES, rules.orientation, 'orientation rule'))
-  writer.u8(rules.gravityFlip ? 1 : 0)
+  writer.u8((rules.gravityFlip ? 1 : 0) | (rules.rotateGravity ? 2 : 0))
   writer.u8(enumId(MOMENTUM_MODES, rules.momentum.mode, 'momentum mode'))
   writer.f64(rules.momentum.factor)
   writer.f64(rules.momentum.maxSpeed)
@@ -1092,6 +1244,13 @@ function readMeshCount(reader, max, label) {
   return count
 }
 
+const GRAVITY_ORIENTATIONS = Object.freeze([0, 3, 5, 6, 9, 10, 12, 15, 17, 18, 20, 23, 24, 27, 29, 30, 32, 35, 37, 38, 41, 42, 44, 47])
+
+function gravityOrientation(value) {
+  if (!GRAVITY_ORIENTATIONS.includes(value)) throw new ClientViewProtocolError(`invalid gravity orientation ${value}`)
+  return value
+}
+
 function readTravel(reader, type) {
   const token = readUuid(reader)
   const generation = reader.i64()
@@ -1115,7 +1274,7 @@ function readTravel(reader, type) {
       return { type, token, generation, contentRevision: reader.i64(), sourcePose: readPose(reader), previousEye: readVector(reader), currentEye: readVector(reader) }
     case 'TRAVEL_ACCEPT':
       return { type, token, generation, contentRevision: reader.i64(), pose: readPose(reader), velocity: readVector(reader), levelHandle: reader.u8(),
-        dimensionChanged: readFlag(reader, 'dimension changed'), serverTick: reader.i64() }
+        dimensionChanged: readFlag(reader, 'dimension changed'), serverTick: reader.i64(), gravity: gravityOrientation(reader.u8()), entityScale: reader.f64() }
     default:
       throw new ClientViewProtocolError(`unknown travel message ${type}`)
   }
@@ -1154,6 +1313,9 @@ function writeTravel(writer, message) {
       writer.u8(message.levelHandle)
       writer.u8(message.dimensionChanged ? 1 : 0)
       writer.i64(message.serverTick)
+      writer.u8(gravityOrientation(message.gravity))
+      if (!Number.isFinite(message.entityScale) || message.entityScale <= 0) throw new ClientViewProtocolError('invalid entity scale')
+      writer.f64(message.entityScale)
       return
     default:
       throw new ClientViewProtocolError(`unknown travel message ${message.type}`)
@@ -1181,6 +1343,14 @@ export function readBody(reader, type, caps) {
     }
     case 'PORTAL':
       return { type, portalKey: reader.varint(), geometryRevision: reader.u32(), geometry: readGeometry(reader, 0) }
+    case 'PORTAL_AFFINE': {
+      if (!hasCapability(caps, 'AFFINE_PORTALS')) throw new ClientViewProtocolError('Affine portal capability was not negotiated')
+      const message = { type, portalKey: reader.varint(), sampleRevision: reader.i64(),
+        apertureToSource: Array.from({ length: 12 }, () => reader.f64()), sourceToDestination: Array.from({ length: 12 }, () => reader.f64()),
+        shape: reader.bytes(reader.checkedCount(reader.varint(), MAX_SHAPE_BYTES, 1)) }
+      validatePortalAffine(message)
+      return message
+    }
     case 'PORTAL_DROP':
       return { type, portalKey: reader.varint() }
     case 'MESH_BEGIN': {
@@ -1338,6 +1508,11 @@ export function readBody(reader, type, caps) {
         center: { x: reader.i32(), z: reader.i32() } }
     case 'REMOTE_LEVEL_CLOSE':
       return { type, levelHandle: reader.u8() }
+    case 'ENTITY_GRAVITY': {
+      const message = { type, levelHandle: reader.u8(), entityId: reader.i32(), entityUuid: readUuid(reader), orientation: gravityOrientation(reader.u8()), restoreWorldOrientation: readFlag(reader, 'restore world orientation') }
+      if (message.restoreWorldOrientation && message.orientation !== 0) throw new ClientViewProtocolError('gravity restore requires world orientation')
+      return message
+    }
     case 'ROUTED_PACKET':
       return { type, levelHandle: reader.u8(), sequence: reader.i32(), fragmentIndex: reader.u16(), fragmentCount: reader.u16(), totalBytes: reader.i32(),
         payload: readFragment(reader) }
@@ -1399,6 +1574,15 @@ export function writeBody(writer, message) {
       writer.varint(message.portalKey)
       writer.u32(message.geometryRevision)
       writeGeometry(writer, message.geometry, 0)
+      return
+    case 'PORTAL_AFFINE':
+      validatePortalAffine(message)
+      writer.varint(message.portalKey)
+      writer.i64(message.sampleRevision)
+      for (const element of message.apertureToSource) writer.f64(element)
+      for (const element of message.sourceToDestination) writer.f64(element)
+      writer.varint(message.shape.length)
+      writer.bytes(message.shape)
       return
     case 'PORTAL_DROP':
       writer.varint(message.portalKey)
@@ -1592,6 +1776,14 @@ export function writeBody(writer, message) {
     case 'REMOTE_LEVEL_CLOSE':
       writer.u8(message.levelHandle)
       return
+    case 'ENTITY_GRAVITY':
+      writer.u8(message.levelHandle)
+      writer.i32(message.entityId)
+      writeUuid(writer, message.entityUuid)
+      writer.u8(gravityOrientation(message.orientation))
+      if (message.restoreWorldOrientation && message.orientation !== 0) throw new ClientViewProtocolError('gravity restore requires world orientation')
+      writer.u8(message.restoreWorldOrientation ? 1 : 0)
+      return
     case 'ROUTED_PACKET':
       writer.u8(message.levelHandle)
       writer.i32(message.sequence)
@@ -1754,6 +1946,9 @@ export function summarize(message) {
     }
     case 'PORTAL_DROP':
       return { portalKey: message.portalKey }
+    case 'PORTAL_AFFINE':
+      return { portalKey: message.portalKey, sampleRevision: message.sampleRevision.toString(), apertureToSource: [...message.apertureToSource],
+        sourceToDestination: [...message.sourceToDestination], shape: message.shape.toString('hex') }
     case 'PLATE_BEGIN':
       return { portalKey: message.portalKey, plateRevision: message.plateRevision, sections: message.sections, cells: message.cells, backingState: message.backingState, brickCount: message.brickCount, hashes: message.brickHashes !== null }
     case 'PLATE_BRICKS': {

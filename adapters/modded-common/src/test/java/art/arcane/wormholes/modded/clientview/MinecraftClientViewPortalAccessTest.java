@@ -4,6 +4,7 @@ import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.stream.ViewStreamEndpoints;
 import art.arcane.optics.stream.ViewStreamMessage;
 import art.arcane.wormholes.network.client.ClientViewExtensions;
+import art.arcane.wormholes.network.client.LocalDestination;
 import art.arcane.wormholes.network.client.RootSource;
 import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.config.WormholesSettings;
@@ -32,6 +33,7 @@ import art.arcane.optics.entity.EntitySnapshot;
 import art.arcane.wormholes.portal.BlackoutColor;
 import art.arcane.optics.frame.QuarterTurn;
 import art.arcane.optics.frame.Frame;
+import art.arcane.optics.crossing.ScaleRule;
 import art.arcane.optics.aperture.ApertureCells;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.portal.ProjectionRenderMode;
@@ -426,6 +428,39 @@ public class MinecraftClientViewPortalAccessTest extends MinecraftTestBase {
     }
 
     @Test
+    public void nestedVirtualEyeAppliesParentScaleBeforeTheDestinationTransform() {
+        Fixture fixture = fixture(PortalType.PORTAL);
+        fixture.peer().meshDepth(128);
+        MinecraftPortal destination = fixture.access().projectionDestination(fixture.source());
+        destination.getGeometry().setArea(new Box(10.0D, 15.999D, 64.0D, 69.999D, 0.0D, 0.999D));
+        when(destination.getOrigin()).thenReturn(new Vec3d(13.0D, 67.0D, 0.5D));
+        when(fixture.source().getScaleRule()).thenReturn(ScaleRule.motion());
+        MinecraftClientViewPortalAccess portals = new MinecraftClientViewPortalAccess(fixture.runtime());
+        UUID root = fixture.source().getId();
+        portals.prepareNested(fixture.peer(), root, null, root);
+        MinecraftClientViewPeer.NestedContext context = fixture.peer().nestedContext(root);
+        Vec3d unscaled = context.transform().inverse().point(context.sourceEye());
+        Vec3d center = context.transform().inverse().point(fixture.source().getOrigin());
+        assertEquals(0.5F, portals.viewScale(fixture.peer(), root), 0.0F);
+        assertEquals(center.x() + 2.0D * (unscaled.x() - center.x()), context.destinationEye().x(), 1.0E-9D);
+        assertEquals(center.y() + 2.0D * (unscaled.y() - center.y()), context.destinationEye().y(), 1.0E-9D);
+        assertEquals(center.z() + 2.0D * (unscaled.z() - center.z()), context.destinationEye().z(), 1.0E-9D);
+
+        MinecraftPortal child = portal(12.0D);
+        MinecraftPortal childDestination = portal(30.0D);
+        ServerLevel world = fixture.player().level();
+        when(fixture.runtime().portals().get(child.getId())).thenReturn(child);
+        when(fixture.access().world(child)).thenReturn(world);
+        when(fixture.access().world(childDestination)).thenReturn(world);
+        when(fixture.access().projectionDestination(child)).thenReturn(childDestination);
+        UUID branch = UUID.randomUUID();
+        portals.prepareNested(fixture.peer(), branch, root, child.getId());
+        MinecraftClientViewPeer.NestedContext nested = fixture.peer().nestedContext(branch);
+        assertEquals(context.destinationEye(), nested.sourceEye());
+        assertEquals(nested.transform().inverse().point(nested.sourceEye()), nested.destinationEye());
+    }
+
+    @Test
     public void nativeBranchesResolveMirrorsInTheLinkedWorldWithIndependentEyes() {
         Fixture fixture = fixture(PortalType.PORTAL);
         fixture.peer().meshDepth(128);
@@ -640,6 +675,45 @@ public class MinecraftClientViewPortalAccessTest extends MinecraftTestBase {
             new ViewStreamEndpoints.GeometryMetadataContext(8, geometry.withParent(7), ClientViewExtensions.ROOT_SOURCE)).messages(3).isEmpty());
     }
 
+    @Test
+    public void localDestinationMetadataProvesTheResolvedWorldForRootsAndNestedStreams() {
+        Fixture fixture = fixture(PortalType.PORTAL);
+        fixture.peer().meshDepth(208);
+        MinecraftClientViewPortalAccess portals = new MinecraftClientViewPortalAccess(fixture.runtime());
+        ApertureDescriptor geometry = portals.geometry(fixture.peer(), fixture.source().getId(), new SessionPalette());
+        long caps = ClientViewExtensions.ROOT_SOURCE | ClientViewExtensions.LOCAL_DESTINATION;
+        List<ViewStreamMessage> root = portals.geometryMetadata(fixture.peer(), fixture.source().getId(),
+            new ViewStreamEndpoints.GeometryMetadataContext(7, geometry, caps)).messages(3);
+        assertEquals(2, root.size());
+        assertEquals(new RootSource(7, 3, "minecraft:overworld"), ((ViewStreamMessage.Extension) root.getFirst()).payload());
+        assertEquals(new LocalDestination(7, 3, "minecraft:overworld"), ((ViewStreamMessage.Extension) root.getLast()).payload());
+        UUID context = UUID.randomUUID();
+        portals.prepareNested(fixture.peer(), context, null, fixture.source().getId());
+        List<ViewStreamMessage> nested = portals.geometryMetadata(fixture.peer(), context,
+            new ViewStreamEndpoints.GeometryMetadataContext(8, geometry.withParent(7), caps)).messages(4);
+        assertEquals(1, nested.size());
+        assertEquals(new LocalDestination(8, 4, "minecraft:overworld"), ((ViewStreamMessage.Extension) nested.getFirst()).payload());
+        ServerLevel nether = mock(ServerLevel.class);
+        when(nether.dimension()).thenReturn(Level.NETHER);
+        when(fixture.view().getWorld()).thenReturn(nether);
+        List<ViewStreamMessage> different = portals.geometryMetadata(fixture.peer(), context,
+            new ViewStreamEndpoints.GeometryMetadataContext(8, geometry.withParent(7), caps)).messages(5);
+        assertEquals(new LocalDestination(8, 5, "minecraft:the_nether"), ((ViewStreamMessage.Extension) different.getFirst()).payload());
+    }
+
+    @Test
+    public void unnegotiatedOrUnresolvedRemoteTargetsDoNotClaimLocalDestinationOwnership() {
+        Fixture fixture = fixture(PortalType.PORTAL);
+        fixture.peer().meshDepth(208);
+        MinecraftClientViewPortalAccess portals = new MinecraftClientViewPortalAccess(fixture.runtime());
+        ApertureDescriptor geometry = portals.geometry(fixture.peer(), fixture.source().getId(), new SessionPalette()).withParent(7);
+        assertTrue(portals.geometryMetadata(fixture.peer(), fixture.source().getId(),
+            new ViewStreamEndpoints.GeometryMetadataContext(8, geometry, 0L)).messages(3).isEmpty());
+        when(fixture.source().getTunnelType()).thenReturn("UNIVERSAL");
+        assertTrue(portals.geometryMetadata(fixture.peer(), fixture.source().getId(),
+            new ViewStreamEndpoints.GeometryMetadataContext(8, geometry, ClientViewExtensions.LOCAL_DESTINATION)).messages(3).isEmpty());
+    }
+
     private static Fixture fixture(PortalType type) {
         WormholesModRuntime runtime = mock(WormholesModRuntime.class);
         WormholesModConfiguration configuration = mock(WormholesModConfiguration.class);
@@ -716,6 +790,7 @@ public class MinecraftClientViewPortalAccessTest extends MinecraftTestBase {
         when(portal.getGeometry()).thenReturn(geometry);
         when(portal.getApertureShape()).thenReturn(ShapeDescriptor.FULL);
         when(portal.getFrame()).thenReturn(Frame.canonical(Face.S));
+        when(portal.getScaleRule()).thenReturn(ScaleRule.OFF);
         when(portal.getOrigin()).thenReturn(new Vec3d(x + 1.5D, 65.5D, 0.5D));
         when(portal.frame()).thenCallRealMethod();
         when(portal.origin()).thenCallRealMethod();

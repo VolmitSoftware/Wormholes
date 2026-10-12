@@ -6,6 +6,7 @@ import java.util.UUID;
 
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.crossing.MomentumRule;
+import art.arcane.optics.crossing.GravityFrame;
 import art.arcane.optics.crossing.OrientationRule;
 import art.arcane.optics.crossing.ScaleRule;
 import art.arcane.optics.frame.OpticTransform;
@@ -27,6 +28,7 @@ public sealed interface TravelMessage {
     int REMOTE_VIEW_ACK = 55;
     int REMOTE_LEVEL_REOPEN = 56;
     int ENTITY_CROSSED = 57;
+    int ENTITY_GRAVITY = 58;
     int FIRST_ID = 41;
     int LAST_ID = 63;
 
@@ -80,9 +82,9 @@ public sealed interface TravelMessage {
     record TravelCoordinate(int x, int z) {
     }
 
-    record ArrivalRules(OrientationRule orientation, boolean gravityFlip, MomentumRule momentum, ScaleRule scale) {
+    record ArrivalRules(OrientationRule orientation, boolean gravityFlip, MomentumRule momentum, ScaleRule scale, boolean rotateGravity) {
         public static final ArrivalRules FRAME = new ArrivalRules(OrientationRule.FRAME, false,
-            new MomentumRule(MomentumRule.Mode.PRESERVE, 1.0D, 0.0D, new Vec3d(0.0D, 0.0D, 0.0D)), ScaleRule.OFF);
+            new MomentumRule(MomentumRule.Mode.PRESERVE, 1.0D, 0.0D, new Vec3d(0.0D, 0.0D, 0.0D)), ScaleRule.OFF, false);
 
         public ArrivalRules {
             Objects.requireNonNull(orientation, "orientation");
@@ -91,10 +93,14 @@ public sealed interface TravelMessage {
             travelVector(momentum.impulse());
         }
 
+        public ArrivalRules withGravityRotation(boolean enabled) {
+            return new ArrivalRules(orientation, gravityFlip, momentum, scale, enabled);
+        }
+
         public static ArrivalRules of(OrientationPolicy orientation, MomentumPolicy momentum, boolean gravityFlip, double maxSpeed, ScaleRule scale) {
             MomentumRule rule = momentum.rule();
             return new ArrivalRules(orientation.rule(), gravityFlip,
-                new MomentumRule(rule.mode(), rule.factor(), rule.maxSpeed() > 0.0D ? rule.maxSpeed() : maxSpeed, rule.impulse()), scale);
+                new MomentumRule(rule.mode(), rule.factor(), rule.maxSpeed() > 0.0D ? rule.maxSpeed() : maxSpeed, rule.impulse()), scale, false);
         }
     }
 
@@ -250,12 +256,14 @@ public sealed interface TravelMessage {
     }
 
     record TravelAccept(UUID token, long generation, long contentRevision, TravelPose pose, Vec3d velocity, int levelHandle,
-                        boolean dimensionChanged, long serverTick) implements TravelMessage {
+                        boolean dimensionChanged, long serverTick, GravityFrame gravity, double entityScale) implements TravelMessage {
         public TravelAccept {
             travelIdentity(token, generation);
             Objects.requireNonNull(pose, "pose");
             travelVector(velocity);
-            if (contentRevision <= 0 || levelHandle < 0 || levelHandle > MAX_LEVEL_HANDLE || serverTick < 0) {
+            Objects.requireNonNull(gravity, "gravity");
+            if (contentRevision <= 0 || levelHandle < 0 || levelHandle > MAX_LEVEL_HANDLE || serverTick < 0
+                || !Double.isFinite(entityScale) || entityScale <= 0.0D) {
                 throw new IllegalArgumentException("Travel accept");
             }
         }
@@ -292,11 +300,14 @@ public sealed interface TravelMessage {
         }
     }
 
-    record EntityCrossed(int levelHandle, int entityId, OpticTransform toward, Vec3d planeOrigin, Face planeNormal, Vec3d velocity)
+    record EntityCrossed(int levelHandle, int entityId, OpticTransform toward, Vec3d planeOrigin, Face planeNormal, Vec3d velocity,
+                         GravityFrame sourceGravity, GravityFrame destinationGravity)
         implements TravelMessage {
         public EntityCrossed {
             Objects.requireNonNull(toward, "toward");
             Objects.requireNonNull(planeNormal, "planeNormal");
+            Objects.requireNonNull(sourceGravity, "sourceGravity");
+            Objects.requireNonNull(destinationGravity, "destinationGravity");
             travelVector(planeOrigin);
             travelVector(velocity);
             if (levelHandle < 0 || levelHandle > MAX_LEVEL_HANDLE) {
@@ -307,6 +318,24 @@ public sealed interface TravelMessage {
         @Override
         public int id() {
             return ENTITY_CROSSED;
+        }
+    }
+
+    record EntityGravity(int levelHandle, int entityId, UUID entityUuid, GravityFrame frame, boolean restoreWorldOrientation) implements TravelMessage {
+        public EntityGravity {
+            Objects.requireNonNull(entityUuid, "entityUuid");
+            Objects.requireNonNull(frame, "frame");
+            if (restoreWorldOrientation && !frame.equals(GravityFrame.WORLD)) {
+                throw new IllegalArgumentException("World orientation reset requires world gravity");
+            }
+            if (levelHandle < 0 || levelHandle > MAX_LEVEL_HANDLE) {
+                throw new IllegalArgumentException("Entity gravity level handle " + levelHandle);
+            }
+        }
+
+        @Override
+        public int id() {
+            return ENTITY_GRAVITY;
         }
     }
 }

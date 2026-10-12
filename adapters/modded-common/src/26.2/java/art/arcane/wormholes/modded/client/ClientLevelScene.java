@@ -1,5 +1,8 @@
 package art.arcane.wormholes.modded.client;
 
+import art.arcane.optics.crossing.GravityFrame;
+import art.arcane.optics.entity.EntityVisualMetadata;
+import art.arcane.wormholes.modded.gravity.MinecraftGravity;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.math.Angles;
 import art.arcane.wormholes.modded.MinecraftAcoustics;
@@ -40,6 +43,8 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.ai.attributes.AttributeInstance;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
@@ -87,7 +92,9 @@ public final class ClientLevelScene implements ClientSceneWorld {
             int data = hanging(type) ? Direction.getApproximateNearest(visual.lookX(), visual.lookY(), visual.lookZ()).get3DDataValue() : 0;
             new ClientboundAddEntityPacket(entityId, projectionId, visual.x(), visual.y(), visual.z(), visual.pitch(), visual.yaw(), type, data,
                 velocity, headYaw(visual)).handle(connection);
-            if (level.getEntity(entityId) != null) {
+            Entity created = level.getEntity(entityId);
+            if (created != null) {
+                initialize(created, visual);
                 return true;
             }
         } catch (RuntimeException failure) {
@@ -143,11 +150,16 @@ public final class ClientLevelScene implements ClientSceneWorld {
     }
 
     static void move(Entity entity, EntitySnapshot visual, EntitySnapshot previous) {
+        boolean metadataChanged = visual.metadata() != previous.metadata() && visual.metadata() != null && visual.metadata().length > 0;
+        if (metadataChanged) {
+            visualState(entity, EntityVisualMetadata.decode(visual.metadata()));
+        }
         if (visual.x() != previous.x() || visual.y() != previous.y() || visual.z() != previous.z()
             || visual.yaw() != previous.yaw() || visual.pitch() != previous.pitch()) {
             entity.moveOrInterpolateTo(new Vec3(visual.x(), visual.y(), visual.z()), visual.yaw(), visual.pitch());
         }
-        if (visual.lookX() != previous.lookX() || visual.lookY() != previous.lookY() || visual.lookZ() != previous.lookZ()) {
+        if (visual.lookX() != previous.lookX() || visual.lookY() != previous.lookY() || visual.lookZ() != previous.lookZ()
+            || metadataChanged && !gravity(visual).equals(gravity(previous))) {
             entity.lerpHeadTo(headYaw(visual), HEAD_LERP_STEPS);
         }
         if (visual.velocityX() != previous.velocityX() || visual.velocityY() != previous.velocityY()
@@ -159,9 +171,47 @@ public final class ClientLevelScene implements ClientSceneWorld {
         }
     }
 
+    static void initialize(Entity entity, EntitySnapshot visual) {
+        if (visual.metadata() != null && visual.metadata().length > 0) {
+            visualState(entity, EntityVisualMetadata.decode(visual.metadata()));
+        }
+        entity.setYRot(visual.yaw());
+        entity.setXRot(visual.pitch());
+        entity.yRotO = visual.yaw();
+        entity.xRotO = visual.pitch();
+        if (entity instanceof LivingEntity living) {
+            living.yBodyRot = visual.yaw();
+            living.yBodyRotO = visual.yaw();
+            living.setYHeadRot(headYaw(visual));
+            living.yHeadRotO = headYaw(visual);
+        }
+    }
+
+    static void visualState(Entity entity, EntityVisualMetadata visual) {
+        boolean resized = false;
+        if (entity instanceof LivingEntity living) {
+            AttributeInstance scale = living.getAttribute(Attributes.SCALE);
+            if (scale != null && (scale.getBaseValue() != visual.effectiveScale() || !scale.getModifiers().isEmpty())) {
+                scale.removeModifiers();
+                scale.setBaseValue(visual.effectiveScale());
+                resized = true;
+            }
+        }
+        MinecraftGravity.set(entity, visual.gravity());
+        if (resized) {
+            entity.refreshDimensions();
+        }
+    }
+
     static float headYaw(EntitySnapshot visual) {
-        return visual.lookX() * visual.lookX() + visual.lookZ() * visual.lookZ() < 1.0E-12D
-            ? visual.yaw() : Angles.yaw(visual.lookX(), visual.lookZ());
+        Vec3d local = gravity(visual).toLocal(new Vec3d(visual.lookX(), visual.lookY(), visual.lookZ()));
+        return local.x() * local.x() + local.z() * local.z() < 1.0E-12D
+            ? visual.yaw() : Angles.yaw(local.x(), local.z());
+    }
+
+    private static GravityFrame gravity(EntitySnapshot visual) {
+        return visual.metadata() == null || visual.metadata().length == 0 ? GravityFrame.WORLD
+            : EntityVisualMetadata.decode(visual.metadata()).gravity();
     }
 
     @Override
@@ -187,6 +237,7 @@ public final class ClientLevelScene implements ClientSceneWorld {
             return;
         }
         try {
+            visualState(level.getEntity(entityId), EntityVisualMetadata.decode(metadata));
             List<SynchedEntityData.DataValue<?>> values = blobs.readMetadata(metadata);
             if (!values.isEmpty()) {
                 new ClientboundSetEntityDataPacket(entityId, values).handle(connection);

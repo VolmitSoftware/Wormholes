@@ -1,11 +1,22 @@
 package art.arcane.wormholes.clientgametest;
 
+import java.lang.reflect.Method;
+import art.arcane.optics.aperture.ApertureDescriptor;
+import art.arcane.optics.stream.EnvironmentState;
+import art.arcane.wormholes.modded.client.render.stencil.PortalSurface;
+import art.arcane.wormholes.modded.client.render.stencil.PortalViews;
+import art.arcane.wormholes.modded.client.WormholesClient;
+import art.arcane.wormholes.modded.client.ClientPortal;
+import java.util.Iterator;
+import art.arcane.wormholes.modded.client.render.stencil.PortalView;
+import art.arcane.optics.frame.Similarity;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.client.render.dh.DhBlazeClipPrograms;
 import art.arcane.wormholes.modded.client.render.dh.DhBlazeClipTransformation;
 import art.arcane.wormholes.modded.client.render.dh.DhClipPrograms;
 import art.arcane.wormholes.modded.client.render.dh.DhClipTransformation;
 import art.arcane.wormholes.modded.client.render.iris.IrisClipPrograms;
+import art.arcane.wormholes.modded.client.render.iris.IrisViewPipelines;
 import art.arcane.wormholes.modded.client.render.iris.IrisClipPlanes;
 import art.arcane.wormholes.modded.client.render.iris.IrisClipTransformation;
 import art.arcane.wormholes.modded.client.render.stencil.PortalLayer;
@@ -76,6 +87,7 @@ public final class DistantHorizonsTap {
     private static final ArrayDeque<Pending> QUERIES = new ArrayDeque<>();
     private static final List<Checkpoint> CHECKPOINTS = new ArrayList<>();
     private static final Map<Key, History> HISTORIES = new HashMap<>();
+    private static final Map<HistoryPath, History> PATH_HISTORIES = new HashMap<>();
     private static final Map<Object, HistorySample> CAMERA_HISTORIES = new IdentityHashMap<>();
     private static final Map<Key, RenderBufferHandler> BUFFERS = new HashMap<>();
     private static final Set<Integer> CLIP_DISTANCES = new HashSet<>();
@@ -109,6 +121,7 @@ public final class DistantHorizonsTap {
         SAMPLES.clear();
         HISTORIES.clear();
         CAMERA_HISTORIES.clear();
+        PATH_HISTORIES.clear();
         BUFFERS.clear();
         CHECKPOINTS.clear();
         CLIP_DISTANCES.clear();
@@ -170,6 +183,7 @@ public final class DistantHorizonsTap {
         }
         enabled = false;
         CAMERA_HISTORIES.clear();
+        PATH_HISTORIES.clear();
         for (Pending query : QUERIES) {
             GL15C.glDeleteQueries(query.id());
         }
@@ -429,6 +443,112 @@ public final class DistantHorizonsTap {
         History history = new History(pipeline, first, second, renders, frame, null);
         CAMERA_HISTORIES.put(pipeline, new HistorySample(key, history));
         HISTORIES.put(key, history);
+        PATH_HISTORIES.put(historyPath(), history);
+    }
+
+    public static Map<HistoryPath, History> nestedHistorySnapshot() {
+        History main = mainHistory();
+        Map<HistoryPath, History> histories = new HashMap<>();
+        for (Map.Entry<HistoryPath, History> entry : PATH_HISTORIES.entrySet()) {
+            if (entry.getKey().cameras().size() >= 2 && entry.getKey().cameras().stream()
+                .allMatch(camera -> camera.kind() == PortalView.Kind.MIRROR)
+                && main != null && entry.getValue().frame() == main.frame()) {
+                histories.put(entry.getKey(), entry.getValue());
+            }
+        }
+        if (histories.size() < 2) {
+            throw new AssertionError("DH acceptance requires two actual complete nested mirror histories");
+        }
+        return Map.copyOf(histories);
+    }
+
+    public static void assertNestedHistoryStable(Map<HistoryPath, History> expected, boolean rendered) {
+        History main = mainHistory();
+        Set<Integer> textures = new HashSet<>();
+        for (Map.Entry<HistoryPath, History> entry : expected.entrySet()) {
+            History current = PATH_HISTORIES.get(entry.getKey());
+            History previous = entry.getValue();
+            if (current == null || current.pipeline() != previous.pipeline() || current.first() != previous.first()
+                || current.second() != previous.second() || !GL11C.glIsTexture(current.first())
+                || !GL11C.glIsTexture(current.second()) || !textures.add(current.first()) || !textures.add(current.second())
+                || main == null || current.first() == main.first() || current.first() == main.second()
+                || current.second() == main.first() || current.second() == main.second()
+                || rendered && current.frame() != main.frame()) {
+                throw new AssertionError("Complete nested DH camera history changed or stopped rendering: " + entry.getKey());
+            }
+        }
+    }
+
+    private static HistoryPath historyPath() {
+        List<HistoryStep> cameras = new ArrayList<>(LAYERS.size());
+        Iterator<Scope> iterator = LAYERS.descendingIterator();
+        while (iterator.hasNext()) {
+            PortalLayer layer = iterator.next().layer;
+            if (layer != null) {
+                PortalView view = layer.view();
+                cameras.add(new HistoryStep(view.kind(), view.historyKey(), view.source(), view.destination(), view.toDestination()));
+            }
+        }
+        return new HistoryPath(cameras);
+    }
+
+    private static Map<String, Map<String, String>> mirrorProofEvidence() {
+        WormholesClient client = WormholesClient.instance();
+        if (client == null) {
+            return Map.of();
+        }
+        PortalViews views = client.portalViews();
+        List<PortalView> pending = new ArrayList<>(views.current());
+        Set<Object> visited = new HashSet<>();
+        Map<String, Map<String, String>> evidence = new HashMap<>();
+        try {
+            Method toward = PortalViews.class.getDeclaredMethod("toward", ApertureDescriptor.class, EnvironmentState.class);
+            toward.setAccessible(true);
+            for (int index = 0; index < pending.size(); index++) {
+                PortalView view = pending.get(index);
+                if (!visited.add(view.key())) {
+                    continue;
+                }
+                pending.addAll(views.children(view));
+                if (view.kind() != PortalView.Kind.MIRROR) {
+                    continue;
+                }
+                int slot = views.streamKey(view);
+                ClientPortal portal = client.session().portal(slot);
+                EnvironmentState environment = client.session().environment(slot);
+                Map<String, String> row = new HashMap<>();
+                row.put("history", view.historyKey().toString());
+                row.put("slot", Integer.toString(slot));
+                row.put("sameWorld", Boolean.toString(view.source() == view.destination()));
+                row.put("affine", Boolean.toString(client.session().affine(slot) != null));
+                row.put("geometry", view.surface().geometry().toString());
+                row.put("geometryMatches", Boolean.toString(portal != null && portal.geometry().equals(view.surface().geometry())));
+                Vec3d zero = new Vec3d(0.0D, 0.0D, 0.0D);
+                row.put("viewZero", view.toDestination().point(zero).toString());
+                row.put("reflectionZero", PortalSurface.mirrorTransform(view.surface().geometry()).point(zero).toString());
+                row.put("environment", String.valueOf(environment));
+                if (environment != null) {
+                    Similarity transform = (Similarity) toward.invoke(null, view.surface().geometry(), environment);
+                    row.put("environmentZero", transform.point(zero).toString());
+                    row.put("environmentTransform", transform.toString());
+                }
+                evidence.put(view.key().toString(), Map.copyOf(row));
+            }
+        } catch (ReflectiveOperationException failure) {
+            throw new AssertionError("Unable to capture native mirror proof evidence", failure);
+        }
+        return Map.copyOf(evidence);
+    }
+
+    private static Map<String, HistoryEvidence> pathHistoryEvidence() {
+        Map<String, HistoryEvidence> evidence = new HashMap<>();
+        for (Map.Entry<HistoryPath, History> entry : PATH_HISTORIES.entrySet()) {
+            History history = entry.getValue();
+            evidence.put(entry.getKey().toString(), new HistoryEvidence(System.identityHashCode(history.pipeline()), history.first(),
+                history.second(), history.renders(), history.frame(),
+                history.resources() == null ? null : history.resources().evidence()));
+        }
+        return evidence;
     }
 
     public static History history(BlockPos origin, int depth) {
@@ -495,6 +615,7 @@ public final class DistantHorizonsTap {
         History sample = HISTORIES.get(key);
         History complete = new History(sample.pipeline(), sample.first(), sample.second(), sample.renders(), sample.frame(), resources);
         HISTORIES.put(key, complete);
+        PATH_HISTORIES.put(historyPath(), complete);
         CAMERA_HISTORIES.put(complete.pipeline(), new HistorySample(key, complete));
     }
 
@@ -571,7 +692,8 @@ public final class DistantHorizonsTap {
                 history.second(), history.renders(), history.frame(),
                 history.resources() == null ? null : history.resources().evidence()));
         }
-        CHECKPOINTS.add(new Checkpoint(name, costs, samples, histories, virtualMainDraws, virtualMainWorld));
+        CHECKPOINTS.add(new Checkpoint(name, costs, samples, histories, virtualMainDraws, virtualMainWorld, shaders ? IrisViewPipelines.cameraSnapshots() : null,
+            shaders ? IrisViewPipelines.diagnostics() : null, pathHistoryEvidence(), mirrorProofEvidence()));
         System.out.println("DH acceptance " + name + ": costs=" + costs + " draws=" + draws + " samples=" + samples);
         RenderParams params = DhPortalClientApiAccess.wormholes$renderParams();
         System.out.println("DH state validation=" + ClientApi.INSTANCE.lastRenderParamValidationMessage
@@ -1168,6 +1290,15 @@ public final class DistantHorizonsTap {
         }
     }
 
+    public record HistoryStep(PortalView.Kind kind, Object key, ClientLevel source, ClientLevel destination, Similarity transform) {
+    }
+
+    public record HistoryPath(List<HistoryStep> cameras) {
+        public HistoryPath {
+            cameras = List.copyOf(cameras);
+        }
+    }
+
     private record HistorySample(Key key, History history) {
     }
 
@@ -1277,7 +1408,8 @@ public final class DistantHorizonsTap {
     }
 
     private record Checkpoint(String name, IrisPipelineCostTap.Counts costs, Map<String, Sample> samples, Map<String, HistoryEvidence> histories,
-                              long virtualMainDraws, String virtualMainWorld) {
+                              long virtualMainDraws, String virtualMainWorld, IrisViewPipelines.CameraSnapshots cameraPaths,
+                              IrisViewPipelines.Diagnostics pipelines, Map<String, HistoryEvidence> fullPathHistories, Map<String, Map<String, String>> mirrorProofs) {
     }
 
     private record Evidence(boolean shaders, String failure, List<Checkpoint> checkpoints, List<CopyEvidence> copies) {

@@ -24,6 +24,7 @@ import org.joml.Vector4fc;
 
 public final class IrisMeshFrame implements AutoCloseable {
     private final IrisRenderingPipeline pipeline;
+    private final IrisViewPipelines.Scope ownership;
     private final boolean skipExtension;
     private final boolean bypass;
     private final boolean renderingLevel;
@@ -31,8 +32,9 @@ public final class IrisMeshFrame implements AutoCloseable {
     private boolean modelView;
     private boolean clipping;
 
-    private IrisMeshFrame(IrisRenderingPipeline pipeline) {
-        this.pipeline = pipeline;
+    private IrisMeshFrame(IrisViewPipelines.Scope ownership) {
+        this.ownership = ownership;
+        pipeline = ownership.rendering();
         skipExtension = ImmediateState.skipExtension.get();
         bypass = ImmediateState.bypass;
         renderingLevel = ImmediateState.isRenderingLevel;
@@ -44,10 +46,7 @@ public final class IrisMeshFrame implements AutoCloseable {
     }
 
     public static IrisMeshFrame open(View view) {
-        if (!(Iris.getPipelineManager().getPipelineNullable() instanceof IrisRenderingPipeline pipeline)) {
-            throw new IllegalStateException("No Iris shader pipeline is selected for the destination view");
-        }
-        IrisMeshFrame frame = new IrisMeshFrame(pipeline);
+        IrisMeshFrame frame = new IrisMeshFrame(IrisViewPipelines.openMesh(view.camera()));
         try {
             frame.begin(view);
         } catch (RuntimeException | Error failure) {
@@ -149,10 +148,15 @@ public final class IrisMeshFrame implements AutoCloseable {
             ImmediateState.bypass = bypass;
             ImmediateState.isRenderingLevel = renderingLevel;
             ImmediateState.renderWithExtendedVertexFormat = extendedFormat;
-            IrisLayerUniforms.transition();
+            try {
+                ownership.close();
+            } finally {
+                IrisLayerUniforms.transition();
+            }
         }
     }
 
-    public record View(Matrix4fc shaderView, Matrix4fc projection, Vector4fc fogColor, Vector4fc clipPlane, float partialTicks) {
+    public record View(IrisMeshCamera camera, Matrix4fc shaderView, Matrix4fc projection, Vector4fc fogColor, Vector4fc clipPlane,
+                       float partialTicks) {
     }
 }

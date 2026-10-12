@@ -8,6 +8,7 @@ import art.arcane.optics.crossing.OrientationRule;
 import art.arcane.optics.crossing.ScaleRule;
 import art.arcane.optics.crossing.PlaneCrossing;
 import art.arcane.optics.crossing.Pose;
+import art.arcane.optics.crossing.GravityFrame;
 import art.arcane.optics.crossing.PoseTransform;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.math.Angles;
@@ -110,7 +111,7 @@ public class ClientTravelCrossingPoseTest extends MinecraftTestBase {
     @Test
     public void frameRuleMatchesThePlainTransformOnCurrentAndPreviousFields() {
         TravelMessage.TravelBegin begin = begin(Face.E, OrientationRule.FRAME, false, PRESERVE);
-        Pose arrived = ClientTravelMotion.arrive(begin, SOURCE, CROSSING);
+        Pose arrived = ClientTravelMotion.arrive(begin, SOURCE, CROSSING, GravityFrame.WORLD);
         Pose plain = PoseTransform.apply(SOURCE, begin.destinationToSource().inverse());
         assertLook(Angles.direction(plain.yaw(), plain.pitch()), arrived.yaw(), arrived.pitch());
         assertLook(Angles.direction(plain.previousYaw(), plain.previousPitch()), arrived.previousYaw(), arrived.previousPitch());
@@ -124,7 +125,7 @@ public class ClientTravelCrossingPoseTest extends MinecraftTestBase {
 
     @Test
     public void lookRuleKeepsTheWorldLookOnCurrentAndPreviousFields() {
-        Pose arrived = ClientTravelMotion.arrive(begin(Face.E, OrientationRule.LOOK, true, PRESERVE), SOURCE, CROSSING);
+        Pose arrived = ClientTravelMotion.arrive(begin(Face.E, OrientationRule.LOOK, true, PRESERVE), SOURCE, CROSSING, GravityFrame.WORLD);
         assertLook(Angles.direction(SOURCE.yaw(), SOURCE.pitch()), arrived.yaw(), arrived.pitch());
         assertLook(Angles.direction(SOURCE.previousYaw(), SOURCE.previousPitch()), arrived.previousYaw(), arrived.previousPitch());
         assertLook(Angles.direction(SOURCE.bodyYaw(), 0), arrived.bodyYaw(), 0);
@@ -133,7 +134,7 @@ public class ClientTravelCrossingPoseTest extends MinecraftTestBase {
 
     @Test
     public void snapRuleFacesOutOfTheExitOnCurrentAndPreviousFields() {
-        Pose arrived = ClientTravelMotion.arrive(begin(Face.E, OrientationRule.SNAP, false, PRESERVE), SOURCE, CROSSING);
+        Pose arrived = ClientTravelMotion.arrive(begin(Face.E, OrientationRule.SNAP, false, PRESERVE), SOURCE, CROSSING, GravityFrame.WORLD);
         assertLook(new Vec3d(-1, 0, 0), arrived.yaw(), arrived.pitch());
         assertLook(new Vec3d(-1, 0, 0), arrived.previousYaw(), arrived.previousPitch());
         assertEquals(arrived.yaw(), arrived.bodyYaw(), 0.001F);
@@ -144,7 +145,7 @@ public class ClientTravelCrossingPoseTest extends MinecraftTestBase {
     @Test
     public void mirrorRuleReflectsTheFrameLookAboutTheExitNormal() {
         TravelMessage.TravelBegin begin = begin(Face.E, OrientationRule.MIRROR, false, PRESERVE);
-        Pose arrived = ClientTravelMotion.arrive(begin, SOURCE, CROSSING);
+        Pose arrived = ClientTravelMotion.arrive(begin, SOURCE, CROSSING, GravityFrame.WORLD);
         Pose plain = PoseTransform.apply(SOURCE, begin.destinationToSource().inverse());
         Vec3d normal = new Vec3d(1, 0, 0);
         assertLook(Angles.reflect(Angles.direction(plain.yaw(), plain.pitch()), normal), arrived.yaw(), arrived.pitch());
@@ -156,8 +157,8 @@ public class ClientTravelCrossingPoseTest extends MinecraftTestBase {
     public void gravityFlipKeepsVerticalExitsUprightOnCurrentAndPreviousFields() {
         TravelMessage.TravelBegin flipped = begin(Face.U, OrientationRule.FRAME, true, PRESERVE);
         TravelMessage.TravelBegin plain = begin(Face.U, OrientationRule.FRAME, false, PRESERVE);
-        Pose arrived = ClientTravelMotion.arrive(flipped, SOURCE, CROSSING);
-        Pose unflipped = ClientTravelMotion.arrive(plain, SOURCE, CROSSING);
+        Pose arrived = ClientTravelMotion.arrive(flipped, SOURCE, CROSSING, GravityFrame.WORLD);
+        Pose unflipped = ClientTravelMotion.arrive(plain, SOURCE, CROSSING, GravityFrame.WORLD);
         Frame exit = Frame.canonical(Face.U);
         Frame source = ClientTravelTestFixtures.geometry().frame();
         assertLook(ArrivalOrientation.direction(crossing(source, SOURCE.yaw(), SOURCE.pitch()), exit, OrientationRule.FRAME, true),
@@ -170,15 +171,15 @@ public class ClientTravelCrossingPoseTest extends MinecraftTestBase {
     @Test
     public void momentumRulesShapeThePredictedVelocity() {
         Vec3d mapped = PoseTransform.apply(SOURCE, begin(Face.E, OrientationRule.FRAME, false, PRESERVE).destinationToSource().inverse()).velocity();
-        assertEquals(mapped, ClientTravelMotion.arrive(begin(Face.E, OrientationRule.FRAME, false, PRESERVE), SOURCE, CROSSING).velocity());
+        assertEquals(mapped, ClientTravelMotion.arrive(begin(Face.E, OrientationRule.FRAME, false, PRESERVE), SOURCE, CROSSING, GravityFrame.WORLD).velocity());
         assertVector(mapped.multiply(0.5D), ClientTravelMotion.arrive(begin(Face.E, OrientationRule.FRAME, false,
-            new MomentumRule(MomentumRule.Mode.SCALE, 0.5D, 0.0D, null)), SOURCE, CROSSING).velocity());
+            new MomentumRule(MomentumRule.Mode.SCALE, 0.5D, 0.0D, null)), SOURCE, CROSSING, GravityFrame.WORLD).velocity());
         assertVector(new Vec3d(0, 0, 0), ClientTravelMotion.arrive(begin(Face.E, OrientationRule.FRAME, false,
-            new MomentumRule(MomentumRule.Mode.ZERO, 1.0D, 0.0D, null)), SOURCE, CROSSING).velocity());
+            new MomentumRule(MomentumRule.Mode.ZERO, 1.0D, 0.0D, null)), SOURCE, CROSSING, GravityFrame.WORLD).velocity());
         assertVector(mapped.add(new Vec3d(0, 1, 0)), ClientTravelMotion.arrive(begin(Face.E, OrientationRule.FRAME, false,
-            new MomentumRule(MomentumRule.Mode.IMPULSE, 1.0D, 0.0D, new Vec3d(0, 1, 0))), SOURCE, CROSSING).velocity());
+            new MomentumRule(MomentumRule.Mode.IMPULSE, 1.0D, 0.0D, new Vec3d(0, 1, 0))), SOURCE, CROSSING, GravityFrame.WORLD).velocity());
         assertEquals(0.01D, ClientTravelMotion.arrive(begin(Face.E, OrientationRule.FRAME, false,
-            new MomentumRule(MomentumRule.Mode.CLAMP, 1.0D, 0.1D, null)), SOURCE, CROSSING).velocity().lengthSquared(), 0.000001D * 0.01D);
+            new MomentumRule(MomentumRule.Mode.CLAMP, 1.0D, 0.1D, null)), SOURCE, CROSSING, GravityFrame.WORLD).velocity().lengthSquared(), 0.000001D * 0.01D);
     }
 
     @Test
@@ -195,7 +196,7 @@ public class ClientTravelCrossingPoseTest extends MinecraftTestBase {
         return new TravelMessage.TravelBegin(new UUID(1, 2), 3, new UUID(4, 5), "minecraft:overworld", ClientTravelTestFixtures.geometry(),
             destinationToSource, 1.0F, new TravelMessage.TravelWorld("minecraft:overworld", "minecraft:overworld", 7, false, false, 63, -64, 384),
             new TravelMessage.TravelPose(100, 64, 100, 0, 0), PortalEnvironmentTest.environment(OpticTransform.IDENTITY),
-            new TravelMessage.ArrivalRules(orientation, gravityFlip, momentum, ScaleRule.OFF), true, 1, null);
+            new TravelMessage.ArrivalRules(orientation, gravityFlip, momentum, ScaleRule.OFF, false), true, 1, null);
     }
 
     private static PlaneCrossing crossing(Frame source, float yaw, float pitch) {

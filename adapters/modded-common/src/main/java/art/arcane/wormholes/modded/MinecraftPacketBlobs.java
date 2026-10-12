@@ -1,5 +1,7 @@
 package art.arcane.wormholes.modded;
 
+import art.arcane.optics.crossing.GravityFrame;
+import art.arcane.optics.entity.EntityVisualMetadata;
 import io.netty.buffer.Unpooled;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.network.RegistryFriendlyByteBuf;
@@ -26,7 +28,11 @@ public final class MinecraftPacketBlobs {
         if (data == null || data.length == 0) {
             return List.of();
         }
-        RegistryFriendlyByteBuf buffer = new RegistryFriendlyByteBuf(Unpooled.wrappedBuffer(data), registries);
+        byte[] raw = EntityVisualMetadata.decode(data).data();
+        if (raw.length == 0) {
+            return List.of();
+        }
+        RegistryFriendlyByteBuf buffer = new RegistryFriendlyByteBuf(Unpooled.wrappedBuffer(raw), registries);
         try {
             List<SynchedEntityData.DataValue<?>> values = new ArrayList<>();
             int id;
@@ -40,8 +46,12 @@ public final class MinecraftPacketBlobs {
     }
 
     public byte[] writeMetadata(List<SynchedEntityData.DataValue<?>> values) {
+        return writeMetadata(values, new EntityVisualMetadata(GravityFrame.WORLD, 1.0D, new byte[0]));
+    }
+
+    public byte[] writeMetadata(List<SynchedEntityData.DataValue<?>> values, EntityVisualMetadata visual) {
         if (values.isEmpty()) {
-            return new byte[0];
+            return visual.withData(new byte[0]).encode();
         }
         RegistryFriendlyByteBuf buffer = new RegistryFriendlyByteBuf(Unpooled.buffer(), registries);
         try {
@@ -51,7 +61,7 @@ public final class MinecraftPacketBlobs {
             buffer.writeByte(255);
             byte[] encoded = new byte[buffer.readableBytes()];
             buffer.readBytes(encoded);
-            return encoded;
+            return visual.withData(encoded).encode();
         } finally {
             buffer.release();
         }

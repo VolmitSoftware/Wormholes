@@ -31,7 +31,9 @@ abstract class VerifyModdedArtifact extends DefaultTask {
                                      'client.PortalClipShaderMixin', 'client.PortalClipProjectionMixin',
                                      'client.PortalStencilPipelinesMixin', 'client.PortalClipIncludeMixin',
                                      'client.PortalFeaturePipelineMixin', 'client.PortalDrawPassMixin',
-                                     'client.PortalStencilLayerTargetMixin'] as Set
+                                     'client.PortalStencilLayerTargetMixin',
+                                     'client.GravityRenderStateMixin', 'client.GravityEntityRendererMixin',
+                                     'client.GravityLivingRendererMixin', 'client.GravityAvatarRendererMixin'] as Set
 
     @InputFile
     @PathSensitive(PathSensitivity.NONE)

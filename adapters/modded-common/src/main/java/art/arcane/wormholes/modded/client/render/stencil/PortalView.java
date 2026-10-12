@@ -14,6 +14,7 @@ import java.util.Objects;
 public final class PortalView implements AutoCloseable {
     private final Kind kind;
     private final Object key;
+    private final NativeMirrorHistory.Proof mirrorHistory;
     private final ClientLevel source;
     private final ClientLevel destination;
     private final PortalSurface surface;
@@ -25,8 +26,13 @@ public final class PortalView implements AutoCloseable {
     private long failedUntil;
 
     PortalView(Kind kind, Object key, ClientLevel source, ClientLevel destination, PortalSurface surface, Similarity toDestination, int recursion) {
+        this(kind, new Identity(key, null), source, destination, surface, toDestination, recursion);
+    }
+
+    PortalView(Kind kind, Identity identity, ClientLevel source, ClientLevel destination, PortalSurface surface, Similarity toDestination, int recursion) {
         this.kind = Objects.requireNonNull(kind, "kind");
-        this.key = Objects.requireNonNull(key, "key");
+        this.key = Objects.requireNonNull(identity.key(), "key");
+        this.mirrorHistory = identity.mirrorHistory();
         this.source = Objects.requireNonNull(source, "source");
         this.destination = Objects.requireNonNull(destination, "destination");
         this.surface = Objects.requireNonNull(surface, "surface");
@@ -40,6 +46,14 @@ public final class PortalView implements AutoCloseable {
 
     public Object key() {
         return key;
+    }
+
+    public Object historyKey() {
+        return mirrorHistory == null ? key : mirrorHistory.key();
+    }
+
+    NativeMirrorHistory.Proof mirrorHistory() {
+        return mirrorHistory;
     }
 
     public ClientLevel source() {
@@ -113,6 +127,9 @@ public final class PortalView implements AutoCloseable {
             mesh.close();
             mesh = null;
         }
+    }
+
+    record Identity(Object key, NativeMirrorHistory.Proof mirrorHistory) {
     }
 
     public enum Kind {

@@ -1,6 +1,7 @@
 package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.modded.MinecraftProjectorBlocks;
+import art.arcane.wormholes.modded.client.render.stencil.PortalSurface;
 import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.optics.frame.AxisPermutation;
 import art.arcane.optics.frame.Frame;
@@ -41,7 +42,7 @@ public final class ClientMirrorBuilder implements ClientPortalContent {
 
     private ClientMirrorBuilder(ApertureDescriptor geometry, BlockBox box, ClientPalette palette, ShadowSource shadows) {
         this.geometry = geometry;
-        this.transform = geometry.mirrorTransform();
+        this.transform = PortalSurface.mirrorTransform(geometry);
         this.content = transform.inverse();
         this.box = box;
         this.ids = new int[(int) box.cells()];
@@ -88,8 +89,7 @@ public final class ClientMirrorBuilder implements ClientPortalContent {
     public static BlockBox displayBox(ApertureDescriptor geometry) {
         Box area = geometry.apertureArea();
         Frame frame = geometry.frame();
-        double plane = ApertureSlab.plane(frame, (area.getXa() + area.getXb()) * 0.5D, (area.getYa() + area.getYb()) * 0.5D,
-            (area.getZa() + area.getZb()) * 0.5D);
+        double plane = geometry.planeCoordinate();
         double pad = Math.min(geometry.depthBlocks(), MAX_LATERAL_BLOCKS) + Math.max(0.0D, geometry.aperturePadding());
         return ApertureSlab.of(area, frame, plane, geometry.frontSide(), geometry.depthBlocks(), pad).box();
     }

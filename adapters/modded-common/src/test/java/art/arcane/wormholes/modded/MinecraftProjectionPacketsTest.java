@@ -4,11 +4,8 @@ import it.unimi.dsi.fastutil.shorts.Short2ObjectMap;
 import it.unimi.dsi.fastutil.shorts.Short2ObjectOpenHashMap;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.HashMap;
@@ -17,19 +14,7 @@ import java.util.Map;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertSame;
 
-public class MinecraftProjectionPacketsTest {
-    @BeforeClass
-    public static void bootstrap() {
-        MinecraftTestBase.bootstrap();
-        for (Block block : BuiltInRegistries.BLOCK) {
-            for (BlockState state : block.getStateDefinition().getPossibleStates()) {
-                if (Block.BLOCK_STATE_REGISTRY.getId(state) < 0) {
-                    Block.BLOCK_STATE_REGISTRY.add(state);
-                }
-            }
-        }
-    }
-
+public class MinecraftProjectionPacketsTest extends MinecraftTestBase {
     @Test
     public void sectionPacketPreservesNegativeCoordinatesAndEveryCell() {
         Short2ObjectMap<BlockState> changes = new Short2ObjectOpenHashMap<>();

@@ -202,8 +202,7 @@ public final class BukkitClientViewPortalAccess implements ViewStreamEndpoints<C
             return;
         }
         observer.nestedContext(context, source, eye);
-        OpticTransform transform = source.transformFrame().transform().normalized();
-        Vec3d destinationEye = transform.inverse().point(new Vec3d(eye.getX(), eye.getY(), eye.getZ()));
+        Vec3d destinationEye = BukkitClientViewScene.destinationEye(source, eye);
         observer.reflectedEye(context, new Location(source.destinationWorld(), destinationEye.x(), destinationEye.y(), destinationEye.z()));
     }
 

@@ -26,6 +26,9 @@ public final class PortalMixinPlugin implements IMixinConfigPlugin {
 
     @Override
     public boolean shouldApplyMixin(String targetClassName, String mixinClassName) {
+        if (mixinClassName.startsWith("art.arcane.wormholes.modded.mixin.client.Sodium")) {
+            return sodium;
+        }
         if (mixinClassName.startsWith("art.arcane.wormholes.modded.mixin.client.VanillaTerrain")) {
             return !sodium;
         }

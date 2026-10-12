@@ -18,6 +18,7 @@ import {
   encodeS2C,
   hasCapability,
   peekType,
+  settleCapabilities,
   summarize
 } from './clientview-codec.mjs'
 import { wireBytes } from './clientview-client.mjs'
@@ -35,6 +36,7 @@ export function goldenContent(projection = PROJECTION_GOLDENS, extensions = EXTE
   return {
     palette: { type: 'PALETTE', entries: [...palette.entries, { id: portal.geometry.blackoutState, state: 'minecraft:black_concrete' }] },
     portal,
+    portalAffine: read('portal_affine'),
     begin,
     bricks: read('plate_bricks').bricks,
     patch: read('plate_patch'),
@@ -160,7 +162,7 @@ export async function startFakeClientViewServer({ minecraftProtocol, minecraftDa
       send(client, session, { type: 'DECLINE', reason }, FLAG_LAST)
       return
     }
-    session.caps = serverCaps & hello.clientCaps & ~capabilityMask('ZERO_COPY')
+    session.caps = settleCapabilities(serverCaps & hello.clientCaps & ~capabilityMask('ZERO_COPY'))
     session.state = 'CLIENT_VIEW'
     const accept = { type: 'ACCEPT', sessionId: nextSessionId++, caps: session.caps, tickRate: 20, maxFrameBytes: clampMaxFrameBytes(Math.min(maxFrameBytes, hello.maxFrameBytes)),
       hashSalt: randomBytes(8).readBigInt64LE(0), ackWindowFrames }
@@ -229,6 +231,7 @@ export async function startFakeClientViewServer({ minecraftProtocol, minecraftDa
       if (faults.includes('bricksBeforePortal')) send(client, session, { type: 'PLATE_BRICKS', portalKey: 9, plateRevision: 1, bricks: content.bricks.slice(0, 1) }, FLAG_LAST)
       send(client, session, content.palette)
       send(client, session, content.portal)
+      if (hasCapability(session.caps, 'AFFINE_PORTALS')) send(client, session, content.portalAffine)
       await acked(session, await plate(client, session, content.portal.portalKey, content.begin.plateRevision))
       await acked(session, send(client, session, { ...content.patch, portalKey: content.portal.portalKey, fromRevision: content.begin.plateRevision, toRevision: content.begin.plateRevision + 1 }, FLAG_LAST))
       const second = { ...content.portal, portalKey: 8, geometryRevision: 1, geometry: { ...content.portal.geometry, originX: content.portal.geometry.originX + 8 } }

@@ -14,6 +14,7 @@ import art.arcane.wormholes.api.events.PeerDisconnectedEvent;
 import art.arcane.wormholes.api.events.PortalCreatedEvent;
 import art.arcane.wormholes.api.events.PortalDestroyedEvent;
 import art.arcane.wormholes.api.events.PortalLinkedEvent;
+import art.arcane.wormholes.api.events.PortalProjectionChangedEvent;
 import art.arcane.wormholes.api.network.NetworkQuery;
 import art.arcane.wormholes.api.network.PeerSnapshot;
 import art.arcane.wormholes.api.portal.PortalMutations;
@@ -30,6 +31,7 @@ import art.arcane.wormholes.portal.IPortal;
 import art.arcane.wormholes.portal.ITunnel;
 import art.arcane.wormholes.portal.LocalPortal;
 import art.arcane.wormholes.portal.RemotePortal;
+import art.arcane.wormholes.portal.ProjectionMode;
 import art.arcane.wormholes.portal.UniversalTunnel;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -103,6 +105,11 @@ public final class ApiBridge implements WormholesApi, TraversalObserver, Network
         if (PortalDestroyedEvent.listening()) {
             for (PortalSnapshot destroyed : change.destroyed()) {
                 call(new PortalDestroyedEvent(destroyed.id(), destroyed.name()));
+            }
+        }
+        if (PortalProjectionChangedEvent.listening()) {
+            for (PortalSnapshot changed : change.projectionChanged()) {
+                call(new PortalProjectionChangedEvent(changed));
             }
         }
 
@@ -268,14 +275,14 @@ public final class ApiBridge implements WormholesApi, TraversalObserver, Network
             center == null ? 0.0D : center.getZ(),
             portal.getFrame() == null ? "N" : portal.getFrame().getNormal().name(),
             portal.isOpen(), destinationId, destinationServer,
-            portal instanceof LocalPortal local ? local.getOwner() : null, true);
+            portal instanceof LocalPortal local ? local.getOwner() : null, true, portal.getProjectionMode() == ProjectionMode.ON);
     }
 
     private static PortalSnapshot remoteSnapshot(RemotePortal portal) {
         return new PortalSnapshot(portal.getId(), portal.getName(), portal.getType().name(), "",
             portal.getOrigin().x(), portal.getOrigin().y(), portal.getOrigin().z(),
             portal.getDirection() == null ? "N" : portal.getDirection().name(), portal.isOpen(), null,
-            portal.getServer() == null ? null : portal.getServer().getName(), null, true);
+            portal.getServer() == null ? null : portal.getServer().getName(), null, true, false);
     }
 
     private static void call(Event event) {

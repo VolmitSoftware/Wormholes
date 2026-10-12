@@ -3,6 +3,10 @@ package art.arcane.wormholes.modded.client;
 import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.modded.mixin.SeamlessEntityAccess;
 import art.arcane.optics.stream.Brick;
+import art.arcane.optics.aperture.ApertureDescriptor;
+import art.arcane.optics.shape.ShapeDescriptor;
+import art.arcane.optics.stream.EnvironmentState;
+import art.arcane.optics.transform.Affine;
 import art.arcane.optics.stream.BrickCodec;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.math.Face;
@@ -14,6 +18,19 @@ import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.frame.AxisPermutation;
 import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.client.Camera;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.blockentity.BlockEntityRenderDispatcher;
+import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
+import net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState;
+import net.minecraft.client.renderer.entity.EntityRenderer;
+import net.minecraft.client.renderer.entity.EntityRendererProvider;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.entity.EntityAttachments;
+import net.minecraft.world.phys.Vec3;
+import org.joml.Vector3f;
+import org.joml.Vector3fc;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import net.minecraft.client.renderer.entity.EntityRenderDispatcher;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
 import net.minecraft.core.BlockPos;
@@ -65,10 +82,13 @@ import static org.mockito.Mockito.withSettings;
 public class ClientMeshEntitiesTest extends MinecraftTestBase {
     @Test
     public void meshOwnershipWaitsForIdAssignmentAndUsesTheAssignedId() {
+        ClientLevel level = mock(ClientLevel.class);
         Entity entity = mock(Entity.class, withSettings().extraInterfaces(SeamlessEntityAccess.class));
+        when(entity.level()).thenReturn(level);
         SeamlessEntityAccess access = (SeamlessEntityAccess) entity;
         doThrow(new IllegalStateException("Tried to access entity ID before ID assignment")).when(entity).getId();
         WormholesClient client = mock(WormholesClient.class);
+        when(client.viewsAttachedTo(level)).thenReturn(true);
         ClientViewTick tick = mock(ClientViewTick.class);
         ClientProjectedEntities projected = mock(ClientProjectedEntities.class);
         ClientReflectionEntity reflections = mock(ClientReflectionEntity.class);
@@ -192,9 +212,141 @@ public class ClientMeshEntitiesTest extends MinecraftTestBase {
     public void nestedFeatureCameraFollowsRotatedAndReflectedAncestorSpaces() {
         OpticTransform root = OpticTransform.of(AxisPermutation.of(Face.S, Face.U, Face.W), 100, 20, -50);
         OpticTransform child = OpticTransform.of(AxisPermutation.of(Face.W, Face.U, Face.S), 6, 0, 0);
-        assertEquals(new Vec3d(2, 3, 4), ClientMeshEntities.contentPoint(List.of(root, child), 96, 23, -46));
-        assertEquals(new Vec3d(4, 3, 4), ClientMeshEntities.contentPoint(List.of(root), 96, 23, -46));
-        assertEquals(new Vec3d(96, 23, -46), ClientMeshEntities.contentPoint(List.of(), 96, 23, -46));
+        ClientViewSession session = mock(ClientViewSession.class);
+        bindCameraPortal(session, 1, 0, PortalEnvironmentTest.environment(root), null);
+        bindCameraPortal(session, 2, 1, PortalEnvironmentTest.environment(child), null);
+        Vec3d eye = new Vec3d(96, 23, -46);
+        assertEquals(new Vec3d(2, 3, 4), ClientMeshEntities.cameraSpace(session, 2, child).point(eye));
+        assertEquals(new Vec3d(4, 3, 4), ClientMeshEntities.cameraSpace(session, 1, root).point(eye));
+        assertEquals(new Vec3d(4, 3, 4), ClientMeshEntities.cameraSpace(null, 1, root).point(eye));
+        assertEquals(eye, ClientMeshEntities.cameraSpace(null, 1, PortalEnvironmentTest.identity()).point(eye));
+    }
+
+    @Test
+    public void affineEyeAndBasisUseNativeDestinationCoordinatesWithFiniteOrthogonalBillboards() {
+        Affine mapping = Affine.of(2, 0, 1, 100, 0, 3, 1, -2, 0, 0, 0.5D, 3);
+        OpticTransform grid = OpticTransform.of(AxisPermutation.of(Face.W, Face.U, Face.S), 40, 20, -10);
+        ClientViewSession session = mock(ClientViewSession.class);
+        bindCameraPortal(session, 1, 0, PortalEnvironmentTest.environment(grid).withScale(0.25F), mapping);
+        Affine rootToNative = ClientMeshEntities.cameraSpace(session, 1, grid);
+        assertEquals(mapping, rootToNative);
+        Camera root = rootCamera(new Vec3(1, 2, 3));
+        ClientMeshEntities.SceneCamera camera = new ClientMeshEntities.SceneCamera();
+        camera.update(root, rootToNative);
+        assertEquals(new Vec3(105, 7, 4.5D), camera.position());
+        assertEquals(1.0F, camera.forwardVector().length(), 1.0E-6F);
+        assertEquals(1.0F, camera.upVector().length(), 1.0E-6F);
+        assertEquals(1.0F, camera.leftVector().length(), 1.0E-6F);
+        assertEquals(0.0F, camera.forwardVector().dot(camera.upVector()), 1.0E-6F);
+        assertEquals(0.0F, camera.forwardVector().dot(camera.leftVector()), 1.0E-6F);
+        assertEquals(0.0F, camera.upVector().dot(camera.leftVector()), 1.0E-6F);
+        assertEquals(1.0F, camera.rotation().lengthSquared(), 1.0E-6F);
+        Vector3f expectedForward = new Vector3f(1, 1, 0.5F).normalize();
+        assertVector(expectedForward, camera.forwardVector());
+        assertTrue(camera.isDetached());
+        assertTrue(camera.isInitialized());
+        Affine reflected = Affine.scale(-1, 1, 1).compose(mapping);
+        camera.update(root, reflected);
+        assertEquals(1.0F, camera.rotation().lengthSquared(), 1.0E-6F);
+        assertEquals(0.0F, camera.forwardVector().dot(camera.upVector()), 1.0E-6F);
+        assertEquals(new Vec3(-105, 7, 4.5D), camera.position());
+        camera.update(root, Affine.of(1, 1.0E8D, 1.0E8D, 0, 0, 1.0E8D, 1.0E8D, 0, 0, 1.0E8D, 1.0E8D + 1, 0));
+        assertEquals(1.0F, camera.forwardVector().length(), 1.0E-6F);
+        assertEquals(1.0F, camera.upVector().length(), 1.0E-6F);
+        assertEquals(1.0F, camera.leftVector().length(), 1.0E-6F);
+        assertEquals(0.0F, camera.forwardVector().dot(camera.upVector()), 1.0E-6F);
+        assertEquals(1.0F, camera.rotation().lengthSquared(), 1.0E-6F);
+    }
+
+    @Test
+    public void nestedAffineAndRigidScaledEndpointsComposeInDrawingOrder() {
+        Affine root = Affine.translation(100, -2, 3).compose(Affine.shear(0.5D, 0, 0, 0, 0, 0));
+        OpticTransform grid = OpticTransform.of(AxisPermutation.of(Face.S, Face.U, Face.W), 20, 10, -30);
+        EnvironmentState childEnvironment = PortalEnvironmentTest.environment(grid).withScale(0.5F);
+        ClientViewSession session = mock(ClientViewSession.class);
+        bindCameraPortal(session, 1, 0, PortalEnvironmentTest.environment(PortalEnvironmentTest.identity()), root);
+        bindCameraPortal(session, 2, 1, childEnvironment, null);
+        Vec3d eye = new Vec3d(1, 2, 3);
+        Vec3d parentEye = root.point(eye);
+        Vec3d center = new Vec3d(11, 65, -3.5D);
+        Vec3d unscaled = parentEye.subtract(center).multiply(2.0D).add(center);
+        Vec3d expected = grid.inverse().point(unscaled);
+        assertEquals(expected, ClientMeshEntities.cameraSpace(session, 2, grid).point(eye));
+        Affine child = Affine.translation(-4, 8, 2).compose(Affine.scale(0.5D, 2, 3));
+        bindCameraPortal(session, 2, 1, childEnvironment, child);
+        assertEquals(child.point(root.point(eye)), ClientMeshEntities.cameraSpace(session, 2, grid).point(eye));
+        assertEquals(child.vector(root.vector(new Vec3d(0, 1, 0))),
+            ClientMeshEntities.cameraSpace(session, 2, grid).vector(new Vec3d(0, 1, 0)));
+        when(session.affine(1)).thenReturn(null);
+        assertEquals(child.point(eye), ClientMeshEntities.cameraSpace(session, 2, grid).point(eye));
+    }
+
+    @Test
+    public void extractionPreparesAffineNameDistancesAndBlockCameraThenRestoresAfterFailure() {
+        ClientMeshSections.View view = mock(ClientMeshSections.View.class);
+        when(view.sectionKeys()).thenReturn(new LongOpenHashSet());
+        ClientLevel level = mock(ClientLevel.class);
+        ClientMeshEntities scene = new ClientMeshEntities(view, level);
+        ClientViewSession session = mock(ClientViewSession.class);
+        OpticTransform identity = PortalEnvironmentTest.identity();
+        bindCameraPortal(session, 7, 0, PortalEnvironmentTest.environment(identity), Affine.translation(100, 0, 0));
+        WormholesClient client = mock(WormholesClient.class);
+        ClientViewTick tick = mock(ClientViewTick.class);
+        ClientLocalMeshSources local = mock(ClientLocalMeshSources.class);
+        ClientReflectionEntity reflections = mock(ClientReflectionEntity.class);
+        when(client.session()).thenReturn(session);
+        when(client.tickState()).thenReturn(tick);
+        when(client.localMeshes()).thenReturn(local);
+        when(client.reflections()).thenReturn(reflections);
+        Entity entity = mock(Entity.class);
+        UUID id = UUID.randomUUID();
+        when(entity.getUUID()).thenReturn(id);
+        when(entity.position()).thenReturn(new Vec3(101, 0, 10));
+        when(entity.shouldShowName()).thenReturn(true);
+        when(entity.getDisplayName()).thenReturn(Component.literal("Visible name"));
+        when(entity.belowNameDisplay()).thenReturn(Component.literal("Visible score"));
+        when(entity.getAttachments()).thenReturn(mock(EntityAttachments.class));
+        when(level.entitiesForRendering()).thenReturn(List.of(entity));
+        when(local.entities(7)).thenReturn(Set.of(id));
+        EntityRenderDispatcher entities = mock(EntityRenderDispatcher.class, CALLS_REAL_METHODS);
+        EntityRendererProvider.Context context = mock(EntityRendererProvider.Context.class);
+        when(context.getEntityRenderDispatcher()).thenReturn(entities);
+        CameraNameRenderer names = new CameraNameRenderer(context);
+        BlockEntityRenderDispatcher blocks = mock(BlockEntityRenderDispatcher.class);
+        Camera source = rootCamera(new Vec3(0, 0, 10));
+        entities.prepare(source, null);
+        EntityRenderState distant = names.names(entity);
+        assertEquals(10201.0D, distant.distanceToCameraSq, 0.0D);
+        assertNull(distant.nameTag);
+        assertNull(distant.scoreText);
+        doAnswer(call -> names.names(entity)).when(entities).extractEntity(entity, 0.5F);
+        Minecraft minecraft = mock(Minecraft.class);
+        when(minecraft.getEntityRenderDispatcher()).thenReturn(entities);
+        when(minecraft.getBlockEntityRenderDispatcher()).thenReturn(blocks);
+        try (MockedStatic<Minecraft> game = mockStatic(Minecraft.class);
+             MockedStatic<WormholesClient> clients = mockStatic(WormholesClient.class);
+             MockedStatic<ProjectedEntityGuard> ownership = mockStatic(ProjectedEntityGuard.class)) {
+            game.when(Minecraft::getInstance).thenReturn(minecraft);
+            clients.when(WormholesClient::instance).thenReturn(client);
+            scene.extract(7, source, 0.5F, identity);
+            EntityRenderState visible = scene.entities().getFirst();
+            assertEquals(1.0D, visible.distanceToCameraSq, 0.0D);
+            assertSame(entity.getDisplayName(), visible.nameTag);
+            assertSame(entity.belowNameDisplay(), visible.scoreText);
+            verify(blocks).prepare(new Vec3(100, 0, 10));
+            assertSame(source, entities.camera);
+            assertNull(ClientMeshEntities.active());
+            doThrow(new IllegalStateException("extraction failed")).when(entities).extractEntity(entity, 0.5F);
+            assertThrows(IllegalStateException.class, () -> scene.extract(7, source, 0.5F, identity));
+            assertSame(source, entities.camera);
+            verify(blocks, times(2)).prepare(source.position());
+            assertNull(ClientMeshEntities.active());
+        }
+        BlockEntity block = mock(BlockEntity.class);
+        when(block.getBlockPos()).thenReturn(new BlockPos(100, 0, 10));
+        BlockEntityRenderer<BlockEntity, BlockEntityRenderState> blockRenderer = mock(BlockEntityRenderer.class, CALLS_REAL_METHODS);
+        assertFalse(blockRenderer.shouldRender(block, source.position()));
+        assertTrue(blockRenderer.shouldRender(block, new Vec3(100, 0, 10)));
     }
 
     @Test
@@ -454,6 +606,48 @@ public class ClientMeshEntitiesTest extends MinecraftTestBase {
         entities.drop(7);
         assertFalse(entities.meshEntity(entityId));
         assertEquals(0, entities.spawned());
+    }
+
+    private static void bindCameraPortal(ClientViewSession session, int key, int parent, EnvironmentState environment, Affine sample) {
+        ApertureDescriptor geometry = new ApertureDescriptor(10, 64, -4, Face.N.ordinal(), true, 0, false, 2, 2,
+            new long[] {15L}, ShapeDescriptor.FULL, 0, 0, 1, 16, 0, 0, 0, 0, 0, 0, 0, 0.0D, parent, key, List.of());
+        when(session.portal(key)).thenReturn(new ClientPortal(key, geometry, 1, 0));
+        when(session.environment(key)).thenReturn(environment);
+        when(session.affine(key)).thenReturn(sample == null ? null : new ViewStreamMessage.PortalAffine(key, 1, Affine.IDENTITY,
+            sample, ShapeDescriptor.FULL));
+    }
+
+    private static Camera rootCamera(Vec3 position) {
+        Camera camera = mock(Camera.class);
+        when(camera.position()).thenReturn(position);
+        when(camera.forwardVector()).thenReturn(new Vector3f(0, 0, 1));
+        when(camera.upVector()).thenReturn(new Vector3f(0, 1, 0));
+        when(camera.isDetached()).thenReturn(true);
+        when(camera.isInitialized()).thenReturn(true);
+        return camera;
+    }
+
+    private static void assertVector(Vector3fc expected, Vector3fc actual) {
+        assertEquals(expected.x(), actual.x(), 1.0E-6F);
+        assertEquals(expected.y(), actual.y(), 1.0E-6F);
+        assertEquals(expected.z(), actual.z(), 1.0E-6F);
+    }
+
+    private static final class CameraNameRenderer extends EntityRenderer<Entity, EntityRenderState> {
+        private CameraNameRenderer(EntityRendererProvider.Context context) {
+            super(context);
+        }
+
+        @Override
+        public EntityRenderState createRenderState() {
+            return new EntityRenderState();
+        }
+
+        private EntityRenderState names(Entity entity) {
+            EntityRenderState state = createRenderState();
+            extractNameTags(entity, state, 0.5F);
+            return state;
+        }
     }
 
     private static Brick oneBlock(int paletteId) {

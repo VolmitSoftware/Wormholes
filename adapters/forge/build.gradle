@@ -114,6 +114,13 @@ tasks.withType(JavaCompile).configureEach {
     options.compilerArgs.add('-parameters')
 }
 
+tasks.named('test', Test).configure {
+    inputs.files(file('../../optics/src/test/resources/block-state-goldens.txt'),
+        fileTree('../../optics/src/test/resources/art/arcane/optics/stream/goldens'))
+        .withPropertyName('opticsGoldenVectors')
+        .withPathSensitivity(PathSensitivity.RELATIVE)
+}
+
 processResources {
     filesMatching('wormholes-build.properties') {
         expand('version': project.version)

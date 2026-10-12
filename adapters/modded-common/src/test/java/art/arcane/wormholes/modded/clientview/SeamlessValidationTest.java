@@ -93,7 +93,7 @@ public class SeamlessValidationTest extends MinecraftTestBase {
     }
 
     private static ServerPlayer player() {
-        ServerPlayer player = mock(ServerPlayer.class);
+        ServerPlayer player = worldGravity(mock(ServerPlayer.class));
         player.connection = mock(ServerGamePacketListenerImpl.class, withSettings().extraInterfaces(SeamlessListenerAccess.class));
         ServerLevel level = mock(ServerLevel.class);
         when(level.dimension()).thenReturn(Level.OVERWORLD);

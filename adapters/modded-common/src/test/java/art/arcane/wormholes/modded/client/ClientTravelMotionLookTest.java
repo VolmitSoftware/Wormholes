@@ -7,6 +7,7 @@ import art.arcane.optics.crossing.MomentumRule;
 import art.arcane.optics.crossing.OrientationRule;
 import art.arcane.optics.crossing.PlaneCrossing;
 import art.arcane.optics.crossing.Pose;
+import art.arcane.optics.crossing.GravityFrame;
 import art.arcane.optics.crossing.ScaleRule;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.frame.OpticTransform;
@@ -36,7 +37,7 @@ public class ClientTravelMotionLookTest extends MinecraftTestBase {
         TravelMessage.TravelBegin begin = begin(Face.D, 1.0D);
         Pose source = pose(30.0F, 90.0F, 30.0F, 90.0F);
 
-        Pose arrived = ClientTravelMotion.arrive(begin, source, FEET);
+        Pose arrived = ClientTravelMotion.arrive(begin, source, FEET, GravityFrame.WORLD);
         LookTransfer predicted = ArrivalOrientation.transfer(crossing(begin, 30.0F, 90.0F), LookTransfer.cameraUp(30.0F, 90.0F),
             Frame.canonical(Face.D), OrientationRule.FRAME, false);
 
@@ -51,7 +52,7 @@ public class ClientTravelMotionLookTest extends MinecraftTestBase {
     public void previousTickFieldsStayOnTheCurrentBranchAtThePole() {
         TravelMessage.TravelBegin begin = begin(Face.D, 1.0D);
         for (float[] step : new float[][] {{30.0F, 90.0F, 30.0F, 89.0F}, {30.0F, 89.0F, 30.0F, 90.0F}, {-150.0F, 89.5F, -149.0F, 90.0F}}) {
-            Pose arrived = ClientTravelMotion.arrive(begin, pose(step[0], step[1], step[2], step[3]), FEET);
+            Pose arrived = ClientTravelMotion.arrive(begin, pose(step[0], step[1], step[2], step[3]), FEET, GravityFrame.WORLD);
             String context = step[0] + "/" + step[1] + " from " + step[2] + "/" + step[3] + " -> " + arrived;
             assertTrue(context, Math.abs(arrived.yaw() - arrived.previousYaw()) <= 1.5F);
             assertTrue(context, Math.abs(arrived.headYaw() - arrived.previousHeadYaw()) <= 1.5F);
@@ -63,7 +64,7 @@ public class ClientTravelMotionLookTest extends MinecraftTestBase {
     public void lookingStraightDownIntoAWallExitArrivesLevelAlongTheExit() {
         TravelMessage.TravelBegin begin = begin(Face.N, 1.0D);
 
-        Pose arrived = ClientTravelMotion.arrive(begin, pose(0.0F, 90.0F, 0.0F, 90.0F), FEET);
+        Pose arrived = ClientTravelMotion.arrive(begin, pose(0.0F, 90.0F, 0.0F, 90.0F), FEET, GravityFrame.WORLD);
         Vec3d look = Angles.direction(arrived.yaw(), arrived.pitch());
 
         assertEquals(0.0F, arrived.pitch(), 1.0E-3F);
@@ -85,8 +86,8 @@ public class ClientTravelMotionLookTest extends MinecraftTestBase {
         TravelMessage.TravelBegin scaled = begin(Face.D, 3.0D);
         Pose source = pose(30.0F, 60.0F, 30.0F, 60.0F);
 
-        Pose plain = ClientTravelMotion.arrive(rigid, source, FEET);
-        Pose grown = ClientTravelMotion.arrive(scaled, source, FEET);
+        Pose plain = ClientTravelMotion.arrive(rigid, source, FEET, GravityFrame.WORLD);
+        Pose grown = ClientTravelMotion.arrive(scaled, source, FEET, GravityFrame.WORLD);
         Vec3d center = scaled.sourceToDestination().point(new Vec3d(1.0D, 64.5D, 1.0D));
         Vec3d rigidCenter = rigid.sourceToDestination().point(new Vec3d(1.0D, 64.5D, 1.0D));
 
@@ -104,7 +105,7 @@ public class ClientTravelMotionLookTest extends MinecraftTestBase {
             TravelMessage.TravelBegin.destinationToSource(toward), (float) scale,
             new TravelMessage.TravelWorld("minecraft:overworld", "minecraft:overworld", 7, false, false, 63, -64, 384),
             new TravelMessage.TravelPose(100, 80, 100, 0, 0), PortalEnvironmentTest.environment(OpticTransform.IDENTITY),
-            new TravelMessage.ArrivalRules(OrientationRule.FRAME, false, PRESERVE, scale == 1.0D ? ScaleRule.OFF : ScaleRule.motion()), true, 1, null);
+            new TravelMessage.ArrivalRules(OrientationRule.FRAME, false, PRESERVE, scale == 1.0D ? ScaleRule.OFF : ScaleRule.motion(), false), true, 1, null);
     }
 
     private static ApertureDescriptor floor() {

@@ -63,6 +63,17 @@ public final class TransitMessages {
         "&7Size range {value}. Maps travel between portals of different sizes.",
         "&eLeft-click to cycle the mode",
         "&eRight-click: minimum, Shift + Right-click: maximum");
+    public static final LinesKey MENU_GRAVITY = GROUP.lines("transit.menu.gravity",
+        "&6&lDirectional gravity: {state}&r",
+        "&7Modded travelers rotate their floor, movement, and model with the portal.",
+        "&eLeft-click to toggle");
+    public static final TextKey GRAVITY_CURRENT = GROUP.text("transit.gravity.current",
+        "&8[&6Wormholes&8] &f{portal}&7 directional gravity: &f{state}");
+    public static final TextKey GRAVITY_RESET = GROUP.text("transit.gravity.reset",
+        "&8[&6Wormholes&8] &aRestored world gravity for {name}.");
+    public static final TextKey GRAVITY_CLIENT_REQUIRED = GROUP.text("transit.gravity.client_required",
+        "&8[&6Wormholes&8] &cThis portal requires the Wormholes client mod for directional gravity.");
+
     public static final TextKey SCALE_CURRENT = GROUP.text("transit.scale.current",
         "&8[&6Wormholes&8] &f{portal}&7 traveller scale: &f{mode}&7 ({value})");
     public static final TextKey SCALE_SET = GROUP.text("transit.scale.set",

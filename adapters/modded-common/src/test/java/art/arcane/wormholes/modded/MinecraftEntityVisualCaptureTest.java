@@ -1,7 +1,13 @@
 package art.arcane.wormholes.modded;
 
+import art.arcane.optics.crossing.GravityFrame;
+import art.arcane.optics.entity.EntityVisualMetadata;
+import art.arcane.optics.frame.AxisPermutation;
+import art.arcane.optics.math.Face;
+import art.arcane.wormholes.modded.gravity.GravityHolder;
 import art.arcane.wormholes.modded.mixin.EntityDataAccess;
 import art.arcane.optics.entity.EntityDeltaCodec;
+import net.minecraft.core.RegistryAccess;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
@@ -20,6 +26,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -30,11 +37,13 @@ import static org.mockito.Mockito.when;
 public class MinecraftEntityVisualCaptureTest extends MinecraftTestBase {
     @Test
     public void stationaryAnimalHeadTurnHasIndependentLookDelta() {
-        LivingEntity animal = mock(LivingEntity.class);
+        LivingEntity animal = worldGravity(mock(LivingEntity.class));
         UUID id = UUID.randomUUID();
         when(animal.getUUID()).thenReturn(id);
-        SynchedEntityData data = mock(SynchedEntityData.class, withSettings().extraInterfaces(EntityDataRevision.class));
+        SynchedEntityData data = mock(SynchedEntityData.class, withSettings().extraInterfaces(EntityDataRevision.class, EntityDataAccess.class));
         when(animal.getEntityData()).thenReturn(data);
+        when(animal.getScale()).thenReturn(1.0F);
+        when(((EntityDataAccess) data).wormholesItems()).thenReturn(new SynchedEntityData.DataItem<?>[0]);
         doReturn(EntityTypes.COW).when(animal).getType();
         when(animal.position()).thenReturn(new Vec3(10, 64, 20));
         when(animal.getDeltaMovement()).thenReturn(Vec3.ZERO);
@@ -48,7 +57,7 @@ public class MinecraftEntityVisualCaptureTest extends MinecraftTestBase {
             25, 0, 0, 0, 0, false, "", "", "", null, null, EntitySnapshot.EMPTY, EntitySnapshot.EMPTY, 0);
         state.lastCapturedSnapshots().put(id, previous);
         state.blobCaptureStates().put(id, new ViewEntityState.BlobCaptureState<>(1, Pose.STANDING, false, 1, 0L));
-        MinecraftEntityVisualCapture capture = new MinecraftEntityVisualCapture(mock(MinecraftPacketBlobs.class));
+        MinecraftEntityVisualCapture capture = new MinecraftEntityVisualCapture(new MinecraftPacketBlobs(RegistryAccess.EMPTY));
         EntitySnapshot first = capture.capture(animal, state, 2);
         when(animal.getHeadLookAngle()).thenReturn(new Vec3(-1, 0, 0));
         EntitySnapshot turned = capture.capture(animal, state, 3);
@@ -61,7 +70,8 @@ public class MinecraftEntityVisualCaptureTest extends MinecraftTestBase {
     }
     @Test
     public void shortHandUseBabyAndAggressiveMetadataChangesAreCapturedImmediately() {
-        LivingEntity animal = mock(LivingEntity.class);
+        LivingEntity animal = worldGravity(mock(LivingEntity.class));
+        when(animal.getScale()).thenReturn(1.0F);
         UUID id = UUID.randomUUID();
         when(animal.getUUID()).thenReturn(id);
         doReturn(EntityTypes.COW).when(animal).getType();
@@ -78,7 +88,7 @@ public class MinecraftEntityVisualCaptureTest extends MinecraftTestBase {
         SynchedEntityData.DataItem<Byte> mob = new SynchedEntityData.DataItem<>(new EntityDataAccessor<>(2, EntityDataSerializers.BYTE), (byte) 0);
         when(((EntityDataAccess) data).wormholesItems()).thenReturn(new SynchedEntityData.DataItem<?>[] {hand, baby, mob});
         MinecraftPacketBlobs blobs = mock(MinecraftPacketBlobs.class);
-        when(blobs.writeMetadata(anyList())).thenAnswer(call -> {
+        when(blobs.writeMetadata(anyList(), any(EntityVisualMetadata.class))).thenAnswer(call -> {
             List<SynchedEntityData.DataValue<?>> values = call.getArgument(0);
             return new byte[] {(Byte) values.get(0).value(), (byte) ((Boolean) values.get(1).value() ? 1 : 0), (Byte) values.get(2).value()};
         });
@@ -102,6 +112,35 @@ public class MinecraftEntityVisualCaptureTest extends MinecraftTestBase {
         revision.incrementAndGet();
         assertEquals(4, capture.capture(animal, state, 5).metadata()[2]);
         capture.capture(animal, state, 6);
-        verify(blobs, times(5)).writeMetadata(anyList());
+        verify(blobs, times(5)).writeMetadata(anyList(), any(EntityVisualMetadata.class));
     }
+    @Test
+    public void gravityAndEffectiveScaleChangesRefreshTheStreamedVisualImmediately() {
+        LivingEntity animal = mock(LivingEntity.class, withSettings().extraInterfaces(GravityHolder.class));
+        when(animal.getUUID()).thenReturn(UUID.randomUUID());
+        doReturn(EntityTypes.COW).when(animal).getType();
+        when(animal.position()).thenReturn(new Vec3(10, 64, 20));
+        when(animal.getDeltaMovement()).thenReturn(Vec3.ZERO);
+        when(animal.getPose()).thenReturn(Pose.STANDING);
+        when(animal.getHeadLookAngle()).thenReturn(new Vec3(0, 0, 1));
+        when(animal.getScale()).thenReturn(1.0F);
+        when(((GravityHolder) animal).wormholesGravity()).thenReturn(GravityFrame.WORLD);
+        SynchedEntityData data = mock(SynchedEntityData.class, withSettings().extraInterfaces(EntityDataRevision.class, EntityDataAccess.class));
+        when(animal.getEntityData()).thenReturn(data);
+        when(((EntityDataAccess) data).wormholesItems()).thenReturn(new SynchedEntityData.DataItem<?>[0]);
+        ViewEntityState<Pose> state = new ViewEntityState<>(UUID.randomUUID(), new ViewEntityState.Center(0, 0, 0));
+        MinecraftEntityVisualCapture capture = new MinecraftEntityVisualCapture(new MinecraftPacketBlobs(RegistryAccess.EMPTY));
+        EntitySnapshot initial = capture.capture(animal, state, 1);
+        GravityFrame sideways = new GravityFrame(AxisPermutation.of(Face.D, Face.E, Face.S));
+        when(((GravityHolder) animal).wormholesGravity()).thenReturn(sideways);
+        EntitySnapshot rotated = capture.capture(animal, state, 2);
+        assertEquals(sideways, EntityVisualMetadata.decode(rotated.metadata()).gravity());
+        assertTrue((EntityDeltaCodec.computeMask(rotated, initial) & EntitySnapshot.FIELD_METADATA) != 0);
+        when(animal.getScale()).thenReturn(2.0F);
+        EntitySnapshot resized = capture.capture(animal, state, 3);
+        assertEquals(2.0D, EntityVisualMetadata.decode(resized.metadata()).effectiveScale(), 0.0D);
+        assertTrue((EntityDeltaCodec.computeMask(resized, rotated) & EntitySnapshot.FIELD_METADATA) != 0);
+        assertTrue(resized.metadata() == capture.capture(animal, state, 4).metadata());
+    }
+
 }

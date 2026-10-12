@@ -1,6 +1,7 @@
 package art.arcane.wormholes.modded.mixin.client;
 
 import art.arcane.wormholes.modded.client.render.iris.IrisViewPipelines;
+import art.arcane.wormholes.modded.client.render.iris.IrisShaderStages;
 import net.irisshaders.iris.pipeline.IrisRenderingPipeline;
 import net.irisshaders.iris.pipeline.WorldRenderingPipeline;
 import net.irisshaders.iris.shaderpack.materialmap.NamespacedId;
@@ -26,5 +27,6 @@ public abstract class IrisPortalViewPipelineMixin {
     @Inject(method = "destroyPipeline", at = @At("HEAD"))
     private void wormholes$releaseViewPipelines(CallbackInfo callback) {
         IrisViewPipelines.clear();
+        IrisShaderStages.clear();
     }
 }

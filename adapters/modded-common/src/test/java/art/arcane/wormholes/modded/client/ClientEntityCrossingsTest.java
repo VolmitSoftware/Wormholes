@@ -1,14 +1,17 @@
 package art.arcane.wormholes.modded.client;
 
+import art.arcane.optics.crossing.GravityFrame;
 import art.arcane.optics.frame.AxisPermutation;
 import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.math.Angles;
 import art.arcane.optics.math.Face;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.MinecraftTestBase;
+import art.arcane.wormholes.modded.gravity.GravityHolder;
 import art.arcane.wormholes.network.client.TravelMessage;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityDimensions;
 import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.InterpolationHandler;
 import net.minecraft.world.phys.Vec3;
@@ -20,6 +23,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
@@ -33,13 +37,13 @@ import static org.mockito.Mockito.withSettings;
 public class ClientEntityCrossingsTest extends MinecraftTestBase {
     private static final OpticTransform UP = OpticTransform.translation(0.0D, 20.0D, 0.0D);
     private static final TravelMessage.EntityCrossed CROSSED = new TravelMessage.EntityCrossed(0, 42, UP, new Vec3d(1.5D, 80.5D, 1.5D), Face.U,
-        new Vec3d(0.0D, -3.5D, 0.0D));
+        new Vec3d(0.0D, -3.5D, 0.0D), GravityFrame.WORLD, GravityFrame.WORLD);
 
     @Test
     public void aTranslatedCrossingCarriesPositionHistoryInterpolationAndVelocityThroughThePortal() {
         Faller faller = new Faller(80.5D);
         NativeCrossingFixtures.target(faller.interpolation, new Vec3(1.5D, 79.0D, 1.5D), new Vec3(1.5D, 99.0D, 1.5D));
-        ClientEntityCrossings.cross(faller.entity, UP, new Vec3d(0.0D, -3.5D, 0.0D));
+        ClientEntityCrossings.cross(faller.entity, CROSSED);
         NativeCrossingFixtures.translation(faller.interpolation, times(1), new Vec3(0.0D, 20.0D, 0.0D));
         verify(faller.interpolation, never()).cancel();
         verify(faller.entity).setPos(new Vec3(1.5D, 100.5D, 1.5D));
@@ -52,7 +56,7 @@ public class ClientEntityCrossingsTest extends MinecraftTestBase {
         Faller faller = new Faller(80.5D);
         Vec3 stuck = new Vec3(1.5D, 79.0D, 1.5D);
         NativeCrossingFixtures.target(faller.interpolation, stuck, stuck);
-        ClientEntityCrossings.cross(faller.entity, UP, new Vec3d(0.0D, -3.5D, 0.0D));
+        ClientEntityCrossings.cross(faller.entity, CROSSED);
         verify(faller.interpolation).cancel();
         verify(faller.entity).setPos(new Vec3(1.5D, 100.5D, 1.5D));
     }
@@ -61,7 +65,8 @@ public class ClientEntityCrossingsTest extends MinecraftTestBase {
     public void aTurningCrossingRotatesTheEntityAndRestartsItsInterpolation() {
         Faller faller = new Faller(80.5D);
         OpticTransform turn = OpticTransform.of(AxisPermutation.of(Face.S, Face.U, Face.W), 10.0D, 0.0D, 0.0D);
-        ClientEntityCrossings.cross(faller.entity, turn, new Vec3d(1.0D, 0.0D, 0.0D));
+        ClientEntityCrossings.cross(faller.entity, new TravelMessage.EntityCrossed(0, 42, turn, new Vec3d(1.5D, 80.5D, 1.5D), Face.U,
+            new Vec3d(1.0D, 0.0D, 0.0D), GravityFrame.WORLD, GravityFrame.WORLD));
         NativeCrossingFixtures.noTranslation(faller.interpolation);
         verify(faller.interpolation).cancel();
         Angles.Look look = turn.look(new Angles.Look(90.0F, 10.0F));
@@ -138,16 +143,49 @@ public class ClientEntityCrossingsTest extends MinecraftTestBase {
         ClientEntityCrossings crossings = new ClientEntityCrossings();
         assertFalse(crossings.receive(faller.level, faller.entity, CROSSED));
         assertFalse(crossings.receive(faller.level, null, new TravelMessage.EntityCrossed(0, 7, UP, new Vec3d(1.5D, 80.5D, 1.5D), Face.U,
-            new Vec3d(0.0D, -3.5D, 0.0D))));
+            new Vec3d(0.0D, -3.5D, 0.0D), GravityFrame.WORLD, GravityFrame.WORLD)));
         assertFalse(crossings.receive(null, null, CROSSED));
         verify(faller.entity, never()).setPos(any(Vec3.class));
     }
 
+    @Test
+    public void allProperPortalRotationsKeepLocalFacingWhenGravityRotatesWithThePortal() {
+        int orientations = 0;
+        for (int index = 0; index < 48; index++) {
+            AxisPermutation rotation = AxisPermutation.ofIndex(index);
+            if (rotation.reflects()) {
+                continue;
+            }
+            orientations++;
+            for (int sourceIndex = 0; sourceIndex < 48; sourceIndex++) {
+                AxisPermutation sourceOrientation = AxisPermutation.ofIndex(sourceIndex);
+                if (sourceOrientation.reflects()) {
+                    continue;
+                }
+                GravityFrame source = new GravityFrame(sourceOrientation);
+                GravityFrame destination = source.transformed(rotation);
+                Faller faller = new Faller(80.5D);
+                faller.gravity.set(destination);
+                OpticTransform toward = OpticTransform.of(rotation, 10.0D, 20.0D, 30.0D);
+                TravelMessage.EntityCrossed crossing = new TravelMessage.EntityCrossed(0, 42, toward, Vec3d.ZERO, Face.U,
+                    Vec3d.ZERO, source, destination);
+                assertEquals(AxisPermutation.IDENTITY, ClientEntityCrossing.localRotation(crossing));
+                ClientEntityCrossings.cross(faller.entity, crossing);
+                verify(faller.entity).setYRot(90.0F);
+                verify(faller.entity).setXRot(10.0F);
+                verify(faller.entity).setYHeadRot(80.0F);
+                assertEquals(destination, faller.gravity.get());
+            }
+        }
+        assertEquals(24, orientations);
+    }
+
     private static final class Faller {
-        final Entity entity = mock(Entity.class, withSettings().extraInterfaces(CrossingEntity.class));
+        final Entity entity = mock(Entity.class, withSettings().extraInterfaces(CrossingEntity.class, GravityHolder.class));
         final InterpolationHandler interpolation = NativeCrossingFixtures.interpolation();
         final ClientLevel level = mock(ClientLevel.class);
         final AtomicReference<ClientEntityCrossing> crossing = new AtomicReference<>();
+        final AtomicReference<GravityFrame> gravity = new AtomicReference<>(GravityFrame.WORLD);
 
         Faller(double y) {
             when(entity.getInterpolation()).thenReturn(interpolation);
@@ -157,6 +195,14 @@ public class ClientEntityCrossingsTest extends MinecraftTestBase {
             when(entity.getYRot()).thenReturn(90.0F);
             when(entity.getXRot()).thenReturn(10.0F);
             when(entity.getYHeadRot()).thenReturn(80.0F);
+            when(entity.getDeltaMovement()).thenReturn(Vec3.ZERO);
+            when(entity.getDimensions(any())).thenReturn(EntityDimensions.scalable(0.6F, 1.8F));
+            GravityHolder gravityHolder = (GravityHolder) entity;
+            when(gravityHolder.wormholesGravity()).thenAnswer(invocation -> gravity.get());
+            doAnswer(invocation -> {
+                gravity.set(invocation.getArgument(0));
+                return null;
+            }).when(gravityHolder).wormholesGravity(any());
             entity.yRotO = 90.0F;
             entity.xRotO = 10.0F;
             when(level.getEntity(42)).thenReturn(entity);

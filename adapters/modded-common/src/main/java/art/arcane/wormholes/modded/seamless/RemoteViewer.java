@@ -1,12 +1,14 @@
 package art.arcane.wormholes.modded.seamless;
 
 import art.arcane.wormholes.modded.mixin.RemoteTrackedEntityAccess;
+import art.arcane.wormholes.modded.WormholesModRuntime;
 import art.arcane.optics.math.Vec3d;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.network.protocol.game.ClientboundBundlePacket;
 import net.minecraft.network.protocol.game.ClientboundRemoveEntitiesPacket;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.network.ServerPlayerConnection;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.ChunkPos;
@@ -61,6 +63,12 @@ public final class RemoteViewer {
         }
         entity.startSeenByPlayer(player);
         route.paired().add(entity.getId());
+        if (entity.level() instanceof ServerLevel level) {
+            WormholesModRuntime runtime = WormholesModRuntime.forServer(level.getServer());
+            if (runtime != null) {
+                runtime.clientViews().entityGravity(entity, route.viewer());
+            }
+        }
     }
 
     public static void unpair(RemoteRoute route, RemoteTrackedEntityAccess tracked, ServerPlayer player, RoutedSends sends, boolean notify) {

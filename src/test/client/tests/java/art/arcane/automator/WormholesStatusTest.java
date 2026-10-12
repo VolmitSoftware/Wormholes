@@ -61,6 +61,13 @@ public final class WormholesStatusTest {
             "Missing renderer portals must remain distinct from missing sections");
         require(!WormholesStatus.portalMesh(null, 7, 0, 0, 0).get("present").getAsBoolean(),
             "Absent optional renderers must be reportable");
+        JsonObject proof = WormholesStatus.projection(new ProofRenderer(), new ProofSession());
+        require(proof.get("terrainFrames").getAsLong() == 15L && proof.get("preparedFrame").getAsLong() == 23L,
+            "Prepared frames must not be substituted for successfully composed terrain frames");
+        require(proof.get("unavailablePortals").getAsInt() == 1 && proof.get("lastAffineRevision").getAsLong() == 19L,
+            "Unavailable geometry and affine revision must be observable independently");
+        require(proof.get("streamCaps").getAsLong() == 69632L && proof.get("streamState").getAsString().equals("CLIENT_VIEW"),
+            "Native proof must include exact negotiated capabilities and session state");
         System.out.println("Optional Wormholes status, absent mod and reflection diagnostics passed");
     }
 
@@ -72,6 +79,25 @@ public final class WormholesStatusTest {
 
     private static final class TestRenderer {
         private final Map<Integer, TestPortal> portals = Map.of(7, new TestPortal());
+    }
+
+    public static final class ProofRenderer {
+        public ProofCounters nativeProof() {
+            return new ProofCounters(23L, 15L, 31L, 23L, 2, 8, 1, 19L);
+        }
+    }
+
+    public record ProofCounters(long preparedFrame, long terrainFrames, long terrainDraws, long lastTerrainFrame,
+                                int visiblePortals, int meshSections, int unavailablePortals, long lastAffineRevision) {}
+
+    public static final class ProofSession {
+        public String state() {
+            return "CLIENT_VIEW";
+        }
+
+        public long caps() {
+            return 69632L;
+        }
     }
 
     private static final class TestPortal {

@@ -188,8 +188,9 @@ public final class MinecraftSeamlessMove implements SeamlessMove.Steps {
             StraddleTracker.clear(player);
             return;
         }
+        Vec3 eye = player.getEyePosition();
         StraddleTracker.register(player, StraddleTracker.create(RemoteRoutes.endpoint(back.source(), null), RemoteRoutes.endpoint(back.destination(), null),
-            origin, new Vec3d(player.getX(), player.getEyeY(), player.getZ()), MinecraftPortalRegistry.travelScale(back.source(), back.destination())));
+            origin, new Vec3d(eye.x, eye.y, eye.z), MinecraftPortalRegistry.travelScale(back.source(), back.destination())));
     }
 
     public record Context(WormholesModRuntime runtime, ServerPlayer player, ServerLevel destination, PositionMoveRotation pose,

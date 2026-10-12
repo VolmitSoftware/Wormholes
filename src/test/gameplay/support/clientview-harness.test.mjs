@@ -83,6 +83,23 @@ describe('client-view-protocol scenario against a fake ClientView server', { ski
     assert.equal(result.sessions.get('WhVanillaB').sent.frames, 0)
   })
 
+  it('streams negotiated affine samples through both handshake phases', async () => {
+    for (const handshake of ['config', 'play']) {
+      const result = await run({ handshake }, { WORMHOLES_CV_HANDSHAKE: handshake,
+        WORMHOLES_CV_CAPS: 'PLATES,MESH_RENDER,AFFINE_PORTALS,CONFIG_PHASE' })
+      assertPassed(result)
+      assertCountsMatchServer(result)
+      assert.ok(result.clientA.caps.includes('AFFINE_PORTALS'))
+      assert.equal(result.clientA.s2c.byType.PORTAL_AFFINE.frames, 1)
+      const sample = result.clientA.frames.find((frame) => frame.type === 'PORTAL_AFFINE').summary
+      assert.equal(sample.portalKey, 7)
+      assert.equal(sample.sampleRevision, '123')
+      assert.deepEqual(sample.apertureToSource, [1, 0.25, 0, 96, 0, 2, 0, 64, 0, 0, 1, 0])
+      assert.deepEqual(sample.sourceToDestination, [-1, 0, 0, 192, 0, 1, 0, 0, 0, 0, 0.5, 0])
+      assert.equal(result.vanillaB.window.playWormholes.frames, 0)
+    }
+  })
+
   it('moves both bots to the pose before the server starts streaming', async () => {
     const result = await run({ handshake: 'config', streamWhenNear: { x: 10.5, y: 70, z: 10.5, radius: 2 } }, { WORMHOLES_CV_POSE: '10.5 70 10.5 90 0', WORMHOLES_CV_SECONDS: '2' })
     assertPassed(result)
@@ -135,6 +152,6 @@ describe('client-view-protocol scenario against a fake ClientView server', { ski
   it('fails when the vanilla bot receives ClientView frames in play', async () => {
     const result = await run({ handshake: 'config', faults: ['leakToVanilla'] })
     assert.equal(result.report.status, 'failed')
-    assert.match(result.report.errors[0].message, /vanilla bot received 1 wormholes:v9 frames/)
+    assert.match(result.report.errors[0].message, /vanilla bot received 1 wormholes:v10 frames/)
   })
 })

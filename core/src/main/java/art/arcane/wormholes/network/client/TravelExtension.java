@@ -4,6 +4,8 @@ import java.util.UUID;
 
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.crossing.MomentumRule;
+import art.arcane.optics.crossing.GravityFrame;
+import art.arcane.optics.frame.AxisPermutation;
 import art.arcane.optics.crossing.OrientationRule;
 import art.arcane.optics.crossing.ScaleRule;
 import art.arcane.optics.frame.OpticTransform;
@@ -45,7 +47,7 @@ public final class TravelExtension implements ViewStreamExtension<TravelMessage>
     public boolean clientbound(int id) {
         return switch (id) {
             case TravelMessage.TRAVEL_BEGIN, TravelMessage.TRAVEL_CANCEL, TravelMessage.REMOTE_LEVEL_OPEN, TravelMessage.REMOTE_LEVEL_CLOSE,
-                 TravelMessage.ROUTED_PACKET, TravelMessage.TRAVEL_ACCEPT, TravelMessage.ENTITY_CROSSED -> true;
+                 TravelMessage.ROUTED_PACKET, TravelMessage.TRAVEL_ACCEPT, TravelMessage.ENTITY_CROSSED, TravelMessage.ENTITY_GRAVITY -> true;
             default -> false;
         };
     }
@@ -68,6 +70,7 @@ public final class TravelExtension implements ViewStreamExtension<TravelMessage>
             case TravelMessage.REMOTE_VIEW_ACK -> "REMOTE_VIEW_ACK";
             case TravelMessage.REMOTE_LEVEL_REOPEN -> "REMOTE_LEVEL_REOPEN";
             case TravelMessage.ENTITY_CROSSED -> "ENTITY_CROSSED";
+            case TravelMessage.ENTITY_GRAVITY -> "ENTITY_GRAVITY";
             default -> "TRAVEL(" + id + ")";
         };
     }
@@ -149,6 +152,8 @@ public final class TravelExtension implements ViewStreamExtension<TravelMessage>
                 out.u8(accept.levelHandle());
                 out.u8(accept.dimensionChanged() ? 1 : 0);
                 out.i64(accept.serverTick());
+                out.u8(accept.gravity().orientation().index());
+                out.f64(accept.entityScale());
             }
             case TravelMessage.RemoteViewAck ack -> {
                 out.u8(ack.levelHandle());
@@ -163,6 +168,15 @@ public final class TravelExtension implements ViewStreamExtension<TravelMessage>
                 vector(out, crossed.planeOrigin());
                 out.u8(crossed.planeNormal().ordinal());
                 vector(out, crossed.velocity());
+                out.u8(crossed.sourceGravity().orientation().index());
+                out.u8(crossed.destinationGravity().orientation().index());
+            }
+            case TravelMessage.EntityGravity gravity -> {
+                out.u8(gravity.levelHandle());
+                out.i32(gravity.entityId());
+                uuid(out, gravity.entityUuid());
+                out.u8(gravity.frame().orientation().index());
+                out.u8(gravity.restoreWorldOrientation() ? 1 : 0);
             }
         }
     }
@@ -187,7 +201,10 @@ public final class TravelExtension implements ViewStreamExtension<TravelMessage>
                 case TravelMessage.REMOTE_VIEW_ACK -> new TravelMessage.RemoteViewAck(in.u8(), in.i32(), in.u8());
                 case TravelMessage.REMOTE_LEVEL_REOPEN -> new TravelMessage.RemoteLevelReopen(in.u8());
                 case TravelMessage.ENTITY_CROSSED -> new TravelMessage.EntityCrossed(in.u8(), in.i32(), EnvironmentStateCodec.readTransform(in),
-                    vector(in), face(in.u8()), vector(in));
+                    vector(in), face(in.u8()), vector(in), new GravityFrame(AxisPermutation.ofIndex(in.u8())),
+                    new GravityFrame(AxisPermutation.ofIndex(in.u8())));
+                case TravelMessage.ENTITY_GRAVITY -> new TravelMessage.EntityGravity(in.u8(), in.i32(), uuid(in),
+                    new GravityFrame(AxisPermutation.ofIndex(in.u8())), bool(in));
                 default -> throw new ViewStreamProtocolException("Unknown travel message " + id);
             };
         } catch (IllegalArgumentException invalid) {
@@ -212,7 +229,7 @@ public final class TravelExtension implements ViewStreamExtension<TravelMessage>
             case TravelMessage.TRAVEL_CANCEL -> new TravelMessage.TravelCancel(token, generation);
             case TravelMessage.TRAVEL_CROSS -> new TravelMessage.TravelCross(token, generation, in.i64(), pose(in), vector(in), vector(in));
             case TravelMessage.TRAVEL_ACCEPT -> new TravelMessage.TravelAccept(token, generation, in.i64(), pose(in), vector(in), in.u8(), bool(in),
-                in.i64());
+                in.i64(), new GravityFrame(AxisPermutation.ofIndex(in.u8())), in.f64());
             default -> throw new ViewStreamProtocolException("Unknown travel message " + id);
         };
     }
@@ -234,7 +251,7 @@ public final class TravelExtension implements ViewStreamExtension<TravelMessage>
 
     private static void rules(ViewStreamWriter out, TravelMessage.ArrivalRules rules) {
         out.u8(rules.orientation().ordinal());
-        out.u8(rules.gravityFlip() ? 1 : 0);
+        out.u8((rules.gravityFlip() ? 1 : 0) | (rules.rotateGravity() ? 2 : 0));
         out.u8(rules.momentum().mode().ordinal());
         out.f64(rules.momentum().factor());
         out.f64(rules.momentum().maxSpeed());
@@ -246,7 +263,8 @@ public final class TravelExtension implements ViewStreamExtension<TravelMessage>
 
     private static TravelMessage.ArrivalRules rules(ViewStreamReader in) throws ViewStreamProtocolException {
         int orientation = in.u8();
-        boolean gravityFlip = bool(in);
+        int gravityFlags = in.u8();
+        boolean gravityFlip = (gravityFlags & 1) != 0;
         int mode = in.u8();
         double factor = in.f64();
         double maxSpeed = in.f64();
@@ -254,14 +272,14 @@ public final class TravelExtension implements ViewStreamExtension<TravelMessage>
         int scaleMode = in.u8();
         float scaleMin = in.f32();
         float scaleMax = in.f32();
-        if (orientation >= OrientationRule.values().length || mode >= MomentumRule.Mode.values().length || !Double.isFinite(factor)
+        if (gravityFlags > 3 || orientation >= OrientationRule.values().length || mode >= MomentumRule.Mode.values().length || !Double.isFinite(factor)
             || !Double.isFinite(maxSpeed) || maxSpeed < 0.0D || scaleMode >= ScaleRule.Mode.values().length
             || !Float.isFinite(scaleMin) || !Float.isFinite(scaleMax) || scaleMin > scaleMax) {
             throw new ViewStreamProtocolException("Travel arrival rules");
         }
         return new TravelMessage.ArrivalRules(OrientationRule.values()[orientation], gravityFlip,
             new MomentumRule(MomentumRule.Mode.values()[mode], factor, maxSpeed, impulse),
-            new ScaleRule(ScaleRule.Mode.values()[scaleMode], scaleMin, scaleMax));
+            new ScaleRule(ScaleRule.Mode.values()[scaleMode], scaleMin, scaleMax), (gravityFlags & 2) != 0);
     }
 
     private static void identity(ViewStreamWriter out, UUID token, long generation) {

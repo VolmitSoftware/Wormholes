@@ -3,6 +3,8 @@ package art.arcane.wormholes.modded.client;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.crossing.PlaneCrossing;
 import art.arcane.optics.crossing.Pose;
+import art.arcane.optics.crossing.GravityFrame;
+import art.arcane.wormholes.modded.gravity.MinecraftGravityTransit;
 import art.arcane.optics.crossing.PoseTransform;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.frame.OpticTransform;
@@ -11,6 +13,7 @@ import art.arcane.optics.math.Angles;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.mixin.client.ClientAvatarStateAccess;
 import art.arcane.wormholes.network.client.TravelMessage;
+import art.arcane.wormholes.transit.TransitOrientation;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.phys.Vec3;
 
@@ -43,18 +46,21 @@ final class ClientTravelMotion {
         return PoseTransform.apply(source, begin.sourceToDestination());
     }
 
-    static Pose arrive(TravelMessage.TravelBegin begin, Pose source, Vec3d crossingPoint) {
+    static Pose arrive(TravelMessage.TravelBegin begin, Pose source, Vec3d crossingPoint, GravityFrame gravity) {
         Similarity toward = begin.sourceToDestination();
         PlaneCrossing crossing = crossing(begin, source, crossingPoint);
         TravelMessage.ArrivalRules rules = begin.rules();
-        return PoseTransform.arrive(source, crossing, toward, exitFrame(crossing.frame(), toward.rigid(), crossing.frontSide()), rules.orientation(),
-            rules.gravityFlip(), rules.momentum(), rules.momentum().maxSpeed());
+        return MinecraftGravityTransit.arrive(source, gravity, new MinecraftGravityTransit.Passage(crossing, toward,
+            exitFrame(crossing.frame(), toward.rigid(), crossing.frontSide()), rules)).pose();
     }
 
     static float roll(TravelMessage.TravelBegin begin, Pose source, Vec3d crossingPoint) {
+        if (begin.rules().rotateGravity()) {
+            return 0.0F;
+        }
         PlaneCrossing crossing = crossing(begin, source, crossingPoint);
         TravelMessage.ArrivalRules rules = begin.rules();
-        return PoseTransform.arrivalRoll(source, crossing, exitFrame(crossing.frame(), begin.sourceToDestination().rigid(), crossing.frontSide()),
+        return TransitOrientation.arrivalRoll(source, crossing, exitFrame(crossing.frame(), begin.sourceToDestination().rigid(), crossing.frontSide()),
             rules.orientation(), rules.gravityFlip());
     }
 

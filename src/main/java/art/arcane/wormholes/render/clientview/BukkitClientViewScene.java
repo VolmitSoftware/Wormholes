@@ -34,6 +34,7 @@ import art.arcane.wormholes.render.client.session.ClientViewEmitters;
 import art.arcane.wormholes.render.client.session.ClientViewSceneFx;
 import art.arcane.optics.plate.ViewPlate;
 import art.arcane.optics.frame.OpticTransform;
+import art.arcane.optics.frame.Similarity;
 import art.arcane.optics.frame.ViewWindow;
 import art.arcane.wormholes.render.view.ProjectionWorldView;
 import art.arcane.wormholes.network.client.FxMessage;
@@ -195,13 +196,20 @@ final class BukkitClientViewScene implements EntityScenes<ClientViewObserver>, C
         if (source.destinationWorld() == null) {
             return null;
         }
-        Vec3d destinationEye = transform.inverse().point(new Vec3d(eye.getX(), eye.getY(), eye.getZ()));
+        Vec3d destinationEye = destinationEye(source, eye);
         return scaled(environments.capture(new BukkitEnvironmentCapture.Request(observer.id(), parent, portalId, source.destinationWorld(),
             destinationEye, transform, tick)), source.viewScale());
     }
 
     private static EnvironmentState scaled(EnvironmentState environment, float scale) {
         return environment == null || scale == 1.0F ? environment : environment.withScale(scale);
+    }
+
+    static Vec3d destinationEye(ClientViewPortalSource source, Location eye) {
+        ViewWindow window = source.transformFrame();
+        Similarity content = Similarity.between(window.localFrame(), window.localOrigin(), window.localFrame(), window.localOrigin(), source.viewScale());
+        return content.compose(Similarity.of(window.transform().normalized(), 1.0D)).inverse()
+            .point(new Vec3d(eye.getX(), eye.getY(), eye.getZ()));
     }
 
     private static ViewWindow frame(ClientViewObserver observer, ClientViewPortalSource source) {

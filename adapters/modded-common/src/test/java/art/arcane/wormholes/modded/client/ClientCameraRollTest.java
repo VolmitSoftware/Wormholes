@@ -53,4 +53,61 @@ public class ClientCameraRollTest {
         assertFalse(roll.active(10L));
         assertEquals(0.0F, roll.degrees(10L), 0.0F);
     }
+
+    @Test
+    public void aRapidCrossingCarriesTheRemainingRollIntoTheNextTurn() {
+        ClientCameraRoll roll = new ClientCameraRoll();
+        roll.start(90.0F, 1.0D, 0L);
+        float residual = roll.degrees(100L);
+
+        roll.start(45.0F, 1.0D, 100L);
+
+        assertEquals(residual - 45.0F, roll.degrees(100L), 1.0E-4F);
+        assertEquals(0.0F, roll.degrees(1_100L), 0.0F);
+    }
+
+    @Test
+    public void aTranslatedCrossingPreservesTheExistingEaseAndItsDeadline() {
+        ClientCameraRoll roll = new ClientCameraRoll();
+        roll.start(90.0F, 1.0D, 0L);
+        float residual = roll.degrees(100L);
+
+        roll.start(0.0F, 1.0D, 100L);
+
+        assertEquals(residual, roll.degrees(100L), 0.0F);
+        assertEquals(0.0F, roll.degrees(1_000L), 0.0F);
+    }
+
+    @Test
+    public void anImmediateInverseCrossingCancelsThePhysicalRoll() {
+        ClientCameraRoll roll = new ClientCameraRoll();
+        roll.start(90.0F, 1.0D, 0L);
+        roll.start(-90.0F, 1.0D, 0L);
+
+        assertEquals(0.0F, roll.degrees(0L), 0.0F);
+        assertFalse(roll.active(0L));
+    }
+
+    @Test
+    public void equivalentHalfTurnsCancelWithoutIntroducingAFullCameraSpin() {
+        ClientCameraRoll roll = new ClientCameraRoll();
+        roll.start(180.0F, 1.0D, 0L);
+        roll.start(180.0F, 1.0D, 0L);
+
+        assertEquals(0.0F, roll.degrees(0L), 0.0F);
+        assertFalse(roll.active(0L));
+    }
+
+    @Test
+    public void repeatedQuarterTurnsComposeModuloACompleteRotation() {
+        ClientCameraRoll roll = new ClientCameraRoll();
+        roll.start(90.0F, 1.0D, 0L);
+        assertEquals(-90.0F, roll.degrees(0L), 0.0F);
+        roll.start(90.0F, 1.0D, 0L);
+        assertEquals(-180.0F, roll.degrees(0L), 0.0F);
+        roll.start(90.0F, 1.0D, 0L);
+        assertEquals(90.0F, roll.degrees(0L), 0.0F);
+        roll.start(90.0F, 1.0D, 0L);
+        assertEquals(0.0F, roll.degrees(0L), 0.0F);
+    }
 }

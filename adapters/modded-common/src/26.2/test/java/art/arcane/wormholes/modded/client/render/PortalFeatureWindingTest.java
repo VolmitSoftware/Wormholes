@@ -13,6 +13,8 @@ import net.irisshaders.iris.pipeline.IrisPipelines;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.renderer.StagedVertexBuffer;
 import org.junit.Test;
+import net.minecraft.client.renderer.state.level.CameraRenderState;
+import org.joml.Matrix4f;
 import org.mockito.MockedStatic;
 
 import java.nio.ByteBuffer;
@@ -31,7 +33,7 @@ public class PortalFeatureWindingTest {
         RenderPipeline source = RenderPipelines.SOLID_BLOCK;
         try (MockedStatic<PortalShaderScope> shaders = mockStatic(PortalShaderScope.class);
              MockedStatic<IrisPipelines> iris = mockStatic(IrisPipelines.class);
-             PortalFeatureRenderer.WindingScope winding = new PortalFeatureRenderer.WindingScope(buffer, reflection())) {
+             PortalFeatureRenderer.WindingScope winding = new PortalFeatureRenderer.WindingScope(buffer, true)) {
             RenderPipeline reflected = PortalFeatureRenderer.reflectedPipeline(source);
             assertFalse(reflected.isCull());
             iris.verifyNoInteractions();
@@ -43,9 +45,35 @@ public class PortalFeatureWindingTest {
     }
 
     @Test
+    public void cameraAndRigidReflectionsCombineWithoutDoubleReversingFaces() {
+        StagedVertexBuffer buffer = mock(StagedVertexBuffer.class);
+        OpticTransform ordinary = OpticTransform.of(AxisPermutation.of(Face.E, Face.U, Face.S), 0, 0, 0);
+        for (boolean cameraReflection : new boolean[] {false, true}) {
+            CameraRenderState camera = new CameraRenderState();
+            camera.viewRotationMatrix = new Matrix4f().scale(cameraReflection ? -2.0F : 2.0F, 3.0F, 0.5F);
+            for (boolean rigidReflection : new boolean[] {false, true}) {
+                boolean reflected = cameraReflection != rigidReflection;
+                assertEquals(reflected, PortalFeatureRenderer.reflected(camera, rigidReflection ? reflection() : ordinary));
+                try (MockedStatic<PortalShaderScope> shaders = mockStatic(PortalShaderScope.class);
+                     PortalFeatureRenderer.WindingScope scope = new PortalFeatureRenderer.WindingScope(buffer,
+                    PortalFeatureRenderer.reflected(camera, rigidReflection ? reflection() : ordinary))) {
+                    assertOrdering(buffer, PrimitiveTopology.QUADS, reflected ? new int[] {0, 3, 2, 1} : new int[] {0, 1, 2, 3});
+                    RenderPipeline pipeline = PortalFeatureRenderer.reflectedPipeline(RenderPipelines.SOLID_BLOCK);
+                    if (reflected) {
+                        assertFalse(pipeline.isCull());
+                    } else {
+                        assertSame(RenderPipelines.SOLID_BLOCK, pipeline);
+                    }
+                }
+            }
+        }
+        assertOrdering(buffer, PrimitiveTopology.QUADS, new int[] {0, 1, 2, 3});
+    }
+
+    @Test
     public void reflectedFeatureMeshesReverseEveryFaceWithoutChangingVertexAttributes() {
         StagedVertexBuffer buffer = mock(StagedVertexBuffer.class);
-        try (PortalFeatureRenderer.WindingScope scope = new PortalFeatureRenderer.WindingScope(buffer, reflection())) {
+        try (PortalFeatureRenderer.WindingScope scope = new PortalFeatureRenderer.WindingScope(buffer, true)) {
             assertOrdering(buffer, PrimitiveTopology.QUADS, new int[] {0, 3, 2, 1, 4, 7, 6, 5});
             assertOrdering(buffer, PrimitiveTopology.TRIANGLES, new int[] {0, 2, 1, 3, 5, 4});
             assertOrdering(buffer, PrimitiveTopology.TRIANGLE_FAN, new int[] {0, 4, 3, 2, 1});
@@ -59,10 +87,9 @@ public class PortalFeatureWindingTest {
         StagedVertexBuffer portal = mock(StagedVertexBuffer.class);
         StagedVertexBuffer ordinary = mock(StagedVertexBuffer.class);
         assertOrdering(portal, PrimitiveTopology.QUADS, new int[] {0, 1, 2, 3});
-        try (PortalFeatureRenderer.WindingScope scope = new PortalFeatureRenderer.WindingScope(portal, reflection())) {
+        try (PortalFeatureRenderer.WindingScope scope = new PortalFeatureRenderer.WindingScope(portal, true)) {
             assertOrdering(ordinary, PrimitiveTopology.QUADS, new int[] {0, 1, 2, 3});
-            OpticTransform rotation = OpticTransform.of(AxisPermutation.of(Face.U, Face.W, Face.S), 0, 0, 0);
-            try (PortalFeatureRenderer.WindingScope rotated = new PortalFeatureRenderer.WindingScope(portal, rotation)) {
+            try (PortalFeatureRenderer.WindingScope rotated = new PortalFeatureRenderer.WindingScope(portal, false)) {
                 assertOrdering(portal, PrimitiveTopology.QUADS, new int[] {0, 1, 2, 3});
             }
             assertOrdering(portal, PrimitiveTopology.QUADS, new int[] {0, 3, 2, 1});
@@ -74,9 +101,9 @@ public class PortalFeatureWindingTest {
     public void failedNestedPreparationRestoresThePreviousBufferAndClearsOnExit() {
         StagedVertexBuffer outer = mock(StagedVertexBuffer.class);
         StagedVertexBuffer inner = mock(StagedVertexBuffer.class);
-        try (PortalFeatureRenderer.WindingScope scope = new PortalFeatureRenderer.WindingScope(outer, reflection())) {
+        try (PortalFeatureRenderer.WindingScope scope = new PortalFeatureRenderer.WindingScope(outer, true)) {
             assertThrows(IllegalStateException.class, () -> {
-                try (PortalFeatureRenderer.WindingScope nested = new PortalFeatureRenderer.WindingScope(inner, reflection())) {
+                try (PortalFeatureRenderer.WindingScope nested = new PortalFeatureRenderer.WindingScope(inner, true)) {
                     assertOrdering(inner, PrimitiveTopology.QUADS, new int[] {0, 3, 2, 1});
                     throw new IllegalStateException("Feature preparation failed");
                 }

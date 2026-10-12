@@ -2,6 +2,7 @@ package art.arcane.wormholes.api.traversal.internal;
 
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.wormholes.api.traversal.TraversalContext;
+import art.arcane.wormholes.api.traversal.TraversalRefundReason;
 import art.arcane.wormholes.api.traversal.WormholesPortalTraverseEvent;
 import art.arcane.wormholes.api.traversal.WormholesPortalTraversedEvent;
 import art.arcane.wormholes.service.WormholesTelemetry;
@@ -98,6 +99,10 @@ public final class TraversalCostGateway extends TraversalCostEngine<Player, Trav
         @Override
         public void committed(Player player, Completion<TraversalContext> completion) {
             sink.fireOnEntity(player, new WormholesPortalTraversedEvent(completion.context(), completion.outcome(), completion.chargedProviders()));
+        }
+
+        @Override
+        public void refunded(Player player, Completion<TraversalContext> completion, TraversalRefundReason reason) {
         }
     }
 

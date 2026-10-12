@@ -31,6 +31,7 @@ const HANDSHAKE_TYPES = new Set(['OFFER', 'ACCEPT', 'DECLINE'])
 const TERMINAL_RESETS = new Set(['DISABLED', 'PROTOCOL', 'OVERLOAD'])
 const CAPABILITY_GATES = Object.freeze({
   PORTAL: 'PLATES',
+  PORTAL_AFFINE: 'AFFINE_PORTALS',
   PORTAL_DROP: 'PLATES',
   PLATE_BEGIN: 'PLATES',
   PLATE_BRICKS: 'PLATES',
@@ -212,6 +213,7 @@ export class ClientViewPeer {
       case 'DECLINE': return this.onDecline(message, phase, t)
       case 'PALETTE': return this.onPalette(message)
       case 'PORTAL': return this.onPortal(message, t)
+      case 'PORTAL_AFFINE': return this.onPortalAffine(message)
       case 'PORTAL_DROP': return this.onPortalDrop(message)
       case 'PLATE_BEGIN': return this.onPlateBegin(message, t)
       case 'PLATE_BRICKS': return this.onPlateBricks(message)
@@ -249,6 +251,9 @@ export class ClientViewPeer {
     }
     const allowed = this.current.offerCaps & this.current.helloCaps
     if ((accept.caps & ~allowed) !== 0n) this.violation(`ACCEPT grants caps ${capabilityNames(accept.caps & ~allowed).join(',')} outside OFFER and HELLO`)
+    if (hasCapability(accept.caps, 'AFFINE_PORTALS') && (!hasCapability(accept.caps, 'PLATES') || !hasCapability(accept.caps, 'MESH_RENDER'))) {
+      this.violation('ACCEPT grants AFFINE_PORTALS without PLATES and MESH_RENDER')
+    }
     if (accept.maxFrameBytes < MIN_MAX_FRAME_BYTES || accept.maxFrameBytes > HARD_MAX_FRAME_BYTES || accept.maxFrameBytes > this.settings.maxFrameBytes) {
       this.violation(`ACCEPT negotiates maxFrameBytes ${accept.maxFrameBytes}`)
     }
@@ -335,6 +340,13 @@ export class ClientViewPeer {
   onPortalDrop(drop) {
     if (!this.portals.delete(drop.portalKey)) this.violation(`PORTAL_DROP for unknown portal ${drop.portalKey}`)
     this.openPlates.delete(drop.portalKey)
+  }
+
+  onPortalAffine(sample) {
+    if (!hasCapability(this.caps, 'MESH_RENDER')) this.violation('PORTAL_AFFINE sent without the MESH_RENDER capability')
+    const portal = this.requirePortal('PORTAL_AFFINE', sample.portalKey)
+    if (!portal || portal.affine && sample.sampleRevision <= BigInt(portal.affine.sampleRevision)) return
+    portal.affine = summarize(sample)
   }
 
   onPlateBegin(begin, t) {

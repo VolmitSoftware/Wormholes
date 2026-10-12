@@ -1,5 +1,7 @@
 package art.arcane.wormholes.render.client.session;
 
+import art.arcane.optics.crossing.GravityFrame;
+
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.math.Face;
 import art.arcane.optics.math.Vec3d;
@@ -42,7 +44,7 @@ class SeamlessCrossCheckTest {
         TravelMessage.TravelCross fall = new TravelMessage.TravelCross(UUID.randomUUID(), 1L, 1L, claimed,
             new Vec3d(1.5D, 60.6D, 1.5D), new Vec3d(1.5D, 58.4D + EYE, 1.5D));
         SeamlessCrossCheck.Server server = new SeamlessCrossCheck.Server("minecraft:the_nether", FLOOR,
-            new TravelMessage.TravelPose(1.5D, 61.9D, 1.5D, 0.0F, 90.0F), new Vec3d(0.0D, -3.92D, 0.0D), EYE, false, false);
+            new TravelMessage.TravelPose(1.5D, 61.9D, 1.5D, 0.0F, 90.0F), new Vec3d(0.0D, -3.92D, 0.0D), EYE, GravityFrame.WORLD, false, false);
         assertEquals(SeamlessCrossCheck.Refusal.NONE, SeamlessCrossCheck.check(fall, arm(FLOOR), server));
     }
 
@@ -75,13 +77,13 @@ class SeamlessCrossCheckTest {
     void passingBesideTheApertureIsRefused() {
         assertEquals(SeamlessCrossCheck.Refusal.OUTSIDE_APERTURE,
             SeamlessCrossCheck.check(walk(5.5D), arm(GEOMETRY), new SeamlessCrossCheck.Server("minecraft:the_nether", GEOMETRY,
-                new TravelMessage.TravelPose(5.5D, 64.0D, 0.55D, 0.0F, 0.0F), new Vec3d(0, 0, 0), EYE, false, false)));
+                new TravelMessage.TravelPose(5.5D, 64.0D, 0.55D, 0.0F, 0.0F), new Vec3d(0, 0, 0), EYE, GravityFrame.WORLD, false, false)));
     }
 
     @Test
     void aVanillaTeleportInFlightRefusesTheCrossing() {
         SeamlessCrossCheck.Server awaiting = new SeamlessCrossCheck.Server("minecraft:the_nether", GEOMETRY,
-            new TravelMessage.TravelPose(0.5D, 64.0D, 0.55D, 0.0F, 0.0F), new Vec3d(0, 0, 0), EYE, true, false);
+            new TravelMessage.TravelPose(0.5D, 64.0D, 0.55D, 0.0F, 0.0F), new Vec3d(0, 0, 0), EYE, GravityFrame.WORLD, true, false);
         assertEquals(SeamlessCrossCheck.Refusal.AWAITING_TELEPORT, SeamlessCrossCheck.check(walk(0.5D), arm(GEOMETRY), awaiting));
     }
 
@@ -111,7 +113,7 @@ class SeamlessCrossCheckTest {
 
     private static SeamlessCrossCheck.Server server(ApertureDescriptor geometry, double z, double speed) {
         return new SeamlessCrossCheck.Server("minecraft:the_nether", geometry, new TravelMessage.TravelPose(0.5D, 64.0D, z, 0.0F, 0.0F),
-            new Vec3d(0.0D, 0.0D, -speed), EYE, false, false);
+            new Vec3d(0.0D, 0.0D, -speed), EYE, GravityFrame.WORLD, false, false);
     }
 
     private static TravelMessage.TravelBegin arm(ApertureDescriptor geometry) {

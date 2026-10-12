@@ -65,7 +65,13 @@
     "StraddleCollisionMixin",
     "StraddlePoseMixin",
     "StraddleServerMovementMixin",
-    "StraddleSuffocationMixin"
+    "StraddleSuffocationMixin",
+    "GravityEntityMixin",
+    "GravityLivingEntityMixin",
+    "GravityPlayerMixin",
+    "GravityServerPlayerMixin",
+    "GravityServerMovementMixin",
+    "GravityEntityTrackingMixin"
   ],
   "client": [
     "client.ClientLevelMixin",
@@ -104,6 +110,9 @@
     "client.IrisPortalFullscreenFinalMixin",
     "client.IrisPortalPipelineAccess",
     "client.IrisPortalViewPipelineMixin",
+    "client.IrisPortalShaderStagesMixin",
+    "client.IrisPortalGlShaderStagesMixin",
+    "client.IrisPortalProgramStageScopeMixin",
     "client.IrisPortalSettingsAccess",
     "client.IrisPortalTerrainLightingMixin",
     "client.MeshBlockModelLighterMixin",
@@ -124,6 +133,7 @@
     "client.MeshLevelExtractorMixin",
     "client.SodiumPortalRendererMixin",
     "client.SodiumPortalSectionsMixin",
+    "client.SodiumArrivalSectionMixin",
     "client.SodiumPortalUniformsMixin",
     "client.SodiumPortalDrawsMixin",
     "client.SodiumPortalRegionMixin",
@@ -196,7 +206,13 @@
     "client.DhPortalProviderLifecycleMixin",
     "client.VanillaTerrainExtractorMixin",
     "client.VanillaTerrainRendererAccess",
-    "client.VanillaTerrainRendererMixin"
+    "client.VanillaTerrainRendererMixin",
+    "client.GravityCameraMixin",
+    "client.GravityRenderStateMixin",
+    "client.GravityEntityRendererMixin",
+    "client.GravityLivingRendererMixin",
+    "client.GravityAvatarRendererMixin",
+    "client.GravityLocalPlayerMixin"
   ],
   "injectors": {
     "defaultRequire": 1

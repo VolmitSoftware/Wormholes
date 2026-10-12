@@ -24,6 +24,8 @@ docs/*
 
 logs/
 
+/config/
+
 .claude/
 
 docs/specs/

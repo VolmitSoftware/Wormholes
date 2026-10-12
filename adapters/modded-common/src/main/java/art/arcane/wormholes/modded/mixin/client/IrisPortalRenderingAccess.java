@@ -2,6 +2,7 @@ package art.arcane.wormholes.modded.mixin.client;
 
 import net.irisshaders.iris.pipeline.CompositeRenderer;
 import net.irisshaders.iris.gl.buffer.ShaderStorageBufferHolder;
+import net.irisshaders.iris.targets.RenderTargets;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Pseudo;
 import org.spongepowered.asm.mixin.gen.Accessor;
@@ -17,4 +18,7 @@ public interface IrisPortalRenderingAccess {
 
     @Accessor("shaderStorageBufferHolder")
     ShaderStorageBufferHolder wormholes$storageBuffers();
+
+    @Accessor("renderTargets")
+    RenderTargets wormholes$renderTargets();
 }

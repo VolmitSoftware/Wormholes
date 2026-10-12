@@ -222,13 +222,77 @@ public class ClientMirrorTest {
         assertFalse(box.cells() == 0L);
     }
 
+    @Test
+    public void clientMirrorBuilderReflectsAtTheExactPlaneForEveryDirectionAndTurn() {
+        ClientPalette palette = new ClientPalette(BuiltInRegistries.BLOCK);
+        for (Face facing : Face.values()) {
+            for (int frameTurn = 0; frameTurn < 4; frameTurn++) {
+                for (int mirrorTurn = 0; mirrorTurn < 4; mirrorTurn++) {
+                    ApertureDescriptor geometry = orientedMirror(facing, frameTurn, mirrorTurn, 0.375D);
+                    ClientMirrorBuilder builder = ClientMirrorBuilder.create(geometry, palette, (x, y, z) -> AIR);
+                    assertNotNull(builder);
+                    OpticTransform transform = builder.transform();
+                    double translation = switch (facing.getAxis()) {
+                        case X -> transform.translationX();
+                        case Y -> transform.translationY();
+                        case Z -> transform.translationZ();
+                    };
+                    assertEquals(2.0D * geometry.planeCoordinate(), translation, 0.0D);
+                    assertSame(AxisPermutation.mirror(geometry.frame(), QuarterTurn.of(mirrorTurn)), transform.permutation());
+                    Vec3d normal = new Vec3d(facing.x(), facing.y(), facing.z());
+                    Vec3d reflected = transform.vector(normal);
+                    assertEquals(-normal.x(), reflected.x(), 0.0D);
+                    assertEquals(-normal.y(), reflected.y(), 0.0D);
+                    assertEquals(-normal.z(), reflected.z(), 0.0D);
+                }
+            }
+        }
+    }
+
+    @Test
+    public void clientMirrorDisplayBoxTracksPhysicalPlaneOffsetsForEveryDirectionAndSide() {
+        for (Face facing : Face.values()) {
+            for (boolean front : new boolean[] {false, true}) {
+                ApertureDescriptor base = orientedMirror(facing, 0, 0, 0.0D);
+                ApertureDescriptor shifted = orientedMirror(facing, 0, 0, 3.0D);
+                if (!front) {
+                    base = reverseSide(base);
+                    shifted = reverseSide(shifted);
+                }
+                BlockBox original = ClientMirrorBuilder.displayBox(base);
+                BlockBox offset = ClientMirrorBuilder.displayBox(shifted);
+                assertEquals(original.minX() + facing.x() * 3, offset.minX());
+                assertEquals(original.minY() + facing.y() * 3, offset.minY());
+                assertEquals(original.minZ() + facing.z() * 3, offset.minZ());
+                assertEquals(original.sizeX(), offset.sizeX());
+                assertEquals(original.sizeY(), offset.sizeY());
+                assertEquals(original.sizeZ(), offset.sizeZ());
+            }
+        }
+    }
+
     private static int[] source(int x, int y, int z) {
         ApertureDescriptor geometry = mirror(0, List.of());
         Frame frame = geometry.frame();
         double[] out = new double[3];
-        Vec3d origin = geometry.apertureArea().center();
+        Vec3d origin = new Vec3d(geometry.originX() + geometry.apertureWidth() * 0.5D,
+            geometry.originY() + geometry.apertureHeight() * 0.5D, geometry.planeCoordinate());
         OpticTransform.mirror(frame, origin, QuarterTurn.of(geometry.mirrorQuarterTurns())).inverse().pointInto(x + 0.5D, y + 0.5D, z + 0.5D, out);
         return new int[] {(int) Math.floor(out[0]), (int) Math.floor(out[1]), (int) Math.floor(out[2])};
+    }
+
+    private static ApertureDescriptor orientedMirror(Face facing, int frameTurn, int mirrorTurn, double offset) {
+        return new ApertureDescriptor(10, 64, 20, facing.ordinal(), true, ApertureDescriptor.packQuarterTurns(frameTurn, mirrorTurn), true,
+            4, 6, new long[] {0x555555L}, ShapeDescriptor.FULL, 0, 0, 1, 8, 0, 0, 0, 0, 0, 0, ApertureKind.FRAME,
+            offset, 0, 0L, List.of());
+    }
+
+    private static ApertureDescriptor reverseSide(ApertureDescriptor geometry) {
+        return new ApertureDescriptor(geometry.originX(), geometry.originY(), geometry.originZ(), geometry.facing(), false,
+            geometry.quarterTurns(), geometry.mirror(), geometry.apertureWidth(), geometry.apertureHeight(), geometry.apertureMask(),
+            geometry.shape(), geometry.nearPlanePadding(), geometry.aperturePadding(), geometry.frustumCullingRatio(), geometry.depthBlocks(),
+            geometry.recursionDepth(), geometry.blackoutPolicy(), geometry.blackoutState(), geometry.maskAirPolicy(), geometry.lightingPolicy(),
+            geometry.fidelityFlags(), geometry.kind(), geometry.planeOffset(), geometry.parentPortalKey(), geometry.targetIdentity(), geometry.nested());
     }
 
     private static ApertureDescriptor mirror(int recursionDepth, List<ApertureDescriptor> nested) {

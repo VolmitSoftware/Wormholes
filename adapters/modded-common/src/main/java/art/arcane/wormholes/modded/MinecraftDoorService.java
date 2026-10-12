@@ -3,6 +3,7 @@ package art.arcane.wormholes.modded;
 import art.arcane.wormholes.modded.clientview.MinecraftClientViewService;
 
 import art.arcane.optics.math.Vec3d;
+import art.arcane.wormholes.modded.gravity.MinecraftGravity;
 import art.arcane.optics.plate.ChunkLease;
 import art.arcane.wormholes.config.toml.MainConfig;
 import art.arcane.wormholes.config.toml.PocketsConfig;
@@ -602,7 +603,8 @@ public final class MinecraftDoorService implements AutoCloseable {
                 }
                 visited.add(entity.getUUID());
                 DoorTravelerClass travelerClass = entity instanceof LivingEntity || entity instanceof VehicleEntity ? DoorTravelerClass.LIVING : DoorTravelerClass.OBJECT;
-                DoorTransit transit = new DoorTransit(plane, crossing.get(), entity.getYRot(), entity.getXRot(),
+                Angles.Look worldLook = MinecraftGravity.worldLook(entity);
+                DoorTransit transit = new DoorTransit(plane, crossing.get(), worldLook.yaw(), worldLook.pitch(),
                     entity.getBbWidth() * 0.5D, entity.getBbHeight(), travelerClass,
                     travelerClass == DoorTravelerClass.OBJECT ? vector(entity.getDeltaMovement()) : null);
                 if (entity instanceof ServerPlayer player && runtime.clientViews().deferTravel(player.getUUID(), door.endpoint.identity().itemId())) {
@@ -635,7 +637,8 @@ public final class MinecraftDoorService implements AutoCloseable {
         }
         deferredCrossings.remove(player.getUUID());
         door.cycle.observe(snapshot.active());
-        DoorTransit transit = new DoorTransit(snapshot.plane(), entry.get(), player.getYRot(), player.getXRot(),
+        Angles.Look worldLook = MinecraftGravity.worldLook(player);
+        DoorTransit transit = new DoorTransit(snapshot.plane(), entry.get(), worldLook.yaw(), worldLook.pitch(),
             player.getBbWidth() * 0.5D, player.getBbHeight(), DoorTravelerClass.LIVING,
             new Vec3d(crossing.velocity().x(), crossing.velocity().y(), crossing.velocity().z()), crossing);
         depart(player, door, snapshot, transit);
@@ -1206,8 +1209,9 @@ public final class MinecraftDoorService implements AutoCloseable {
 
     private boolean teleport(Entity entity, Arrival arrival) {
         TravelMessage.TravelBegin prepared = preparedCrossing(entity);
+        Angles.Look localLook = MinecraftGravity.localLook(entity, new Angles.Look(arrival.yaw(), arrival.pitch()));
         TravelMessage.TravelPose pose = new TravelMessage.TravelPose(arrival.point().x(), arrival.point().y(), arrival.point().z(),
-            arrival.yaw(), arrival.pitch());
+            localLook.yaw(), localLook.pitch());
         Vec3d velocity = new Vec3d(arrival.velocity().x(), arrival.velocity().y(), arrival.velocity().z());
         boolean seamlessCrossing = entity instanceof ServerPlayer traveler && prepared != null
             && arrival.context().isPresent() && runtime.clientViews().seamlessCrossing(traveler);
@@ -1236,7 +1240,7 @@ public final class MinecraftDoorService implements AutoCloseable {
             try (WormholesModRuntime.TeleportScope scope = runtime.beginTeleport(entity)) {
                 arrived = seamless != null ? runtime.clientViews().seamlessMove(seamless)
                     : entity.teleport(new TeleportTransition(arrival.level(), vector(arrival.point()), vector(arrival.velocity()),
-                        arrival.yaw(), arrival.pitch(), TeleportTransition.PLACE_PORTAL_TICKET));
+                        localLook.yaw(), localLook.pitch(), TeleportTransition.PLACE_PORTAL_TICKET));
             }
             if (arrived == null) {
                 if (entity instanceof ServerPlayer player) {

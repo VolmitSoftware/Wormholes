@@ -1,5 +1,7 @@
 package art.arcane.wormholes.modded.client;
 
+import art.arcane.optics.crossing.GravityFrame;
+
 import art.arcane.optics.crossing.Pose;
 import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.math.Vec3d;
@@ -33,7 +35,7 @@ final class SeamlessTravelFixtures {
 
     static TravelMessage.TravelAccept accept(double offset, float yaw) {
         return new TravelMessage.TravelAccept(TOKEN, GENERATION, REVISION, new TravelMessage.TravelPose(EXPECTED_ARRIVAL.x + offset,
-            EXPECTED_ARRIVAL.y, EXPECTED_ARRIVAL.z, DESTINATION.yaw() + yaw, DESTINATION.pitch()), new Vec3d(0, 0, -0.25), 3, true, 100L);
+            EXPECTED_ARRIVAL.y, EXPECTED_ARRIVAL.z, DESTINATION.yaw() + yaw, DESTINATION.pitch()), new Vec3d(0, 0, -0.25), 3, true, 100L, GravityFrame.WORLD, 1.0D);
     }
 
     static LocalPlayer player() {

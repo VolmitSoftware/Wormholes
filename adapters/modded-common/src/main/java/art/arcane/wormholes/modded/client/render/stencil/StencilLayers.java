@@ -47,6 +47,10 @@ public final class StencilLayers {
         return true;
     }
 
+    public int remainingViews() {
+        return viewsLeft;
+    }
+
     public int depth() {
         return depth;
     }

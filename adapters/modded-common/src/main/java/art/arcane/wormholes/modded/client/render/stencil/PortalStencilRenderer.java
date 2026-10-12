@@ -8,7 +8,6 @@
 package art.arcane.wormholes.modded.client.render.stencil;
 
 import art.arcane.optics.aperture.ApertureDescriptor;
-import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.wormholes.modded.client.WormholesClient;
@@ -16,6 +15,7 @@ import art.arcane.wormholes.modded.client.WormholesClientConfig;
 import art.arcane.wormholes.modded.client.render.ClientPortalRenderer;
 import art.arcane.wormholes.modded.client.render.PortalGpuMesh;
 import art.arcane.wormholes.modded.client.render.PortalShaderScope;
+import art.arcane.wormholes.modded.client.render.iris.IrisClipPlanes;
 import art.arcane.wormholes.modded.client.world.ClientWorldLoader;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.systems.RenderSystem;
@@ -30,7 +30,6 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.client.renderer.state.level.LevelRenderState;
-import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4d;
 import org.joml.Matrix4f;
@@ -38,9 +37,9 @@ import org.joml.Matrix4fc;
 import org.joml.Vector4f;
 import org.joml.Vector4fc;
 import org.slf4j.Logger;
+import org.lwjgl.opengl.GL11C;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.OptionalDouble;
@@ -60,6 +59,9 @@ public final class PortalStencilRenderer {
     private final DeferredLayers deferred = new DeferredLayers(MAX_DEPTH);
     private final Matrix4f projection = new Matrix4f();
     private final List<PortalView> claimed = new ArrayList<>();
+    private final List<PortalView> activeViews = new ArrayList<>();
+    private final List<PortalViewSelection.Camera> selectionStack = new ArrayList<>();
+    private final List<List<PortalView>> selectedViews = new ArrayList<>();
     private final List<List<Candidate>> candidates = new ArrayList<>();
     private boolean active;
     private boolean deferredFrame;
@@ -67,10 +69,12 @@ public final class PortalStencilRenderer {
     private boolean pipelinesReady;
     private int pipelineGeneration = -1;
     private Vec3 homeEye = Vec3.ZERO;
+    private int preparedViews;
 
     private PortalStencilRenderer() {
         for (int depth = 0; depth <= MAX_DEPTH; depth++) {
             candidates.add(new ArrayList<>());
+            selectedViews.add(new ArrayList<>());
         }
     }
 
@@ -128,8 +132,68 @@ public final class PortalStencilRenderer {
         return false;
     }
 
+    public boolean claimsChild(int streamKey) {
+        WormholesClient client = WormholesClient.instance();
+        if (client == null || activeViews.isEmpty()) {
+            return false;
+        }
+        for (PortalView view : selectedViews.get(layers.depth())) {
+            if (client.portalViews().streamKey(view) == streamKey) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public void preparedViews(int views) {
+        preparedViews = Math.clamp(views, 0, MAX_VIEWS_PER_FRAME);
+    }
+
+    public int streamedPreparationBudget() {
+        return MAX_VIEWS_PER_FRAME - preparedViews;
+    }
+
+    public boolean canDrawShadedView() {
+        return layers.canEnter(recursionCeiling()) && layers.remainingViews() > 0;
+    }
+
+    public PortalViewSelection.Camera selectionCamera(CameraRenderState camera) {
+        PortalViewSelection.Camera parent = selectionStack.isEmpty() ? null : selectionStack.getLast();
+        return new PortalViewSelection.Camera(new Vec3d(camera.pos.x, camera.pos.y, camera.pos.z), camera.viewRotationMatrix, projection,
+            camera.cullFrustum, parent == null ? PortalViewSelection.Window.FULL : parent.window(),
+            parent == null ? null : parent.exit(), RenderSystem.getDevice().getDeviceInfo().isZZeroToOne());
+    }
+
+    private int recursionCeiling() {
+        int ceiling = MAX_DEPTH;
+        for (PortalView view : activeViews) {
+            ceiling = Math.min(ceiling, view.recursion());
+        }
+        return ceiling;
+    }
+
+    private int parentStreamKey() {
+        WormholesClient client = WormholesClient.instance();
+        return client == null || activeViews.isEmpty() ? 0 : client.portalViews().streamKey(activeViews.getLast());
+    }
+
+    private boolean nestedMeshes() {
+        return parentStreamKey() != 0 && ClientPortalRenderer.instance().nestedViews(parentStreamKey(), world.homeLevel(), layers.depth(),
+            recursionCeiling());
+    }
+
+    private void renderNestedMeshes(CameraRenderState camera) {
+        ClientPortalRenderer.instance().renderNested(parentStreamKey(), world.homeLevel(), camera, projection, layers.depth(), recursionCeiling());
+    }
+
     public void clear() {
         claimed.clear();
+        activeViews.clear();
+        selectionStack.clear();
+        preparedViews = 0;
+        for (List<PortalView> selected : selectedViews) {
+            selected.clear();
+        }
         for (List<Candidate> list : candidates) {
             list.clear();
         }
@@ -156,6 +220,9 @@ public final class PortalStencilRenderer {
         visible.clear();
         collect(minecraft.level, camera, visible);
         if (visible.isEmpty()) {
+            if (nestedMeshes()) {
+                renderNestedMeshes(camera);
+            }
             return;
         }
         RenderTarget main = minecraft.gameRenderer.mainRenderTarget();
@@ -171,7 +238,7 @@ public final class PortalStencilRenderer {
         try {
             for (Candidate candidate : visible) {
                 PortalView view = candidate.view();
-                if (!layers.canEnter(view.recursion()) || !layers.claimView()) {
+                if (!canEnter(view) || !layers.claimView()) {
                     continue;
                 }
                 try {
@@ -180,6 +247,9 @@ public final class PortalStencilRenderer {
                     view.failed(now + FAILURE_RETRY_MILLIS);
                     LOGGER.error("Unable to render the {} portal view into {}", view.kind(), view.destination().dimension().identifier(), failure);
                 }
+            }
+            if (nestedMeshes()) {
+                renderNestedMeshes(camera);
             }
         } finally {
             visible.clear();
@@ -196,7 +266,7 @@ public final class PortalStencilRenderer {
         List<Candidate> visible = candidates.get(depth);
         visible.clear();
         collect(minecraft.level, camera, visible);
-        boolean meshes = depth == 0 && ClientPortalRenderer.instance().shadedViews();
+        boolean meshes = depth == 0 ? ClientPortalRenderer.instance().shadedViews() : nestedMeshes();
         if (visible.isEmpty() && !meshes) {
             return;
         }
@@ -208,7 +278,7 @@ public final class PortalStencilRenderer {
             deferred.capture(main, depth);
             for (Candidate candidate : visible) {
                 PortalView view = candidate.view();
-                if (!layers.canEnter(view.recursion()) || !layers.claimView()) {
+                if (!canEnter(view) || !layers.claimView()) {
                     continue;
                 }
                 try {
@@ -219,7 +289,11 @@ public final class PortalStencilRenderer {
                 }
             }
             if (meshes) {
-                ClientPortalRenderer.instance().renderShadedViews();
+                if (depth == 0) {
+                    ClientPortalRenderer.instance().renderShadedViews();
+                } else {
+                    renderNestedMeshes(camera);
+                }
             }
             if (depth == 0) {
                 deferred.finish(main);
@@ -231,17 +305,34 @@ public final class PortalStencilRenderer {
     }
 
     public void shadedView(PortalGpuMesh aperture, boolean shaped, Matrix4f apertureView, Camera camera, Runnable render) {
+        if (!layers.canEnter(recursionCeiling()) || !layers.claimView()) {
+            return;
+        }
         RenderTarget main = Minecraft.getInstance().gameRenderer.mainRenderTarget();
-        deferred.mark(0, aperture, shaped, apertureView, projection, null);
-        deferred.forget(1);
+        int outer = layers.depth();
+        Vector4fc clipPlane = outer == 0 ? null : world.clipPlane();
+        deferred.mark(outer, aperture, shaped, apertureView, projection, clipPlane);
+        int inner = layers.enter(false);
+        deferred.forget(inner);
+        Camera previousCamera = shadedCamera;
         shadedCamera = camera;
         try {
             render.run();
+            deferred.composite(main, inner, outer);
+            deferred.writeDepth(outer, aperture, shaped, apertureView, projection, clipPlane);
         } finally {
-            shadedCamera = null;
+            shadedCamera = previousCamera;
+            layers.exit();
+            PortalStencil.restore(outer);
         }
-        deferred.composite(main, 1, 0);
-        deferred.writeDepth(0, aperture, shaped, apertureView, projection, null);
+    }
+
+    public StreamedScope streamedScope() {
+        return new StreamedScope(layers.reference());
+    }
+
+    public void captureShadedLayer() {
+        deferred.capture(Minecraft.getInstance().gameRenderer.mainRenderTarget(), layers.depth());
     }
 
     public boolean clearLayer(Vector4fc fogColor) {
@@ -260,6 +351,12 @@ public final class PortalStencilRenderer {
 
     private boolean beginFrame(LevelRenderer renderer, CameraRenderState camera) {
         claimed.clear();
+        activeViews.clear();
+        selectionStack.clear();
+        preparedViews = 0;
+        for (List<PortalView> selected : selectedViews) {
+            selected.clear();
+        }
         Minecraft minecraft = Minecraft.getInstance();
         WormholesClient client = WormholesClient.instance();
         LocalPlayer player = minecraft.player;
@@ -316,26 +413,29 @@ public final class PortalStencilRenderer {
         if (client == null || level == null) {
             return;
         }
-        Minecraft minecraft = Minecraft.getInstance();
         long now = System.currentTimeMillis();
-        double range = minecraft.options.getEffectiveRenderDistance() * 16.0D;
-        Vec3d eye = new Vec3d(camera.pos.x, camera.pos.y, camera.pos.z);
-        for (PortalView view : client.portalViews().current()) {
-            if (view.source() != level || !renderable(view, now) || !view.surface().servesEye(eye)) {
-                continue;
-            }
-            Box area = view.surface().area();
-            double distance = view.surface().distance(eye);
-            if (distance > range) {
-                continue;
-            }
-            AABB bounds = new AABB(area.getXa(), area.getYa(), area.getZa(), area.getXb(), area.getYb(), area.getZb()).inflate(0.01D);
-            if (distance > NEAR_CULL_BLOCKS && !camera.cullFrustum.isVisible(bounds)) {
-                continue;
-            }
-            visible.add(new Candidate(view, distance));
+        double range = Minecraft.getInstance().options.getEffectiveRenderDistance() * 16.0D;
+        PortalViewSelection.Camera selection = selectionCamera(camera);
+        List<PortalView> nested = activeViews.isEmpty() ? List.of() : client.portalViews().children(activeViews.getLast());
+        List<PortalView> selected = selectedViews.get(layers.depth());
+        selected.clear();
+        selected.addAll(PortalViewSelection.collect(nested, client.portalViews().current(),
+            new PortalViewSelection.Options(level, layers.depth(), recursionCeiling(), range, view -> renderable(view, now)), selection));
+        for (PortalView view : selected) {
+            visible.add(new Candidate(view, view.surface().distance(selection.eye())));
         }
-        visible.sort(Comparator.comparingDouble(Candidate::distance));
+    }
+
+    private boolean canEnter(PortalView view) {
+        if (!layers.canEnter(view.recursion())) {
+            return false;
+        }
+        for (PortalView ancestor : activeViews) {
+            if (!layers.canEnter(ancestor.recursion())) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private boolean renderable(PortalView view, long now) {
@@ -370,6 +470,8 @@ public final class PortalStencilRenderer {
         }
         boolean outerMirrored = layers.mirrored();
         int inner = layers.enter(PortalLayerMath.mirrored(view.toDestination()));
+        activeViews.add(view);
+        selectionStack.add(PortalViewSelection.through(selectionCamera(camera), view));
         try {
             PortalStencil.limit(inner);
             fill(main, StencilPipelines.FAR, "Wormholes portal far depth");
@@ -382,6 +484,8 @@ public final class PortalStencilRenderer {
                 mesh.draw(pass);
             }
         } finally {
+            activeViews.removeLast();
+            selectionStack.removeLast();
             layers.exit();
             PortalStencil.clamp(outer);
             fill(main, StencilPipelines.CLAMP, "Wormholes portal stencil clamp");
@@ -399,10 +503,14 @@ public final class PortalStencilRenderer {
         deferred.mark(outer, mesh, shaped, aperture, projection, clipPlane);
         boolean outerMirrored = layers.mirrored();
         int inner = layers.enter(PortalLayerMath.mirrored(view.toDestination()));
+        activeViews.add(view);
+        selectionStack.add(PortalViewSelection.through(selectionCamera(camera), view));
         deferred.forget(inner);
         try {
             world.render(view, camera, projection, inner, layers.mirrored(), outerMirrored);
         } finally {
+            activeViews.removeLast();
+            selectionStack.removeLast();
             layers.exit();
         }
         deferred.composite(main, inner, outer);
@@ -430,6 +538,41 @@ public final class PortalStencilRenderer {
     private static CompiledRenderPipeline compiled(RenderPipeline pipeline) {
         try (PortalShaderScope scope = PortalShaderScope.rendering()) {
             return RenderSystem.getCompiledPipeline(pipeline);
+        }
+    }
+
+    public static final class StreamedScope implements AutoCloseable {
+        private final IrisClipPlanes.State clipping = IrisClipPlanes.capture();
+        private final boolean stencil = GL11C.glIsEnabled(GL11C.GL_STENCIL_TEST);
+        private final int function = GL11C.glGetInteger(GL11C.GL_STENCIL_FUNC);
+        private final int reference;
+        private final int valueMask = GL11C.glGetInteger(GL11C.GL_STENCIL_VALUE_MASK);
+        private final int writeMask = GL11C.glGetInteger(GL11C.GL_STENCIL_WRITEMASK);
+        private final int fail = GL11C.glGetInteger(GL11C.GL_STENCIL_FAIL);
+        private final int depthFail = GL11C.glGetInteger(GL11C.GL_STENCIL_PASS_DEPTH_FAIL);
+        private final int depthPass = GL11C.glGetInteger(GL11C.GL_STENCIL_PASS_DEPTH_PASS);
+        private final int frontFace = GL11C.glGetInteger(GL11C.GL_FRONT_FACE);
+
+        private StreamedScope(int reference) {
+            this.reference = reference;
+            IrisClipPlanes.release();
+            PortalStencil.restore(0);
+            PortalStencil.clipping(false);
+            PortalStencil.mirrored(false);
+        }
+
+        @Override
+        public void close() {
+            GL11C.glStencilFunc(function, reference, valueMask);
+            GL11C.glStencilMask(writeMask);
+            GL11C.glStencilOp(fail, depthFail, depthPass);
+            if (stencil) {
+                GL11C.glEnable(GL11C.GL_STENCIL_TEST);
+            } else {
+                GL11C.glDisable(GL11C.GL_STENCIL_TEST);
+            }
+            GL11C.glFrontFace(frontFace);
+            clipping.restore();
         }
     }
 

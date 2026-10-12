@@ -1,5 +1,7 @@
 package art.arcane.wormholes.network.client;
 
+import art.arcane.optics.crossing.GravityFrame;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -58,7 +60,7 @@ public final class ClientViewFixtures {
         out.add(travel("routed_packet", new TravelMessage.RoutedPacket(4, 17, 0, 1, 4, new byte[] {5, 6, 7, 8}),
             ViewStreamCapability.ALL, 28, 0));
         out.add(travel("travel_accept", new TravelMessage.TravelAccept(new UUID(12, 34), 3L, 9L, travelBegin().arrival(),
-            new Vec3d(0.25D, -0.5D, 1.0D), 4, true, 1200L), ViewStreamCapability.ALL, 29, ViewStreamLimits.FLAG_LAST));
+            new Vec3d(0.25D, -0.5D, 1.0D), 4, true, 1200L, GravityFrame.WORLD, 1.0D), ViewStreamCapability.ALL, 29, ViewStreamLimits.FLAG_LAST));
         out.add(travel("remote_view_ack", new TravelMessage.RemoteViewAck(4, 17, 8), ViewStreamCapability.NONE, 0, 0));
         return out;
     }
@@ -69,7 +71,7 @@ public final class ClientViewFixtures {
             base.sourceGeometry().withShape(ShapeDescriptor.parse("circle")), base.destinationToSource(), 3.0F, base.world(), base.arrival(),
             base.environment().withScale(1.0F / 3.0F),
             new TravelMessage.ArrivalRules(OrientationRule.LOOK, true, new MomentumRule(MomentumRule.Mode.SCALE, 0.75D, 3.5D,
-                new Vec3d(0.0D, 0.25D, 0.0D)), ScaleRule.ratio(0.25D, 4.0D)), true, 4, base.doorCollision());
+                new Vec3d(0.0D, 0.25D, 0.0D)), ScaleRule.ratio(0.25D, 4.0D), false), true, 4, base.doorCollision());
     }
 
     public static TravelMessage.TravelBegin travelBegin() {

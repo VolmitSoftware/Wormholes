@@ -26,6 +26,7 @@ import org.slf4j.LoggerFactory;
 import art.arcane.wormholes.network.client.ClientViewExtensions;
 import art.arcane.wormholes.network.client.TravelMessage;
 import art.arcane.wormholes.network.client.FxMessage;
+import art.arcane.wormholes.network.client.LocalDestination;
 import art.arcane.wormholes.network.client.RootSource;
 import art.arcane.wormholes.modded.clientview.MinecraftClientViewExtensions;
 import art.arcane.wormholes.portal.ApertureKind;
@@ -39,7 +40,9 @@ public final class ClientViewSession {
     private final Int2ObjectOpenHashMap<ClientPortal> portals;
     private final Int2ObjectOpenHashMap<ApertureDescriptor> meshGeometry = new Int2ObjectOpenHashMap<>();
     private final Int2ObjectOpenHashMap<EnvironmentState> environments = new Int2ObjectOpenHashMap<>();
+    private final Int2ObjectOpenHashMap<ViewStreamMessage.PortalAffine> affinePortals = new Int2ObjectOpenHashMap<>();
     private final Int2ObjectOpenHashMap<RootSource> rootSources = new Int2ObjectOpenHashMap<>();
+    private final Int2ObjectOpenHashMap<LocalDestination> localDestinations = new Int2ObjectOpenHashMap<>();
     private final Int2ObjectOpenHashMap<String> localRootSources = new Int2ObjectOpenHashMap<>();
     private String localSourceWorld;
     private final IntOpenHashSet dirtyPortals;
@@ -84,9 +87,10 @@ public final class ClientViewSession {
         long capabilities = ViewStreamCapability.of(ViewStreamCapability.PLATES, ViewStreamCapability.BRICK_CACHE, ViewStreamCapability.DEST_LIGHT,
             ViewStreamCapability.ENTITY_FRAMES, ViewStreamCapability.ENTITY_EVENTS, ViewStreamCapability.ATMOSPHERE, ViewStreamCapability.ZERO_COPY,
             ViewStreamCapability.CONFIG_PHASE, ViewStreamCapability.LINK_UNCOMPRESSED, ViewStreamCapability.VIEW_STATS, ViewStreamCapability.MESH_RENDER,
-            ViewStreamCapability.LOCAL_MESH, ViewStreamCapability.MESH_REUSE)
+            ViewStreamCapability.LOCAL_MESH, ViewStreamCapability.MESH_REUSE, ViewStreamCapability.AFFINE_PORTALS)
             | ClientViewExtensions.FX_EMITTERS
-            | ClientViewExtensions.REMOTE_VIEW | ClientViewExtensions.SEAMLESS_TRAVEL | ClientViewExtensions.ROOT_SOURCE;
+            | ClientViewExtensions.REMOTE_VIEW | ClientViewExtensions.SEAMLESS_TRAVEL | ClientViewExtensions.ROOT_SOURCE
+            | ClientViewExtensions.LOCAL_DESTINATION;
         if (config.clientMirror) {
             capabilities |= ViewStreamCapability.CLIENT_MIRROR.mask();
         }
@@ -198,6 +202,7 @@ public final class ClientViewSession {
                 case ViewStreamMessage.Extension extension -> extension(extension, sink);
                 case ViewStreamMessage.Palette paletteMessage -> palette.apply(paletteMessage);
                 case ViewStreamMessage.Portal portal -> portal(portal);
+                case ViewStreamMessage.PortalAffine sample -> affine(sample);
                 case ViewStreamMessage.PortalDrop drop -> drop(drop.portalKey(), sink);
                 case ViewStreamMessage.MeshBegin begin -> meshBegin(begin, sink);
                 case ViewStreamMessage.MeshSection section -> meshSection(section, sink);
@@ -298,12 +303,14 @@ public final class ClientViewSession {
 
     public void clearPortals() {
         rootSources.clear();
+        localDestinations.clear();
         localRootSources.clear();
         meshFailures.clear();
         cacheSequences.clear();
         pendingClaims.clear();
         meshGeometry.clear();
         environments.clear();
+        affinePortals.clear();
         portals.clear();
         plates.clear();
         meshes.clear();
@@ -427,6 +434,13 @@ public final class ClientViewSession {
         return environments.get(portalKey);
     }
 
+    public String localDestinationWorld(int portalKey) {
+        ClientPortal portal = portals.get(portalKey);
+        LocalDestination destination = localDestinations.get(portalKey);
+        return has(ClientViewExtensions.LOCAL_DESTINATION) && portal != null && destination != null
+            && destination.geometryRevision() == portal.geometryRevision() ? destination.destinationWorld() : null;
+    }
+
     public ClientPlateStore plates() {
         return plates;
     }
@@ -437,6 +451,10 @@ public final class ClientViewSession {
 
     public ClientPortal portal(int portalKey) {
         return portals.get(portalKey);
+    }
+
+    public ViewStreamMessage.PortalAffine affine(int portalKey) {
+        return affinePortals.get(portalKey);
     }
 
     public void bindSourceWorld(String sourceWorld) {
@@ -488,6 +506,7 @@ public final class ClientViewSession {
     private void extension(ViewStreamMessage.Extension extension, Sink sink) throws ViewStreamProtocolException {
         switch (extension.payload()) {
             case RootSource source -> rootSource(source);
+            case LocalDestination destination -> localDestination(destination);
             case TravelMessage ignored -> {
             }
             case FxMessage.Fx fx -> {
@@ -505,6 +524,20 @@ public final class ClientViewSession {
         int sequence = cacheSequences.get(portalKey) + 1;
         cacheSequences.put(portalKey, sequence);
         return sequence;
+    }
+
+    private void affine(ViewStreamMessage.PortalAffine sample) throws ViewStreamProtocolException {
+        if (!has(ViewStreamCapability.AFFINE_PORTALS) || !has(ViewStreamCapability.MESH_RENDER)) {
+            throw new ViewStreamProtocolException("Affine portal rendering was not negotiated");
+        }
+        if (!portals.containsKey(sample.portalKey())) {
+            ignoredSceneMessages++;
+            return;
+        }
+        ViewStreamMessage.PortalAffine previous = affinePortals.get(sample.portalKey());
+        if (previous == null || sample.sampleRevision() > previous.sampleRevision()) {
+            affinePortals.put(sample.portalKey(), sample);
+        }
     }
 
     private void portal(ViewStreamMessage.Portal message) throws ViewStreamProtocolException {
@@ -528,12 +561,14 @@ public final class ClientViewSession {
 
     private void drop(int portalKey, Sink sink) {
         rootSources.remove(portalKey);
+        localDestinations.remove(portalKey);
         localRootSources.remove(portalKey);
         cacheSequences.remove(portalKey);
         pendingClaims.remove(portalKey);
         meshFailures.remove(portalKey);
         meshGeometry.remove(portalKey);
         environments.remove(portalKey);
+        affinePortals.remove(portalKey);
         ClientPortal portal = portals.remove(portalKey);
         plates.drop(portalKey);
         meshes.remove(portalKey);
@@ -541,6 +576,26 @@ public final class ClientViewSession {
         if (portal != null) {
             sink.dropped(portal);
         }
+    }
+
+    private void localDestination(LocalDestination destination) throws ViewStreamProtocolException {
+        if (!has(ClientViewExtensions.LOCAL_DESTINATION)) {
+            throw new ViewStreamProtocolException("Portal local destination was not negotiated");
+        }
+        ClientPortal portal = portals.get(destination.portalKey());
+        if (portal == null || destination.geometryRevision() < portal.geometryRevision()) {
+            ignoredSceneMessages++;
+            return;
+        }
+        if (destination.geometryRevision() != portal.geometryRevision()) {
+            throw new ViewStreamProtocolException("Portal local destination does not match current geometry");
+        }
+        LocalDestination previous = localDestinations.get(destination.portalKey());
+        if (previous != null && previous.geometryRevision() == destination.geometryRevision()
+            && !previous.destinationWorld().equals(destination.destinationWorld())) {
+            throw new ViewStreamProtocolException("Portal local destination changed within its geometry revision");
+        }
+        localDestinations.put(destination.portalKey(), destination);
     }
 
     private void rootSource(RootSource source) throws ViewStreamProtocolException {

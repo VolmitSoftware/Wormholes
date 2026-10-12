@@ -11,6 +11,7 @@ public final class ClientViewExtensions {
     public static final long REMOTE_VIEW = FX_EMITTERS << 3;
     public static final long SEAMLESS_TRAVEL = FX_EMITTERS << 4;
     public static final long ROOT_SOURCE = FX_EMITTERS << 5;
+    public static final long LOCAL_DESTINATION = FX_EMITTERS << 6;
     public static final List<ViewStreamExtension<?>> ALL = List.of(FxExtension.INSTANCE, RootSourceExtension.INSTANCE);
     public static final ViewStreamCodec CODEC = new ViewStreamCodec(ALL);
 

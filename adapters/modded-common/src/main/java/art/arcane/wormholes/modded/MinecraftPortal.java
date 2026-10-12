@@ -631,6 +631,18 @@ public final class MinecraftPortal extends Portal implements PortalSettingsTarge
         setOverride("transit.orientation", policy == null ? null : policy.name());
     }
 
+    public boolean isGravityRotationEnabled() {
+        return Boolean.TRUE.equals(values.get("transit.gravityRotation"));
+    }
+
+    public void setGravityRotationEnabled(boolean enabled) {
+        if (enabled) {
+            values.put("transit.gravityRotation", Boolean.TRUE);
+        } else {
+            values.remove("transit.gravityRotation");
+        }
+    }
+
     public void setMembrane(boolean enabled) {
         values.put("transit.membrane", enabled);
     }

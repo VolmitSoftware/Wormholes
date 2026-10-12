@@ -1,5 +1,7 @@
 package art.arcane.wormholes.render.client.session;
 
+import art.arcane.optics.crossing.GravityFrame;
+
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.math.Face;
 import art.arcane.optics.math.Vec3d;
@@ -57,7 +59,7 @@ final class SeamlessCrossCheckShapeTest {
 
     private static SeamlessCrossCheck.Server server(ApertureDescriptor geometry, double x, double eyeY) {
         return new SeamlessCrossCheck.Server("minecraft:the_nether", geometry, new TravelMessage.TravelPose(x, eyeY - EYE, 0.45D, 0.0F, 0.0F),
-            new Vec3d(0.0D, 0.0D, 0.0D), EYE, false, false);
+            new Vec3d(0.0D, 0.0D, 0.0D), EYE, GravityFrame.WORLD, false, false);
     }
 
     private static TravelMessage.TravelBegin arm(ApertureDescriptor geometry) {

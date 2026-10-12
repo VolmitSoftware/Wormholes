@@ -8,6 +8,7 @@ import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.entity.EntitySnapshot;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.phys.Vec3;
 import org.junit.Test;
 
 import java.util.UUID;
@@ -49,7 +50,7 @@ public class MinecraftClientViewObserverTest extends MinecraftTestBase {
         when(observer.meshDepth()).thenReturn(64);
         when(observer.player()).thenReturn(player);
         when(player.level()).thenReturn(world);
-        when(player.getEyeY()).thenReturn(eye.y());
+        when(player.getEyePosition()).thenReturn(new Vec3(eye.x(), eye.y(), eye.z()));
         when(access.portal(observer, child)).thenReturn(portal);
         OpticTransform transform = OpticTransform.translation(0.0D, 0.0D, -4.0D);
         Vec3d parentEye = transform.inverse().point(eye);
@@ -76,5 +77,27 @@ public class MinecraftClientViewObserverTest extends MinecraftTestBase {
         when(player.level()).thenReturn(world);
         when(observer.meshDepth()).thenReturn(0);
         assertFalse(scene.observerVisible(observer, child));
+    }
+
+    @Test
+    public void sidewaysEyeOffsetsDoNotExposeTheObserverAtItsOwnCamera() {
+        MinecraftClientViewPortalAccess access = mock(MinecraftClientViewPortalAccess.class);
+        MinecraftClientViewScene scene = new MinecraftClientViewScene(mock(WormholesModRuntime.class), access);
+        MinecraftClientViewPeer observer = mock(MinecraftClientViewPeer.class);
+        ServerPlayer player = mock(ServerPlayer.class);
+        ServerLevel world = mock(ServerLevel.class);
+        MinecraftPortal portal = mock(MinecraftPortal.class);
+        UUID portalId = UUID.randomUUID();
+        UUID context = UUID.randomUUID();
+        Vec3d eye = new Vec3d(1.62D, 64.0D, 0.0D);
+        when(observer.meshDepth()).thenReturn(64);
+        when(observer.player()).thenReturn(player);
+        when(player.level()).thenReturn(world);
+        when(player.getX()).thenReturn(0.0D);
+        when(player.getEyeY()).thenReturn(64.0D);
+        when(player.getEyePosition()).thenReturn(new Vec3(eye.x(), eye.y(), eye.z()));
+        when(access.portal(observer, context)).thenReturn(portal);
+        when(observer.nestedContext(context)).thenReturn(new MinecraftClientViewPeer.NestedContext(portalId, eye, eye, world, OpticTransform.IDENTITY));
+        assertFalse(scene.observerVisible(observer, context));
     }
 }

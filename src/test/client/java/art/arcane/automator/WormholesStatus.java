@@ -28,6 +28,18 @@ final class WormholesStatus {
             return;
         }
         append(state, clientClass);
+        try {
+            Object client = clientClass.getMethod("instance").invoke(null);
+            if (client == null) {
+                return;
+            }
+            Class<?> rendererClass = Class.forName(RENDERER_CLASS, false, WormholesStatus.class.getClassLoader());
+            Object renderer = rendererClass.getMethod("instance").invoke(null);
+            Object session = clientClass.getMethod("session").invoke(client);
+            state.add("wormholesProjection", projection(renderer, session));
+        } catch (ReflectiveOperationException failure) {
+            report(state, failure);
+        }
     }
 
     static void append(JsonObject state, Class<?> clientClass) {
@@ -56,6 +68,22 @@ final class WormholesStatus {
         } catch (ReflectiveOperationException failure) {
             throw new IllegalStateException("Cannot read Wormholes portal render target " + portalKey, failure);
         }
+    }
+
+    static JsonObject projection(Object renderer, Object session) throws ReflectiveOperationException {
+        if (renderer == null || session == null) {
+            throw new IllegalStateException("Wormholes projection is not initialized");
+        }
+        JsonObject proof = new JsonObject();
+        proof.addProperty("renderer", "clientview-native");
+        proof.addProperty("streamState", invoke(session, "state").toString());
+        proof.addProperty("streamCaps", (Number) invoke(session, "caps"));
+        Object counters = invoke(renderer, "nativeProof");
+        for (String name : new String[] {"preparedFrame", "terrainFrames", "terrainDraws", "lastTerrainFrame",
+            "visiblePortals", "meshSections", "unavailablePortals", "lastAffineRevision"}) {
+            proof.addProperty(name, (Number) invoke(counters, name));
+        }
+        return proof;
     }
 
     static RenderTarget portalTarget(Object renderer, int portalKey) throws ReflectiveOperationException {

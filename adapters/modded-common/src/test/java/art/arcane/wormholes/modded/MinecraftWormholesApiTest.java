@@ -24,6 +24,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.times;
 
 public class MinecraftWormholesApiTest {
     @Test
@@ -67,6 +69,26 @@ public class MinecraftWormholesApiTest {
         for (int tick = 0; tick < 20; tick++) { api.tick(); }
         assertEquals(target.getId(), api.portals().byId(source.getId()).orElseThrow().destinationId());
         assertTrue(events.stream().anyMatch(event -> event.kind() == MinecraftWormholesApi.Kind.PORTAL_LINKED));
+        CompletableFuture<Boolean> projection = api.projection(source.getId(), false);
+        assertFalse(projection.isDone());
+        scheduled.removeFirst().run();
+        assertTrue(projection.join());
+        for (int tick = 0; tick < 20; tick++) { api.tick(); }
+        assertFalse(api.portals().byId(source.getId()).orElseThrow().projectionEnabled());
+        assertTrue(events.stream().anyMatch(event -> event.kind() == MinecraftWormholesApi.Kind.PORTAL_PROJECTION_CHANGED));
+        verify(registry, times(2)).save(source);
+        CompletableFuture<Boolean> gravity = api.gravityRotation(source.getId(), true);
+        assertFalse(gravity.isDone());
+        scheduled.removeFirst().run();
+        assertTrue(gravity.join());
+        assertTrue(source.isGravityRotationEnabled());
+        CompletableFuture<Optional<Boolean>> gravityState = api.gravityRotation(source.getId());
+        scheduled.removeFirst().run();
+        assertEquals(Optional.of(true), gravityState.join());
+        CompletableFuture<Optional<Boolean>> missingGravity = api.gravityRotation(UUID.randomUUID());
+        scheduled.removeFirst().run();
+        assertTrue(missingGravity.join().isEmpty());
+        verify(registry, times(3)).save(source);
         current.remove(target);
         for (int tick = 0; tick < 20; tick++) { api.tick(); }
         assertTrue(events.stream().anyMatch(event -> event.kind() == MinecraftWormholesApi.Kind.PORTAL_DESTROYED));
@@ -75,6 +97,39 @@ public class MinecraftWormholesApiTest {
         assertTrue(unfinished.isCompletedExceptionally());
         assertTrue(MinecraftWormholesApi.forServer(server).isEmpty());
         assertTrue(api.portals().all().isEmpty());
+    }
+
+    @Test
+    public void traversalSubscriptionsUnsubscribeOnceAndCloseWithTheApi() throws Exception {
+        WormholesModRuntime runtime = mock(WormholesModRuntime.class);
+        MinecraftPortalRegistry registry = mock(MinecraftPortalRegistry.class);
+        MinecraftNetworkService service = mock(MinecraftNetworkService.class);
+        NetworkManager network = mock(NetworkManager.class);
+        MinecraftTravelCosts costs = mock(MinecraftTravelCosts.class);
+        when(runtime.server()).thenReturn(mock(MinecraftServer.class));
+        when(runtime.portals()).thenReturn(registry);
+        when(runtime.network()).thenReturn(service);
+        when(runtime.costs()).thenReturn(costs);
+        when(service.manager()).thenReturn(network);
+        when(service.remotePortals()).thenReturn(new RemotePortalRegistry());
+        when(network.peerSnapshots()).thenReturn(List.of());
+        when(registry.snapshot()).thenReturn(List.of());
+        MinecraftTravelCosts.Listener first = mock(MinecraftTravelCosts.Listener.class);
+        MinecraftTravelCosts.Listener second = mock(MinecraftTravelCosts.Listener.class);
+        AutoCloseable firstRegistration = mock(AutoCloseable.class);
+        AutoCloseable secondRegistration = mock(AutoCloseable.class);
+        when(costs.listen(first)).thenReturn(firstRegistration);
+        when(costs.listen(second)).thenReturn(secondRegistration);
+        MinecraftWormholesApi api = new MinecraftWormholesApi(runtime);
+        api.start();
+        AutoCloseable unsubscribe = api.listenTraversal(first);
+        api.listenTraversal(second);
+        unsubscribe.close();
+        unsubscribe.close();
+        verify(firstRegistration).close();
+        api.close();
+        verify(firstRegistration).close();
+        verify(secondRegistration).close();
     }
 
     private static MinecraftPortal portal(String name) {

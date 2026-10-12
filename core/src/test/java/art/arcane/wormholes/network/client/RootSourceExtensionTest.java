@@ -6,6 +6,8 @@ import art.arcane.optics.stream.ViewStreamMessage;
 import art.arcane.optics.stream.ViewStreamProtocolException;
 import art.arcane.optics.stream.ViewStreamReader;
 import art.arcane.optics.stream.ViewStreamWriter;
+import art.arcane.optics.shape.ShapeDescriptor;
+import art.arcane.optics.transform.Affine;
 import org.junit.jupiter.api.Test;
 import java.util.List;
 
@@ -15,6 +17,16 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RootSourceExtensionTest {
+    @Test
+    void affineViewsCoexistWithAllRuntimeExtensions() throws Exception {
+        ViewStreamMessage.PortalAffine message = new ViewStreamMessage.PortalAffine(7, 1L,
+            Affine.IDENTITY, Affine.IDENTITY, ShapeDescriptor.FULL);
+        assertEquals(message, ClientViewExtensions.CODEC.decodeS2C(
+            ClientViewExtensions.CODEC.encodeS2C(message, 9, 0), ViewStreamCapability.ALL).message());
+        assertEquals(41, TravelExtension.INSTANCE.firstId());
+        assertEquals(64, RootSourceExtension.ID);
+    }
+
     @Test
     void canonicalCustomWorldSourceRoundTripsWithoutChangingTheProtocol() throws Exception {
         RootSource source = new RootSource(7, 4, "wormholes:door_pockets/owner_12");

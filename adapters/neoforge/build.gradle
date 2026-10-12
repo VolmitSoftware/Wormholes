@@ -36,6 +36,7 @@ List<String> sharedClientTestClasses = [
     'art.arcane.wormholes.modded.client.ClientSeamlessTravelTest',
     'art.arcane.wormholes.modded.client.ClientTravelCrossingDeclineTest',
     'art.arcane.wormholes.modded.client.ClientSeamlessTravelScaleTest',
+    'art.arcane.wormholes.modded.client.ClientSeamlessTravelGravityTest',
     'art.arcane.wormholes.modded.client.ClientCrossingViewTest',
     'art.arcane.wormholes.modded.client.ClientParticleLevelsTest',
     'art.arcane.wormholes.modded.client.ClientLevelSwitchProbeTest',
@@ -50,7 +51,8 @@ List<String> sharedClientTestClasses = [
     'art.arcane.wormholes.modded.client.PreparedChunkCacheTest',
     'art.arcane.wormholes.modded.client.ResourceArgumentGrammarTest',
     'art.arcane.wormholes.modded.client.ClientVanillaPortalEffectTest',
-    'art.arcane.wormholes.modded.client.render.dh.DhMainRenderContextTest'
+    'art.arcane.wormholes.modded.client.render.dh.DhMainRenderContextTest',
+    'art.arcane.wormholes.modded.client.render.sodium.SodiumArrivalSectionTest'
 ]
 
 sourceSets {
@@ -180,6 +182,13 @@ neoForge {
 
 tasks.named('test').configure {
     useJUnitPlatform()
+    for (String testClass : sharedClientTestClasses) {
+        exclude(testClass.replace('.', '/') + '*.class')
+    }
+    inputs.files(file('../../optics/src/test/resources/block-state-goldens.txt'),
+        fileTree('../../optics/src/test/resources/art/arcane/optics/stream/goldens'))
+        .withPropertyName('opticsGoldenVectors')
+        .withPathSensitivity(PathSensitivity.RELATIVE)
     filter {
         excludeTestsMatching('art.arcane.wormholes.modded.client.render.PortalSectionMeshTest')
     }

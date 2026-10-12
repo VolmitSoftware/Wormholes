@@ -122,6 +122,7 @@ public final class ClientViewTravel<P> implements ViewStreamHooks<P> {
             case TravelMessage.TravelCancel ignored -> seamlessSelected();
             case TravelMessage.TravelAccept ignored -> seamlessSelected();
             case TravelMessage.EntityCrossed ignored -> seamlessSelected();
+            case TravelMessage.EntityGravity ignored -> remoteViewSelected();
             case TravelMessage.RemoteLevelOpen ignored -> remoteViewSelected();
             case TravelMessage.RemoteLevelClose ignored -> remoteViewSelected();
             case TravelMessage.RoutedPacket ignored -> remoteViewSelected();

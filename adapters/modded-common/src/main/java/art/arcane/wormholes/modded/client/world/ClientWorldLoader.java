@@ -164,6 +164,19 @@ public final class ClientWorldLoader {
         forceFullSectionDiscovery = true;
     }
 
+    public static void prepareArrivalTerrain(ClientLevel level, Vec3 camera) {
+        if (!SODIUM) {
+            return;
+        }
+        initializeIfNeeded();
+        if (level == mainLevel || switchedLevel != null) {
+            return;
+        }
+        WorldRenderer world = worldRenderer(level);
+        withWorldRenderer(level, world, () -> SodiumSectionDiscovery.prepareArrival(world.renderer, camera));
+        world.rendered();
+    }
+
     public static void beforeExtract(LevelExtractor extractor) {
         Minecraft minecraft = Minecraft.getInstance();
         if (!forceFullSectionDiscovery || switchedLevel != null || extractor != minecraft.levelExtractor) {

@@ -1,5 +1,7 @@
 package art.arcane.wormholes.modded;
 
+import art.arcane.optics.entity.EntityVisualMetadata;
+import art.arcane.wormholes.modded.gravity.MinecraftGravity;
 import art.arcane.wormholes.modded.mixin.MapDataAccess;
 import art.arcane.wormholes.modded.mixin.EntityDataAccess;
 import art.arcane.optics.entity.EntitySnapshot;
@@ -86,7 +88,8 @@ public final class MinecraftEntityVisualCapture {
         for (SynchedEntityData.DataItem<?> item : items) {
             values.add(item.value());
         }
-        return blobs.writeMetadata(values);
+        return blobs.writeMetadata(values, new EntityVisualMetadata(MinecraftGravity.frame(entity),
+            entity instanceof LivingEntity living ? living.getScale() : 1.0D, EntitySnapshot.EMPTY));
     }
 
     private byte[] equipment(Entity entity) {
@@ -103,13 +106,14 @@ public final class MinecraftEntityVisualCapture {
     }
 
     private static int signature(Entity entity) {
+        int signature = 31 + MinecraftGravity.frame(entity).orientation().index();
         if (entity instanceof ItemFrame frame) {
-            return 31 * ItemStack.hashItemAndComponents(frame.getItem()) + frame.getRotation();
+            return 31 * signature + 31 * ItemStack.hashItemAndComponents(frame.getItem()) + frame.getRotation();
         }
         if (!(entity instanceof LivingEntity living)) {
-            return 0;
+            return signature;
         }
-        int signature = 1;
+        signature = 31 * signature + Float.hashCode(living.getScale());
         for (EquipmentSlot slot : EQUIPMENT) {
             if (living.canUseSlot(slot)) {
                 ItemStack item = living.getItemBySlot(slot);

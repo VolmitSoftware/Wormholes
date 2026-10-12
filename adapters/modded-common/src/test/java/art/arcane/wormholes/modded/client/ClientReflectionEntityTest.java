@@ -1,6 +1,10 @@
 package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.modded.MinecraftTestBase;
+import art.arcane.optics.crossing.GravityFrame;
+import art.arcane.optics.frame.AxisPermutation;
+import art.arcane.optics.math.Face;
+import art.arcane.wormholes.modded.gravity.MinecraftGravity;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
@@ -9,12 +13,14 @@ import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.entity.decoration.Mannequin;
 import net.minecraft.world.phys.Vec3;
 import org.junit.Test;
+import org.mockito.MockedStatic;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -22,8 +28,8 @@ import static org.mockito.Mockito.when;
 public class ClientReflectionEntityTest extends MinecraftTestBase {
     @Test
     public void nativeSelfModelKeepsSourceFeetBodyHeadAndHandBeforeRenderReflection() {
-        LocalPlayer player = mock(LocalPlayer.class);
-        Mannequin reflection = mock(Mannequin.class);
+        LocalPlayer player = worldGravity(mock(LocalPlayer.class));
+        Mannequin reflection = worldGravity(mock(Mannequin.class));
         player.xOld = -12.25D;
         player.yOld = 64;
         player.zOld = 30.5D;
@@ -52,6 +58,27 @@ public class ClientReflectionEntityTest extends MinecraftTestBase {
     }
 
     @Test
+    public void nativeSelfModelRetainsTheSourceGravityFrameAndLocalAngleHistory() {
+        LocalPlayer player = worldGravity(mock(LocalPlayer.class));
+        Mannequin reflection = worldGravity(mock(Mannequin.class));
+        GravityFrame sideways = new GravityFrame(AxisPermutation.of(Face.D, Face.E, Face.S));
+        player.yBodyRotO = 22.0F;
+        player.yBodyRot = 29.0F;
+        player.yHeadRotO = 34.0F;
+        player.yHeadRot = 42.0F;
+        when(player.getMainArm()).thenReturn(HumanoidArm.RIGHT);
+        try (MockedStatic<MinecraftGravity> gravity = mockStatic(MinecraftGravity.class)) {
+            gravity.when(() -> MinecraftGravity.frame(player)).thenReturn(sideways);
+            ClientReflectionEntity.followNativePose(reflection, player);
+            gravity.verify(() -> MinecraftGravity.set(reflection, sideways));
+        }
+        assertEquals(22.0F, reflection.yBodyRotO, 0.0F);
+        assertEquals(29.0F, reflection.yBodyRot, 0.0F);
+        assertEquals(34.0F, reflection.yHeadRotO, 0.0F);
+        assertEquals(42.0F, reflection.yHeadRot, 0.0F);
+    }
+
+    @Test
     public void clearingRemovesEachReflectionFromTheLevelItWasSpawnedInEvenAfterALevelSwitch() throws ReflectiveOperationException {
         ClientReflectionEntity reflections = new ClientReflectionEntity();
         ClientLevel previous = mock(ClientLevel.class);
@@ -67,7 +94,7 @@ public class ClientReflectionEntityTest extends MinecraftTestBase {
     }
 
     private static Mannequin mannequin(ClientLevel level, int id) {
-        Mannequin mannequin = mock(Mannequin.class);
+        Mannequin mannequin = worldGravity(mock(Mannequin.class));
         when(mannequin.getId()).thenReturn(id);
         when(mannequin.level()).thenReturn(level);
         return mannequin;

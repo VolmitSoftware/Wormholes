@@ -1418,6 +1418,8 @@ profile = ["&6&lEfekty przejścia&r", "&7Próg {mode}", "&7Przybycie {state}", "
 prompt = "&bWpisz nową wartość na czacie (lub '{cancel}'):"
 scale = ["&6&lSkala podróżnika: {mode}&r", "&7Zakres rozmiaru {value}. Dopasowuje podróż między portalami różnej wielkości.", "&eLewy przycisk zmienia tryb", "&ePrawy przycisk: minimum, Shift + prawy przycisk: maksimum"]
 
+gravity = ["&6&lKierunek grawitacji: {state}&r", "&7Podłoga, ruch i model gracza z modem obracają się wraz z portalem.", "&eKliknij lewym przyciskiem, aby przełączyć"]
+
 [transit.scale]
 current = "&8[&6Wormholes&8] &f{portal}&7 skala podróżnika: &f{mode}&7 ({value})"
 set = "&8[&6Wormholes&8] &f{portal}&a skala podróżnika ustawiona na &f{mode}&a ({value})."
@@ -1425,6 +1427,11 @@ invalid = "&8[&6Wormholes&8] &cNie można odczytać skali podróżnika: {reason}
 reset = "&8[&6Wormholes&8] &aPrzywrócono normalny rozmiar {count} istot."
 reset_radius = "&8[&6Wormholes&8] &ctarget=all wymaga promienia od 1 do {value}."
 reset_player = "&8[&6Wormholes&8] &cBrak gracza online o nazwie {name}."
+
+[transit.gravity]
+current = "&8[&6Wormholes&8] &f{portal}&7 kierunek grawitacji: &f{state}"
+reset = "&8[&6Wormholes&8] &aPrzywrócono normalną grawitację dla {name}."
+client_required = "&8[&6Wormholes&8] &cTen portal wymaga moda klienckiego Wormholes do zmiany kierunku grawitacji."
 # ---- end lane:transit ----
 
 # ---- lane:view (fidelity.*) ----

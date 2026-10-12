@@ -1,5 +1,7 @@
 package art.arcane.wormholes.modded.clientview;
 
+import art.arcane.optics.crossing.GravityFrame;
+
 import art.arcane.optics.crossing.ArrivalOrientation;
 import art.arcane.optics.aperture.ApertureCells;
 import art.arcane.optics.crossing.PlaneCrossing;
@@ -102,7 +104,7 @@ public class MinecraftSeamlessTravelTest extends MinecraftTestBase {
         Angles.Look look = ArrivalOrientation.apply(crossing, frame, TravelMessage.ArrivalRules.FRAME.orientation(), false);
 
         TravelMessage.TravelPose pose = MinecraftSeamlessTravel.pose(new TravelMessage.TravelPose(arrived.x(), arrived.y(), arrived.z(),
-            look.yaw(), look.pitch()), cross, crossing, TravelMessage.ArrivalRules.FRAME, frame, destination);
+            look.yaw(), look.pitch()), cross, crossing, TravelMessage.ArrivalRules.FRAME, frame, destination, GravityFrame.WORLD);
 
         assertEquals(725.0F, pose.yaw(), 1.0E-3F);
         assertEquals(look.pitch(), pose.pitch(), 1.0E-3F);

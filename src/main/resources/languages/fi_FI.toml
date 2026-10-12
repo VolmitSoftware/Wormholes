@@ -1418,6 +1418,8 @@ profile = ["&6&lSiirtymätehosteet&r", "&7Kynnys {mode}", "&7Saapuminen {state}"
 prompt = "&bKirjoita uusi arvo chattiin (tai '{cancel}'):"
 scale = ["&6&lMatkaajan koko: {mode}&r", "&7Kokoalue {value}. Sovittaa matkan erikokoisten porttien välillä.", "&eVasen napsautus vaihtaa tilaa", "&eOikea napsautus: minimi, Vaihto + oikea napsautus: maksimi"]
 
+gravity = ["&6&lPainovoiman suunta: {state}&r", "&7Modia käyttävän matkustajan lattia, liike ja hahmomalli kääntyvät portaalin mukana.", "&eVaihda tilaa vasemmalla napsautuksella"]
+
 [transit.scale]
 current = "&8[&6Wormholes&8] &f{portal}&7 matkaajan koko: &f{mode}&7 ({value})"
 set = "&8[&6Wormholes&8] &f{portal}&a matkaajan koko asetettu: &f{mode}&a ({value})."
@@ -1425,6 +1427,11 @@ invalid = "&8[&6Wormholes&8] &cMatkaajan kokoa ei voitu lukea: {reason}"
 reset = "&8[&6Wormholes&8] &aPalautettiin {count} olion normaali koko."
 reset_radius = "&8[&6Wormholes&8] &ctarget=all tarvitsee säteen väliltä 1-{value}."
 reset_player = "&8[&6Wormholes&8] &cPelaajaa {name} ei ole paikalla."
+
+[transit.gravity]
+current = "&8[&6Wormholes&8] &f{portal}&7 painovoiman suunta: &f{state}"
+reset = "&8[&6Wormholes&8] &aNormaali painovoima palautettiin pelaajalle {name}."
+client_required = "&8[&6Wormholes&8] &cTämä portaali vaatii Wormholes-asiakasmodin painovoiman suunnan muuttamiseen."
 # ---- end lane:transit ----
 
 # ---- lane:view (fidelity.*) ----

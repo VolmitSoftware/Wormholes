@@ -17,7 +17,7 @@ import art.arcane.wormholes.api.portal.PortalQuery;
  */
 public interface WormholesApi {
     /** The API generation. Increments when a published type changes shape. */
-    int VERSION = 2;
+    int VERSION = 3;
 
     PortalQuery portals();
 

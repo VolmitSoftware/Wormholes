@@ -7,6 +7,9 @@ import art.arcane.optics.client.ClientSweep;
 import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.entity.EntityProjection;
 import art.arcane.optics.math.Angles.Look;
+import art.arcane.optics.math.Face;
+import art.arcane.wormholes.modded.gravity.MinecraftGravity;
+import art.arcane.wormholes.modded.client.render.stencil.PortalSurface;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
@@ -93,7 +96,7 @@ public final class ClientReflectionEntity {
             if (portal == null || !mesh && (mirror == null || !portal.ready() || !visible(portal, mirror.transform(), player))) {
                 continue;
             }
-            OpticTransform space = mesh ? portal.geometry().mirrorTransform() : mirror.transform();
+            OpticTransform space = mesh ? PortalSurface.mirrorTransform(portal.geometry()) : mirror.transform();
             Reflection reflection = reflections.get(portalKey);
             if (reflection == null || reflection.entity.isRemoved() || reflection.entity.level() != level) {
                 if (reflection != null) {
@@ -136,8 +139,11 @@ public final class ClientReflectionEntity {
         if (sweep.eyeFrontSide() != portal.geometry().frontSide() || sweep.appliedCount() == 0) {
             return false;
         }
-        return sampleApplied(sweep, space, player.getX(), player.getY() + BODY_SAMPLE_LIFT, player.getZ())
-            || sampleApplied(sweep, space, player.getX(), player.getEyeY(), player.getZ());
+        Face up = MinecraftGravity.frame(player).up();
+        double height = player.getEyeHeight();
+        return sampleApplied(sweep, space, player.getX() + up.x() * BODY_SAMPLE_LIFT, player.getY() + up.y() * BODY_SAMPLE_LIFT,
+            player.getZ() + up.z() * BODY_SAMPLE_LIFT)
+            || sampleApplied(sweep, space, player.getX() + up.x() * height, player.getY() + up.y() * height, player.getZ() + up.z() * height);
     }
 
     private boolean sampleApplied(ClientSweep sweep, OpticTransform space, double x, double y, double z) {
@@ -232,6 +238,7 @@ public final class ClientReflectionEntity {
     }
 
     static void followNativePose(Mannequin entity, LocalPlayer player) {
+        MinecraftGravity.set(entity, MinecraftGravity.frame(player));
         entity.setOldPosAndRot(new Vec3(player.xOld, player.yOld, player.zOld), player.yRotO, player.xRotO);
         entity.setPos(player.getX(), player.getY(), player.getZ());
         entity.setYRot(player.getYRot());
@@ -268,7 +275,7 @@ public final class ClientReflectionEntity {
     }
 
     private static boolean upsideDown(ApertureDescriptor mirror) {
-        return mirror.mirrorTransform().flipsWorldUp();
+        return PortalSurface.mirrorTransform(mirror).flipsWorldUp();
     }
 
     private static void remove(Reflection reflection) {

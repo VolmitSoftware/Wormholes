@@ -1418,6 +1418,8 @@ profile = ["&6&lGeçiş efektleri&r", "&7Eşik {mode}", "&7Varış {state}", "&e
 prompt = "&bYeni değeri sohbete yazın (veya '{cancel}'):"
 scale = ["&6&lYolcu ölçeği: {mode}&r", "&7Boyut aralığı {value}. Farklı boyuttaki portallar arasındaki yolculuğu eşler.", "&eModu değiştirmek için sol tık", "&eSağ tık: en az, Shift + sağ tık: en çok"]
 
+gravity = ["&6&lYer çekimi yönü: {state}&r", "&7Mod kullanan yolcuların zemini, hareketi ve modeli portalla birlikte döner.", "&eAçıp kapatmak için sol tıklayın"]
+
 [transit.scale]
 current = "&8[&6Wormholes&8] &f{portal}&7 yolcu ölçeği: &f{mode}&7 ({value})"
 set = "&8[&6Wormholes&8] &f{portal}&a yolcu ölçeği &f{mode}&a ({value}) olarak ayarlandı."
@@ -1425,6 +1427,11 @@ invalid = "&8[&6Wormholes&8] &cYolcu ölçeği okunamadı: {reason}"
 reset = "&8[&6Wormholes&8] &a{count} varlığın normal boyutu geri yüklendi."
 reset_radius = "&8[&6Wormholes&8] &ctarget=all için 1 ile {value} arasında bir yarıçap gerekir."
 reset_player = "&8[&6Wormholes&8] &c{name} adında çevrimiçi oyuncu yok."
+
+[transit.gravity]
+current = "&8[&6Wormholes&8] &f{portal}&7 yer çekimi yönü: &f{state}"
+reset = "&8[&6Wormholes&8] &a{name} için normal yer çekimi geri yüklendi."
+client_required = "&8[&6Wormholes&8] &cBu portal, yer çekimi yönünü değiştirmek için Wormholes istemci modunu gerektirir."
 # ---- end lane:transit ----
 
 # ---- lane:view (fidelity.*) ----

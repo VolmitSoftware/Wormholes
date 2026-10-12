@@ -1418,6 +1418,8 @@ profile = ["&6&l遷移演出&r", "&7境界 {mode}", "&7到着 {state}", "&e左�
 prompt = "&b新しい値をチャットに入力してください（または '{cancel}'）:"
 scale = ["&6&l旅行者スケール: {mode}&r", "&7サイズ範囲 {value}。大きさの違うポータル間の移動を対応付けます。", "&e左クリックでモード切替", "&e右クリック: 最小、Shift + 右クリック: 最大"]
 
+gravity = ["&6&l重力の向き: {state}&r", "&7MOD を使うプレイヤーの床、移動方向、モデルがポータルに合わせて回転します。", "&e左クリックで切り替え"]
+
 [transit.scale]
 current = "&8[&6Wormholes&8] &f{portal}&7 の旅行者スケール: &f{mode}&7 ({value})"
 set = "&8[&6Wormholes&8] &f{portal}&a の旅行者スケールを &f{mode}&a ({value}) に設定しました。"
@@ -1425,6 +1427,11 @@ invalid = "&8[&6Wormholes&8] &c旅行者スケールを読み取れません: {r
 reset = "&8[&6Wormholes&8] &a{count} 体のエンティティを通常サイズに戻しました。"
 reset_radius = "&8[&6Wormholes&8] &ctarget=all には 1 から {value} の半径が必要です。"
 reset_player = "&8[&6Wormholes&8] &c{name} という名前のオンラインプレイヤーはいません。"
+
+[transit.gravity]
+current = "&8[&6Wormholes&8] &f{portal}&7 重力の向き: &f{state}"
+reset = "&8[&6Wormholes&8] &a{name} の重力を通常の向きに戻しました。"
+client_required = "&8[&6Wormholes&8] &cこのポータルで重力の向きを変更するには、Wormholes クライアント MOD が必要です。"
 # ---- end lane:transit ----
 
 # ---- lane:view (fidelity.*) ----

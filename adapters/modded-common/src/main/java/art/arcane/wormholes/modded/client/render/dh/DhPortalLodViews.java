@@ -119,7 +119,7 @@ final class DhPortalLodViews {
     }
 
     private static Camera camera(PortalView view) {
-        return new Camera(view.kind(), view.key(), view.source().dimension().identifier().toString(),
+        return new Camera(view.kind(), view.historyKey(), view.source().dimension().identifier().toString(),
             view.destination().dimension().identifier().toString(), view.toDestination());
     }
 

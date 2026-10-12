@@ -2,6 +2,7 @@ package art.arcane.wormholes.modded.client.render;
 
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.stream.EnvironmentState;
+import art.arcane.optics.stream.ViewStreamMessage;
 import it.unimi.dsi.fastutil.longs.LongIterable;
 import net.minecraft.client.renderer.block.BlockAndTintGetter;
 import net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState;
@@ -16,6 +17,10 @@ import java.util.function.ObjLongConsumer;
 
 public interface PortalScene {
     ApertureDescriptor geometry();
+
+    default ViewStreamMessage.PortalAffine affine() {
+        return null;
+    }
 
     default ClientLevel sourceLevel() {
         return null;

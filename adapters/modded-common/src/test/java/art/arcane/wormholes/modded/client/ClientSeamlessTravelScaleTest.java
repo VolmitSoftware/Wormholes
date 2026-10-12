@@ -86,7 +86,7 @@ public class ClientSeamlessTravelScaleTest extends MinecraftTestBase {
         Frame north = Frame.canonical(Face.N);
         Similarity toward = Similarity.between(north, new Vec3d(1.0D, 1.5D, 0.5D), north, new Vec3d(101.0D, 65.5D, 100.5D), 3.0D);
         TravelMessage.ArrivalRules rules = new TravelMessage.ArrivalRules(OrientationRule.FRAME, false,
-            new MomentumRule(MomentumRule.Mode.PRESERVE, 1.0D, 0.0D, null), rule);
+            new MomentumRule(MomentumRule.Mode.PRESERVE, 1.0D, 0.0D, null), rule, false);
         return new TravelMessage.TravelBegin(SCALED_TOKEN, base.generation(), new UUID(2, 4), base.sourceWorld(), base.sourceGeometry(),
             TravelMessage.TravelBegin.destinationToSource(toward), 3.0F, base.world(), base.arrival(), base.environment(), rules, base.resident(),
             base.levelHandle(), base.doorCollision());

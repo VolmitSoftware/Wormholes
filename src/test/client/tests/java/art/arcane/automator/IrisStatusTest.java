@@ -9,6 +9,8 @@ public final class IrisStatusTest {
         require(absent.isEmpty(), "Absent Iris must omit its state");
         JsonObject off = new JsonObject();
         IrisStatus.append(off, Api.class);
+        require(!off.getAsJsonObject("iris").has("programBinaryFormats") && !off.getAsJsonObject("iris").has("renderer"),
+                "Injected Iris API state must not query GL without a live context");
         require(!off.getAsJsonObject("iris").get("shaderPackInUse").getAsBoolean(), "Shader use must report the actual pipeline");
         IrisStatus.setShadersEnabled(Api.class, true);
         JsonObject on = new JsonObject();

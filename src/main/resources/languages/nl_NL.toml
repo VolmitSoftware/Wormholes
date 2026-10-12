@@ -1418,6 +1418,8 @@ profile = ["&6&lOvergangseffecten&r", "&7Drempel {mode}", "&7Aankomst {state}", 
 prompt = "&bTyp de nieuwe waarde in de chat (of '{cancel}'):"
 scale = ["&6&lReizigersschaal: {mode}&r", "&7Groottebereik {value}. Past reizen tussen portalen van verschillende grootte aan.", "&eLinksklik om de modus te wisselen", "&eRechtsklik: minimum, Shift + rechtsklik: maximum"]
 
+gravity = ["&6&lGerichte zwaartekracht: {state}&r", "&7Bij reizigers met de mod draaien de vloer, beweging en het model mee met het portaal.", "&eKlik links om aan of uit te zetten"]
+
 [transit.scale]
 current = "&8[&6Wormholes&8] &f{portal}&7 reizigersschaal: &f{mode}&7 ({value})"
 set = "&8[&6Wormholes&8] &f{portal}&a reizigersschaal ingesteld op &f{mode}&a ({value})."
@@ -1425,6 +1427,11 @@ invalid = "&8[&6Wormholes&8] &cKon de reizigersschaal niet lezen: {reason}"
 reset = "&8[&6Wormholes&8] &aDe normale grootte van {count} entiteiten is hersteld."
 reset_radius = "&8[&6Wormholes&8] &ctarget=all heeft een straal van 1 tot {value} nodig."
 reset_player = "&8[&6Wormholes&8] &cGeen online speler met de naam {name}."
+
+[transit.gravity]
+current = "&8[&6Wormholes&8] &f{portal}&7 gerichte zwaartekracht: &f{state}"
+reset = "&8[&6Wormholes&8] &aNormale zwaartekracht hersteld voor {name}."
+client_required = "&8[&6Wormholes&8] &cDit portaal vereist de Wormholes-clientmod voor gerichte zwaartekracht."
 # ---- end lane:transit ----
 
 # ---- lane:view (fidelity.*) ----

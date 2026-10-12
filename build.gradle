@@ -187,11 +187,11 @@ def runtimeJarTestTask = tasks.register('runtimeJarTest', Test) {
     useJUnitPlatform()
     jvmArgs '--enable-native-access=ALL-UNNAMED'
     systemProperty('wormholes.projectVersion', project.version.toString())
+    systemProperty('wormholes.runtimeJar', shadowJarTask.get().archiveFile.get().asFile.absolutePath)
+    inputs.file(shadowJarTask.flatMap { task -> task.archiveFile })
+        .withPropertyName('runtimeJar').withPathSensitivity(PathSensitivity.NONE)
     filter {
         includeTestsMatching(runtimeJarTestFilter)
-    }
-    doFirst {
-        systemProperty('wormholes.runtimeJar', shadowJarTask.get().archiveFile.get().asFile.absolutePath)
     }
 }
 

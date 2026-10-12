@@ -52,6 +52,7 @@ import org.lwjgl.opengl.GL11C;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
@@ -749,7 +750,14 @@ public final class DistantHorizonsClientGameTest implements FabricClientGameTest
         BlockPos[] origins = {FIRST_MIRROR, SECOND_MIRROR, NESTED_MIRROR};
         WormholesModRuntime runtime = runtime(server);
         for (int index = 0; index < origins.length; index++) {
-            MinecraftPortal mirror = runtime.portals().create(player.getUUID(), server.overworld(), cells(origins[index]),
+            int width = index == 2 ? 33 : 3;
+            List<BlockPos> aperture = new ArrayList<>(width * 3);
+            for (int x = 0; x < width; x++) {
+                for (int y = 0; y < 3; y++) {
+                    aperture.add(origins[index].offset(x, y, 0));
+                }
+            }
+            MinecraftPortal mirror = runtime.portals().create(player.getUUID(), server.overworld(), aperture,
                 PortalType.PORTAL, new Vec3(0, 0, index == 2 ? 1 : -1));
             mirror.setMirrorMode(true);
             runtime.portals().save(mirror);
@@ -765,6 +773,8 @@ public final class DistantHorizonsClientGameTest implements FabricClientGameTest
         RenderBufferHandler secondBuffers = context.computeOnClient(minecraft -> DistantHorizonsTap.buffers(SECOND_MIRROR, 1));
         DistantHorizonsTap.History first = context.computeOnClient(minecraft -> DistantHorizonsTap.history(FIRST_MIRROR, 1));
         DistantHorizonsTap.History second = context.computeOnClient(minecraft -> DistantHorizonsTap.history(SECOND_MIRROR, 1));
+        Map<DistantHorizonsTap.HistoryPath, DistantHorizonsTap.History> nested =
+            context.computeOnClient(minecraft -> DistantHorizonsTap.nestedHistorySnapshot());
         IrisPipelineCostTap.Counts original = shaders ? context.computeOnClient(minecraft -> IrisPipelineCostTap.snapshot()) : null;
         for (int visit = 0; visit < 3; visit++) {
             projection(server, player, mirrors, false);
@@ -773,6 +783,8 @@ public final class DistantHorizonsClientGameTest implements FabricClientGameTest
             projection(server, player, mirrors, true);
             context.getInput().lookAt(visit == 1 ? 185.0F : 180.0F, 0.0F);
             awaitLod(context, FIRST_MIRROR, 1, "mirror-revisit-" + visit, previous);
+            boolean samePose = visit != 1;
+            context.runOnClient(minecraft -> DistantHorizonsTap.assertNestedHistoryStable(nested, samePose));
             context.runOnClient(minecraft -> assertTrue(DistantHorizonsTap.buffers(FIRST_MIRROR, 1) == firstBuffers
                 && DistantHorizonsTap.buffers(SECOND_MIRROR, 1) == secondBuffers, "DH mirror revisit replaced terrain buffers"));
             if (context.computeOnClient(minecraft -> DistantHorizonsTap.temporalHistorySupported())

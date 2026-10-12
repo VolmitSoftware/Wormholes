@@ -23,7 +23,7 @@ import java.util.UUID;
  */
 public record PortalSnapshot(UUID id, String name, String type, String worldKey, double centerX, double centerY,
                              double centerZ, String frameNormal, boolean open, UUID destinationId,
-                             String destinationServer, UUID owner, boolean listed) {
+                             String destinationServer, UUID owner, boolean listed, boolean projectionEnabled) {
     public Optional<UUID> destination() {
         return Optional.ofNullable(destinationId);
     }

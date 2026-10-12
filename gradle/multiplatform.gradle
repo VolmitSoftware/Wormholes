@@ -1,4 +1,12 @@
 import groovy.json.JsonSlurper
+import org.gradle.api.artifacts.Configuration
+import org.gradle.api.attributes.Category
+import org.gradle.api.attributes.LibraryElements
+import org.gradle.api.attributes.Usage
+import org.gradle.api.tasks.ClasspathNormalizer
+import org.gradle.api.tasks.PathSensitivity
+import org.gradle.jvm.toolchain.JavaLanguageVersion
+import org.gradle.jvm.toolchain.JavaLauncher
 
 String minecraftVersion = providers.gradleProperty('minecraftVersion').get()
 Properties buildDefaults = new Properties()
@@ -24,6 +32,68 @@ String consumerLocation = providers.gradleProperty('location')
         : layout.buildDirectory.dir('consumers').get().asFile.absolutePath)
 String useLocalVolmLib = providers.gradleProperty('useLocalVolmLib').getOrElse('true')
 File localVolmLibCheckout = gradle.includedBuilds.find { IncludedBuild included -> included.name == 'VolmLib' }?.projectDir
+Configuration moddedSharedLibraries = configurations.create('moddedSharedLibraries') {
+    canBeConsumed = false
+    canBeResolved = true
+    attributes {
+        attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage, Usage.JAVA_RUNTIME))
+        attribute(Category.CATEGORY_ATTRIBUTE, objects.named(Category, Category.LIBRARY))
+        attribute(LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE, objects.named(LibraryElements, LibraryElements.JAR))
+    }
+}
+dependencies.add(moddedSharedLibraries.name, 'com.github.VolmitSoftware.VolmLib:volmlib-localization:master-SNAPSHOT')
+dependencies.add(moddedSharedLibraries.name, 'com.github.VolmitSoftware.VolmLib:volmlib-web:master-SNAPSHOT')
+Provider<JavaLauncher> moddedLauncher = javaToolchains.launcherFor {
+    languageVersion = JavaLanguageVersion.of(25)
+}
+Closure<Void> configureModdedInputs = { Task task, String targetVersion, List<String> targetLoaders ->
+    task.dependsOn(moddedSharedLibraries)
+    task.inputs.files(moddedSharedLibraries).withPropertyName('sharedLibraries').withNormalizer(ClasspathNormalizer)
+    task.inputs.files(buildscript.configurations.classpath).withPropertyName('buildPlugins').withNormalizer(ClasspathNormalizer)
+    task.inputs.files(fileTree('core/src'), fileTree('optics/src'),
+        fileTree('src/main/resources/languages'), fileTree('src/main/resources/wormholes-pockets-pack/data'))
+        .withPropertyName('sharedSources').withPathSensitivity(PathSensitivity.RELATIVE)
+    task.inputs.files(file('build.gradle'), file('settings.gradle'), file('gradle.properties'),
+        file('core/build.gradle'), file('optics/build.gradle'), file('optics/gradle.properties'),
+        file('adapters/game-test.gradle'), file('gradle/multiplatform.gradle'),
+        file('gradle/modded-target.gradle'), file('gradle/modded-sources.gradle'), file('gradle/modded-artifact.gradle'),
+        file('gradle/localization-settings.gradle'), file('gradle/libs.versions.toml'),
+        file("gradle/minecraft-versions/${targetVersion}.json"), fileTree('gradle/wrapper'),
+        file('gradlew'), file('gradlew.bat'), file('LICENSE.md'), file('THIRD-PARTY-NOTICES.md'))
+        .withPropertyName('buildDefinition').withPathSensitivity(PathSensitivity.RELATIVE)
+    List<String> sourceRoots = ['adapters/modded-common'] + targetLoaders.collect { String loader -> "adapters/${loader}".toString() }
+    if (targetLoaders.contains('neoforge') && !targetLoaders.contains('forge')) {
+        sourceRoots.add('adapters/forge')
+    }
+    for (String sourceRoot : sourceRoots) {
+        task.inputs.files(fileTree("${sourceRoot}/src") {
+            include('main/**', 'test/**', 'gameTest/**', 'clientGameTest/**', 'clientGameTestDriver/**', "${targetVersion}/**")
+        }).withPropertyName(sourceRoot.replace('/', '_')).withPathSensitivity(PathSensitivity.RELATIVE)
+        task.inputs.files(file("${sourceRoot}/build.gradle"), file("${sourceRoot}/settings.gradle"), file("${sourceRoot}/gradle.properties"))
+            .withPropertyName(sourceRoot.replace('/', '_') + '_build').withPathSensitivity(PathSensitivity.RELATIVE)
+    }
+    task.inputs.property('useLocalVolmLib', useLocalVolmLib)
+    task.inputs.property('minecraftVersion', targetVersion)
+    task.inputs.property('wormholesVersion', project.version.toString())
+    task.inputs.property('javaRuntime', System.getProperty('java.runtime.version'))
+    task.inputs.property('javaVendor', System.getProperty('java.vendor'))
+    task.inputs.property('compilerRuntime', moddedLauncher.map { JavaLauncher launcher -> launcher.metadata.javaRuntimeVersion })
+    task.inputs.property('compilerVendor', moddedLauncher.map { JavaLauncher launcher -> launcher.metadata.vendor })
+    task.inputs.property('gradleVersion', gradle.gradleVersion)
+    task.inputs.files(gradle.startParameter.allInitScripts).withPropertyName('initScripts').withPathSensitivity(PathSensitivity.NONE)
+    task.outputs.upToDateWhen { !gradle.startParameter.refreshDependencies }
+    null
+}
+List<String> nestedBuildArguments = [gradle.startParameter.buildCacheEnabled ? '--build-cache' : '--no-build-cache']
+if (gradle.startParameter.refreshDependencies) {
+    nestedBuildArguments.add('--refresh-dependencies')
+}
+if (gradle.startParameter.rerunTasks) {
+    nestedBuildArguments.add('--rerun-tasks')
+}
+for (File initScript : gradle.startParameter.initScripts) {
+    nestedBuildArguments.addAll(['--init-script', initScript.absolutePath])
+}
 Map<String, File> moddedArtifacts = [:]
 tasks.register('buildBukkit', Copy) {
     group = 'distribution'
@@ -55,27 +125,13 @@ loaders.each { String loader, String display ->
         commandLine(file(wrapper).absolutePath, ':build', ':core:build', '--console=plain',
             "-PwormholesVersion=${project.version}", "-PminecraftVersion=${minecraftVersion}",
             "-P${versionKey}=${loaderVersion}", "-PuseLocalVolmLib=${useLocalVolmLib}")
+        args(nestedBuildArguments)
+        args('--project-cache-dir', file("adapters/${loader}/.gradle/targets/${minecraftVersion}").absolutePath)
         if (localVolmLibCheckout != null) {
             environment('ORG_GRADLE_PROJECT_localVolmLibDirectory', localVolmLibCheckout.absolutePath)
         }
-        inputs.files(fileTree('core/src'), file('core/build.gradle'), fileTree('optics/src'), file('optics/build.gradle'), fileTree('adapters/modded-common/src'),
-            fileTree("adapters/${loader}/src"), file("adapters/${loader}/build.gradle"),
-            file("adapters/${loader}/settings.gradle"), file("adapters/game-test.gradle"), file("adapters/${loader}/gradle.properties"),
-            file('gradle.properties'), fileTree('gradle/minecraft-versions'), file('gradle/modded-target.gradle'), file('gradle/modded-sources.gradle'), file('gradle/modded-artifact.gradle'), file('gradle/libs.versions.toml'), file('gradle/localization-settings.gradle'),
-            file('.gradle/local.properties'), fileTree('gradle/wrapper'),
-            fileTree('src/main/resources/languages'), fileTree('src/main/resources/wormholes-pockets-pack/data'))
-        if (loader == 'neoforge') {
-            inputs.files(file('adapters/forge/build.gradle'), fileTree('adapters/forge/src'))
-        }
-        gradle.includedBuilds.find { IncludedBuild included -> new File(included.projectDir, 'localization/build.gradle').isFile() }?.with { IncludedBuild included ->
-            inputs.files(fileTree(new File(included.projectDir, 'localization/src')), new File(included.projectDir, 'localization/build.gradle'),
-                fileTree(new File(included.projectDir, 'web/src')), new File(included.projectDir, 'web/build.gradle'))
-        }
-        inputs.property('useLocalVolmLib', useLocalVolmLib)
-        inputs.property('localVolmLibDirectory', localVolmLibCheckout?.canonicalPath ?: '')
-        inputs.property('minecraftVersion', minecraftVersion)
+        configureModdedInputs(delegate as Task, minecraftVersion, [loader])
         inputs.property('loaderVersion', loaderVersion)
-        inputs.property('wormholesVersion', project.version.toString())
         outputs.file(file("adapters/${loader}/${adapterBuildDirectory}/libs/${artifactName}"))
     }
     TaskProvider<Task> verifyTask = tasks.register("verify${display}Artifact") {
@@ -147,23 +203,50 @@ tasks.register('buildAll') {
 List<String> minecraftVersions = fileTree('gradle/minecraft-versions') {
     include('*.json')
 }.files.collect { File manifest -> manifest.name.substring(0, manifest.name.length() - 5) }.sort()
-TaskProvider<Exec> previousVersionBuild = null
-List<TaskProvider<Exec>> versionBuilds = []
+TaskProvider<Task> previousVersionBuild = null
+List<TaskProvider<Task>> versionBuilds = []
 minecraftVersions.each { String targetVersion ->
-    TaskProvider<Exec> versionBuild = tasks.register("buildModded${targetVersion.replace('.', '_')}ToOut", Exec) {
-        group = 'distribution'
-        description = "Builds verified ${targetVersion} mod jars into the distribution directory."
-        mustRunAfter('buildBukkit', ':build', ':core:build')
-        workingDir(rootDir)
-        commandLine(file(wrapper).absolutePath, 'buildFabric', 'buildForge', 'buildNeoforge', '--console=plain',
-            "-PwormholesVersion=${project.version}", "-PminecraftVersion=${targetVersion}",
-            "-PpluginOutDirectory=${outputDirectory.absolutePath}", "-PuseLocalVolmLib=${useLocalVolmLib}")
-        if (localVolmLibCheckout != null) {
-            environment('ORG_GRADLE_PROJECT_localVolmLibDirectory', localVolmLibCheckout.absolutePath)
+    String taskName = "buildModded${targetVersion.replace('.', '_')}ToOut"
+    TaskProvider<Task> versionBuild
+    if (targetVersion == minecraftVersion) {
+        versionBuild = tasks.register(taskName) {
+            group = 'distribution'
+            description = "Builds verified ${targetVersion} mod jars into the distribution directory."
+            dependsOn('buildFabric', 'buildForge', 'buildNeoforge')
+        }
+    } else {
+        Map<String, Object> target = (Map<String, Object>) new JsonSlurper().parse(file("gradle/minecraft-versions/${targetVersion}.json"))
+        versionBuild = tasks.register(taskName, Exec) {
+            group = 'distribution'
+            description = "Builds verified ${targetVersion} mod jars into the distribution directory."
+            mustRunAfter('buildBukkit', ':build', ':core:build', 'fabricJar', 'forgeJar', 'neoforgeJar')
+            workingDir(rootDir)
+            commandLine(file(wrapper).absolutePath, 'buildFabric', 'buildForge', 'buildNeoforge', '--console=plain',
+                "-PwormholesVersion=${project.version}", "-PminecraftVersion=${targetVersion}",
+                "-PpluginOutDirectory=${outputDirectory.absolutePath}", "-PuseLocalVolmLib=${useLocalVolmLib}")
+            args(nestedBuildArguments)
+            args('--project-cache-dir', file(".gradle/modded-targets/${targetVersion}").absolutePath)
+            if (localVolmLibCheckout != null) {
+                environment('ORG_GRADLE_PROJECT_localVolmLibDirectory', localVolmLibCheckout.absolutePath)
+            }
+            configureModdedInputs(delegate as Task, targetVersion, loaders.keySet().toList())
+            loaders.each { String loader, String display ->
+                String loaderVersion = ((Map<String, String>) target['loaders'])[loader]
+                String displayVersion = loaderVersion.startsWith("${targetVersion}-")
+                    ? loaderVersion.substring(targetVersion.length() + 1) : loaderVersion
+                if (loader == 'neoforge') {
+                    displayVersion = displayVersion.replaceFirst(/-beta$/, '')
+                }
+                String artifactName = "Wormholes v${project.version} [${display}] ${targetVersion}+${displayVersion}.jar"
+                String targetBuildDirectory = targetVersion == buildDefaults.getProperty('minecraftVersion') ? 'build' : "build/${targetVersion}"
+                args("-P${versionKeys[loader]}=${loaderVersion}")
+                inputs.property(versionKeys[loader], loaderVersion)
+                outputs.files(new File(outputDirectory, artifactName), file("adapters/${loader}/${targetBuildDirectory}/libs/${artifactName}"))
+            }
         }
     }
     if (previousVersionBuild != null) {
-        TaskProvider<Exec> predecessor = previousVersionBuild
+        TaskProvider<Task> predecessor = previousVersionBuild
         versionBuild.configure { mustRunAfter(predecessor) }
     }
     previousVersionBuild = versionBuild

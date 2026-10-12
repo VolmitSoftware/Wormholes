@@ -22,6 +22,7 @@ import art.arcane.wormholes.portal.AmbientParticleStyle;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.frame.QuarterTurn;
+import art.arcane.optics.frame.Similarity;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.render.FidelitySettings;
 import art.arcane.optics.claim.BlockClaim;
@@ -32,6 +33,8 @@ import art.arcane.optics.recursion.ClientRecursionPlanner;
 import art.arcane.optics.stream.ViewStreamEndpoints;
 import art.arcane.optics.stream.ViewStreamMessage;
 import art.arcane.wormholes.network.client.ClientViewExtensions;
+import art.arcane.wormholes.network.client.LocalDestination;
+import art.arcane.wormholes.network.client.LocalDestinationExtension;
 import art.arcane.wormholes.network.client.RootSource;
 import art.arcane.wormholes.network.client.RootSourceExtension;
 import art.arcane.optics.plate.ViewPlate;
@@ -93,6 +96,17 @@ public final class MinecraftClientViewPortalAccess implements ViewStreamEndpoint
         return destination == null ? 1.0F : (float) (1.0D / MinecraftPortalRegistry.travelScale(source, destination));
     }
 
+    private static List<ViewStreamMessage> geometryMetadata(int portalKey, int revision, String sourceWorld, String destinationWorld) {
+        List<ViewStreamMessage> metadata = new ArrayList<>(2);
+        if (sourceWorld != null) {
+            metadata.add(RootSourceExtension.INSTANCE.wrap(new RootSource(portalKey, revision, sourceWorld)));
+        }
+        if (destinationWorld != null) {
+            metadata.add(LocalDestinationExtension.INSTANCE.wrap(new LocalDestination(portalKey, revision, destinationWorld)));
+        }
+        return List.copyOf(metadata);
+    }
+
     private List<MinecraftPortal> candidates(MinecraftClientViewPeer peer) {
         List<MinecraftPortal> doors = peer.doors();
         if (doors.isEmpty()) {
@@ -143,17 +157,24 @@ public final class MinecraftClientViewPortalAccess implements ViewStreamEndpoint
 
     @Override
     public GeometryMetadata geometryMetadata(MinecraftClientViewPeer peer, UUID portalId, GeometryMetadataContext context) {
-        if (context.geometry().parentPortalKey() != 0 || (context.caps() & ClientViewExtensions.ROOT_SOURCE) == 0L) {
+        String sourceWorld = null;
+        if (context.geometry().parentPortalKey() == 0 && (context.caps() & ClientViewExtensions.ROOT_SOURCE) != 0L) {
+            MinecraftPortal portal = portal(peer, portalId);
+            MinecraftProjectorPortalAccess access = peer.portals();
+            ServerLevel source = portal == null || access == null ? null : access.world(portal);
+            if (source == null) {
+                throw new IllegalStateException("Missing source world for portal " + portalId);
+            }
+            sourceWorld = source.dimension().identifier().toString();
+        }
+        MinecraftClientViewScene.Destination destination = (context.caps() & ClientViewExtensions.LOCAL_DESTINATION) == 0L
+            ? null : scene.destination(peer, portalId, context.geometry().frontSide());
+        String destinationWorld = destination == null ? null : destination.world().dimension().identifier().toString();
+        if (sourceWorld == null && destinationWorld == null) {
             return GeometryMetadata.NONE;
         }
-        MinecraftPortal portal = portal(peer, portalId);
-        MinecraftProjectorPortalAccess access = peer.portals();
-        ServerLevel source = portal == null || access == null ? null : access.world(portal);
-        if (source == null) {
-            throw new IllegalStateException("Missing source world for portal " + portalId);
-        }
-        String sourceWorld = source.dimension().identifier().toString();
-        return revision -> List.of(RootSourceExtension.INSTANCE.wrap(new RootSource(context.portalKey(), revision, sourceWorld)));
+        String rootWorld = sourceWorld;
+        return revision -> geometryMetadata(context.portalKey(), revision, rootWorld, destinationWorld);
     }
 
     @Override
@@ -242,8 +263,10 @@ public final class MinecraftClientViewPortalAccess implements ViewStreamEndpoint
             return;
         }
         OpticTransform affine = destination.frame().transform().normalized();
-        peer.nestedContext(context, new MinecraftClientViewPeer.NestedContext(portalId, eye,
-            affine.inverse().point(new Vec3d(eye.x(), eye.y(), eye.z())), destination.world(), affine));
+        float scale = viewScale(peer, portalId);
+        Similarity content = Similarity.between(portal.getFrame(), portal.getOrigin(), portal.getFrame(), portal.getOrigin(), scale);
+        Vec3d destinationEye = content.compose(Similarity.of(affine, 1.0D)).inverse().point(eye);
+        peer.nestedContext(context, new MinecraftClientViewPeer.NestedContext(portalId, eye, destinationEye, destination.world(), affine));
     }
 
     @Override

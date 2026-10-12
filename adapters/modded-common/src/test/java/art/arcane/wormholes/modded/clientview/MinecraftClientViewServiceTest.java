@@ -8,6 +8,10 @@ import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.modded.MinecraftProjectionService;
 import art.arcane.wormholes.modded.WormholesModConfiguration;
 import art.arcane.wormholes.modded.WormholesModRuntime;
+import art.arcane.wormholes.modded.gravity.MinecraftGravity;
+import art.arcane.optics.crossing.GravityFrame;
+import art.arcane.optics.frame.AxisPermutation;
+import art.arcane.optics.math.Face;
 import art.arcane.wormholes.modded.mixin.ServerConnectionAccess;
 import art.arcane.wormholes.network.client.ClientViewExtensions;
 import art.arcane.optics.stream.ViewStreamCapability;
@@ -24,21 +28,27 @@ import net.minecraft.network.protocol.PacketFlow;
 import net.minecraft.network.protocol.common.ClientboundCustomPayloadPacket;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.players.PlayerList;
 import net.minecraft.server.network.ServerGamePacketListenerImpl;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.MockedStatic;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.Executor;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
+import static org.mockito.Mockito.mockStatic;
+import static org.junit.Assert.assertFalse;
 
 public class MinecraftClientViewServiceTest extends MinecraftTestBase {
     private static final UUID ALEX = UUID.fromString("00000000-0000-0000-0000-00000000a1e7");
@@ -58,9 +68,14 @@ public class MinecraftClientViewServiceTest extends MinecraftTestBase {
         WormholesModRuntime runtime = mock(WormholesModRuntime.class);
         WormholesModConfiguration configuration = mock(WormholesModConfiguration.class);
         MinecraftProjectionService projections = mock(MinecraftProjectionService.class);
+        MinecraftServer server = mock(MinecraftServer.class);
+        PlayerList playerList = mock(PlayerList.class);
         Executor lanes = Runnable::run;
         options = options(true);
         when(runtime.configuration()).thenReturn(configuration);
+        when(runtime.server()).thenReturn(server);
+        when(server.getPlayerList()).thenReturn(playerList);
+        when(playerList.getPlayers()).thenReturn(List.of());
         when(configuration.settings()).thenReturn(MinecraftTestSettings.defaults());
         when(configuration.clientViewOptions()).thenAnswer(ignored -> options);
         when(runtime.projections()).thenReturn(projections);
@@ -88,6 +103,7 @@ public class MinecraftClientViewServiceTest extends MinecraftTestBase {
         ViewStreamMessage.Offer offer = (ViewStreamMessage.Offer) message(sent.get(sent.size() - 1));
         assertTrue(ViewStreamCapability.LOCAL_MESH.in(offer.serverCaps()));
         assertTrue((offer.serverCaps() & ClientViewExtensions.REMOTE_VIEW) != 0L);
+        assertTrue((offer.serverCaps() & ClientViewExtensions.LOCAL_DESTINATION) != 0L);
         assertTrue((offer.serverCaps() & ClientViewExtensions.SEAMLESS_TRAVEL) != 0L);
 
         byte[] hello = MinecraftClientViewExtensions.CODEC.encodeC2S(ViewStreamHandshake.clientHello(offer, offer.mcDataVersion(),
@@ -97,7 +113,19 @@ public class MinecraftClientViewServiceTest extends MinecraftTestBase {
         assertTrue(ViewStreamCapability.LOCAL_MESH.in(accept.caps()));
         assertTrue(ViewStreamCapability.MESH_RENDER.in(accept.caps()));
         assertTrue((accept.caps() & ClientViewExtensions.REMOTE_VIEW) != 0L);
+        assertTrue((accept.caps() & ClientViewExtensions.LOCAL_DESTINATION) != 0L);
         assertTrue((accept.caps() & ClientViewExtensions.SEAMLESS_TRAVEL) != 0L);
+    }
+
+    @Test
+    public void localDestinationMetadataIsNotNegotiatedWithoutClientSupport() throws ViewStreamProtocolException {
+        service.channelRegistered(player(overworld));
+        ViewStreamMessage.Offer offer = (ViewStreamMessage.Offer) message(sent.get(sent.size() - 1));
+        byte[] hello = MinecraftClientViewExtensions.CODEC.encodeC2S(ViewStreamHandshake.clientHello(offer, offer.mcDataVersion(),
+            ViewStreamCapability.ALL & ~ClientViewExtensions.LOCAL_DESTINATION, 512 * 1024, 256, 0L, "fabric"));
+        assertEquals(ViewStreamInbound.HELLO_ACCEPTED, service.receive(connection, hello));
+        ViewStreamMessage.Accept accept = (ViewStreamMessage.Accept) message(sent.get(sent.size() - 1));
+        assertEquals(0L, accept.caps() & ClientViewExtensions.LOCAL_DESTINATION);
     }
 
     @Test
@@ -161,6 +189,40 @@ public class MinecraftClientViewServiceTest extends MinecraftTestBase {
         accept();
     }
 
+    @Test
+    public void disablingInTheConfigurationResetsGravityWhileTheNativeSessionCanStillReceiveIt() throws ViewStreamProtocolException {
+        ServerPlayer player = player(overworld);
+        service.channelRegistered(player);
+        ViewStreamMessage.Offer offer = (ViewStreamMessage.Offer) message(sent.get(sent.size() - 1));
+        byte[] hello = MinecraftClientViewExtensions.CODEC.encodeC2S(ViewStreamHandshake.clientHello(offer, offer.mcDataVersion(),
+            MinecraftClientViewService.PLATFORM_CAPS, 512 * 1024, 256, 0L, "fabric"));
+        assertEquals(ViewStreamInbound.HELLO_ACCEPTED, service.receive(connection, hello));
+        assertTrue(service.nativeMesh(player));
+        GravityFrame sideways = new GravityFrame(AxisPermutation.of(Face.D, Face.E, Face.S));
+        AtomicReference<GravityFrame> gravity = new AtomicReference<>(sideways);
+        List<Boolean> selectedWhenReset = new ArrayList<>();
+        try (MockedStatic<MinecraftGravity> access = mockStatic(MinecraftGravity.class)) {
+            access.when(() -> MinecraftGravity.reset(player)).thenAnswer(call -> {
+                if (!gravity.get().equals(GravityFrame.WORLD)) {
+                    selectedWhenReset.add(service.nativeMesh(player));
+                    gravity.set(GravityFrame.WORLD);
+                }
+                return null;
+            });
+            int mark = sent.size();
+            options = options(false);
+            tick(player);
+            assertEquals(List.of(true), selectedWhenReset);
+            assertEquals(GravityFrame.WORLD, gravity.get());
+            assertFalse(service.nativeMesh(player));
+            assertEquals(List.of(ViewStreamMessage.ResetReason.DISABLED), resets(mark));
+            gravity.set(sideways);
+            tick(player);
+            assertEquals(List.of(true, false), selectedWhenReset);
+            assertEquals(GravityFrame.WORLD, gravity.get());
+        }
+    }
+
     private void negotiate(ServerPlayer player) throws ViewStreamProtocolException {
         int mark = sent.size();
         service.channelRegistered(player);
@@ -180,7 +242,7 @@ public class MinecraftClientViewServiceTest extends MinecraftTestBase {
     }
 
     private ServerPlayer player(ServerLevel level) {
-        ServerPlayer player = mock(ServerPlayer.class);
+        ServerPlayer player = worldGravity(mock(ServerPlayer.class));
         ServerGamePacketListenerImpl listener = mock(ServerGamePacketListenerImpl.class, withSettings().extraInterfaces(ServerConnectionAccess.class));
         when(((ServerConnectionAccess) listener).wormholesConnection()).thenReturn(connection);
         player.connection = listener;

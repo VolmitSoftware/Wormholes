@@ -65,7 +65,7 @@ public final class IrisHistoryTap {
     }
 
     public static void rendered(IrisRenderingPipeline pipeline, RenderTargets targets) {
-        if (!enabled) {
+        if (!enabled || IrisMeshHistoryTap.active()) {
             return;
         }
         RenderTarget history = targets.get(5);
@@ -100,6 +100,10 @@ public final class IrisHistoryTap {
 
     public static Sample main() {
         return main;
+    }
+
+    static PortalLayer currentLayer() {
+        return LAYERS.isEmpty() ? null : LAYERS.peek().layer();
     }
 
     public static Sample view(BlockPos origin) {

@@ -494,7 +494,6 @@ public final class WormholesModRuntime {
     private void releaseServices() {
         RuntimeException failure = null;
         for (Runnable cleanup : new Runnable[] {
-            api::close,
             recipeBook::close,
             operations::close,
             effects::close,
@@ -511,6 +510,7 @@ public final class WormholesModRuntime {
             networkTools::close,
             rtp::close,
             costs::close,
+            api::close,
             network::close,
             doors::close,
             atlas::close,

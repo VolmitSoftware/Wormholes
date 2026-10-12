@@ -1,6 +1,8 @@
 package art.arcane.wormholes.modded;
 
 import art.arcane.optics.crossing.ScaleRule;
+import art.arcane.optics.crossing.GravityFrame;
+import art.arcane.wormholes.modded.gravity.MinecraftGravity;
 import art.arcane.optics.shape.Shapes;
 import art.arcane.volmlib.util.localization.MessageArgs;
 import art.arcane.volmlib.util.localization.TextKey;
@@ -114,6 +116,10 @@ public final class MinecraftPortalTools implements AutoCloseable {
                         return suggestions.buildFuture();
                     }).executes(context -> shape(context.getSource(), UuidArgument.getUuid(context, "portal"),
                         StringArgumentType.getString(context, "shape"))))))
+                .then(Commands.literal("gravity").then(Commands.argument("portal", UuidArgument.uuid())
+                    .executes(context -> gravity(context.getSource(), UuidArgument.getUuid(context, "portal"), null))
+                    .then(Commands.argument("enabled", BoolArgumentType.bool()).executes(context -> gravity(context.getSource(),
+                        UuidArgument.getUuid(context, "portal"), BoolArgumentType.getBool(context, "enabled"))))))
                 .then(Commands.literal("scale").then(Commands.argument("portal", UuidArgument.uuid())
                     .executes(context -> scale(context.getSource(), UuidArgument.getUuid(context, "portal"), "", "", ""))
                     .then(Commands.argument("mode", StringArgumentType.word()).suggests((context, suggestions) -> {
@@ -128,6 +134,11 @@ public final class MinecraftPortalTools implements AutoCloseable {
                             .then(Commands.argument("max", StringArgumentType.word()).executes(context -> scale(context.getSource(),
                                 UuidArgument.getUuid(context, "portal"), StringArgumentType.getString(context, "mode"), StringArgumentType.getString(context, "min"),
                                 StringArgumentType.getString(context, "max")))))))))
+            .then(Commands.literal("gravity").requires(Commands.hasPermission(Commands.LEVEL_ADMINS))
+                .then(Commands.literal("reset")
+                    .executes(context -> resetGravity(context.getSource(), context.getSource().getPlayerOrException()))
+                    .then(Commands.literal("player").then(Commands.argument("name", StringArgumentType.word()).executes(context ->
+                        resetGravity(context.getSource(), runtime.server().getPlayerList().getPlayerByName(StringArgumentType.getString(context, "name"))))))))
             .then(Commands.literal("scale").requires(source -> runtime.access().permission(source, "wormholes.admin.scale"))
                 .then(Commands.literal("reset")
                     .executes(context -> resetScale(context.getSource(), List.of(context.getSource().getPlayerOrException())))
@@ -412,6 +423,33 @@ public final class MinecraftPortalTools implements AutoCloseable {
             return 0;
         }
         source.sendSuccess(() -> reply, change.status() == ApertureShapeChange.Status.SET);
+        return 1;
+    }
+
+    private int gravity(CommandSourceStack source, UUID id, Boolean enabled) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        MinecraftPortal portal = runtime.portals().get(id);
+        if (portal == null || !runtime.portals().canManage(player, portal)) {
+            return changed(source, false, "");
+        }
+        if (enabled != null && !runtime.portals().update(player, id, target -> target.setGravityRotationEnabled(enabled))) {
+            return changed(source, false, "");
+        }
+        runtime.menus().refresh(id);
+        Component reply = runtime.localization().text(player, TransitMessages.GRAVITY_CURRENT,
+            Map.of("portal", portal.getName(), "state", portal.isGravityRotationEnabled() ? "on" : "off"));
+        source.sendSuccess(() -> reply, enabled != null);
+        return 1;
+    }
+
+    private int resetGravity(CommandSourceStack source, ServerPlayer target) {
+        if (target == null) {
+            source.sendFailure(Component.literal("No online player with that name."));
+            return 0;
+        }
+        MinecraftGravity.reset(target);
+        source.sendSuccess(() -> runtime.localization().text(source.getPlayer(), TransitMessages.GRAVITY_RESET,
+            Map.of("name", target.getScoreboardName())), true);
         return 1;
     }
 
