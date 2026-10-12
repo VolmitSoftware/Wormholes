@@ -91,6 +91,7 @@ public final class MinecraftPortalSyncAccess implements PortalSyncAccess<Minecra
     @Override
     public Map<String, String> collectSettings(MinecraftPortal portal) {
         Map<String, String> settings = PortalSettingsCodec.collectSettings(portal);
+        settings.put("transit.gravityRotation", Boolean.toString(portal.isGravityRotationEnabled()));
         ScaleRule scale = portal.getScaleRule();
         settings.put(ScaleRuleSettings.MODE, ScaleRuleSettings.format(scale.mode()));
         settings.put(ScaleRuleSettings.MIN, ScaleRuleSettings.format(scale.min()));
@@ -118,6 +119,9 @@ public final class MinecraftPortalSyncAccess implements PortalSyncAccess<Minecra
     public void applySettings(MinecraftPortal portal, Map<String, String> settings) {
         PortalSyncService.applyRemote(() -> {
             PortalSettingsCodec.applyToLocal(portal, settings);
+            if (settings.containsKey("transit.gravityRotation")) {
+                portal.setGravityRotationEnabled(Boolean.parseBoolean(settings.get("transit.gravityRotation")));
+            }
             if (settings.containsKey(ScaleRuleSettings.MODE) && settings.containsKey(ScaleRuleSettings.MIN) && settings.containsKey(ScaleRuleSettings.MAX)) {
                 portal.setScaleRule(ScaleRuleSettings.parse(settings.get(ScaleRuleSettings.MODE), settings.get(ScaleRuleSettings.MIN), settings.get(ScaleRuleSettings.MAX)));
             }

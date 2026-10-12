@@ -352,4 +352,8 @@ public class PortalStructure implements IWritable, CellAperture
         return geometry;
     }
 
+    public ApertureCells getBuiltGeometry() {
+        return built;
+    }
+
 }

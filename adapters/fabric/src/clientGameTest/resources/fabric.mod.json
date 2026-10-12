@@ -40,6 +40,7 @@
       "art.arcane.wormholes.clientgametest.ArrivalTerrainClientGameTest",
       "art.arcane.wormholes.clientgametest.NetherCrossingCompositionClientGameTest",
       "art.arcane.wormholes.clientgametest.NetherCrossingEffectsClientGameTest",
+      "art.arcane.wormholes.clientgametest.RotatedNetherPairClientGameTest",
       "art.arcane.wormholes.clientgametest.CardinalLightingClientGameTest",
       "art.arcane.wormholes.clientgametest.SeamlessWalkThroughClientGameTest",
       "art.arcane.wormholes.clientgametest.LookContinuityClientGameTest",

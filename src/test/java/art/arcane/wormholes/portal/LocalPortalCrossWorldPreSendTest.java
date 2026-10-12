@@ -1,11 +1,13 @@
 package art.arcane.wormholes.portal;
 
 import art.arcane.wormholes.chunk.presend.RecordingBukkitChunkPreSend;
+import art.arcane.wormholes.transit.AttributeTestSupport;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.entity.Entity;
 import org.bukkit.util.Vector;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeAll;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -16,6 +18,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
 final class LocalPortalCrossWorldPreSendTest {
+    @BeforeAll
+    static void initializeRegistries() {
+        AttributeTestSupport.initialize();
+    }
+
     @Test
     void crossWorldTravelSkipsRawPreSendAndContinuesOnTheTravelerOwner() {
         World sourceWorld = LocalPortalTestSupport.world("presend-source");

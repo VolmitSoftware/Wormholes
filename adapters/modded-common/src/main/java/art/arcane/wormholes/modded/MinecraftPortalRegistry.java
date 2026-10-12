@@ -71,6 +71,7 @@ import java.util.concurrent.Executors;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 import art.arcane.wormholes.network.client.TravelMessage;
+import art.arcane.wormholes.network.PortalSyncService;
 
 public final class MinecraftPortalRegistry implements AutoCloseable {
     private static final Logger LOGGER = LoggerFactory.getLogger("Wormholes");
@@ -607,6 +608,9 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
         if (closed || portals.get(portal.getId()) != portal) {
             throw new IllegalArgumentException("Portal is not registered");
         }
+        if (!PortalSyncService.isApplyingRemote()) {
+            requireTransitPairSync(portal);
+        }
         runtime.network().portalChanged(portal);
         runtime.nexus().changed(portal);
         String encoded = JSON.toJson(portal.write());
@@ -618,6 +622,38 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
                 LOGGER.error("Could not save Wormholes portal {}", portal.getId(), exception);
             }
         });
+    }
+
+    private void requireTransitPairSync(MinecraftPortal source) {
+        if (source.isMirrorMode() || source.getType() == PortalType.RTP || "UNIVERSAL".equals(source.getTunnelType())) {
+            return;
+        }
+        UUID destinationId = source.getDestinationId();
+        UUID counterpartId = source.getCounterpartId();
+        if (destinationId != null) {
+            requireTransitPairSync(source, portals.get(destinationId));
+        }
+        if (counterpartId != null && !counterpartId.equals(destinationId)) {
+            requireTransitPairSync(source, portals.get(counterpartId));
+        }
+    }
+
+    private void requireTransitPairSync(MinecraftPortal source, MinecraftPortal destination) {
+        if (destination == null || destination == source || destination.isMirrorMode() || destination.getType() == PortalType.RTP
+            || source.getDimensionalKind().isReceiverOnly() || destination.getDimensionalKind().isReceiverOnly()
+            || !requiresTransitSync(source) && !requiresTransitSync(destination)) {
+            return;
+        }
+        source.setSettingsSyncEnabled(true);
+        if (!destination.isSettingsSyncEnabled()) {
+            destination.setSettingsSyncEnabled(true);
+            PortalSyncService.applyRemote(() -> save(destination));
+            runtime.menus().refresh(destination.getId());
+        }
+    }
+
+    private static boolean requiresTransitSync(MinecraftPortal portal) {
+        return portal.isGravityRotationEnabled() || portal.getScaleRule().mode() != ScaleRule.Mode.OFF;
     }
 
     static void write(Path file, String encoded) throws IOException {

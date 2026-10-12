@@ -491,7 +491,7 @@ public final class MinecraftVanillaPortals implements AutoCloseable {
                 queue.add(position.relative(direction));
             }
         }
-        Shape shape = bounds(List.copyOf(cells), end, alongX);
+        Shape shape = bounds(List.copyOf(cells), end);
         if (end && level.dimension() == Level.END) {
             return shape.minimum().getY() == shape.maximum().getY() && shape.cells().size() <= 24
                 && shape.minimum().getX() >= -3 && shape.maximum().getX() <= 3
@@ -504,21 +504,20 @@ public final class MinecraftVanillaPortals implements AutoCloseable {
 
     private static Shape geometry(MinecraftPortal portal) {
         List<BlockPos> cells = new ArrayList<>();
-        for (Vec3d position : portal.getGeometry().getBlockPositions()) {
+        for (Vec3d position : portal.getBuiltGeometry().getBlockPositions()) {
             cells.add(new BlockPos((int) position.x(), (int) position.y(), (int) position.z()));
         }
-        return bounds(cells, portal.getDimensionalKind().isManagedEndPortal(),
-            Math.abs(portal.getFrame().getNormal().z()) > 0.5D);
+        return bounds(cells, portal.getDimensionalKind().isManagedEndPortal());
     }
 
-    private static Shape bounds(List<BlockPos> cells, boolean end, boolean alongX) {
+    private static Shape bounds(List<BlockPos> cells, boolean end) {
         BlockPos minimum = cells.getFirst();
         BlockPos maximum = minimum;
         for (BlockPos cell : cells) {
             minimum = new BlockPos(Math.min(minimum.getX(), cell.getX()), Math.min(minimum.getY(), cell.getY()), Math.min(minimum.getZ(), cell.getZ()));
             maximum = new BlockPos(Math.max(maximum.getX(), cell.getX()), Math.max(maximum.getY(), cell.getY()), Math.max(maximum.getZ(), cell.getZ()));
         }
-        return new Shape(cells, minimum, maximum, end, alongX);
+        return new Shape(cells, minimum, maximum, end, maximum.getX() > minimum.getX());
     }
 
     private static List<BlockPos> frame(Shape shape) {

@@ -1,6 +1,7 @@
 package art.arcane.wormholes.modded;
 
 import art.arcane.optics.crossing.GravityFrame;
+import art.arcane.optics.crossing.ScaleRule;
 
 import art.arcane.wormholes.rules.RuleDocument;
 import art.arcane.wormholes.nexus.NetworkMember;
@@ -59,6 +60,39 @@ import static org.mockito.Mockito.when;
 public class MinecraftPortalRegistryTest extends MinecraftTestBase {
     @Rule
     public TemporaryFolder directory = new TemporaryFolder();
+
+    @Test
+    public void nativeGravityAndScalePairsRequireSyncAtBothEnds() throws Exception {
+        Fixture fixture = fixture();
+        try (MinecraftPortalRegistry registry = fixture.registry()) {
+            MinecraftPortal source = create(registry, fixture.level(), 0);
+            MinecraftPortal destination = create(registry, fixture.level(), 10);
+            registry.link(fixture.actor(), source.getId(), destination.getId());
+            registry.link(fixture.actor(), destination.getId(), source.getId());
+            source.setSettingsSyncEnabled(false);
+            destination.setSettingsSyncEnabled(false);
+            registry.update(fixture.actor(), source.getId(), portal -> portal.setGravityRotationEnabled(true));
+            assertTrue(source.isSettingsSyncEnabled());
+            assertTrue(destination.isSettingsSyncEnabled());
+            registry.update(fixture.actor(), destination.getId(), portal -> portal.setSettingsSyncEnabled(false));
+            assertTrue(destination.isSettingsSyncEnabled());
+
+            source.setGravityRotationEnabled(false);
+            source.setSettingsSyncEnabled(false);
+            destination.setSettingsSyncEnabled(false);
+            registry.update(fixture.actor(), source.getId(), portal -> portal.setScaleRule(ScaleRule.motion()));
+            assertTrue(source.isSettingsSyncEnabled());
+            assertTrue(destination.isSettingsSyncEnabled());
+            registry.update(fixture.actor(), source.getId(), portal -> portal.setSettingsSyncEnabled(false));
+            assertTrue(source.isSettingsSyncEnabled());
+
+            source.setScaleRule(ScaleRule.OFF);
+            registry.update(fixture.actor(), source.getId(), portal -> portal.setSettingsSyncEnabled(false));
+            registry.update(fixture.actor(), destination.getId(), portal -> portal.setSettingsSyncEnabled(false));
+            assertFalse(source.isSettingsSyncEnabled());
+            assertFalse(destination.isSettingsSyncEnabled());
+        }
+    }
 
     @Test
     public void reloadPreservesLinksSparseCellsAndStablePermissionIdentity() throws Exception {
@@ -356,6 +390,7 @@ public class MinecraftPortalRegistryTest extends MinecraftTestBase {
     private Fixture fixture() {
         WormholesModRuntime runtime = mock(WormholesModRuntime.class);
         when(runtime.nexus()).thenReturn(mock(MinecraftNexus.class));
+        when(runtime.menus()).thenReturn(mock(MinecraftPortalMenus.class));
         when(runtime.doors()).thenReturn(mock(MinecraftDoorService.class));
         doCallRealMethod().when(runtime).travelArrived(any(Entity.class));
         MinecraftNetworkService network = mock(MinecraftNetworkService.class);

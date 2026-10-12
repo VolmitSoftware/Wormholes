@@ -3,15 +3,24 @@ package art.arcane.wormholes.portal.vanilla;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import java.util.HashSet;
 import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 import org.bukkit.Material;
+import org.bukkit.Location;
+import org.bukkit.NamespacedKey;
+import org.bukkit.World;
 
 import art.arcane.wormholes.portal.DimensionalPortalKind;
+import art.arcane.wormholes.portal.PortalStructure;
+import art.arcane.wormholes.util.Cuboid;
+import art.arcane.optics.frame.Frame;
 import art.arcane.optics.math.Face;
+import art.arcane.optics.shape.ShapeDescriptor;
 
 public final class VanillaPortalFrameIntegrityPlanTest
 {
@@ -43,6 +52,10 @@ public final class VanillaPortalFrameIntegrityPlanTest
 		assertTrue(frame.contains(new VanillaPortalFrameIntegrity.FramePosition(0, 64, -1)));
 		assertFalse(frame.contains(new VanillaPortalFrameIntegrity.FramePosition(-1, 64, 0)));
 		assertFalse(frame.contains(new VanillaPortalFrameIntegrity.FramePosition(0, 63, -1)));
+		Set<VanillaPortalFrameIntegrity.FramePosition> perpendicular = VanillaPortalFrameIntegrity.expectedFramePositions(cells, Face.N);
+		assertEquals(6, perpendicular.size());
+		assertTrue(perpendicular.contains(new VanillaPortalFrameIntegrity.FramePosition(-1, 64, 0)));
+		assertFalse(perpendicular.contains(new VanillaPortalFrameIntegrity.FramePosition(0, 64, -1)));
 	}
 
 	@Test
@@ -53,12 +66,13 @@ public final class VanillaPortalFrameIntegrityPlanTest
 				new VanillaPortalFrameIntegrity.FramePosition(0, 65, 0),
 				new VanillaPortalFrameIntegrity.FramePosition(1, 64, 0));
 
-		Set<VanillaPortalFrameIntegrity.FramePosition> frame = VanillaPortalFrameIntegrity.expectedFramePositions(cells, Face.N);
+		Set<VanillaPortalFrameIntegrity.FramePosition> frame = VanillaPortalFrameIntegrity.expectedFramePositions(cells, null);
 
 		assertEquals(7, frame.size());
 		assertTrue(frame.contains(new VanillaPortalFrameIntegrity.FramePosition(1, 65, 0)));
 		assertFalse(frame.contains(new VanillaPortalFrameIntegrity.FramePosition(1, 66, 0)));
 		assertFalse(frame.contains(new VanillaPortalFrameIntegrity.FramePosition(0, 64, 1)));
+		assertEquals(frame, VanillaPortalFrameIntegrity.expectedFramePositions(cells, Face.E));
 	}
 
 	@Test
@@ -73,7 +87,7 @@ public final class VanillaPortalFrameIntegrityPlanTest
 			}
 		}
 
-		Set<VanillaPortalFrameIntegrity.FramePosition> frame = VanillaPortalFrameIntegrity.expectedFramePositions(cells, Face.N);
+		Set<VanillaPortalFrameIntegrity.FramePosition> frame = VanillaPortalFrameIntegrity.expectedFramePositions(cells, null);
 
 		assertEquals(10, frame.size());
 		assertTrue(frame.contains(new VanillaPortalFrameIntegrity.FramePosition(-1, 1, 0)));
@@ -93,11 +107,62 @@ public final class VanillaPortalFrameIntegrityPlanTest
 			}
 		}
 
-		Set<VanillaPortalFrameIntegrity.FramePosition> frame = VanillaPortalFrameIntegrity.expectedFramePositions(cells, Face.U);
+		Set<VanillaPortalFrameIntegrity.FramePosition> frame = VanillaPortalFrameIntegrity.expectedFramePositions(cells, null);
 
 		assertEquals(12, frame.size());
 		assertTrue(frame.contains(new VanillaPortalFrameIntegrity.FramePosition(0, 64, -2)));
 		assertFalse(frame.contains(new VanillaPortalFrameIntegrity.FramePosition(-2, 64, -2)));
+	}
+
+	@Test
+	public void physicalBordersIgnoreMasksAndTraversalTurnsOnBothWallPlanes()
+	{
+		for(Face physical : new Face[] {Face.N, Face.E})
+		{
+			World world = world();
+			PortalStructure structure = new PortalStructure();
+			structure.setArea(new Cuboid(new Location(world, 0, 64, 0),
+					physical == Face.N ? new Location(world, 6, 70, 0) : new Location(world, 0, 70, 6)));
+			Set<VanillaPortalFrameIntegrity.FramePosition> frame = VanillaPortalFrameIntegrity.expectedFramePositions(structure, null);
+			assertEquals(28, frame.size());
+			assertTrue(structure.setApertureShape(ShapeDescriptor.parse("circle"), Frame.canonical(physical)));
+			assertTrue(structure.getBlockPositions().size() < structure.getBuiltGeometry().getBlockPositions().size());
+			assertEquals(frame, VanillaPortalFrameIntegrity.expectedFramePositions(structure, null));
+			structure.orient(Frame.canonical(physical).rotateClockwise());
+			assertEquals(frame, VanillaPortalFrameIntegrity.expectedFramePositions(structure, null));
+			for(Face traversal : new Face[] {Face.N, Face.E, Face.U})
+			{
+				structure.orient(Frame.canonical(traversal));
+				assertEquals(frame, VanillaPortalFrameIntegrity.expectedFramePositions(structure, null));
+			}
+		}
+	}
+
+	@Test
+	public void maskedBuiltCellsNeverBecomeRequiredFrameBlocks()
+	{
+		World world = world();
+		PortalStructure structure = new PortalStructure();
+		structure.setArea(new Cuboid(new Location(world, 0, 64, 0), new Location(world, 6, 70, 0)));
+		assertTrue(structure.setApertureShape(ShapeDescriptor.parse("circle"), Frame.canonical(Face.N)));
+		Set<VanillaPortalFrameIntegrity.FramePosition> frame = VanillaPortalFrameIntegrity.expectedFramePositions(structure, null);
+		assertFalse(structure.containsBlock(0, 64, 0));
+		assertFalse(frame.contains(new VanillaPortalFrameIntegrity.FramePosition(0, 64, 0)));
+		assertTrue(frame.contains(new VanillaPortalFrameIntegrity.FramePosition(-1, 67, 0)));
+		assertFalse(VanillaPortalFrameIntegrity.isFrameMaterial(DimensionalPortalKind.NETHER, Material.AIR));
+	}
+
+	@Test
+	public void endFrameRemainsHorizontalAfterTraversalReorientation()
+	{
+		World world = world();
+		PortalStructure structure = new PortalStructure();
+		structure.setArea(new Cuboid(new Location(world, 0, 64, 0), new Location(world, 2, 64, 2)));
+		structure.orient(Frame.canonical(Face.E));
+		Set<VanillaPortalFrameIntegrity.FramePosition> frame = VanillaPortalFrameIntegrity.expectedFramePositions(structure, null);
+		assertEquals(12, frame.size());
+		assertTrue(frame.contains(new VanillaPortalFrameIntegrity.FramePosition(-1, 64, 1)));
+		assertFalse(frame.contains(new VanillaPortalFrameIntegrity.FramePosition(1, 63, 1)));
 	}
 
 	@Test
@@ -131,5 +196,12 @@ public final class VanillaPortalFrameIntegrityPlanTest
 				}
 			}
 		}
+	}
+
+	private static World world()
+	{
+		World world = mock(World.class);
+		when(world.getKey()).thenReturn(new NamespacedKey("minecraft", "integrity"));
+		return world;
 	}
 }

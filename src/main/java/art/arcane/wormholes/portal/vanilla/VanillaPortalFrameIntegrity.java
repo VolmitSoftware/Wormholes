@@ -13,7 +13,6 @@ import java.util.function.BooleanSupplier;
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.Block;
-import org.bukkit.util.Vector;
 
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.wormholes.Settings;
@@ -21,8 +20,8 @@ import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.portal.DimensionalPortalKind;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.PortalStructure;
-import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Face;
+import art.arcane.optics.math.Vec3d;
 
 final class VanillaPortalFrameIntegrity
 {
@@ -50,9 +49,11 @@ final class VanillaPortalFrameIntegrity
 			activePortals.add(portal.getId());
 			World world = structure.getWorld();
 			CachedFramePositions cached = framePositionCache.get(portal.getId());
-			if(cached == null || cached.structure() != structure)
+			long revision = structure.getBuiltGeometry().getRevision();
+			Face ambiguousNormal = kind == DimensionalPortalKind.SHAPED_NETHER ? portal.getDirection() : null;
+			if(cached == null || cached.structure() != structure || cached.revision() != revision || cached.ambiguousNormal() != ambiguousNormal)
 			{
-				cached = new CachedFramePositions(structure, expectedFramePositions(structure, portal.getDirection()));
+				cached = new CachedFramePositions(structure, revision, ambiguousNormal, expectedFramePositions(structure, ambiguousNormal));
 				framePositionCache.put(portal.getId(), cached);
 			}
 			for(FramePosition position : cached.positions())
@@ -181,8 +182,9 @@ final class VanillaPortalFrameIntegrity
 			{
 				continue;
 			}
+			Set<FramePosition> cells = builtCells(structure);
 			if(portal.getDimensionalPortalKind() == DimensionalPortalKind.SHAPED_NETHER
-					? isCardinalFrameBlock(broken, structure, portal.getDirection()) : isOpenFrameBlock(broken, structure))
+					? expectedFramePositions(cells, portal.getDirection()).contains(new FramePosition(broken.getX(), broken.getY(), broken.getZ())) : isOpenFrameBlock(broken, cells))
 			{
 				return portal;
 			}
@@ -202,46 +204,20 @@ final class VanillaPortalFrameIntegrity
 		};
 	}
 
-	private static boolean isCardinalFrameBlock(Block block, PortalStructure structure, Face normal)
-	{
-		int x = block.getX();
-		int y = block.getY();
-		int z = block.getZ();
-		return !structure.containsBlock(x, y, z)
-				&& ((normal.x() == 0 && (structure.containsBlock(x - 1, y, z) || structure.containsBlock(x + 1, y, z)))
-				|| (normal.y() == 0 && (structure.containsBlock(x, y - 1, z) || structure.containsBlock(x, y + 1, z)))
-				|| (normal.z() == 0 && (structure.containsBlock(x, y, z - 1) || structure.containsBlock(x, y, z + 1))));
-	}
-
-	private static boolean isOpenFrameBlock(Block broken, PortalStructure structure)
+	private static boolean isOpenFrameBlock(Block broken, Set<FramePosition> cells)
 	{
 		int x = broken.getX();
 		int y = broken.getY();
 		int z = broken.getZ();
-		if(structure.containsBlock(x, y, z))
+		if(cells.isEmpty() || cells.contains(new FramePosition(x, y, z)))
 		{
 			return false;
 		}
-		Box area = structure.getArea();
-		if(area == null)
-		{
-			return false;
-		}
-		double sx = area.sizeX();
-		double sy = area.sizeY();
-		double sz = area.sizeZ();
-		if(sz <= sx && sz <= sy)
-		{
-			return adjacentPortalCell(structure, x, y, z, true, true, false);
-		}
-		if(sy <= sx && sy <= sz)
-		{
-			return adjacentPortalCell(structure, x, y, z, true, false, true);
-		}
-		return adjacentPortalCell(structure, x, y, z, false, true, true);
+		Face normal = physicalNormal(cells, null);
+		return adjacentPortalCell(cells, x, y, z, normal.x() == 0, normal.y() == 0, normal.z() == 0);
 	}
 
-	private static boolean adjacentPortalCell(PortalStructure structure, int x, int y, int z, boolean varyX, boolean varyY, boolean varyZ)
+	private static boolean adjacentPortalCell(Set<FramePosition> cells, int x, int y, int z, boolean varyX, boolean varyY, boolean varyZ)
 	{
 		for(int a = -1; a <= 1; a++)
 		{
@@ -269,7 +245,7 @@ final class VanillaPortalFrameIntegrity
 					ny = y + a;
 					nz = z + b;
 				}
-				if(structure.containsBlock(nx, ny, nz))
+				if(cells.contains(new FramePosition(nx, ny, nz)))
 				{
 					return true;
 				}
@@ -278,18 +254,28 @@ final class VanillaPortalFrameIntegrity
 		return false;
 	}
 
-	private static Set<FramePosition> expectedFramePositions(PortalStructure structure, Face normal)
+	static Set<FramePosition> expectedFramePositions(PortalStructure structure, Face ambiguousNormal)
 	{
-		Set<FramePosition> cells = new HashSet<FramePosition>();
-		for(Vector vector : structure.getBlockPositions())
-		{
-			cells.add(new FramePosition(vector.getBlockX(), vector.getBlockY(), vector.getBlockZ()));
-		}
-		return expectedFramePositions(cells, normal);
+		return expectedFramePositions(builtCells(structure), ambiguousNormal);
 	}
 
-	static Set<FramePosition> expectedFramePositions(Set<FramePosition> cells, Face normal)
+	private static Set<FramePosition> builtCells(PortalStructure structure)
 	{
+		Set<FramePosition> cells = new HashSet<FramePosition>();
+		for(Vec3d vector : structure.getBuiltGeometry().getBlockPositions())
+		{
+			cells.add(new FramePosition(vector.blockX(), vector.blockY(), vector.blockZ()));
+		}
+		return cells;
+	}
+
+	static Set<FramePosition> expectedFramePositions(Set<FramePosition> cells, Face ambiguousNormal)
+	{
+		if(cells.isEmpty())
+		{
+			return Set.of();
+		}
+		Face normal = physicalNormal(cells, ambiguousNormal);
 		Set<FramePosition> frame = new HashSet<FramePosition>();
 		for(FramePosition cell : cells)
 		{
@@ -310,6 +296,39 @@ final class VanillaPortalFrameIntegrity
 			}
 		}
 		return Set.copyOf(frame);
+	}
+
+	private static Face physicalNormal(Set<FramePosition> cells, Face ambiguousNormal)
+	{
+		FramePosition first = cells.iterator().next();
+		int minX = first.x();
+		int maxX = minX;
+		int minY = first.y();
+		int maxY = minY;
+		int minZ = first.z();
+		int maxZ = minZ;
+		for(FramePosition cell : cells)
+		{
+			minX = Math.min(minX, cell.x());
+			maxX = Math.max(maxX, cell.x());
+			minY = Math.min(minY, cell.y());
+			maxY = Math.max(maxY, cell.y());
+			minZ = Math.min(minZ, cell.z());
+			maxZ = Math.max(maxZ, cell.z());
+		}
+		int xDepth = maxX - minX;
+		int yDepth = maxY - minY;
+		int zDepth = maxZ - minZ;
+		int flatAxes = (xDepth == 0 ? 1 : 0) + (yDepth == 0 ? 1 : 0) + (zDepth == 0 ? 1 : 0);
+		if(flatAxes > 1 && ambiguousNormal != null)
+		{
+			return ambiguousNormal;
+		}
+		if(xDepth <= yDepth && xDepth <= zDepth)
+		{
+			return Face.E;
+		}
+		return yDepth <= zDepth ? Face.U : Face.N;
 	}
 
 	private static void addFrameNeighbor(Set<FramePosition> cells, Set<FramePosition> frame, int x, int y, int z)
@@ -333,7 +352,7 @@ final class VanillaPortalFrameIntegrity
 	{
 	}
 
-	private record CachedFramePositions(PortalStructure structure, Set<FramePosition> positions)
+	private record CachedFramePositions(PortalStructure structure, long revision, Face ambiguousNormal, Set<FramePosition> positions)
 	{
 	}
 }

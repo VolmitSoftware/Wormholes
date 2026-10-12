@@ -32,6 +32,25 @@ import static org.mockito.Mockito.when;
 
 public class MinecraftPortalSettingsTest extends MinecraftTestBase {
     @Test
+    public void gravityRotationSyncsBothEnablingAndDisablingWithoutCopyingFrames() {
+        WormholesModRuntime runtime = mock(WormholesModRuntime.class);
+        when(runtime.portals()).thenReturn(mock(MinecraftPortalRegistry.class));
+        MinecraftPortalSyncAccess sync = new MinecraftPortalSyncAccess(runtime);
+        MinecraftPortal source = portal();
+        MinecraftPortal destination = portal();
+        source.setFrame(source.getFrame().rotateClockwise());
+        Frame destinationFrame = destination.getFrame();
+        source.setGravityRotationEnabled(true);
+        sync.applySettings(destination, sync.collectSettings(source));
+        assertTrue(destination.isGravityRotationEnabled());
+        assertEquals(destinationFrame, destination.getFrame());
+        source.setGravityRotationEnabled(false);
+        sync.applySettings(destination, sync.collectSettings(source));
+        assertFalse(destination.isGravityRotationEnabled());
+        assertEquals(destinationFrame, destination.getFrame());
+    }
+
+    @Test
     public void settingsSyncKeepsBounceLocalAndClearsFidelityOverrides() {
         WormholesModRuntime runtime = mock(WormholesModRuntime.class);
         when(runtime.portals()).thenReturn(mock(MinecraftPortalRegistry.class));
