@@ -78,11 +78,10 @@ final class WormholesResourceWatcherTest {
         AtomicInteger calls = new AtomicInteger();
         AtomicBoolean changing = new AtomicBoolean();
         try (WormholesResourceWatcher watcher = watcher(paths -> {
+            CompletableFuture<Boolean> application = changing.get() && calls.incrementAndGet() == 1
+                ? first : CompletableFuture.completedFuture(true);
             events.add(paths);
-            if (!changing.get()) {
-                return CompletableFuture.completedFuture(true);
-            }
-            return calls.incrementAndGet() == 1 ? first : CompletableFuture.completedFuture(true);
+            return application;
         })) {
             start(watcher, events);
             changing.set(true);
@@ -105,11 +104,9 @@ final class WormholesResourceWatcherTest {
         AtomicInteger calls = new AtomicInteger();
         AtomicBoolean changing = new AtomicBoolean();
         try (WormholesResourceWatcher watcher = watcher(paths -> {
+            boolean applied = !changing.get() || calls.incrementAndGet() > 1;
             events.add(paths);
-            if (!changing.get()) {
-                return CompletableFuture.completedFuture(true);
-            }
-            return CompletableFuture.completedFuture(calls.incrementAndGet() > 1);
+            return CompletableFuture.completedFuture(applied);
         })) {
             start(watcher, events);
             changing.set(true);
