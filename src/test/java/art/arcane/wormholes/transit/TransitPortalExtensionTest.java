@@ -14,6 +14,7 @@ import java.util.Set;
 
 import org.bukkit.World;
 import art.arcane.optics.math.Vec3d;
+import art.arcane.optics.crossing.ScaleRule;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -31,7 +32,7 @@ final class TransitPortalExtensionTest {
     }
 
     @Test
-    void extensionRoundTripsThroughPortalJsonAndSyncsExactlyFourKeys() {
+    void extensionRoundTripsThroughPortalJsonAndSyncsTransitAndScaleKeys() {
         WormholesHooks.install(new WormholesRegistrar().portalExtension(TransitPortalExtension.class, extensionPortal -> new TransitPortalExtension()));
         World world = TransitTestSupport.world("extension");
         LocalPortal source = TransitTestSupport.portal(world);
@@ -73,7 +74,7 @@ final class TransitPortalExtensionTest {
 
         Map<String, String> sync = new LinkedHashMap<String, String>();
         source.extensions().collectSync(sync);
-        assertEquals(Set.of("transit.momentum", "transit.orientation", "transit.membrane", "transit.profile"), sync.keySet());
+        assertEquals(Set.of("transit.momentum", "transit.orientation", "transit.membrane", "transit.profile", ScaleRuleSettings.MODE, ScaleRuleSettings.MIN, ScaleRuleSettings.MAX), sync.keySet());
 
         LocalPortal mirrored = TransitTestSupport.portal(world);
         Map<String, String> inbound = new LinkedHashMap<String, String>(sync);
@@ -97,7 +98,24 @@ final class TransitPortalExtensionTest {
         }
         Map<String, String> sync = new LinkedHashMap<String, String>();
         portal.extensions().collectSync(sync);
-        assertTrue(sync.isEmpty());
+        assertEquals(Map.of(ScaleRuleSettings.MODE, "off", ScaleRuleSettings.MIN, "0.25", ScaleRuleSettings.MAX, "4"), sync);
+    }
+
+    @Test
+    void scaleSyncRoundTripsBothBoundsAndAnExplicitDefaultReset() {
+        TransitPortalExtension source = new TransitPortalExtension();
+        TransitPortalExtension destination = new TransitPortalExtension();
+        ScaleRule rule = ScaleRule.ratio(0.125D, 8.0D);
+        source.setScaleRule(rule);
+        Map<String, String> sync = new LinkedHashMap<>();
+        source.collectSync(sync);
+        destination.applySync(sync);
+        assertEquals(rule, destination.scaleRule());
+        source.setScaleRule(ScaleRuleSettings.DEFAULT);
+        sync.clear();
+        source.collectSync(sync);
+        destination.applySync(sync);
+        assertEquals(ScaleRuleSettings.DEFAULT, destination.scaleRule());
     }
 
     @Test

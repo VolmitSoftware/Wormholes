@@ -1,5 +1,7 @@
 package art.arcane.wormholes.modded;
 
+import art.arcane.optics.crossing.ScaleRule;
+import art.arcane.wormholes.transit.ScaleRuleSettings;
 import art.arcane.wormholes.network.PortalInfo;
 import art.arcane.wormholes.network.PortalSettingsCodec;
 import art.arcane.wormholes.network.PortalSyncAccess;
@@ -89,6 +91,10 @@ public final class MinecraftPortalSyncAccess implements PortalSyncAccess<Minecra
     @Override
     public Map<String, String> collectSettings(MinecraftPortal portal) {
         Map<String, String> settings = PortalSettingsCodec.collectSettings(portal);
+        ScaleRule scale = portal.getScaleRule();
+        settings.put(ScaleRuleSettings.MODE, ScaleRuleSettings.format(scale.mode()));
+        settings.put(ScaleRuleSettings.MIN, ScaleRuleSettings.format(scale.min()));
+        settings.put(ScaleRuleSettings.MAX, ScaleRuleSettings.format(scale.max()));
         for (String key : List.of("fidelity.atmosphere", "fidelity.acoustics", "fidelity.lod", "fidelity.block_entities")) {
             Object value = portal.setting(key);
             if (value != null) {
@@ -112,6 +118,9 @@ public final class MinecraftPortalSyncAccess implements PortalSyncAccess<Minecra
     public void applySettings(MinecraftPortal portal, Map<String, String> settings) {
         PortalSyncService.applyRemote(() -> {
             PortalSettingsCodec.applyToLocal(portal, settings);
+            if (settings.containsKey(ScaleRuleSettings.MODE) && settings.containsKey(ScaleRuleSettings.MIN) && settings.containsKey(ScaleRuleSettings.MAX)) {
+                portal.setScaleRule(ScaleRuleSettings.parse(settings.get(ScaleRuleSettings.MODE), settings.get(ScaleRuleSettings.MIN), settings.get(ScaleRuleSettings.MAX)));
+            }
             portal.setAtmosphereMode(AtmosphereMode.parse(settings.get("fidelity.atmosphere"), null));
             portal.setAcousticsProfile(AcousticsProfile.parse(settings.get("fidelity.acoustics"), null));
             portal.setLodProfile(LodProfile.parse(settings.get("fidelity.lod"), null));

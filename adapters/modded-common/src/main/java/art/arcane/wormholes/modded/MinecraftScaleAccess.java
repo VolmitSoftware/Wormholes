@@ -44,17 +44,29 @@ public final class MinecraftScaleAccess implements ScaleAccess<Entity> {
         if (instance == null || !Double.isFinite(factor) || factor <= 0.0D) {
             return false;
         }
+        AttributeModifier current = instance.getModifier(ID);
         if (Math.abs(factor - 1.0D) <= UNIT_TOLERANCE) {
-            instance.removeModifier(ID);
+            if (current != null) {
+                instance.removeModifier(ID);
+                entity.refreshDimensions();
+            }
+            return true;
+        }
+        if (current != null && current.amount() == factor - 1.0D && current.operation() == AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL) {
             return true;
         }
         instance.addOrReplacePermanentModifier(new AttributeModifier(ID, factor - 1.0D, AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL));
+        entity.refreshDimensions();
         return true;
     }
 
     @Override
     public boolean reset(Entity entity) {
         AttributeInstance instance = instances.apply(entity);
-        return instance != null && instance.removeModifier(ID);
+        if (instance == null || !instance.removeModifier(ID)) {
+            return false;
+        }
+        entity.refreshDimensions();
+        return true;
     }
 }

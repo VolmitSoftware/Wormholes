@@ -1,6 +1,6 @@
 # Wormholes demonstration studio
 
-Records Wormholes construction, menus, projection, travel and dimensional doors in real Minecraft 26.3 clients. Each demonstration has first-person clips with and without the Wormholes Fabric mod. The shot sheet selects an additional observer view when it shows useful world action; crafting and settings demonstrations use first person only. Available scenarios and their assertions live in `shots.json`; a scenario entry does not establish that footage has been recorded or accepted.
+Records Wormholes construction, menus, projection, travel and dimensional doors in real Minecraft 26.3 clients. Standard studio demonstrations have first-person clips with and without the Wormholes Fabric mod. Directional gravity and traveller scale use native client-mod recordings with both camera views. The shot sheet selects an additional observer view when it shows useful world action; crafting and settings demonstrations use first person only. Available scenarios and their assertions live in `shots.json`; a scenario entry does not establish that footage has been recorded or accepted.
 
 ## Preparation
 
@@ -42,14 +42,14 @@ python3 src/test/demo/docs_sync.py --only door-crafting --only pair-doors
 
 Without `--only`, the director selects the entire shot sheet. By default it records both client variants, exports the shot sheet’s selected perspectives as 1920×1080/30 fps VP9 WebM clips, and stops/deletes its disposable Multiplexor instance. The clients remain installed in Prism. The output-directory lock prevents two runs from using that same studio output.
 
-Use `--variant standard` or `--variant clientview` for one pair of clients. Repeat `--only <id>` to select multiple demonstrations; the director uses shot-sheet order. The synchronizer also accepts repeated `--only`, and requires both client variants and the perspectives selected in `shots.json` for every selected ID before changing any page. A single-variant recording is not sufficient for synchronization. `--record-only` preserves raw MP4 captures without exporting. `--keep-open` leaves the owned server and clients running for inspection; subsequent `--reuse-server --reuse-clients` runs must select the same single variant. Stop and delete that owned instance when inspection ends.
+Use `--variant standard` or `--variant clientview` for one pair of clients. Repeat `--only <id>` to select multiple demonstrations; the director uses shot-sheet order. The synchronizer also accepts repeated `--only`, and requires the selected client variants and perspectives for every selected ID before changing any page. Standard studio IDs require both client variants; `gravity` and `scale` require only the native client-mod first-person and third-person exports. `--record-only` preserves raw MP4 captures without exporting. `--keep-open` leaves the owned server and clients running for inspection; subsequent `--reuse-server --reuse-clients` runs must select the same single variant. Stop and delete that owned instance when inspection ends.
 
 | Subject | Demonstration IDs |
 |---|---|
 | Construction and linking | `wand-creation`, `rune-creation`, `portal-linking` |
 | Portal appearance | `mirrors`, `portal-orientation`, `ambient-particles`, `atmosphere` |
 | Projection | `render-panoptic`, `render-venticular`, `projection-toggle`, `live-views`, `nested-views` |
-| Transit | `arrival-orientation`, `momentum`, `membrane-bounce` |
+| Transit | `arrival-orientation`, `momentum`, `membrane-bounce`, `gravity`, `scale` |
 | Routing | `rtp-routing`, `rtp-personal`, `network-dialing`, `redstone-control`, `gateways`, `cross-server-gateways` |
 | Dimensional doors | `door-crafting`, `pair-doors`, `door-open-state`, `trapdoor-travel` |
 | Pockets | `personal-pockets`, `public-pockets` |
@@ -86,8 +86,22 @@ PY
 python3 src/test/demo/docs_sync.py --only wand-creation --only rune-creation --only portal-linking
 ```
 
-Intentional wiki assets live in `../docs/wormholes-assets/demos/`. `docs_sync.py` maps each selected demonstration into its matching reference section and preserves existing prose and unselected demonstrations. Without `--only`, it requires both client variants and the shot sheet’s selected perspectives for every mapped ID. Repeating synchronization leaves unchanged pages untouched. Visible clips autoplay muted and loop. Each demo has No client mod and Client mod tabs with an independent client selection. Where an observer clip is available, a separate Camera dropdown selects First person or Third person (Second player for the traveler comparisons), synchronizes with Adapt's demos, and remembers the selection across pages. First-person-only demos omit the dropdown and remain visible even when the saved preference is Third person.
+Intentional wiki assets live in `../docs/wormholes-assets/demos/`. `docs_sync.py` maps each selected demonstration into its matching reference section and preserves existing prose and unselected demonstrations. Without `--only`, it requires every mapped ID’s client variants and camera views. Repeating synchronization leaves unchanged pages untouched. Visible clips autoplay muted and loop. Standard demos have No client mod and Client mod tabs with an independent client selection. Native-only demos show a Client mod heading. Where an observer clip is available, a separate Camera dropdown selects First person or Third person (Second player for the traveler comparisons), synchronizes with Adapt's demos, and remembers the selection across pages. First-person-only demos omit the dropdown and remain visible even when the saved preference is Third person.
+
+## Native gravity and scale recordings
+
+Record the native server/client gravity and two-way scale scenes with the real framebuffer recorder, then export the accepted evidence directory:
+
+```sh
+python3 src/test/client/gametest.py GravityScaleDemo --renderer vanilla --record-demo
+python3 src/test/demo/native_capture.py <evidence-directory>
+python3 src/test/demo/docs_sync.py --only gravity --only scale
+```
+
+The native recording produces `gravity-clientview-pov.webm`, `gravity-clientview-observer.webm`, `scale-clientview-pov.webm`, and `scale-clientview-observer.webm`. Review all four clips before synchronization. These IDs have no standard-client variant, and their camera views are independent of the Paper studio shot sheet. The wiki shows a Client mod heading and its camera selector.
 
 ## Automator bridge
 
 The studio stores per-profile `automator.port`, `automator.token` and `automator.output` JVM properties. Existing profiles reuse their bridge port and token when their stored output path matches the selected studio; a mismatched output path is rejected. New profiles receive fresh credentials. `automator.hidden=true` is the bridge default, including when the launcher omits the property. Hidden mode configures SDL as a background application before video initialization, creates an invisible window, skips desktop presentation, and suppresses native cursor selection, grabs, releases and warps. Bridge input and GPU framebuffer rendering remain active. The authenticated HTTP bridge listens only on IPv4 loopback, rejects browser origins, and dispatches input on the game thread. Keep `build/demo/clients.json`, profile JVM settings, server properties and logs local and ignored; do not include them with wiki assets.
+
+Native recording accepts repeated `--demo-take gravity-pov|gravity-third-person|scale-pov|scale-third-person` with `--record-demo` to record a bounded subset. Export the corresponding accepted takes with repeated `native_capture.py --only <take>`. Selected exports require that take's successful gameplay marker and capture-quality evidence; a failed sibling take does not invalidate a completed take. Preserve the run's failure metadata. A capture-quality pass alone does not establish visible or usable footage.

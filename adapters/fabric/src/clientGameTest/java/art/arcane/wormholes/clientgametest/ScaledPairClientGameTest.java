@@ -56,6 +56,7 @@ public final class ScaledPairClientGameTest implements FabricClientGameTest {
     private static final Square SMALL = new Square(new BlockPos(400, 100, 400), 3);
     private static final Square LARGE = new Square(new BlockPos(440, 100, 400), 9);
     private static final int BACKDROP_Z = 392;
+    private static final int DEMO_RETURN_BACKDROP_Z = 409;
     private static final int BAND = 3;
     private static final double RATIO_FACTOR = 3.0D;
     private static final double APPROACH = 4.0D;
@@ -91,6 +92,99 @@ public final class ScaledPairClientGameTest implements FabricClientGameTest {
         }
     }
 
+    static void demo(ClientGameTestContext context, TestServerConnection connection, TestServerContext server, CameraType camera, String id) {
+        SeamlessClient client = new FabricSeamlessClient(context, connection);
+        SeamlessScenario.join(client);
+        SeamlessScenario.assertSeamlessNegotiated(client);
+        ServerPlayer player = server.computeOnServer(minecraftServer -> connection.getServerPlayer());
+        Scene scene = server.computeOnServer(minecraftServer -> buildDemo(minecraftServer, player));
+        NativeDemoCapture capture = new NativeDemoCapture(client);
+        boolean hiddenHud = context.computeOnClient(minecraft -> minecraft.gui.hud.isHidden());
+        boolean recording = false;
+        List<String> failures = new ArrayList<>();
+        try {
+            context.runOnClient(minecraft -> {
+                assertHidden(minecraft);
+                minecraft.options.setCameraType(camera);
+                minecraft.options.bobView().set(true);
+                minecraft.options.fovEffectScale().set(0.0D);
+                minecraft.options.fov().set(70);
+                hud(minecraft, true);
+            });
+            place(context, server, player, SMALL.approach(ENTRY_OFFSET), 180.0F);
+            connection.waitForChunksRender();
+            waitFor(context, "scale-demo-source-ready", minecraft -> WormholesClient.instance().seamlessTravel().armed(scene.portals()[0])
+                && WormholesClient.instance().seamlessTravel().unprepared() == null, PREPARE_TIMEOUT_TICKS);
+            capture.begin(id);
+            recording = true;
+            context.waitTicks(40);
+            List<TravelTap.Frame> grown = walk(context, scene.portals()[0], SMALL, id + " grow");
+            crossed(context, grown, RATIO_FACTOR, SMALL, LARGE, id + " grow", failures);
+            validateDemo(context, server, player, camera, RATIO_FACTOR, id + " grow");
+            context.waitTicks(40);
+            context.getInput().holdKeyFor(options -> options.keyUp, 6);
+            capture.turn(0.0F, 0.0F, 40);
+            context.waitTicks(SETTLE_TICKS);
+            List<TravelTap.Frame> shrunk = walk(context, scene.portals()[1], LARGE, id + " return");
+            crossed(context, shrunk, 1.0D, LARGE, SMALL, id + " return", failures);
+            validateDemo(context, server, player, camera, 1.0D, id + " return");
+            context.getInput().holdKeyFor(options -> options.keyUp, 25);
+            capture.turn(150.0F, 0.0F, 30);
+            context.waitTicks(40);
+            context.runOnClient(minecraft -> assertTrue(Math.abs(minecraft.gameRenderer.mainCamera().position().x - minecraft.player.getX()) < 8.0D,
+                id + ": return camera remained across the portal instead of showing the restored-size traveller"));
+            assertTrue(failures.isEmpty(), id + ": " + failures);
+            LOGGER.info("WORMHOLES_NATIVE_DEMO_PASS: {} actual 3x3 to 9x9 traversal grew to 300% and returned to 100%", id);
+        } finally {
+            try {
+                if (recording) {
+                    capture.end(id);
+                }
+            } finally {
+                client.releaseForward();
+                context.runOnClient(minecraft -> hud(minecraft, hiddenHud));
+                server.runOnServer(minecraftServer -> cleanupDemo(minecraftServer, player, scene));
+                context.restoreDefaultGameOptions();
+            }
+        }
+    }
+
+    private static void validateDemo(ClientGameTestContext context, TestServerContext server, ServerPlayer player,
+                                     CameraType camera, double scale, String label) {
+        waitFor(context, label + " confirmed", minecraft -> !WormholesClient.instance().seamlessTravel().pending()
+            && Math.abs(minecraft.player.getAttributeValue(Attributes.SCALE) - scale) < FACTOR_TOLERANCE, ARRIVE_TIMEOUT_TICKS);
+        double authoritative = server.computeOnServer(minecraftServer -> player.getAttributeValue(Attributes.SCALE));
+        assertTrue(Math.abs(authoritative - scale) < FACTOR_TOLERANCE,
+            label + ": server scale is " + authoritative + " instead of " + scale);
+        context.runOnClient(minecraft -> {
+            assertHidden(minecraft);
+            assertTrue(minecraft.options.getCameraType() == camera && minecraft.gui.hud.isHidden(),
+                label + ": camera changed or HUD became visible");
+            assertTrue(TravelTap.respawns() == 0 && TravelTap.positions() == 0 && TravelTap.accepts() == 0
+                && !TravelTap.loadingScreenShown() && !TravelTap.clientUnloaded(),
+                label + ": vanilla teleport correction " + TravelTap.events());
+            assertTrue(!TravelTap.frames().isEmpty(), label + ": native render frames did not advance");
+        });
+    }
+
+    private static void cleanupDemo(MinecraftServer server, ServerPlayer player, Scene scene) {
+        MinecraftScaleAccess.scaleAttribute().reset(player);
+        runtime(server).portals().remove(player, scene.portals()[0]);
+        runtime(server).portals().remove(player, scene.portals()[1]);
+        for (UUID id : scene.models()) {
+            Entity entity = server.overworld().getEntity(id);
+            if (entity != null) {
+                entity.discard();
+            }
+        }
+        BlockPos small = SMALL.min();
+        BlockPos large = LARGE.min();
+        fill(server.overworld(), new BlockPos(small.getX() - 6, small.getY() - 1, BACKDROP_Z - 4), 15, 14, 25,
+            Blocks.AIR.defaultBlockState());
+        fill(server.overworld(), new BlockPos(large.getX() - 8, large.getY() - 1, BACKDROP_Z - 4), 25, 20, 25,
+            Blocks.AIR.defaultBlockState());
+    }
+
     private void run(ClientGameTestContext context, TestServerConnection connection, TestServerContext server, String label) {
         connection.waitForChunksDownload();
         waitFor(context, "scaled-session-negotiation", client -> WormholesClient.instance() != null
@@ -119,19 +213,19 @@ public final class ScaledPairClientGameTest implements FabricClientGameTest {
                     "Native model size did not follow the same inverse portal ratio as terrain: observed " + actual + ", expected " + expected);
             }
             place(context, server, player, SMALL.approach(ENTRY_OFFSET), 180.0F);
-            List<TravelTap.Frame> grown = walk(context, portals[0], label + " ratio");
+            List<TravelTap.Frame> grown = walk(context, portals[0], SMALL, label + " ratio");
             crossed(context, grown, RATIO_FACTOR, SMALL, LARGE, label + " ratio", failures);
             context.getInput().holdKeyFor(options -> options.keyUp, 6);
             context.getInput().lookAt(0.0F, 0.0F);
             context.waitTicks(SETTLE_TICKS);
-            List<TravelTap.Frame> shrunk = walk(context, portals[1], label + " ratio return");
+            List<TravelTap.Frame> shrunk = walk(context, portals[1], LARGE, label + " ratio return");
             crossed(context, shrunk, 1.0D, LARGE, SMALL, label + " ratio return", failures);
             server.runOnServer(minecraftServer -> {
                 rule(minecraftServer, player, portals[0], ScaleRule.motion());
                 rule(minecraftServer, player, portals[1], ScaleRule.motion());
             });
             place(context, server, player, SMALL.approach(ENTRY_OFFSET), 180.0F);
-            List<TravelTap.Frame> moved = walk(context, portals[0], label + " motion");
+            List<TravelTap.Frame> moved = walk(context, portals[0], SMALL, label + " motion");
             crossed(context, moved, 1.0D, SMALL, LARGE, label + " motion", failures);
         } finally {
             context.runOnClient(client -> {
@@ -318,20 +412,30 @@ public final class ScaledPairClientGameTest implements FabricClientGameTest {
 
     private static void crossed(ClientGameTestContext context, List<TravelTap.Frame> frames, double expected, Square from, Square to, String label,
                                 List<String> failures) {
-        int crossing = context.computeOnClient(client -> TravelTap.crossingFrame(CROSSING_JUMP));
+        int crossing = context.computeOnClient(client -> TravelTap.bodyCrossingFrame(CROSSING_JUMP));
         if (crossing < 1) {
             failures.add(label + ": never crossed");
             return;
         }
         TravelTap.Frame before = frames.get(crossing - 1);
         TravelTap.Frame after = frames.get(crossing);
+        firstCrossingPose(before, after, expected, label, failures);
         int corrections = context.computeOnClient(client -> TravelTap.positions() + TravelTap.respawns());
         if (corrections > 0) {
             failures.add(label + ": the crossing was corrected by " + corrections + " position or respawn packets; " + TravelTap.events());
         }
-        double entry = before.camera().x - from.center().x;
-        double arrival = after.camera().x - to.center().x;
+        double entry = before.pose().feet().x - from.center().x;
+        double arrival = after.pose().feet().x - to.center().x;
         double ratio = (double) to.edge() / from.edge();
+        if (after.firstPerson()) {
+            int cameraCrossing = context.computeOnClient(client -> TravelTap.crossingFrame(CROSSING_JUMP));
+            double cameraEntry = before.camera().x - from.center().x;
+            double cameraArrival = after.camera().x - to.center().x;
+            if (cameraCrossing != crossing || Math.abs(cameraArrival - cameraEntry * ratio) > OFFSET_TOLERANCE) {
+                failures.add(label + ": first-person camera did not cross with the body: body frame=" + crossing + ", camera frame="
+                    + cameraCrossing + ", camera entry=" + cameraEntry + ", camera arrival=" + cameraArrival + ", ratio=" + ratio);
+            }
+        }
         List<TravelTap.ScalePacket> packets = context.computeOnClient(client -> TravelTap.scalePackets());
         double settled = context.computeOnClient(client -> client.player.getAttributeValue(Attributes.SCALE));
         AttributeModifier modifier = context.computeOnClient(client -> client.player.getAttribute(Attributes.SCALE).getModifier(MinecraftScaleAccess.ID));
@@ -364,6 +468,29 @@ public final class ScaledPairClientGameTest implements FabricClientGameTest {
         }
     }
 
+    private static void firstCrossingPose(TravelTap.Frame before, TravelTap.Frame after, double scale, String label, List<String> failures) {
+        TravelTap.PlayerPose source = before.pose();
+        TravelTap.PlayerPose destination = after.pose();
+        double ratio = scale / before.scale();
+        String state = "frame=" + after.index() + ", beforeScale=" + before.scale() + ", scale=" + after.scale()
+            + ", expectedScale=" + scale + ", camera=" + after.renderedCamera() + ", pose=" + destination + ", sourcePose=" + source;
+        LOGGER.info("WORMHOLES_SCALE_FIRST_FRAME {}: {}", label, state);
+        if (Math.abs(destination.width() - source.width() * ratio) > 1.0E-5D
+            || Math.abs(destination.height() - source.height() * ratio) > 1.0E-5D
+            || Math.abs(destination.eyeHeight() - source.eyeHeight() * ratio) > 1.0E-5D) {
+            failures.add(label + ": body dimensions did not scale on the first rendered crossing frame; " + state);
+        }
+        if (Math.abs(destination.width() - destination.dimensions().width()) > 1.0E-5D
+            || Math.abs(destination.height() - destination.dimensions().height()) > 1.0E-5D
+            || Math.abs(destination.eyeHeight() - destination.dimensions().eyeHeight()) > 1.0E-5D
+            || destination.eye().subtract(destination.feet()).distanceTo(new Vec3(0.0D, destination.eyeHeight(), 0.0D)) > 1.0E-5D) {
+            failures.add(label + ": body bounds and native eye disagreed on the first rendered crossing frame; " + state);
+        }
+        if (after.firstPerson() && after.renderedCamera().distanceTo(destination.eye()) > 1.0E-4D) {
+            failures.add(label + ": first rendered camera did not match interpolated feet plus the native scaled eye; " + state);
+        }
+    }
+
     private static void predicted(List<TravelTap.ScalePacket> packets, int crossing, double expected, String label, List<String> failures) {
         for (TravelTap.ScalePacket packet : packets) {
             if (packet.frame() < crossing) {
@@ -377,7 +504,7 @@ public final class ScaledPairClientGameTest implements FabricClientGameTest {
         failures.add(label + ": the server never synced the scale after the crossing");
     }
 
-    private static List<TravelTap.Frame> walk(ClientGameTestContext context, UUID source, String label) {
+    private static List<TravelTap.Frame> walk(ClientGameTestContext context, UUID source, Square from, String label) {
         for (int tick = 0; tick < PREPARE_TIMEOUT_TICKS; tick++) {
             boolean ready = context.computeOnClient(client -> WormholesClient.instance().seamlessTravel().armed(source)
                 && WormholesClient.instance().seamlessTravel().unprepared() == null);
@@ -387,10 +514,16 @@ public final class ScaledPairClientGameTest implements FabricClientGameTest {
             context.waitTicks(1);
         }
         LOGGER.info("[{}] walking with travel {}", label, context.computeOnClient(client -> WormholesClient.instance().seamlessTravel().unprepared()));
-        context.runOnClient(client -> TravelTap.reset());
+        context.runOnClient(client -> {
+            client.options.bobView().set(true);
+            TravelTap.reset();
+        });
         context.getInput().holdKey(options -> options.keyUp);
         try {
-            for (int tick = 0; tick < CROSSING_TIMEOUT_TICKS && context.computeOnClient(client -> TravelTap.crossingFrame(CROSSING_JUMP)) < 0; tick++) {
+            for (int tick = 0; tick < CROSSING_TIMEOUT_TICKS && context.computeOnClient(client -> TravelTap.bodyCrossingFrame(CROSSING_JUMP)) < 0; tick++) {
+                if (tick == 1) {
+                    walkingProjection(context, from, label);
+                }
                 context.waitTicks(1);
             }
         } finally {
@@ -398,6 +531,26 @@ public final class ScaledPairClientGameTest implements FabricClientGameTest {
         }
         context.waitTicks(SETTLE_TICKS);
         return context.computeOnClient(client -> TravelTap.frames());
+    }
+
+    private static void walkingProjection(ClientGameTestContext context, Square from, String label) {
+        Square to = from.equals(SMALL) ? LARGE : SMALL;
+        context.runOnClient(client -> {
+            assertHidden(client);
+            PortalView view = nativeView(from);
+            assertTrue(client.options.bobView().get(), label + ": walking bob is disabled");
+            assertTrue(view != null && PortalStencilRenderer.instance().claims(view.surface().geometry()),
+                label + ": native projection disappeared while approaching the portal");
+            double ratio = (double) to.edge() / from.edge();
+            assertTrue(Math.abs(view.toDestination().scale() - ratio) < FACTOR_TOLERANCE,
+                label + ": projection scale did not match the portal ratio during walking");
+            BlockPos marker = new BlockPos(to.min().getX() + to.edge() / 2, to.min().getY() + to.edge() / 2, BACKDROP_Z);
+            assertTrue(YELLOW.equals(view.destination().getBlockState(marker)), label + ": destination marker is unavailable during walking");
+            LOGGER.info("WORMHOLES_SCALED_WALKING_PROJECTION {}: position={}, camera={}, velocity={}, bodyScale={}, projectionRatio={}, marker={}",
+                label, client.player.position(), client.gameRenderer.mainCamera().position(), client.player.getDeltaMovement(),
+                client.player.getScale(), ratio, marker);
+        });
+        context.takeScreenshot(label.replace(' ', '-') + "-walking-bob");
     }
 
     private static void place(ClientGameTestContext context, TestServerContext server, ServerPlayer player, Vec3 position, float yaw) {
@@ -426,6 +579,35 @@ public final class ScaledPairClientGameTest implements FabricClientGameTest {
         context.waitTicks(SETTLE_TICKS);
     }
 
+    private static Scene buildDemo(MinecraftServer server, ServerPlayer actor) {
+        Scene scene = build(server, actor);
+        ServerLevel level = server.overworld();
+        demoBackdrop(level, SMALL, new DemoBackdrop(6, 15, 13, 0, Blocks.CONCRETE.pick(DyeColor.BLUE).defaultBlockState(),
+            Blocks.CONCRETE.pick(DyeColor.ORANGE).defaultBlockState()));
+        demoBackdrop(level, LARGE, new DemoBackdrop(8, 25, 19, BAND, Blocks.CONCRETE.pick(DyeColor.CYAN).defaultBlockState(),
+            Blocks.CONCRETE.pick(DyeColor.WHITE).defaultBlockState()));
+        demoFrame(level, SMALL, Blocks.SANDSTONE.defaultBlockState());
+        demoFrame(level, LARGE, Blocks.GOLD_BLOCK.defaultBlockState());
+        return scene;
+    }
+
+    private static void demoBackdrop(ServerLevel level, Square square, DemoBackdrop backdrop) {
+        int middle = square.min().getX() + square.edge() / 2;
+        for (int x = square.min().getX() - backdrop.margin(); x < square.min().getX() - backdrop.margin() + backdrop.width(); x++) {
+            fill(level, new BlockPos(x, square.min().getY(), DEMO_RETURN_BACKDROP_Z), 1, backdrop.height(), 1,
+                Math.abs(x - middle) <= backdrop.band() ? backdrop.marker() : backdrop.background());
+        }
+    }
+
+    private static void demoFrame(ServerLevel level, Square square, BlockState material) {
+        int outer = square.edge() + 2;
+        BlockPos min = square.min().offset(-1, -1, 0);
+        fill(level, min, outer, 1, 1, material);
+        fill(level, min.offset(0, outer - 1, 0), outer, 1, 1, material);
+        fill(level, min.offset(0, 1, 0), 1, square.edge(), 1, material);
+        fill(level, min.offset(outer - 1, 1, 0), 1, square.edge(), 1, material);
+    }
+
     private static Scene build(MinecraftServer server, ServerPlayer actor) {
         WormholesModRuntime runtime = runtime(server);
         ServerLevel level = server.overworld();
@@ -449,7 +631,8 @@ public final class ScaledPairClientGameTest implements FabricClientGameTest {
         assertTrue(runtime.portals().link(actor, small.getId(), large.getId()), "3x3 link rejected");
         assertTrue(runtime.portals().link(actor, large.getId(), small.getId()), "9x9 link rejected");
         rule(server, actor, small.getId(), RATIO);
-        rule(server, actor, large.getId(), RATIO);
+        assertTrue(RATIO.equals(small.getScaleRule()) && RATIO.equals(large.getScaleRule()),
+            "Settings Sync did not propagate the scale rule from the 3x3 portal to its 9x9 counterpart");
         return new Scene(new UUID[] {small.getId(), large.getId()}, List.of(model(level, SMALL), model(level, LARGE)));
     }
 
@@ -587,6 +770,9 @@ public final class ScaledPairClientGameTest implements FabricClientGameTest {
         Vec3 approach(double offset) {
             return new Vec3(min.getX() + edge / 2.0D + offset, min.getY(), min.getZ() + 0.5D + APPROACH);
         }
+    }
+
+    private record DemoBackdrop(int margin, int width, int height, int band, BlockState background, BlockState marker) {
     }
 
     private record Scene(UUID[] portals, List<UUID> models) {

@@ -3,6 +3,8 @@ package art.arcane.wormholes.modded.mixin.client;
 import art.arcane.optics.crossing.GravityFrame;
 import art.arcane.wormholes.modded.client.GravityAutoJump;
 import art.arcane.wormholes.modded.gravity.MinecraftGravity;
+import art.arcane.wormholes.modded.client.GravitySuffocation;
+import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import net.minecraft.client.player.LocalPlayer;
@@ -27,6 +29,30 @@ public abstract class GravityLocalPlayerMixin {
 
     @Unique
     private Vec3 wormholes$beforeMove;
+
+    @ModifyExpressionValue(method = {"aiStep", "onGameModeChanged"},
+        at = @At(value = "INVOKE", target = "Lnet/minecraft/client/player/LocalPlayer;getDeltaMovement()Lnet/minecraft/world/phys/Vec3;"))
+    private Vec3 wormholes$localFlightVelocity(Vec3 original) {
+        GravityFrame frame = MinecraftGravity.frame((LocalPlayer) (Object) this);
+        return frame.equals(GravityFrame.WORLD) ? original : MinecraftGravity.local(frame, original);
+    }
+
+    @WrapOperation(method = {"aiStep", "onGameModeChanged"},
+        at = @At(value = "INVOKE", target = "Lnet/minecraft/client/player/LocalPlayer;setDeltaMovement(Lnet/minecraft/world/phys/Vec3;)V"))
+    private void wormholes$worldFlightVelocity(LocalPlayer player, Vec3 velocity, Operation<Void> original) {
+        GravityFrame frame = MinecraftGravity.frame(player);
+        original.call(player, frame.equals(GravityFrame.WORLD) ? velocity : MinecraftGravity.world(frame, velocity));
+    }
+
+    @WrapOperation(method = "aiStep",
+        at = @At(value = "INVOKE", target = "Lnet/minecraft/client/player/LocalPlayer;moveTowardsClosestSpace(DD)V"))
+    private void wormholes$gravitySuffocation(LocalPlayer player, double x, double z, Operation<Void> original) {
+        if (MinecraftGravity.frame(player).equals(GravityFrame.WORLD)) {
+            original.call(player, x, z);
+        } else {
+            GravitySuffocation.push(player, x - player.getX(), z - player.getZ());
+        }
+    }
 
     @Inject(method = "move", at = @At("HEAD"))
     private void wormholes$beforeMove(MoverType type, Vec3 movement, CallbackInfo callback) {

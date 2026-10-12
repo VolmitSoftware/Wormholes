@@ -8,6 +8,7 @@ import art.arcane.wormholes.modded.gravity.MinecraftGravity;
 import net.minecraft.client.Camera;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
@@ -34,9 +35,17 @@ public abstract class GravityCameraMixin implements GravityCameraAccess {
     @Shadow @Final private Vector3f left;
     @Unique private boolean wormholes$aligning;
     @Unique private float wormholes$partialTicks;
+    @Unique private Entity wormholes$scaleEntity;
+    @Unique private float wormholes$entityScale = 1.0F;
+
+    @Inject(method = "tick", at = @At("HEAD"))
+    private void wormholes$beforeEyeHeightTick(CallbackInfo callback) {
+        wormholes$scaleEyeHistory();
+    }
 
     @Inject(method = "alignWithEntity", at = @At("HEAD"))
     private void wormholes$beginGravityAlignment(float partialTicks, CallbackInfo callback) {
+        wormholes$scaleEyeHistory();
         wormholes$aligning = true;
         wormholes$partialTicks = partialTicks;
     }
@@ -77,6 +86,29 @@ public abstract class GravityCameraMixin implements GravityCameraAccess {
         up.set(0.0F, 1.0F, 0.0F).rotate(rotation);
         left.set(-1.0F, 0.0F, 0.0F).rotate(rotation);
         matrixPropertiesDirty |= 3;
+    }
+
+    @Unique
+    private void wormholes$scaleEyeHistory() {
+        if (entity == null) {
+            wormholes$scaleEntity = null;
+            wormholes$entityScale = 1.0F;
+            return;
+        }
+        float scale = entity instanceof LivingEntity living ? living.getScale() : 1.0F;
+        if (entity != wormholes$scaleEntity) {
+            wormholes$scaleEntity = entity;
+            wormholes$entityScale = scale;
+            eyeHeight = entity.getEyeHeight();
+            eyeHeightOld = eyeHeight;
+            return;
+        }
+        if (scale != wormholes$entityScale) {
+            float ratio = scale / wormholes$entityScale;
+            eyeHeight *= ratio;
+            eyeHeightOld *= ratio;
+            wormholes$entityScale = scale;
+        }
     }
 
     @Unique

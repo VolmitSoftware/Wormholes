@@ -16,6 +16,7 @@ import art.arcane.wormholes.localization.TransitMessages;
 import art.arcane.wormholes.localization.WormholesLocalization;
 import art.arcane.wormholes.localization.WormholesMessages;
 import art.arcane.wormholes.network.RemotePortalRegistry;
+import art.arcane.wormholes.network.PortalSyncService;
 import art.arcane.wormholes.ops.PortalListModel;
 import art.arcane.wormholes.ops.PortalLocator;
 import art.arcane.wormholes.ops.PortalMaintenance;
@@ -265,6 +266,9 @@ public class CommandPortals {
             transit.setScaleRule(change.rule());
             local.save();
             local.refreshOpenMenus();
+            if (local.isSettingsSyncEnabled() && Wormholes.portalSyncService != null && !PortalSyncService.isApplyingRemote()) {
+                Wormholes.portalSyncService.broadcastSettings(local);
+            }
         }
         send(sender, change.status() == ScaleRuleChange.Status.SET ? TransitMessages.SCALE_SET : TransitMessages.SCALE_CURRENT,
                 WormholesLocalization.args(MessageArgument.untrusted("portal", found.getName()),

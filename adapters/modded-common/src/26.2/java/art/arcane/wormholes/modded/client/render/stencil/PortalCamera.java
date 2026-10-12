@@ -53,9 +53,9 @@ final class PortalCamera extends Camera {
         this.detached = detached;
         block.set(position.x, position.y, position.z);
         Matrix4f inverse = new Matrix4f(view).transpose3x3();
-        inverse.transformDirection(0.0F, 0.0F, -1.0F, forwards);
-        inverse.transformDirection(0.0F, 1.0F, 0.0F, up);
-        inverse.transformDirection(-1.0F, 0.0F, 0.0F, left);
+        inverse.transformDirection(0.0F, 0.0F, -1.0F, forwards).normalize();
+        inverse.transformDirection(0.0F, 1.0F, 0.0F, up).normalize();
+        inverse.transformDirection(-1.0F, 0.0F, 0.0F, left).normalize();
         orientation.set(PortalLayerMath.orientation(view));
         pitch = (float) Math.asin(Math.max(-1.0F, Math.min(1.0F, -forwards.y))) * DEGREES;
         yaw = (float) Math.atan2(-forwards.x, forwards.z) * DEGREES;

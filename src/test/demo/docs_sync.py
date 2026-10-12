@@ -21,6 +21,8 @@ DEMOS: dict[str, tuple[tuple[str, str], ...]] = {
         ('Transit menu', 'arrival-orientation'),
         ('Transit menu', 'momentum'),
         ('Transit menu', 'membrane-bounce'),
+        ('Transit menu', 'gravity'),
+        ('Transit menu', 'scale'),
         ('Nexus networks and dialing', 'network-dialing'),
         ('Nexus networks and dialing', 'redstone-control'),
     ),
@@ -49,9 +51,14 @@ DEMOS: dict[str, tuple[tuple[str, str], ...]] = {
     '10-cross-server-networking.md': (('Transfer mode', 'cross-server-gateways'),),
 }
 CLIENTS: tuple[tuple[str, str], ...] = (('standard', 'No client mod'), ('clientview', 'Client mod'))
+CLIENT_VARIANTS: dict[str, tuple[tuple[str, str], ...]] = {
+    'gravity': (('clientview', 'Client mod'),),
+    'scale': (('clientview', 'Client mod'),),
+}
 PERSPECTIVES: dict[str, str] = {'pov': 'First person', 'observer': 'Third person'}
 SHOT_VIEWS: dict[str, tuple[str, ...]] = {shot['id']: tuple(shot['perspectives']) for shot in
     json.loads((ROOT / 'src/test/demo/shots.json').read_text())['shots']}
+SHOT_VIEWS.update({'gravity': ('pov', 'observer'), 'scale': ('pov', 'observer')})
 OBSERVER_LABELS: dict[str, str] = {'personal-pockets': 'Second player', 'public-pockets': 'Second player',
                                    'rtp-personal': 'Second player', 'live-views': 'Destination view'}
 RENDER_CAPTION: str = ('Standard projection is frozen for the rear comparison. '
@@ -65,6 +72,8 @@ CAPTIONS: dict[str, tuple[str, str]] = {
     'projection-toggle': ('Projection on and off', 'Toggle standard projection; native client views remain active.'),
     'atmosphere': ('Destination atmosphere', 'Compare atmosphere modes with different destination colors, lighting, and weather.'),
     'arrival-orientation': ('Arrival orientation', 'Compare frame, look, snap, and mirror policies at a rotated exit.'),
+    'gravity': ('Directional gravity', 'Walk, jump, and fly relative to the new floor after a quarter-turn crossing.'),
+    'scale': ('Traveller scale', 'Cross both ways between different portal sizes with matching scale settings.'),
     'momentum': ('Traversal momentum', 'Compare preserved, scaled, and zero velocity on arrival.'),
     'membrane-bounce': ('Membrane and bounce', 'Pass through the permitted face, then compare rejected entry and bounce.'),
     'rtp-routing': ('Shared random destinations', 'Keep a shared destination static, reroll it manually, and travel.'),
@@ -118,7 +127,7 @@ def block(identifier: str, loading_pauses_shortened: bool = False) -> str:
     if caption is not None:
         description: str = caption[1] + (' Loading pauses shortened.' if loading_pauses_shortened else '')
         lines.append('<p><strong>' + escape(caption[0]) + '</strong> ' + escape(description) + '</p>')
-    for client, label in CLIENTS:
+    for client, label in CLIENT_VARIANTS.get(identifier, CLIENTS):
         lines.extend(['<div class="wormholes-demo-variant" data-client="' + client + '">', '<p>' + label + '</p>'])
         for perspective in SHOT_VIEWS[identifier]:
             name: str = PERSPECTIVES[perspective]
@@ -137,7 +146,7 @@ def require_clips(docs: Path, demos: dict[str, tuple[tuple[str, str], ...]]) -> 
     missing: list[str] = []
     for demonstrations in demos.values():
         for _, identifier in demonstrations:
-            for client, _ in CLIENTS:
+            for client, _ in CLIENT_VARIANTS.get(identifier, CLIENTS):
                 for perspective in SHOT_VIEWS[identifier]:
                     clip: Path = directory / (identifier + '-' + client + '-' + perspective + '.webm')
                     if not clip.is_file() or clip.stat().st_size == 0:
@@ -207,7 +216,7 @@ def sync(docs: Path, now: str, only: tuple[str, ...] | list[str] | None = None,
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser: argparse.ArgumentParser = argparse.ArgumentParser(description='Embed paired Wormholes demonstration clips into their wiki reference sections.')
+    parser: argparse.ArgumentParser = argparse.ArgumentParser(description='Embed accepted Wormholes demonstration clips into their wiki reference sections.')
     parser.add_argument('--docs', type=Path, default=ROOT.parent / 'docs')
     parser.add_argument('--manifest', type=Path, help='Accepted recording manifest for loading-pause captions.')
     parser.add_argument('--only', action='append', choices=sorted(

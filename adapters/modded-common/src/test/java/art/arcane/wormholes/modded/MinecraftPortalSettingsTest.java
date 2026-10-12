@@ -3,6 +3,8 @@ package art.arcane.wormholes.modded;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.portal.NetworkViewQuality;
 import art.arcane.optics.frame.QuarterTurn;
+import art.arcane.optics.crossing.ScaleRule;
+import art.arcane.wormholes.transit.ScaleRuleSettings;
 import art.arcane.wormholes.portal.Portal;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.frame.OpticTransform;
@@ -63,6 +65,26 @@ public class MinecraftPortalSettingsTest extends MinecraftTestBase {
         assertNull(destination.setting("fidelity.acoustics"));
         assertNull(destination.setting("fidelity.lod"));
         assertNull(destination.setting("fidelity.block_entities"));
+    }
+
+    @Test
+    public void scaleModeAndBoundsSyncIncludingAResetToDefaultOff() {
+        WormholesModRuntime runtime = mock(WormholesModRuntime.class);
+        when(runtime.portals()).thenReturn(mock(MinecraftPortalRegistry.class));
+        MinecraftPortalSyncAccess sync = new MinecraftPortalSyncAccess(runtime);
+        MinecraftPortal source = portal();
+        MinecraftPortal destination = portal();
+        ScaleRule rule = ScaleRule.ratio(0.125D, 8.0D);
+        source.setScaleRule(rule);
+        Map<String, String> settings = sync.collectSettings(source);
+        assertEquals("ratio", settings.get(ScaleRuleSettings.MODE));
+        assertEquals("0.125", settings.get(ScaleRuleSettings.MIN));
+        assertEquals("8", settings.get(ScaleRuleSettings.MAX));
+        sync.applySettings(destination, settings);
+        assertEquals(rule, destination.getScaleRule());
+        source.setScaleRule(ScaleRuleSettings.DEFAULT);
+        sync.applySettings(destination, sync.collectSettings(source));
+        assertEquals(ScaleRuleSettings.DEFAULT, destination.getScaleRule());
     }
 
     @Test

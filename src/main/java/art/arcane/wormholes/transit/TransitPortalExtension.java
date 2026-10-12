@@ -18,7 +18,7 @@ import art.arcane.wormholes.portal.LocalPortal;
 
 /**
  * Per-portal transit state: momentum and orientation policy (null means "inherit the config default"),
- * membrane and bounce flags, and the transition profile. Momentum, orientation, membrane, and profile
+ * membrane and bounce flags, and the transition profile. Momentum, orientation, membrane, profile, and traveller scale
  * replicate to linked portals; bounce stays local because a bouncing portal never sends anyone anywhere.
  */
 public final class TransitPortalExtension implements PortalExtension {
@@ -210,6 +210,9 @@ public final class TransitPortalExtension implements PortalExtension {
 
     @Override
     public void collectSync(Map<String, String> settings) {
+        settings.put(ScaleRuleSettings.MODE, ScaleRuleSettings.format(scale.mode()));
+        settings.put(ScaleRuleSettings.MIN, ScaleRuleSettings.format(scale.min()));
+        settings.put(ScaleRuleSettings.MAX, ScaleRuleSettings.format(scale.max()));
         MomentumPolicy syncedMomentum = momentum;
         OrientationPolicy syncedOrientation = orientation;
         TransitionProfile syncedProfile = profile;
@@ -224,6 +227,9 @@ public final class TransitPortalExtension implements PortalExtension {
 
     @Override
     public void applySync(Map<String, String> settings) {
+        if (settings.containsKey(ScaleRuleSettings.MODE) && settings.containsKey(ScaleRuleSettings.MIN) && settings.containsKey(ScaleRuleSettings.MAX)) {
+            setScaleRule(ScaleRuleSettings.parse(settings.get(ScaleRuleSettings.MODE), settings.get(ScaleRuleSettings.MIN), settings.get(ScaleRuleSettings.MAX)));
+        }
         if (settings.containsKey(MOMENTUM)) {
             momentum = MomentumPolicy.decode(settings.get(MOMENTUM));
         }

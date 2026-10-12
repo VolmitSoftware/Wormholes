@@ -16,6 +16,7 @@ import art.arcane.wormholes.modded.client.GravityRenderTransform;
 import art.arcane.wormholes.modded.client.WormholesClient;
 import art.arcane.wormholes.modded.gravity.MinecraftGravity;
 import art.arcane.wormholes.modded.mixin.SeamlessListenerAccess;
+import art.arcane.wormholes.modded.seamless.StraddleTracker;
 import art.arcane.wormholes.network.client.TravelMessage;
 import art.arcane.wormholes.portal.AmbientParticleStyle;
 import art.arcane.wormholes.portal.PortalType;
@@ -34,6 +35,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.decoration.ArmorStand;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
@@ -70,7 +72,7 @@ public final class GravityPortalClientGameTest {
     static void run(SeamlessClient client, Server server, Consumer<Boolean> jumping, Consumer<String> screenshot) {
         SeamlessScenario.join(client);
         SeamlessScenario.assertSeamlessNegotiated(client);
-        Scene scene = server.compute(nativeServer -> build(nativeServer, server.player()));
+        Scene scene = server.compute(nativeServer -> build(nativeServer, server.player(), new SceneSettings(2, ScaleRule.ratio(0.25D, 4.0D))));
         try {
             client.runOnClient(minecraft -> {
                 hidden(minecraft);
@@ -91,8 +93,8 @@ public final class GravityPortalClientGameTest {
             assertTrue(expected.down() == Face.W, "Quarter-turn fixture did not make the west wall the floor");
             client.waitForChunksRender();
             client.runOnClient(minecraft -> TravelTap.reset());
-            cross(client, expected);
-            awaitArrival(client, server, expected);
+            cross(client, expected, 0.5D);
+            awaitArrival(client, server, expected, 0.5D);
             Snapshot authoritative = server.compute(nativeServer -> snapshot(server.player()));
             assertTrue(expected.equals(authoritative.gravity()) && authoritative.grounded(), "Server did not accept grounded wall locomotion: " + authoritative);
             assertTrue(Math.abs(authoritative.scale() - 0.5D) < 1.0E-6D, "Server traveller scale was not 50%: " + authoritative);
@@ -100,9 +102,10 @@ public final class GravityPortalClientGameTest {
             server.run(nativeServer -> scene.traversal().verify());
             client.waitFor(minecraft -> minecraft.level.getEntity(scene.observer()) instanceof ArmorStand
                 && expected.equals(MinecraftGravity.frame(minecraft.level.getEntity(scene.observer()))), PREPARE_TICKS);
-            client.runOnClient(minecraft -> validatePose(minecraft, expected, scene.observer()));
+            client.runOnClient(minecraft -> validatePose(minecraft, expected, scene.observer(), 0.5D));
             moveOnWall(client, expected);
             jumpFromWall(client, expected, jumping);
+            overlayRegression(client, server);
             renderViews(client, expected, screenshot);
             client.runOnClient(minecraft -> {
                 assertTrue(TravelTap.respawns() == 0 && TravelTap.positions() == 0 && TravelTap.accepts() == 0
@@ -115,6 +118,88 @@ public final class GravityPortalClientGameTest {
             client.releaseForward();
             client.restoreDefaultGameOptions();
             server.run(nativeServer -> cleanup(nativeServer, server.player(), scene));
+        }
+    }
+
+    static void demo(SeamlessClient client, Server server, Consumer<FlightControls> input, CameraType camera, String id) {
+        SeamlessScenario.join(client);
+        SeamlessScenario.assertSeamlessNegotiated(client);
+        Scene scene = server.compute(nativeServer -> build(nativeServer, server.player(), new SceneSettings(4, ScaleRule.OFF)));
+        NativeDemoCapture capture = new NativeDemoCapture(client);
+        boolean hiddenHud = client.computeOnClient(minecraft -> minecraft.gui.hud.isHidden());
+        boolean recording = false;
+        try {
+            client.runOnClient(minecraft -> {
+                hidden(minecraft);
+                minecraft.options.setCameraType(camera);
+                minecraft.options.bobView().set(false);
+                minecraft.options.fovEffectScale().set(0.0D);
+                minecraft.options.fov().set(70);
+                if (!minecraft.gui.hud.isHidden()) {
+                    minecraft.gui.hud.toggle();
+                }
+            });
+            prepare(client, server);
+            client.lookAt(YAW, 0.0F);
+            awaitArm(client, server, scene.source());
+            GravityFrame expected = client.computeOnClient(minecraft -> {
+                TravelMessage.TravelBegin armed = arm(scene.source());
+                assertTrue(armed.rules().rotateGravity() && Math.abs(armed.scale() - 1.0F) < 1.0E-6F,
+                    "Equal-size gravity demo did not arm unscaled directional travel");
+                return GravityFrame.WORLD.transformed(armed.sourceToDestination().rigid().permutation());
+            });
+            assertTrue(expected.down() == Face.W, "Gravity demo did not make the west wall the floor");
+            client.waitForChunksRender();
+            client.runOnClient(minecraft -> TravelTap.reset());
+            capture.begin(id);
+            recording = true;
+            client.waitTicks(40);
+            cross(client, expected, 1.0D);
+            awaitArrival(client, server, expected, 1.0D);
+            server.run(nativeServer -> scene.traversal().verify());
+            client.waitFor(minecraft -> minecraft.level.getEntity(scene.observer()) instanceof ArmorStand
+                && expected.equals(MinecraftGravity.frame(minecraft.level.getEntity(scene.observer()))), PREPARE_TICKS);
+            client.runOnClient(minecraft -> validatePose(minecraft, expected, scene.observer(), 1.0D));
+            client.waitTicks(40);
+            moveOnWall(client, expected);
+            clearGroundedOverlay(client, "demo wall walk");
+            jumpFromWall(client, expected, pressed -> input.accept(new FlightControls(pressed, false)));
+            assertTrue(client.computeOnClient(minecraft -> !minecraft.player.getAbilities().flying),
+                "A single gravity-relative jump enabled creative flight");
+            capture.turn(150.0F, 0.0F, 40);
+            flyOnWall(client, server, expected, input);
+            client.waitTicks(40);
+            clearGroundedOverlay(client, "demo final ground");
+            Snapshot authoritative = server.compute(nativeServer -> snapshot(server.player()));
+            assertTrue(expected.equals(authoritative.gravity()) && authoritative.grounded()
+                && Math.abs(authoritative.scale() - 1.0D) < 1.0E-6D, "Gravity demo server state diverged: " + authoritative);
+            client.runOnClient(minecraft -> {
+                hidden(minecraft);
+                assertTrue(minecraft.options.getCameraType() == camera && minecraft.gui.hud.isHidden(),
+                    "Gravity demo changed its camera or showed the HUD");
+                assertTrue(TravelTap.respawns() == 0 && TravelTap.positions() == 0 && TravelTap.accepts() == 0
+                    && !TravelTap.loadingScreenShown() && !TravelTap.clientUnloaded(),
+                    "Gravity demo received a vanilla teleport correction: " + TravelTap.events());
+                assertTrue(!TravelTap.frames().isEmpty(), "Gravity demo did not advance native render frames");
+                validateCamera(minecraft, expected, camera);
+            });
+            LOGGER.info("WORMHOLES_NATIVE_DEMO_PASS: {} unscaled quarter-turn crossing, wall walk, normal jump, creative ascent/descent and hover", id);
+        } finally {
+            try {
+                if (recording) {
+                    capture.end(id);
+                }
+            } finally {
+                input.accept(new FlightControls(false, false));
+                client.releaseForward();
+                client.runOnClient(minecraft -> {
+                    if (minecraft.gui.hud.isHidden() != hiddenHud) {
+                        minecraft.gui.hud.toggle();
+                    }
+                });
+                client.restoreDefaultGameOptions();
+                server.run(nativeServer -> cleanup(nativeServer, server.player(), scene));
+            }
         }
     }
 
@@ -159,13 +244,13 @@ public final class GravityPortalClientGameTest {
         throw preparationFailure(client, server, "gravity portal did not arm");
     }
 
-    private static void awaitArrival(SeamlessClient client, Server server, GravityFrame gravity) {
+    private static void awaitArrival(SeamlessClient client, Server server, GravityFrame gravity, double scale) {
         for (int tick = 0; tick < PREPARE_TICKS; tick++) {
             boolean confirmed = client.computeOnClient(minecraft -> !WormholesClient.instance().seamlessTravel().pending());
             Snapshot local = client.computeOnClient(minecraft -> snapshot(minecraft.player));
             Snapshot authoritative = server.compute(nativeServer -> snapshot(server.player()));
             if (confirmed && gravity.equals(local.gravity()) && gravity.equals(authoritative.gravity())
-                && local.grounded() && authoritative.grounded() && Math.abs(authoritative.scale() - 0.5D) < 1.0E-6D) {
+                && local.grounded() && authoritative.grounded() && Math.abs(authoritative.scale() - scale) < 1.0E-6D && Math.abs(local.scale() - scale) < 1.0E-6D) {
                 LOGGER.info("Gravity portal arrival grounded: client {}; server {}", local, authoritative);
                 return;
             }
@@ -222,7 +307,7 @@ public final class GravityPortalClientGameTest {
             ((SeamlessListenerAccess) player.connection).wormholesAwaitingPosition(), "server", player.tickCount);
     }
 
-    private static void cross(SeamlessClient client, GravityFrame expected) {
+    private static void cross(SeamlessClient client, GravityFrame expected, double scale) {
         client.holdForward();
         try (TickStepper stepper = client.lockstep()) {
             boolean crossed = false;
@@ -234,7 +319,7 @@ public final class GravityPortalClientGameTest {
                 if (expected.equals(state.gravity())) {
                     crossed = true;
                     assertTrue(state.position().x > DESTINATION.getX() - 1.0D, "Native quarter-turn crossing missed its destination");
-                    assertTrue(Math.abs(state.scale() - 0.5D) < 1.0E-6D, "Scale was not predicted on the native crossing tick");
+                    assertTrue(Math.abs(state.scale() - scale) < 1.0E-6D, "Scale was not predicted on the native crossing tick");
                     assertTrue(Math.abs(Mth.wrapDegrees(state.yaw() - YAW)) < 0.5F, "Native crossing changed gravity-local yaw");
                     break;
                 }
@@ -247,7 +332,6 @@ public final class GravityPortalClientGameTest {
 
     private static void moveOnWall(SeamlessClient client, GravityFrame gravity) {
         Vec3 before = client.computeOnClient(minecraft -> minecraft.player.position());
-        client.lookAt(YAW, 0.0F);
         client.holdForwardFor(35);
         client.waitTicks(4);
         Vec3 after = client.computeOnClient(minecraft -> minecraft.player.position());
@@ -279,6 +363,86 @@ public final class GravityPortalClientGameTest {
         client.waitFor(minecraft -> minecraft.player.onGround(), PREPARE_TICKS);
     }
 
+    private static void flyOnWall(SeamlessClient client, Server server, GravityFrame gravity, Consumer<FlightControls> input) {
+        FlightControls released = new FlightControls(false, false);
+        FlightControls ascend = new FlightControls(true, false);
+        FlightControls descend = new FlightControls(false, true);
+        try (TickStepper stepper = client.lockstep()) {
+            flightPhase(stepper, gravity, input, released, 8);
+            flightPhase(stepper, gravity, input, ascend, 1);
+            flightPhase(stepper, gravity, input, released, 2);
+            flightPhase(stepper, gravity, input, ascend, 1);
+            FlightState takeoff = flightPhase(stepper, gravity, input, released, 1);
+            assertTrue(takeoff.flying(), "Double jump did not enable rotated creative flight");
+            FlightState rising = flightPhase(stepper, gravity, input, ascend, 16);
+            Vec3 ascent = MinecraftGravity.local(gravity, rising.position().subtract(takeoff.position()));
+            assertTrue(rising.flying() && ascent.y > 1.0D && ascent.horizontalDistanceSqr() < 1.0E-4D
+                && MinecraftGravity.local(gravity, rising.velocity()).y > 0.1D,
+                "Creative ascent did not follow gravity-local up: " + ascent + ", " + rising);
+            verifyFlight(server, gravity, rising);
+            flightPhase(stepper, gravity, input, released, 16);
+            FlightState hovering = flightPhase(stepper, gravity, input, released, 1);
+            FlightState hoverEnd = flightPhase(stepper, gravity, input, released, 8);
+            assertTrue(hoverEnd.flying() && !hoverEnd.grounded() && hoverEnd.position().distanceTo(hovering.position()) < 0.01D,
+                "Released creative ascent did not hover: " + hovering + " -> " + hoverEnd);
+            verifyFlight(server, gravity, hoverEnd);
+            FlightState falling = flightPhase(stepper, gravity, input, descend, 8);
+            Vec3 descent = MinecraftGravity.local(gravity, falling.position().subtract(hoverEnd.position()));
+            assertTrue(falling.flying() && descent.y < -0.5D && descent.horizontalDistanceSqr() < 1.0E-4D
+                && MinecraftGravity.local(gravity, falling.velocity()).y < -0.1D,
+                "Creative descent did not follow gravity-local down: " + descent + ", " + falling);
+            verifyFlight(server, gravity, falling);
+            flightPhase(stepper, gravity, input, released, 16);
+            hovering = flightPhase(stepper, gravity, input, released, 1);
+            hoverEnd = flightPhase(stepper, gravity, input, released, 8);
+            assertTrue(hoverEnd.flying() && !hoverEnd.grounded() && hoverEnd.position().distanceTo(hovering.position()) < 0.01D,
+                "Released creative descent did not hover: " + hovering + " -> " + hoverEnd);
+            verifyFlight(server, gravity, hoverEnd);
+            flightPhase(stepper, gravity, input, ascend, 1);
+            flightPhase(stepper, gravity, input, released, 2);
+            flightPhase(stepper, gravity, input, ascend, 1);
+            FlightState landed = flightPhase(stepper, gravity, input, released, 40);
+            assertTrue(!landed.flying() && landed.grounded(), "Creative flight did not switch off and land on the rotated floor: " + landed);
+            verifyFlight(server, gravity, landed);
+        } finally {
+            input.accept(released);
+        }
+    }
+
+    private static FlightState flightPhase(TickStepper stepper, GravityFrame gravity, Consumer<FlightControls> input,
+                                           FlightControls controls, int ticks) {
+        input.accept(controls);
+        FlightState result = null;
+        try {
+            for (int tick = 0; tick < ticks; tick++) {
+                result = stepper.step(minecraft -> {
+                    hidden(minecraft);
+                    assertTrue(gravity.equals(MinecraftGravity.frame(minecraft.player)), "Gravity changed during creative flight");
+                    assertTrue(Math.abs(minecraft.player.getScale() - 1.0F) < 1.0E-6F, "Creative gravity demo changed traveller scale");
+                    return flightState(minecraft.player);
+                });
+            }
+            return result;
+        } finally {
+            input.accept(new FlightControls(false, false));
+        }
+    }
+
+    private static void verifyFlight(Server server, GravityFrame gravity, FlightState local) {
+        FlightState authoritative = server.compute(nativeServer -> {
+            nativeServer.packetProcessor().processQueuedPackets();
+            assertTrue(gravity.equals(MinecraftGravity.frame(server.player())), "Server gravity changed during creative flight");
+            return flightState(server.player());
+        });
+        assertTrue(local.flying() == authoritative.flying() && local.grounded() == authoritative.grounded()
+            && local.position().distanceTo(authoritative.position()) < 0.15D,
+            "Creative flight diverged between client and server: local=" + local + ", server=" + authoritative);
+    }
+
+    private static FlightState flightState(Player player) {
+        return new FlightState(player.position(), player.getDeltaMovement(), player.getAbilities().flying, player.onGround());
+    }
+
     private static void renderViews(SeamlessClient client, GravityFrame gravity, Consumer<String> screenshot) {
         for (CameraType type : List.of(CameraType.FIRST_PERSON, CameraType.THIRD_PERSON_BACK, CameraType.THIRD_PERSON_FRONT)) {
             client.runOnClient(minecraft -> minecraft.options.setCameraType(type));
@@ -286,32 +450,113 @@ public final class GravityPortalClientGameTest {
             client.waitTicks(4);
             client.runOnClient(minecraft -> {
                 hidden(minecraft);
-                Camera camera = minecraft.gameRenderer.mainCamera();
-                float partialTicks = camera.getCameraEntityPartialTicks(minecraft.getDeltaTracker());
-                float yaw = minecraft.player.getViewYRot(partialTicks);
-                float pitch = minecraft.player.getViewXRot(partialTicks);
-                Quaternionf expected = GravityRenderTransform.camera(gravity, type.isMirrored() ? yaw + 180.0F : yaw,
-                    type.isMirrored() ? -pitch : pitch);
-                vector(new Vector3f(0, 0, -1).rotate(expected), camera.forwardVector(), "Gravity camera forward in " + type);
-                vector(new Vector3f(0, 1, 0).rotate(expected), camera.upVector(), "Gravity camera up in " + type);
-                if (type.isFirstPerson()) {
-                    assertTrue(camera.position().distanceTo(minecraft.player.getEyePosition(partialTicks)) < 0.05D,
-                        "First-person camera did not follow gravity-relative eye position");
-                } else {
-                    Vec3 eye = minecraft.player.getEyePosition(partialTicks);
-                    Vec3 offset = camera.position().subtract(eye);
-                    assertTrue(offset.length() > 0.1D, "Third-person gravity camera collapsed into the player");
-                    assertTrue(offset.normalize().dot(new Vec3(camera.forwardVector())) < -0.99D,
-                        "Third-person gravity camera did not retreat along its rotated viewing axis");
-                }
+                validateCamera(minecraft, gravity, type);
                 assertTrue(TravelTap.frames().size() > frames, "Native GPU frames did not advance for " + type);
             });
             screenshot.accept("gravity-portal-" + type.name().toLowerCase(Locale.ROOT));
         }
     }
 
-    private static void validatePose(Minecraft minecraft, GravityFrame gravity, int observerId) {
-        assertTrue(Math.abs(minecraft.player.getAttributeValue(Attributes.SCALE) - 0.5D) < 1.0E-6D, "Client scale did not remain 50%");
+    private static void overlayRegression(SeamlessClient client, Server server) {
+        CameraType original = client.computeOnClient(minecraft -> minecraft.options.getCameraType());
+        try {
+            for (CameraType type : List.of(CameraType.FIRST_PERSON, CameraType.THIRD_PERSON_BACK)) {
+                client.runOnClient(minecraft -> minecraft.options.setCameraType(type));
+                clearGroundedOverlay(client, "wall floor " + type);
+            }
+            client.runOnClient(minecraft -> minecraft.options.setCameraType(CameraType.FIRST_PERSON));
+            clearGroundedOverlay(client, "before embedded-eye control");
+            BlockPos center = client.computeOnClient(minecraft -> BlockPos.containing(minecraft.player.getEyePosition()));
+            List<OverlayBlock> saved = server.compute(nativeServer -> saveOverlayBlocks(nativeServer.overworld(), center));
+            try {
+                server.run(nativeServer -> {
+                    for (OverlayBlock block : saved) {
+                        nativeServer.overworld().setBlockAndUpdate(block.position(), Blocks.STONE.defaultBlockState());
+                    }
+                });
+                client.waitFor(minecraft -> overlayBlocks(minecraft, saved, true), 100);
+                freshOverlayFrames(client);
+                client.runOnClient(minecraft -> {
+                    assertTrue(!minecraft.player.noPhysics && StraddleTracker.straddle(minecraft.player) == null,
+                        "Embedded-eye control bypassed native physics or used straddle suppression");
+                    assertTrue(NativeTestWindow.hasBlockOverlay(minecraft),
+                        "A real opaque block enclosing the gravity-relative eye did not produce the native block overlay");
+                });
+            } finally {
+                server.run(nativeServer -> {
+                    for (OverlayBlock block : saved) {
+                        nativeServer.overworld().setBlockAndUpdate(block.position(), block.state());
+                    }
+                });
+                client.waitFor(minecraft -> overlayBlocks(minecraft, saved, false), 100);
+                clearGroundedOverlay(client, "after embedded-eye control");
+            }
+            LOGGER.info("Gravity overlay control passed: first/rear third-person floor has no overlay, enclosed real eye has an overlay, restored floor clears it");
+        } finally {
+            client.runOnClient(minecraft -> minecraft.options.setCameraType(original));
+        }
+    }
+
+    private static void clearGroundedOverlay(SeamlessClient client, String stage) {
+        client.waitFor(minecraft -> minecraft.player.onGround() && StraddleTracker.straddle(minecraft.player) == null, 100);
+        freshOverlayFrames(client);
+        client.runOnClient(minecraft -> {
+            hidden(minecraft);
+            assertTrue(minecraft.player.onGround() && !minecraft.player.noPhysics && StraddleTracker.straddle(minecraft.player) == null,
+                "Gravity floor overlay check did not test ordinary grounded physics outside the portal: " + stage);
+            assertTrue(!NativeTestWindow.hasBlockOverlay(minecraft),
+                "A clear gravity-relative eye produced a native block overlay at " + stage + ": feet=" + minecraft.player.position()
+                    + ", eye=" + minecraft.player.getEyePosition() + ", camera=" + minecraft.gameRenderer.mainCamera().position());
+        });
+    }
+
+    private static void freshOverlayFrames(SeamlessClient client) {
+        int frames = client.computeOnClient(minecraft -> TravelTap.frameIndex());
+        client.waitFor(minecraft -> TravelTap.frameIndex() >= frames + 2, 100);
+    }
+
+    private static List<OverlayBlock> saveOverlayBlocks(ServerLevel level, BlockPos center) {
+        List<OverlayBlock> saved = new ArrayList<>(27);
+        for (BlockPos position : BlockPos.betweenClosed(center.offset(-1, -1, -1), center.offset(1, 1, 1))) {
+            BlockPos stored = position.immutable();
+            saved.add(new OverlayBlock(stored, level.getBlockState(stored)));
+        }
+        return saved;
+    }
+
+    private static boolean overlayBlocks(Minecraft minecraft, List<OverlayBlock> blocks, boolean stone) {
+        for (OverlayBlock block : blocks) {
+            BlockState current = minecraft.level.getBlockState(block.position());
+            if (stone ? !current.is(Blocks.STONE) : !current.equals(block.state())) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static void validateCamera(Minecraft minecraft, GravityFrame gravity, CameraType type) {
+        Camera camera = minecraft.gameRenderer.mainCamera();
+        float partialTicks = camera.getCameraEntityPartialTicks(minecraft.getDeltaTracker());
+        float yaw = minecraft.player.getViewYRot(partialTicks);
+        float pitch = minecraft.player.getViewXRot(partialTicks);
+        Quaternionf expected = GravityRenderTransform.camera(gravity, type.isMirrored() ? yaw + 180.0F : yaw,
+            type.isMirrored() ? -pitch : pitch);
+        vector(new Vector3f(0, 0, -1).rotate(expected), camera.forwardVector(), "Gravity camera forward in " + type);
+        vector(new Vector3f(0, 1, 0).rotate(expected), camera.upVector(), "Gravity camera up in " + type);
+        if (type.isFirstPerson()) {
+            assertTrue(camera.position().distanceTo(minecraft.player.getEyePosition(partialTicks)) < 0.05D,
+                "First-person camera did not follow gravity-relative eye position");
+        } else {
+            Vec3 eye = minecraft.player.getEyePosition(partialTicks);
+            Vec3 offset = camera.position().subtract(eye);
+            assertTrue(offset.length() > 0.1D, "Third-person gravity camera collapsed into the player");
+            assertTrue(offset.normalize().dot(new Vec3(camera.forwardVector())) < -0.99D,
+                "Third-person gravity camera did not retreat along its rotated viewing axis");
+        }
+    }
+
+    private static void validatePose(Minecraft minecraft, GravityFrame gravity, int observerId, double scale) {
+        assertTrue(Math.abs(minecraft.player.getAttributeValue(Attributes.SCALE) - scale) < 1.0E-6D, "Client scale did not remain " + scale);
         Vec3 eyeOffset = MinecraftGravity.local(gravity, minecraft.player.getEyePosition().subtract(minecraft.player.position()));
         assertTrue(Math.abs(eyeOffset.x) < 1.0E-6D && Math.abs(eyeOffset.z) < 1.0E-6D
             && Math.abs(eyeOffset.y - minecraft.player.getEyeHeight()) < 1.0E-5D, "Player eye offset did not follow the new up direction");
@@ -337,16 +582,16 @@ public final class GravityPortalClientGameTest {
         throw new AssertionError("Missing prepared gravity portal arm");
     }
 
-    private static Scene build(MinecraftServer server, ServerPlayer player) {
+    private static Scene build(MinecraftServer server, ServerPlayer player, SceneSettings settings) {
         WormholesModRuntime runtime = runtime(server);
         ServerLevel level = server.overworld();
         fill(level, SOURCE.offset(-6, -1, -12), 16, 1, 26, Blocks.STONE.defaultBlockState());
         fill(level, DESTINATION.offset(-1, -6, -12), 1, 20, 26, Blocks.STONE.defaultBlockState());
         MinecraftPortal source = portal(runtime, player, level, SOURCE, 4);
-        MinecraftPortal destination = portal(runtime, player, level, DESTINATION, 2);
+        MinecraftPortal destination = portal(runtime, player, level, DESTINATION, settings.destinationEdge());
         destination.setFrame(Frame.fromNormalUp(Face.N, Face.E));
         source.setGravityRotationEnabled(true);
-        source.setScaleRule(ScaleRule.ratio(0.25D, 4.0D));
+        source.setScaleRule(settings.scale());
         assertTrue(runtime.portals().link(player, source.getId(), destination.getId()), "Gravity fixture portal link rejected");
         GravityFrame gravity = GravityFrame.WORLD.transformed(AxisPermutation.between(source.getFrame(), destination.getFrame()));
         ArmorStand observer = new ArmorStand(level, DESTINATION.getX(), DESTINATION.getY() + 3.0D, DESTINATION.getZ() - 3.0D);
@@ -424,6 +669,18 @@ public final class GravityPortalClientGameTest {
         <T> T compute(Function<MinecraftServer, T> action);
 
         ServerPlayer player();
+    }
+
+    record FlightControls(boolean jump, boolean descend) {
+    }
+
+    private record FlightState(Vec3 position, Vec3 velocity, boolean flying, boolean grounded) {
+    }
+
+    private record OverlayBlock(BlockPos position, BlockState state) {
+    }
+
+    private record SceneSettings(int destinationEdge, ScaleRule scale) {
     }
 
     private record Scene(UUID source, UUID destination, int observer, TraversalProbe traversal, AutoCloseable registration) {

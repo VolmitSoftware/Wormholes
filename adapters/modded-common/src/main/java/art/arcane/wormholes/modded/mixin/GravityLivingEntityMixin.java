@@ -23,7 +23,7 @@ public abstract class GravityLivingEntityMixin {
         return frame.equals(GravityFrame.WORLD) ? original.call(dimensions, feet) : MinecraftGravity.bounds(frame, dimensions, feet);
     }
 
-    @ModifyExpressionValue(method = {"jumpFromGround", "goDownInWater", "jumpInLiquid", "getEffectiveGravity", "travelFlying",
+    @ModifyExpressionValue(method = {"aiStep", "jumpFromGround", "goDownInWater", "jumpInLiquid", "getEffectiveGravity", "travelFlying",
         "travelInAir", "travelInFluid", "travelInWater", "travelInLava", "jumpOutOfFluid", "travelFallFlying",
         "handleRelativeFrictionAndCalculateMovement"},
         at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/LivingEntity;getDeltaMovement()Lnet/minecraft/world/phys/Vec3;"))
@@ -32,7 +32,7 @@ public abstract class GravityLivingEntityMixin {
         return frame.equals(GravityFrame.WORLD) ? original : MinecraftGravity.local(frame, original);
     }
 
-    @WrapOperation(method = {"goDownInWater", "jumpInLiquid", "travelFlying", "travelInAir", "travelInWater", "travelInLava",
+    @WrapOperation(method = {"aiStep", "goDownInWater", "jumpInLiquid", "travelFlying", "travelInAir", "travelInWater", "travelInLava",
         "travelFallFlying", "handleRelativeFrictionAndCalculateMovement"},
         at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/LivingEntity;setDeltaMovement(Lnet/minecraft/world/phys/Vec3;)V"))
     private void wormholes$worldVelocity(LivingEntity entity, Vec3 velocity, Operation<Void> original) {
@@ -40,7 +40,7 @@ public abstract class GravityLivingEntityMixin {
         original.call(entity, frame.equals(GravityFrame.WORLD) ? velocity : MinecraftGravity.world(frame, velocity));
     }
 
-    @WrapOperation(method = {"jumpFromGround", "travelInAir", "jumpOutOfFluid"},
+    @WrapOperation(method = {"aiStep", "jumpFromGround", "travelInAir", "jumpOutOfFluid"},
         at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/LivingEntity;setDeltaMovement(DDD)V"))
     private void wormholes$worldVelocity(LivingEntity entity, double x, double y, double z, Operation<Void> original) {
         GravityFrame frame = MinecraftGravity.frame(entity);

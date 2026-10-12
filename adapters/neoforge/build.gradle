@@ -32,6 +32,7 @@ java {
 }
 
 List<String> sharedClientTestClasses = [
+    'art.arcane.wormholes.modded.mixin.client.GravityCameraScaleHistoryTest',
     'art.arcane.wormholes.modded.client.NativeLightNotificationTest',
     'art.arcane.wormholes.modded.client.ClientSeamlessTravelTest',
     'art.arcane.wormholes.modded.client.ClientTravelCrossingDeclineTest',

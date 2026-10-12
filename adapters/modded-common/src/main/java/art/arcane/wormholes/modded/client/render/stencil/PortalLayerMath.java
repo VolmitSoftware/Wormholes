@@ -13,7 +13,6 @@ import art.arcane.optics.math.Vec3d;
 import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
 import org.joml.Quaternionf;
-import org.joml.Vector3f;
 import org.joml.Vector4d;
 import org.joml.Vector4dc;
 import org.joml.Vector4f;
@@ -28,7 +27,8 @@ public final class PortalLayerMath {
     }
 
     public static Matrix4f innerView(Matrix4fc outerView, Similarity toDestination) {
-        return new Matrix4f(outerView).mul(rotation(toDestination.rigid().inverse().permutation()));
+        return new Matrix4f(outerView).mul(rotation(toDestination.rigid().inverse().permutation()))
+            .scale((float) (1.0D / toDestination.scale()));
     }
 
     public static boolean mirrored(Similarity toDestination) {
@@ -51,8 +51,8 @@ public final class PortalLayerMath {
 
     public static Vector4f viewPlane(Vector4dc worldPlane, Vec3d camera, Matrix4fc view) {
         double relative = worldPlane.w() + worldPlane.x() * camera.x() + worldPlane.y() * camera.y() + worldPlane.z() * camera.z();
-        Vector3f normal = view.transformDirection(new Vector3f((float) worldPlane.x(), (float) worldPlane.y(), (float) worldPlane.z()));
-        return new Vector4f(normal.x, normal.y, normal.z, (float) relative);
+        return new Matrix4f(view).invert().transpose().transform(new Vector4f((float) worldPlane.x(),
+            (float) worldPlane.y(), (float) worldPlane.z(), (float) relative));
     }
 
     public static Vector4f clipPlane(Vector4fc viewPlane, Matrix4fc projection) {

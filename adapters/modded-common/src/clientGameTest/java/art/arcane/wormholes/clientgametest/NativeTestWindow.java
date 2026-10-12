@@ -18,4 +18,8 @@ final class NativeTestWindow {
         return !client.mouseHandler.isMouseGrabbed() && !SDLVideo.SDL_GetWindowMouseGrab(window)
             && !SDLMouse.SDL_GetWindowRelativeMouseMode(window);
     }
+
+    static boolean hasBlockOverlay(Minecraft client) {
+        return client.gameRenderer.gameRenderState().levelRenderState.playerRenderState.blockOverlay != null;
+    }
 }

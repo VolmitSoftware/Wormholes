@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
 
 import java.util.HashMap;
 import java.util.List;
@@ -12,6 +13,11 @@ import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 
+import art.arcane.optics.crossing.ScaleRule;
+import art.arcane.wormholes.hook.WormholesHooks;
+import art.arcane.wormholes.hook.WormholesRegistrar;
+import art.arcane.wormholes.transit.ScaleRuleSettings;
+import art.arcane.wormholes.transit.TransitPortalExtension;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.LocalPortal;
@@ -107,7 +113,7 @@ public final class LocalPairSettingsSyncTest {
     private static void withService(List<ILocalPortal> portals, Runnable body) {
         PortalSyncService<ILocalPortal> previous = Wormholes.portalSyncService;
         try {
-            Wormholes.portalSyncService = BukkitPortalSyncAccess.create(null, () -> portals, Runnable::run);
+            Wormholes.portalSyncService = BukkitPortalSyncAccess.create(mock(NetworkManager.class), () -> portals, Runnable::run);
             body.run();
         } finally {
             Wormholes.portalSyncService = previous;
@@ -245,4 +251,44 @@ public final class LocalPairSettingsSyncTest {
             assertFalse(PortalSyncService.isApplyingRemote(), "the re-entry guard must be restored after the fan-out");
         });
     }
+    @Test
+    public void linkedScaleRulesSyncInBothDirectionsAndRespectEachSyncSwitch() {
+        WormholesHooks.install(new WormholesRegistrar().portalExtension(TransitPortalExtension.class, portal -> new TransitPortalExtension()));
+        try {
+            LocalPortal source = localPortal(0);
+            LocalPortal counterpart = localPortal(64);
+            source.setSettingsSyncEnabled(true);
+            counterpart.setSettingsSyncEnabled(true);
+            withService(List.of(source, counterpart), () -> {
+                source.setDimensionalCounterpartId(counterpart.getId());
+                counterpart.setDimensionalCounterpartId(source.getId());
+                TransitPortalExtension first = source.extension(TransitPortalExtension.class);
+                TransitPortalExtension second = counterpart.extension(TransitPortalExtension.class);
+                ScaleRule ratio = ScaleRule.ratio(0.125D, 8.0D);
+                first.setScaleRule(ratio);
+                Wormholes.portalSyncService.broadcastSettings(source);
+                assertEquals(ratio, second.scaleRule());
+                ScaleRule motion = new ScaleRule(ScaleRule.Mode.MOTION, 0.5D, 2.0D);
+                second.setScaleRule(motion);
+                Wormholes.portalSyncService.broadcastSettings(counterpart);
+                assertEquals(motion, first.scaleRule());
+                first.setScaleRule(ScaleRuleSettings.DEFAULT);
+                Wormholes.portalSyncService.broadcastSettings(source);
+                assertEquals(ScaleRuleSettings.DEFAULT, second.scaleRule());
+                counterpart.setSettingsSyncEnabled(false);
+                first.setScaleRule(ratio);
+                Wormholes.portalSyncService.broadcastSettings(source);
+                assertEquals(ScaleRuleSettings.DEFAULT, second.scaleRule());
+                counterpart.setSettingsSyncEnabled(true);
+                source.setSettingsSyncEnabled(false);
+                first.setScaleRule(motion);
+                Wormholes.portalSyncService.broadcastSettings(source);
+                assertEquals(ScaleRuleSettings.DEFAULT, second.scaleRule());
+                assertFalse(PortalSyncService.isApplyingRemote());
+            });
+        } finally {
+            WormholesHooks.clear();
+        }
+    }
+
 }

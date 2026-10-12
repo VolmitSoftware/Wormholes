@@ -7,6 +7,7 @@ import re
 import shutil
 import signal
 import subprocess
+import sys
 import time
 import urllib.error
 import urllib.request
@@ -210,6 +211,9 @@ def stop_owned_client(run: Path) -> None:
 
 
 def execute(args: argparse.Namespace) -> int:
+    if args.record_demo:
+        sys.path.insert(0, str(ROOT / 'src/test/demo'))
+        from native_capture import NativeCaptureRecorder
     if args.iris_baseline_source is not None and args.minecraft_version != "26.3":
         raise ValueError("The saved Iris baseline targets Minecraft 26.3")
     tests = selected_tests(args.suite, args.tests)
@@ -248,6 +252,7 @@ def execute(args: argparse.Namespace) -> int:
     script = evidence / "launch.init.gradle"
     states: list[dict] = []
     process: subprocess.Popen | None = None
+    recorder: NativeCaptureRecorder | None = None
     success = False
     failure: str | None = None
     try:
@@ -277,6 +282,8 @@ def execute(args: argparse.Namespace) -> int:
         if override_resources.is_dir():
             shutil.copytree(override_resources, resources, dirs_exist_ok=True)
         token = uuid.uuid4().hex
+        if args.record_demo:
+            recorder = NativeCaptureRecorder(run / 'automator', token, args.demo_take or None)
         baseline: Path | None = None
         baseline_resources: Path | None = None
         replaced: list[Path] = []
@@ -305,6 +312,8 @@ def execute(args: argparse.Namespace) -> int:
                     if match:
                         port = int(match.group(1))
                 if port is not None:
+                    if recorder is not None:
+                        recorder.tick(port)
                     request = urllib.request.Request("http://127.0.0.1:" + str(port) + "/state", headers={"X-Automator-Token": token})
                     try:
                         with urllib.request.urlopen(request, timeout=3) as response:
@@ -337,6 +346,8 @@ def execute(args: argparse.Namespace) -> int:
                 raise AssertionError("Missing successful DH acceptance result")
             if len(states) < 2 or states[-1]["frames"] <= states[0]["frames"]:
                 raise AssertionError("Missing evidence that hidden GPU frames advanced")
+            if recorder is not None:
+                recorder.verify_complete()
             success = True
     except (RuntimeError, AssertionError, TimeoutError, OSError, KeyboardInterrupt) as error:
         failure = str(error) or type(error).__name__
@@ -353,6 +364,9 @@ def execute(args: argparse.Namespace) -> int:
                         shutil.copytree(source, evidence / name, dirs_exist_ok=True)
                     else:
                         shutil.copy2(source, evidence / name)
+            recordings = run / 'automator/native-demo'
+            if recordings.is_dir():
+                shutil.copytree(recordings, evidence / 'native-demo', dirs_exist_ok=True)
             (evidence / "hidden-states.json").write_text(json.dumps(states, indent=2) + "\n")
             (evidence / "result.json").write_text(json.dumps({"passed": success, "tests": tests, "minecraftVersion": args.minecraft_version, "renderer": args.renderer,
                 "shaderPack": shader.name if shader is not None else None,
@@ -377,7 +391,13 @@ def main() -> int:
     parser.add_argument("--iris-baseline-source", type=Path)
     parser.add_argument("--jvm-arg", action="append", default=[])
     parser.add_argument("--timeout", type=int, default=1200)
+    parser.add_argument("--record-demo", action="store_true")
+    parser.add_argument("--demo-take", action="append", choices=["gravity-pov", "gravity-third-person", "scale-pov", "scale-third-person"], default=[])
     args = parser.parse_args()
+    if args.demo_take:
+        if not args.record_demo:
+            parser.error("--demo-take requires --record-demo")
+        args.jvm_arg.append("-Dwormholes.demo.takes=" + ",".join(dict.fromkeys(args.demo_take)))
     lock_path = ROOT / ".qa/native-client.lock"
     lock_path.parent.mkdir(parents=True, exist_ok=True)
     with lock_path.open("w") as lock:

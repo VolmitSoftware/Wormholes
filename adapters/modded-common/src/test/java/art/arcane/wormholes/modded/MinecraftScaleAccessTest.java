@@ -12,6 +12,9 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 public class MinecraftScaleAccessTest extends MinecraftTestBase {
     @Test
@@ -68,5 +71,43 @@ public class MinecraftScaleAccessTest extends MinecraftTestBase {
         assertEquals(1.0D, access.scale(item), 0.0D);
         assertFalse(access.scale(item, 3.0D));
         assertFalse(access.reset(item));
+    }
+
+    @Test
+    public void shrinkRefreshesDimensionsAfterTheNativeAttributeChangesBeforeReturning() {
+        AttributeInstance instance = new AttributeInstance(Attributes.SCALE, ignored -> { });
+        instance.addPermanentModifier(new AttributeModifier(MinecraftScaleAccess.ID, 2.0D, AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL));
+        Entity entity = mock(Entity.class);
+        MinecraftScaleAccess access = new MinecraftScaleAccess(candidate -> instance);
+        doAnswer(invocation -> {
+            assertEquals(1.0D, instance.getValue(), 0.0D);
+            assertEquals(1.0D, access.scale(entity), 0.0D);
+            return null;
+        }).when(entity).refreshDimensions();
+
+        assertTrue(access.scale(entity, 1.0D));
+        verify(entity).refreshDimensions();
+        assertNull(instance.getModifier(MinecraftScaleAccess.ID));
+    }
+
+    @Test
+    public void resizeAndResetRefreshOnceWhileRepeatedValuesDoNotRefresh() {
+        AttributeInstance instance = new AttributeInstance(Attributes.SCALE, ignored -> { });
+        Entity entity = mock(Entity.class);
+        MinecraftScaleAccess access = new MinecraftScaleAccess(candidate -> instance);
+
+        assertTrue(access.scale(entity, 1.0D));
+        assertFalse(access.reset(entity));
+        verify(entity, times(0)).refreshDimensions();
+        assertTrue(access.scale(entity, 3.0D));
+        assertTrue(access.scale(entity, 3.0D));
+        verify(entity, times(1)).refreshDimensions();
+        assertTrue(access.scale(entity, 0.5D));
+        assertTrue(access.scale(entity, 0.5D));
+        verify(entity, times(2)).refreshDimensions();
+        assertTrue(access.reset(entity));
+        assertFalse(access.reset(entity));
+        verify(entity, times(3)).refreshDimensions();
+        assertEquals(1.0D, instance.getValue(), 0.0D);
     }
 }

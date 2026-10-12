@@ -8,8 +8,10 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.Screenshot;
 import net.minecraft.client.gui.screens.LevelLoadingScreen;
 import net.minecraft.client.multiplayer.ClientPacketListener;
+import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.EntityDimensions;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Vector3fc;
 import org.slf4j.Logger;
@@ -129,12 +131,18 @@ public final class TravelTap {
         CrossingCompositionTap.frame(minecraft);
         NetherCrossingCompositionTap.frame(minecraft);
         captureCrossingFrames(minecraft, camera);
+        CameraRenderState rendered = minecraft.gameRenderer.gameRenderState().levelRenderState.cameraRenderState;
+        EntityDimensions dimensions = minecraft.player.getDimensions(minecraft.player.getPose());
+        float partialTicks = camera.getCameraEntityPartialTicks(minecraft.getDeltaTracker());
+        PlayerPose pose = new PlayerPose(minecraft.player.getPosition(partialTicks),
+            minecraft.player.getEyePosition(partialTicks), minecraft.player.getBbWidth(), minecraft.player.getBbHeight(),
+            minecraft.player.getEyeHeight(), dimensions);
         FRAMES.add(new Frame(FRAMES.size(), camera.position(), camera.yRot(), camera.xRot(),
             minecraft.level.dimension().identifier().toString(), System.identityHashCode(minecraft.level),
             System.identityHashCode(minecraft.player), gameTicks + minecraft.getDeltaTracker().getGameTimeDeltaPartialTick(true),
             minecraft.player.position().distanceTo(new Vec3(minecraft.player.xo, minecraft.player.yo, minecraft.player.zo)),
             Mth.wrapDegrees(minecraft.player.getYRot() - minecraft.player.yHeadRot), 0L, vector(camera.forwardVector()), vector(camera.upVector()),
-            minecraft.player.getAttributeValue(Attributes.SCALE), System.nanoTime()));
+            minecraft.player.getAttributeValue(Attributes.SCALE), System.nanoTime(), pose, rendered.pos, minecraft.options.getCameraType().isFirstPerson()));
         profileFrame(FRAMES.getLast());
     }
 
@@ -235,6 +243,17 @@ public final class TravelTap {
         return -1;
     }
 
+    public static synchronized int bodyCrossingFrame(double jump) {
+        for (int index = 1; index < FRAMES.size(); index++) {
+            Frame before = FRAMES.get(index - 1);
+            Frame after = FRAMES.get(index);
+            if (after.pose().feet().distanceTo(before.pose().feet()) > jump || !after.dimension().equals(before.dimension())) {
+                return index;
+            }
+        }
+        return -1;
+    }
+
     private static void profileFrame(Frame frame) {
         if (!Boolean.getBoolean("wormholes.clientgametest.profileFrames")) {
             return;
@@ -268,10 +287,15 @@ public final class TravelTap {
     }
 
     public record Frame(int index, Vec3 camera, float yaw, float pitch, String dimension, int level, int player, double clock, double tickSpeed,
-                        float headLag, long tickNanos, Vec3 forward, Vec3 up, double scale, long wallNanos) {
+                        float headLag, long tickNanos, Vec3 forward, Vec3 up, double scale, long wallNanos,
+                        PlayerPose pose, Vec3 renderedCamera, boolean firstPerson) {
         Frame withTickNanos(long nanos) {
-            return new Frame(index, camera, yaw, pitch, dimension, level, player, clock, tickSpeed, headLag, nanos, forward, up, scale, wallNanos);
+            return new Frame(index, camera, yaw, pitch, dimension, level, player, clock, tickSpeed, headLag, nanos, forward, up, scale, wallNanos,
+                pose, renderedCamera, firstPerson);
         }
+    }
+
+    public record PlayerPose(Vec3 feet, Vec3 eye, float width, float height, float eyeHeight, EntityDimensions dimensions) {
     }
 
     @Name("wormholes.ClientFrame")

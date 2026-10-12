@@ -26,6 +26,9 @@
       "art.arcane.wormholes.clientgametest.ScaledPairClientGameTest",
       "art.arcane.wormholes.clientgametest.AdjacentSourcePortalsClientGameTest"
     ],
+    "wormholes-gravity-movement-gametest": [
+      "art.arcane.wormholes.clientgametest.GravityMovementAcceptanceClientGameTest"
+    ],
     "wormholes-compatibility-gametest": [
       "art.arcane.wormholes.clientgametest.ClientViewClientGameTest",
       "art.arcane.wormholes.clientgametest.ClientViewSceneClientGameTest",

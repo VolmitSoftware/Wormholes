@@ -323,7 +323,8 @@ public final class ClientSeamlessTravel {
         Vec3d crossingFeet = new Vec3d(feet.x, feet.y, feet.z);
         Pose after = ClientTravelMotion.arrive(arm, before, crossingFeet, MinecraftGravity.frame(player));
         String refusal = target == null ? "resident level " + arm.levelHandle() + " is not open"
-            : arrivalLoaded(target, after.position()) ? null : "arrival terrain not received";
+            : !arrivalLoaded(target, after.position()) ? "arrival terrain not received"
+            : arrivalClear(target, player, arm, after.position()) ? null : "arrival body is obstructed";
         if (refusal != null) {
             if (!arm.token().equals(declined)) {
                 declined = arm.token();
@@ -620,6 +621,15 @@ public final class ClientSeamlessTravel {
             }
         }
         return null;
+    }
+
+    static boolean arrivalClear(ClientLevel target, LocalPlayer player, TravelMessage.TravelBegin arm, Vec3d feet) {
+        GravityFrame gravity = MinecraftGravity.frame(player);
+        if (arm.rules().rotateGravity()) {
+            gravity = gravity.transformed(arm.sourceToDestination().rigid().permutation());
+        }
+        double scale = arm.rules().scale().entityFactor(TRAVELLER_SCALE.factor(player), new SizeRatio(arm.scale(), true));
+        return target.noCollision(player, MinecraftGravity.arrivalBounds(player, new Vec3(feet.x(), feet.y(), feet.z()), gravity, scale));
     }
 
     private static boolean arrivalLoaded(ClientLevel level, Vec3d feet) {

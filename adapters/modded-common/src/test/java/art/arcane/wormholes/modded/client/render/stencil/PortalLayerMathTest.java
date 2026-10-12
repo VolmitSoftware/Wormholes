@@ -47,6 +47,26 @@ public class PortalLayerMathTest {
     }
 
     @Test
+    public void scaledPortalGeometryAndApertureRetainIdenticalFullClipCoordinatesDuringViewBobbing() {
+        Matrix4f projection = bobbedProjection();
+        Matrix4f outerView = view(YAW, PITCH);
+        assertTrue(Math.abs(projection.m30()) > 0.01F && Math.abs(projection.m31()) > 0.01F);
+        for (Similarity transform : transforms()) {
+            Vec3d inner = PortalLayerMath.innerCamera(transform, EYE);
+            Matrix4f innerView = PortalLayerMath.innerView(outerView, transform);
+            for (Vec3d point : List.of(new Vec3d(14.0D, 71.0D, -12.0D), new Vec3d(8.5D, 66.0D, -20.0D),
+                new Vec3d(20.0D, 75.5D, -9.0D))) {
+                Vector4f expected = clip(projection, outerView, EYE, point);
+                Vector4f actual = clip(projection, innerView, inner, transform.point(point));
+                assertEquals(expected.x, actual.x, 2.0E-4F);
+                assertEquals(expected.y, actual.y, 2.0E-4F);
+                assertEquals(expected.z, actual.z, 2.0E-4F);
+                assertEquals(expected.w, actual.w, 2.0E-4F);
+            }
+        }
+    }
+
+    @Test
     public void innerViewIsReflectedOnlyForReflectingTransforms() {
         Matrix4f outerView = view(YAW, PITCH);
         for (Similarity transform : transforms()) {
@@ -128,6 +148,34 @@ public class PortalLayerMathTest {
     }
 
     @Test
+    public void scaledAffineViewsAndBobbingRetainWorldClipPlaneDistanceAndBothSides() {
+        Matrix4f projection = bobbedProjection();
+        Matrix4f outerView = new Matrix4f().translation(0.12F, -0.08F, 0.04F).mul(view(YAW, PITCH)).scale(0.7F);
+        PortalSurface surface = PortalSurface.of(portal(Face.S, true));
+        for (Similarity transform : transforms()) {
+            Vec3d inner = PortalLayerMath.innerCamera(transform, EYE);
+            Matrix4f innerView = PortalLayerMath.innerView(outerView, transform);
+            Vector4d world = PortalLayerMath.destinationPlane(surface, transform, 0.0D);
+            Vector4f viewPlane = PortalLayerMath.viewPlane(world, inner, innerView);
+            Vector4f clipPlane = PortalLayerMath.clipPlane(viewPlane, projection);
+            Vec3d planePoint = transform.point(surface.planePoint());
+            Vec3d normal = new Vec3d(world.x, world.y, world.z);
+            for (double offset : new double[]{-0.5D, 0.0D, 0.5D}) {
+                Vec3d point = planePoint.add(normal.multiply(offset));
+                Vector4f relative = new Vector4f((float) (point.x() - inner.x()), (float) (point.y() - inner.y()),
+                    (float) (point.z() - inner.z()), 1.0F);
+                Vector4f viewPoint = innerView.transform(relative);
+                Vector4f clipPoint = projection.transform(new Vector4f(viewPoint));
+                assertEquals(distance(world, point), viewPlane.dot(viewPoint), 2.0E-4D);
+                assertEquals(distance(world, point), clipPlane.dot(clipPoint), 2.0E-4D);
+                if (offset != 0.0D) {
+                    assertEquals(Math.signum(offset), Math.signum(clipPlane.dot(clipPoint)), 0.0D);
+                }
+            }
+        }
+    }
+
+    @Test
     public void surfaceServesItsFrontAndTheReturnSurfaceServesTheExitSide() {
         ApertureDescriptor geometry = portal(Face.S, true);
         PortalSurface forward = PortalSurface.of(geometry);
@@ -165,6 +213,10 @@ public class PortalLayerMathTest {
         return new Matrix4f().setPerspective((float) Math.toRadians(70.0D), 16.0F / 9.0F, 1024.0F, 0.05F, false);
     }
 
+    private static Matrix4f bobbedProjection() {
+        return projection().translate(0.12F, -0.08F, 0.0F).rotateZ(0.03F).rotateX(-0.02F);
+    }
+
     private static Matrix4f view(float yaw, float pitch) {
         Quaternionf rotation = new Quaternionf().rotationYXZ((float) Math.PI - yaw * (float) (Math.PI / 180.0D), -pitch * (float) (Math.PI / 180.0D), 0.0F);
         return new Matrix4f().rotation(rotation.conjugate(new Quaternionf()));
@@ -180,7 +232,9 @@ public class PortalLayerMathTest {
                     }
                     OpticTransform rigid = OpticTransform.of(AxisPermutation.of(x, y, z), 1_000.5D, -20.0D, -3_000.25D);
                     transforms.add(Similarity.of(rigid, 1.0D));
+                    transforms.add(Similarity.of(rigid, 0.4D));
                     transforms.add(Similarity.of(rigid, 2.5D));
+                    transforms.add(Similarity.of(rigid, 3.0D));
                 }
             }
         }

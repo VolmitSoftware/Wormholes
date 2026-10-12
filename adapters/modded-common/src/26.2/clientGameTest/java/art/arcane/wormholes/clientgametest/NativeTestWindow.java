@@ -19,4 +19,8 @@ final class NativeTestWindow {
             && GLFW.glfwGetInputMode(window, GLFW.GLFW_CURSOR) == GLFW.GLFW_CURSOR_NORMAL
             && GLFW.glfwGetInputMode(window, GLFW.GLFW_RAW_MOUSE_MOTION) == GLFW.GLFW_FALSE;
     }
+
+    static boolean hasBlockOverlay(Minecraft client) {
+        return GravityOverlayTap.active();
+    }
 }

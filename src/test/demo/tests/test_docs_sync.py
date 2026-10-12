@@ -84,6 +84,36 @@ class DocsSyncTest(unittest.TestCase):
                     expected = '\n'.join(line for line in expected.splitlines() if '-observer.webm' not in line)
                 self.assertEqual(self.module.block(identifier), expected)
 
+    def test_native_gravity_and_scale_have_only_their_two_client_mod_cameras(self) -> None:
+        for identifier in ('gravity', 'scale'):
+            rendered: str = self.module.block(identifier)
+            self.assertEqual(rendered.count('class="wormholes-demo-variant"'), 1)
+            self.assertEqual(rendered.count('<video '), 2)
+            self.assertNotIn('data-client="standard"', rendered)
+            self.assertNotIn('-standard-', rendered)
+            for perspective in ('pov', 'observer'):
+                self.assertIn(f'{identifier}-clientview-{perspective}.webm', rendered)
+
+    def test_native_clip_sync_requires_all_selected_cameras_but_no_standard_variant(self) -> None:
+        original: str = LINK + '\n## Transit menu\n\nSet travel behavior.\n'
+        self.link.write_text(original)
+        for identifier in ('gravity', 'scale'):
+            for perspective in ('pov', 'observer'):
+                (self.assets / f'{identifier}-clientview-{perspective}.webm').write_bytes(b'clip')
+        missing: Path = self.assets / 'scale-clientview-observer.webm'
+        missing.unlink()
+        with self.assertRaisesRegex(self.module.MissingClips, 'scale-clientview-observer.webm'):
+            self.module.sync(self.docs, '2026-10-01T12:00:00.000Z', ('gravity', 'scale'))
+        self.assertEqual(self.link.read_text(), original)
+        missing.write_bytes(b'clip')
+        self.assertEqual(self.module.sync(self.docs, '2026-10-01T12:00:00.000Z', ('gravity', 'scale')), 2)
+        accepted: str = self.link.read_text()
+        self.assertEqual(accepted.count('<video '), 4)
+        self.assertNotIn('-standard-', accepted)
+        self.assertIn('Set travel behavior.', accepted)
+        self.assertEqual(self.module.sync(self.docs, '2026-10-02T12:00:00.000Z', ('gravity', 'scale')), 0)
+        self.assertEqual(accepted, self.link.read_text())
+
     def test_loading_caption_requires_actual_manifest_edits(self) -> None:
         manifest: Path = self.docs / 'manifest.json'
         manifest.write_text(json.dumps({'takes': [
