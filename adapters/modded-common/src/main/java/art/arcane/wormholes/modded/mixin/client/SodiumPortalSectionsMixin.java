@@ -8,6 +8,7 @@ import net.caffeinemc.mods.sodium.client.render.chunk.async.CullTask;
 import net.caffeinemc.mods.sodium.client.render.chunk.lists.DeferredTaskList;
 import net.caffeinemc.mods.sodium.client.render.chunk.lists.SortedRenderLists;
 import net.caffeinemc.mods.sodium.client.render.chunk.occlusion.SectionTree;
+import net.caffeinemc.mods.sodium.client.render.chunk.region.RenderRegionManager;
 import net.caffeinemc.mods.sodium.client.render.chunk.storage.SectionStorage;
 import net.caffeinemc.mods.sodium.client.render.chunk.tree.RemovableMultiForest;
 import net.caffeinemc.mods.sodium.client.util.FogParameters;
@@ -29,6 +30,7 @@ public abstract class SodiumPortalSectionsMixin implements SodiumPortalSections 
     @Shadow private SectionTree renderTree;
     @Shadow private DeferredTaskList taskLists;
     @Shadow @Final private SectionStorage renderSections;
+    @Shadow @Final private RenderRegionManager regions;
     @Shadow @Final private RemovableMultiForest renderableSectionTree;
     @Shadow @Final private ClientLevel level;
     @Shadow private CullTask pendingTask;
@@ -74,6 +76,11 @@ public abstract class SodiumPortalSectionsMixin implements SodiumPortalSections 
     @Override
     public SectionStorage wormholes$storage() {
         return renderSections;
+    }
+
+    @Override
+    public RenderRegionManager wormholes$regions() {
+        return regions;
     }
 
     @Override

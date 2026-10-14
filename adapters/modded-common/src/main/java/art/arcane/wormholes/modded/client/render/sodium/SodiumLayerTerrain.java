@@ -58,7 +58,7 @@ final class SodiumLayerTerrain implements LayerContextStack.Context<SodiumTerrai
 
     static void collect(SodiumPortalSections internals, RenderSectionManager sections, Viewport viewport, float distance) {
         FallbackVisibleChunkCollector visible = new FallbackVisibleChunkCollector(viewport, distance, SodiumLayers.nextFrame(),
-            internals.wormholes$storage(), sections.regions, internals.wormholes$level());
+            internals.wormholes$storage(), internals.wormholes$regions(), internals.wormholes$level());
         internals.wormholes$renderable().prepareForTraversal();
         internals.wormholes$renderable().traverse(visible, viewport, distance);
         internals.wormholes$renderLists(visible.createRenderLists(viewport));

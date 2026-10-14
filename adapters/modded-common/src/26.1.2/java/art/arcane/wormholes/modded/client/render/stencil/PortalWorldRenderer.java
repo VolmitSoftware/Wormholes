@@ -32,6 +32,7 @@ import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.LevelTargetBundle;
 import net.minecraft.client.renderer.Lightmap;
+import net.minecraft.client.renderer.RenderBuffers;
 import net.minecraft.client.renderer.SubmitNodeStorage;
 import net.minecraft.client.TextureFilteringMethod;
 import net.minecraft.client.renderer.chunk.SectionRenderDispatcher;
@@ -158,6 +159,7 @@ final class PortalWorldRenderer {
         LevelTargetBundle previousTargets = rendererAccess.wormholes$targets();
         SubmitNodeStorage previousSubmits = rendererAccess.wormholes$submits();
         FeatureRenderDispatcher previousFeatures = rendererAccess.wormholes$features();
+        RenderBuffers previousBuffers = rendererAccess.wormholes$renderBuffers();
         ObjectArrayList<SectionRenderDispatcher.RenderSection> previousVisible = rendererAccess.wormholes$visibleSections();
         ObjectArrayList<SectionRenderDispatcher.RenderSection> previousNearby = rendererAccess.wormholes$nearbyVisibleSections();
         Lightmap previousLightmap = lightAccess.wormholes$lightmap();
@@ -206,6 +208,7 @@ final class PortalWorldRenderer {
                 rendererAccess.wormholes$targets(layer.targets());
                 rendererAccess.wormholes$submits(layer.submits());
                 rendererAccess.wormholes$features(layer.features(minecraft));
+                rendererAccess.wormholes$renderBuffers(layer.buffers());
                 rendererAccess.wormholes$visibleSections(layer.visible());
                 rendererAccess.wormholes$nearbyVisibleSections(layer.nearby());
                 PortalStencil.mirrored(mirrored);
@@ -244,6 +247,7 @@ final class PortalWorldRenderer {
                     PortalStencil.mirrored(outerMirrored);
                     rendererAccess.wormholes$visibleSections(previousVisible);
                     rendererAccess.wormholes$nearbyVisibleSections(previousNearby);
+                    rendererAccess.wormholes$renderBuffers(previousBuffers);
                     rendererAccess.wormholes$features(previousFeatures);
                     rendererAccess.wormholes$submits(previousSubmits);
                     rendererAccess.wormholes$targets(previousTargets);

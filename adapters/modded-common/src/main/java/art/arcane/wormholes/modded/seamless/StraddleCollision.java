@@ -4,6 +4,7 @@ import art.arcane.optics.crossing.StraddleGeometry;
 import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Face;
 import art.arcane.optics.math.Vec3d;
+import art.arcane.wormholes.network.client.TravelMessage;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.util.Mth;
@@ -52,9 +53,7 @@ public final class StraddleCollision {
             return pushOut(straddle, thisSide);
         }
         List<VoxelShape> shapes = new ArrayList<>();
-        Iterable<VoxelShape> collisions = straddle.doorCollision() == null ? destination.getBlockCollisions(null, sweep)
-            : () -> new BlockCollisions<>(destination, new DoorCollisionContext(straddle.doorCollision()), sweep, false, (position, shape) -> shape);
-        for (VoxelShape shape : collisions) {
+        for (VoxelShape shape : blockCollisions(destination, sweep, straddle.doorCollision())) {
             VoxelShape clipped = exitSide(shape, straddle);
             if (!clipped.isEmpty()) {
                 shapes.add(clipped);
@@ -103,6 +102,23 @@ public final class StraddleCollision {
             }
         }
         return level.noEntityCollision(entity, front) && level.noBorderCollision(entity, front);
+    }
+
+    public static boolean arrivalClear(Level level, Entity entity, AABB bounds, TravelMessage.DoorCollisionTarget door) {
+        if (door == null) {
+            return level.noCollision(entity, bounds);
+        }
+        for (VoxelShape shape : blockCollisions(level, bounds, door)) {
+            if (!shape.isEmpty()) {
+                return false;
+            }
+        }
+        return level.noEntityCollision(entity, bounds) && level.noBorderCollision(entity, bounds);
+    }
+
+    private static Iterable<VoxelShape> blockCollisions(Level level, AABB bounds, TravelMessage.DoorCollisionTarget door) {
+        return door == null ? level.getBlockCollisions(null, bounds)
+            : () -> new BlockCollisions<>(level, new DoorCollisionContext(door), bounds, false, (position, shape) -> shape);
     }
 
     private static VoxelShape sourceShape(VoxelShape shape, StraddleTracker.Straddle straddle) {

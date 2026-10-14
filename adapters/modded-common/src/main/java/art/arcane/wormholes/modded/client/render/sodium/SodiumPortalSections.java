@@ -3,6 +3,7 @@ package art.arcane.wormholes.modded.client.render.sodium;
 import net.caffeinemc.mods.sodium.client.render.chunk.lists.DeferredTaskList;
 import net.caffeinemc.mods.sodium.client.render.chunk.lists.SortedRenderLists;
 import net.caffeinemc.mods.sodium.client.render.chunk.occlusion.SectionTree;
+import net.caffeinemc.mods.sodium.client.render.chunk.region.RenderRegionManager;
 import net.caffeinemc.mods.sodium.client.render.chunk.storage.SectionStorage;
 import net.caffeinemc.mods.sodium.client.render.chunk.tree.RemovableMultiForest;
 import net.caffeinemc.mods.sodium.client.util.FogParameters;
@@ -20,6 +21,8 @@ public interface SodiumPortalSections {
     void wormholes$taskLists(DeferredTaskList tasks);
 
     SectionStorage wormholes$storage();
+
+    RenderRegionManager wormholes$regions();
 
     RemovableMultiForest wormholes$renderable();
 

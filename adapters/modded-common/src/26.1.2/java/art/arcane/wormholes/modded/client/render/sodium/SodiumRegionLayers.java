@@ -32,7 +32,7 @@ public final class SodiumRegionLayers {
 
     public MultiDrawBatch batch(int slot, ChunkRenderList base, TerrainRenderPass pass) {
         MultiDrawBatch[] batches = entry(slot, base).batches();
-        int passIndex = DefaultTerrainRenderPasses.getPassIndex(pass);
+        int passIndex = passIndex(pass);
         MultiDrawBatch batch = batches[passIndex];
         if (batch == null) {
             batch = new MultiDrawBatch(BATCH_CAPACITY);
@@ -53,7 +53,7 @@ public final class SodiumRegionLayers {
     }
 
     public void clear(TerrainRenderPass pass) {
-        int passIndex = DefaultTerrainRenderPasses.getPassIndex(pass);
+        int passIndex = passIndex(pass);
         for (int index = 0; index < entries.size(); index++) {
             MultiDrawBatch batch = entries.get(index).batches()[passIndex];
             if (batch != null) {
@@ -92,6 +92,16 @@ public final class SodiumRegionLayers {
         Entry entry = new Entry(slot, base, new ChunkRenderList(region), new MultiDrawBatch[DefaultTerrainRenderPasses.ALL.length]);
         entries.add(entry);
         return entry;
+    }
+
+    private static int passIndex(TerrainRenderPass pass) {
+        TerrainRenderPass[] passes = DefaultTerrainRenderPasses.ALL;
+        for (int index = 0; index < passes.length; index++) {
+            if (passes[index] == pass) {
+                return index;
+            }
+        }
+        throw new IllegalArgumentException("Unknown terrain render pass " + pass);
     }
 
     private static void clear(MultiDrawBatch[] batches) {

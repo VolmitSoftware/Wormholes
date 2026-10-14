@@ -4,6 +4,7 @@ import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.LevelTargetBundle;
+import net.minecraft.client.renderer.RenderBuffers;
 import net.minecraft.client.renderer.SubmitNodeStorage;
 import net.minecraft.client.renderer.chunk.SectionRenderDispatcher;
 import net.minecraft.client.renderer.feature.FeatureRenderDispatcher;
@@ -33,6 +34,13 @@ public interface PortalLevelRendererAccess {
     @Mutable
     @Accessor("submitNodeStorage")
     void wormholes$submits(SubmitNodeStorage submits);
+
+    @Accessor("renderBuffers")
+    RenderBuffers wormholes$renderBuffers();
+
+    @Mutable
+    @Accessor("renderBuffers")
+    void wormholes$renderBuffers(RenderBuffers buffers);
 
     @Accessor("featureRenderDispatcher")
     FeatureRenderDispatcher wormholes$features();

@@ -6,10 +6,17 @@ import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Face;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.MinecraftTestBase;
+import art.arcane.wormholes.network.client.TravelMessage;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.DoorBlock;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.DoorHingeSide;
+import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.BooleanOp;
@@ -179,6 +186,53 @@ public class StraddleCollisionTest extends MinecraftTestBase {
         assertEquals(0.2D, actual.x, EPSILON);
         assertEquals(0.1D, actual.y, EPSILON);
         assertEquals(0.1D, actual.z, EPSILON);
+    }
+
+    @Test
+    public void arrivalInsideAClosedMateDoorwayUsesTheTravelDoorState() {
+        BlockPos door = new BlockPos(96, 100, 32);
+        Level level = doorway(door);
+        Entity entity = mock(Entity.class);
+        AABB body = new AABB(96.2D, 100.0D, 31.745D, 96.8D, 101.8D, 32.345D);
+        assertTrue(StraddleCollision.arrivalClear(level, entity, body, new TravelMessage.DoorCollisionTarget(96, 100, 32, true)));
+        assertFalse(StraddleCollision.arrivalClear(level, entity, body, new TravelMessage.DoorCollisionTarget(96, 100, 32, false)));
+        assertFalse(StraddleCollision.arrivalClear(level, entity, body.move(0.6D, 0.0D, 0.0D),
+            new TravelMessage.DoorCollisionTarget(96, 100, 32, true)));
+    }
+
+    @Test
+    public void arrivalWithoutATravelDoorKeepsTheLevelCollisionCheck() {
+        Level level = mock(Level.class);
+        Entity entity = mock(Entity.class);
+        AABB body = new AABB(0.2D, 70.0D, 0.2D, 0.8D, 71.8D, 0.8D);
+        when(level.noCollision(entity, body)).thenReturn(false);
+        assertFalse(StraddleCollision.arrivalClear(level, entity, body, null));
+        when(level.noCollision(entity, body)).thenReturn(true);
+        assertTrue(StraddleCollision.arrivalClear(level, entity, body, null));
+    }
+
+    private static Level doorway(BlockPos door) {
+        BlockState lower = Blocks.OAK_DOOR.defaultBlockState().setValue(DoorBlock.FACING, Direction.SOUTH)
+            .setValue(DoorBlock.HINGE, DoorHingeSide.LEFT).setValue(DoorBlock.HALF, DoubleBlockHalf.LOWER).setValue(DoorBlock.OPEN, false);
+        BlockGetter blocks = mock(BlockGetter.class);
+        when(blocks.getBlockState(any(BlockPos.class))).thenAnswer(invocation -> {
+            BlockPos position = invocation.getArgument(0);
+            if (position.equals(door)) {
+                return lower;
+            }
+            if (position.equals(door.above())) {
+                return lower.setValue(DoorBlock.HALF, DoubleBlockHalf.UPPER);
+            }
+            if (position.getX() == door.getX() + 1) {
+                return Blocks.STONE.defaultBlockState();
+            }
+            return Blocks.AIR.defaultBlockState();
+        });
+        Level level = mock(Level.class);
+        when(level.getChunkForCollisions(anyInt(), anyInt())).thenReturn(blocks);
+        when(level.noEntityCollision(any(), any(AABB.class))).thenReturn(true);
+        when(level.noBorderCollision(any(), any(AABB.class))).thenReturn(true);
+        return level;
     }
 
     private static StraddleTracker.Straddle horizontal(ApertureCells aperture, boolean above, Level destination) {

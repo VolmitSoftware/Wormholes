@@ -85,6 +85,10 @@ final class LayerResources implements AutoCloseable {
         return features;
     }
 
+    RenderBuffers buffers() {
+        return buffers;
+    }
+
     GlobalSettingsUniform globals() {
         if (globals == null) {
             globals = new GlobalSettingsUniform();

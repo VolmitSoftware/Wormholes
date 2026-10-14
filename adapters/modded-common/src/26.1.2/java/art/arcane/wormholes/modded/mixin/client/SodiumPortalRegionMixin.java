@@ -10,11 +10,9 @@ import art.arcane.wormholes.modded.client.render.sodium.SodiumLayers;
 import art.arcane.wormholes.modded.client.render.sodium.SodiumPortalRegion;
 import art.arcane.wormholes.modded.client.render.sodium.SodiumRegionLayers;
 import com.llamalad7.mixinextras.injector.ModifyReturnValue;
-import net.caffeinemc.mods.sodium.client.gl.device.CommandList;
 import net.caffeinemc.mods.sodium.client.gl.device.MultiDrawBatch;
 import net.caffeinemc.mods.sodium.client.render.chunk.lists.ChunkRenderList;
 import net.caffeinemc.mods.sodium.client.render.chunk.region.RenderRegion;
-import net.caffeinemc.mods.sodium.client.render.chunk.terrain.DefaultTerrainRenderPasses;
 import net.caffeinemc.mods.sodium.client.render.chunk.terrain.TerrainRenderPass;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -59,31 +57,10 @@ public abstract class SodiumPortalRegionMixin implements SodiumPortalRegion {
         }
     }
 
-    @Inject(method = {"clearAllCachedBatches", "onGeometryBufferChange"}, at = @At("HEAD"))
+    @Inject(method = "clearAllCachedBatches", at = @At("HEAD"))
     private void wormholes$geometryChanged(CallbackInfo callback) {
         if (wormholes$layers != null) {
             wormholes$layers.clearAll();
-        }
-    }
-
-    @Inject(method = "onGeometrySegmentChange", at = @At("HEAD"))
-    private void wormholes$geometrySegmentChanged(CommandList commands, int owner, CallbackInfo callback) {
-        if (wormholes$layers != null) {
-            wormholes$layers.clearAll();
-        }
-    }
-
-    @Inject(method = "onIndexBufferChange", at = @At("HEAD"))
-    private void wormholes$indicesChanged(CallbackInfo callback) {
-        if (wormholes$layers != null) {
-            wormholes$layers.clear(DefaultTerrainRenderPasses.TRANSLUCENT);
-        }
-    }
-
-    @Inject(method = "onIndexSegmentChange", at = @At("HEAD"))
-    private void wormholes$indexSegmentChanged(CommandList commands, int owner, CallbackInfo callback) {
-        if (wormholes$layers != null) {
-            wormholes$layers.clear(DefaultTerrainRenderPasses.TRANSLUCENT);
         }
     }
 

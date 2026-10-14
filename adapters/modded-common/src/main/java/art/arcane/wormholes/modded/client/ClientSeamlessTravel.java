@@ -16,6 +16,7 @@ import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.client.render.stencil.PortalViews;
 import art.arcane.wormholes.modded.client.world.ClientWorldLoader;
 import art.arcane.wormholes.modded.MinecraftScaleAccess;
+import art.arcane.wormholes.modded.seamless.StraddleCollision;
 import art.arcane.wormholes.modded.seamless.StraddleTracker;
 import art.arcane.wormholes.network.client.TravelMessage;
 import art.arcane.wormholes.transit.TravellerScale;
@@ -629,7 +630,8 @@ public final class ClientSeamlessTravel {
             gravity = gravity.transformed(arm.sourceToDestination().rigid().permutation());
         }
         double scale = arm.rules().scale().entityFactor(TRAVELLER_SCALE.factor(player), new SizeRatio(arm.scale(), true));
-        return target.noCollision(player, MinecraftGravity.arrivalBounds(player, new Vec3(feet.x(), feet.y(), feet.z()), gravity, scale));
+        return StraddleCollision.arrivalClear(target, player, MinecraftGravity.arrivalBounds(player, new Vec3(feet.x(), feet.y(), feet.z()), gravity, scale),
+            arm.doorCollision());
     }
 
     private static boolean arrivalLoaded(ClientLevel level, Vec3d feet) {
