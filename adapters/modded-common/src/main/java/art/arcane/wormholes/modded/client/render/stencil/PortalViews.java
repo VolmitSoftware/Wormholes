@@ -75,6 +75,7 @@ public final class PortalViews {
         children.clear();
         streamKeys.clear();
         String dimension = home.dimension().identifier().toString();
+        Map<UUID, PortalView> previousArms = armsByPortal();
         for (TravelMessage.TravelBegin arm : arms) {
             if (!arm.sourceWorld().equals(dimension)) {
                 continue;
@@ -103,6 +104,7 @@ public final class PortalViews {
                 crossing.toward().inverse(), depth(crossing.surface().geometry(), recursion));
         }
         keepReturn(home, eye);
+        continueRearmed(previousArms);
         if (recursion && !portals.isEmpty() && !current.isEmpty()) {
             discoverChildren(home, arms, portals, mirrors);
         }
@@ -326,6 +328,33 @@ public final class PortalViews {
     private void track(Object key, PortalView.Kind kind, ClientLevel source, ClientLevel destination, PortalSurface surface,
                        Similarity toDestination, int recursion) {
         current.add(retain(key, kind, source, destination, surface, toDestination, recursion));
+    }
+
+    private Map<UUID, PortalView> armsByPortal() {
+        Map<UUID, PortalView> arms = new HashMap<>();
+        for (PortalView view : views.values()) {
+            if (view.key() instanceof ArmKey arm) {
+                arms.put(arm.portal(), view);
+            }
+        }
+        return arms;
+    }
+
+    private void continueRearmed(Map<UUID, PortalView> previousArms) {
+        Set<Object> continued = new HashSet<>();
+        for (CameraContinuation continuation : continuations) {
+            continued.add(continuation.next().key());
+        }
+        for (PortalView view : current) {
+            if (!(view.key() instanceof ArmKey arm) || continued.contains(arm)) {
+                continue;
+            }
+            PortalView previous = previousArms.get(arm.portal());
+            if (previous != null && !live.contains(previous.key()) && previous.source() == view.source()
+                && previous.destination() == view.destination()) {
+                continuations.add(new CameraContinuation(previous, view));
+            }
+        }
     }
 
     private void captureArrival(List<PortalView> traversal, Map<Object, List<PortalView>> previousChildren) {

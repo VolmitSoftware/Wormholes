@@ -75,6 +75,40 @@ public class IrisPipelinesPreloadTest extends MinecraftTestBase {
     }
 
     @Test
+    public void crossDimensionTravelCamerasBorrowIdleDimensionPipelinesInsteadOfPreparing() {
+        try (Scene scene = new Scene()) {
+            PortalView arm = scene.arm(0);
+            IrisPipelines.Preparation unavailable = scene.preparation(List.of(arm));
+            assertTrue(unavailable.lendable().isEmpty());
+            scene.lenders.addAll(Set.of(OVERWORLD, END));
+            IrisPipelines.Preparation preparation = scene.preparation(List.of(arm));
+            assertEquals(unavailable.paths(), preparation.paths());
+            assertEquals(1, preparation.actual().size());
+            List<IrisViewPipelinePath> travel = preparation.paths().subList(1, preparation.paths().size());
+            assertEquals(3, travel.size());
+            assertEquals(Set.copyOf(travel), preparation.lendable());
+            assertFalse(preparation.lendable().contains(preparation.actual().getFirst()));
+            assertTrue(travel.stream().anyMatch(path -> path.dimension().equals(END)));
+            assertTrue(travel.stream().anyMatch(path -> path.dimension().equals(OVERWORLD)));
+        }
+    }
+
+    @Test
+    public void sameDimensionTravelCamerasStillPrepareTheirOwnPipelines() {
+        try (Scene scene = new Scene()) {
+            when(scene.destination.dimension()).thenReturn(Level.OVERWORLD);
+            DimensionType overworld = mock(DimensionType.class);
+            when(overworld.skybox()).thenReturn(DimensionType.Skybox.OVERWORLD);
+            when(scene.destination.dimensionType()).thenReturn(overworld);
+            scene.lenders.addAll(Set.of(OVERWORLD, END));
+            IrisPipelines.Preparation preparation = scene.preparation(List.of(scene.arm(0)));
+            assertEquals(4, preparation.paths().size());
+            assertTrue(preparation.paths().stream().allMatch(path -> path.dimension().equals(OVERWORLD)));
+            assertTrue(preparation.lendable().isEmpty());
+        }
+    }
+
+    @Test
     public void offscreenPreparationRequiresAvailableUniqueServedReachablePhysicalRootsAndRecursion() {
         for (String rejection : List.of("realm", "unavailable", "side", "range", "reach", "recursion", "ambiguous", "departure-depth")) {
             try (Scene scene = new Scene()) {
@@ -540,6 +574,7 @@ public class IrisPipelinesPreloadTest extends MinecraftTestBase {
         private final MockedStatic<ClientWorldLoader> worlds = mockStatic(ClientWorldLoader.class);
         private final Map<PortalView, List<PortalView>> children = new HashMap<>();
         private final Set<IrisViewPipelinePath> prepared = new HashSet<>();
+        private final Set<String> lenders = new HashSet<>();
         private int depth = 2;
 
         private Scene() {
@@ -614,7 +649,7 @@ public class IrisPipelinesPreloadTest extends MinecraftTestBase {
 
         private IrisPipelines.PreparationOptions options(List<PortalView> views) {
             return new IrisPipelines.PreparationOptions(views,
-                view -> children.getOrDefault(view, List.of()), prepared::contains, source, EYE, 8, pack, depth);
+                view -> children.getOrDefault(view, List.of()), prepared::contains, source, EYE, 8, pack, depth, lenders::contains);
         }
 
         @Override

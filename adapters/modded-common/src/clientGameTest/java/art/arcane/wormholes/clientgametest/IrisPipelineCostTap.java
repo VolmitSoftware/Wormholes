@@ -48,6 +48,7 @@ public final class IrisPipelineCostTap {
     }
 
     public static void created(long nanos, boolean draw) {
+        FrameHitchTap.pipelineCreated(nanos);
         if (!enabled) {
             return;
         }
@@ -60,6 +61,7 @@ public final class IrisPipelineCostTap {
     }
 
     public static void linked(long nanos, boolean draw) {
+        FrameHitchTap.programLinked(nanos);
         if (!enabled) {
             return;
         }

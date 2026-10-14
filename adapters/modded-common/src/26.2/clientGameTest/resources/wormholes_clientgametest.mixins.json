@@ -63,7 +63,9 @@
     "AdjacentSourcePortalsProjectionTap$MeshPortalAccess",
     "AdjacentSourcePortalsProjectionTap$MeshDimensionsAccess",
     "CrossingBenchFrameTap",
-    "CrossingBenchFrameTap$Limiter"
+    "CrossingBenchFrameTap$Limiter",
+    "FrameHitchFrameTap",
+    "FrameHitchFrameTap$Limiter"
   ],
   "injectors": {
     "defaultRequire": 1

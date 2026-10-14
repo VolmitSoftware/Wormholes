@@ -10,13 +10,22 @@ import art.arcane.wormholes.modded.MinecraftTestBase;
 import net.irisshaders.iris.shaderpack.DimensionId;
 import net.irisshaders.iris.shaderpack.ShaderPack;
 import net.irisshaders.iris.shaderpack.materialmap.NamespacedId;
+import net.minecraft.core.Holder;
+import net.minecraft.core.Registry;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.dimension.DimensionType;
 import org.junit.Test;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -66,6 +75,32 @@ public class IrisMeshShaderDimensionTest extends MinecraftTestBase {
         assertEquals(EnvironmentState.Skybox.END, camera.destinationSkybox());
         assertEquals(DimensionId.END, IrisPipelines.resolve(camera, pack(Map.of())));
         assertNotEquals(camera, camera("example:custom", EnvironmentState.Skybox.OVERWORLD));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void dimensionPreloadResolvesThePocketLevelThroughItsOwnDimensionType() {
+        Registry<DimensionType> types = mock(Registry.class);
+        when(types.get(any(ResourceKey.class))).thenReturn(Optional.empty());
+        type(types, "wormholes:fullbright_pockets", DimensionType.Skybox.NONE);
+        type(types, "minecraft:the_nether", DimensionType.Skybox.NONE);
+        ShaderPack pack = pack(Map.of());
+        assertEquals(new NamespacedId("wormholes:pockets"), IrisPipelines.resolve(level("wormholes:pockets"), types, pack));
+        assertEquals(DimensionId.NETHER, IrisPipelines.resolve(level("minecraft:the_nether"), types, pack));
+        assertEquals(DimensionId.OVERWORLD, IrisPipelines.resolve(level("example:unknown"), types, pack));
+    }
+
+    @SuppressWarnings("unchecked")
+    private static void type(Registry<DimensionType> types, String id, DimensionType.Skybox skybox) {
+        DimensionType type = mock(DimensionType.class);
+        when(type.skybox()).thenReturn(skybox);
+        Holder.Reference<DimensionType> holder = mock(Holder.Reference.class);
+        when(holder.value()).thenReturn(type);
+        when(types.get(ResourceKey.create(Registries.DIMENSION_TYPE, Identifier.parse(id)))).thenReturn(Optional.of(holder));
+    }
+
+    private static ResourceKey<Level> level(String id) {
+        return ResourceKey.create(Registries.DIMENSION, Identifier.parse(id));
     }
 
     private static ShaderPack pack(Map<NamespacedId, String> aliases) {

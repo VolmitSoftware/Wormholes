@@ -993,6 +993,41 @@ public class PortalViewsTest extends MinecraftTestBase {
     }
 
     @Test
+    public void rearmingTheOppositeSideOfTheSamePortalContinuesItsCamera() {
+        try (TravelScene travel = new TravelScene()) {
+            PortalView front = travel.scene.views.current().getFirst();
+            assertTrue(travel.scene.views.takeCameraContinuations().isEmpty());
+            TravelMessage.TravelBegin back = residentArm(travel.forward.sourcePortal(), backGeometry());
+            when(back.sourceToDestination()).thenReturn(translation(-200.0D));
+            travel.scene.views.frame(travel.scene.home, EYE, List.of(back), false, true, List.of(), null);
+            PortalView rearmed = travel.scene.views.current().getFirst();
+            assertNotEquals(front.key(), rearmed.key());
+            List<PortalViews.CameraContinuation> continuations = travel.scene.views.takeCameraContinuations();
+            assertEquals(1, continuations.size());
+            assertSame(front, continuations.getFirst().previous());
+            assertSame(rearmed, continuations.getFirst().next());
+            travel.scene.views.frame(travel.scene.home, EYE, List.of(back), false, true, List.of(), null);
+            assertTrue(travel.scene.views.takeCameraContinuations().isEmpty());
+        }
+    }
+
+    @Test
+    public void rearmingIntoAnotherDestinationStartsANewCamera() {
+        try (TravelScene travel = new TravelScene()) {
+            TravelMessage.TravelBegin retargeted = residentArm(travel.forward.sourcePortal(), backGeometry());
+            when(retargeted.levelHandle()).thenReturn(2);
+            travel.scene.views.frame(travel.scene.home, EYE, List.of(retargeted), false, true, List.of(), null);
+            assertEquals(1, travel.scene.views.current().size());
+            assertTrue(travel.scene.views.takeCameraContinuations().isEmpty());
+        }
+    }
+
+    private static ApertureDescriptor backGeometry() {
+        return new ApertureDescriptor(0, 64, 0, Face.S.ordinal(), false, 0, false, 2, 3, new long[]{63L}, ShapeDescriptor.FULL,
+            0.0F, 0.0F, 0.0F, 16, 3, 0, 0, 0, 0, 0, 0, 0.0D, 0, 0L, List.of());
+    }
+
+    @Test
     public void unconsumedCameraContinuationsExpireAtTheNextFrame() {
         try (TravelScene travel = new TravelScene()) {
             TravelMessage.TravelBegin reverse = travel.reverse(UUID.randomUUID(), reverseGeometry(false));

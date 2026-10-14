@@ -99,7 +99,7 @@ public final class MinecraftClientViewService implements AutoCloseable {
         ViewStreamPlatform<MinecraftClientViewPeer, BlockState> platform = new ViewStreamPlatform<>(transport, portals,
             new EntityFrames<>(portals.scene()), new ClientViewSceneFx<>(portals.scene()),
             new MinecraftClientViewHandoffs(), runtime.projections().lanes(), BlockStateParser::serialize,
-            SharedConstants.getCurrentVersion().dataVersion().version(), PLATFORM_CAPS, System::nanoTime,
+            SharedConstants.getCurrentVersion().dataVersion().version(), PLATFORM_CAPS, new MinecraftClientViewClock(System::nanoTime),
             (message, failure) -> LOGGER.warn(message, failure), MinecraftClientViewExtensions.ALL, ClientViewTravel::new);
         ViewStreamSessionRegistry<MinecraftClientViewPeer, BlockState> created = new ViewStreamSessionRegistry<>(platform, options);
         applied = options;

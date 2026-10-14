@@ -43,6 +43,7 @@ import org.slf4j.Logger;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -58,12 +59,16 @@ public final class IrisPipelines {
     private static final int MAX_PREPARATION_DEPTH = 8;
     private static final int MAX_PREPARATION_VIEWS = 12;
     private static final double NEAR_CULL_BLOCKS = 0.5D;
+    private static final Identifier POCKETS = Identifier.fromNamespaceAndPath("wormholes", "pockets");
+    private static final Identifier POCKET_TYPE = Identifier.fromNamespaceAndPath("wormholes", "fullbright_pockets");
     private static final Set<String> FAILED = new HashSet<>();
+    private static final Map<String, IrisWorldSettings> SETTINGS = new HashMap<>();
 
     private IrisPipelines() {
     }
 
     public static boolean loadingStep() {
+        captureCurrentSettings();
         List<String> pending = pending();
         if (!pending.isEmpty()) {
             create(pending.getFirst());
@@ -77,6 +82,7 @@ public final class IrisPipelines {
 
     public static void createAll() {
         FAILED.clear();
+        captureCurrentSettings();
         for (String dimension : pending()) {
             create(dimension);
         }
@@ -100,15 +106,17 @@ public final class IrisPipelines {
             return;
         }
         int chunks = minecraft.options.getEffectiveRenderDistance();
+        Map<NamespacedId, WorldRenderingPipeline> dimensions = ((IrisPortalPipelineAccess) Iris.getPipelineManager()).wormholes$pipelines();
         PreparationOptions options = new PreparationOptions(client.portalViews().current(), client.portalViews()::children,
-            IrisViewPipelines::prepared, minecraft.level, camera.eye(), chunks, pack.get(), camera.frustum() == null ? 1 : MAX_PREPARATION_DEPTH);
+            IrisViewPipelines::prepared, minecraft.level, camera.eye(), chunks, pack.get(), camera.frustum() == null ? 1 : MAX_PREPARATION_DEPTH,
+            dimension -> dimensions.get(new NamespacedId(dimension)) instanceof IrisRenderingPipeline);
         Preparation preparation = preparation(options, camera, demand -> streamed(options, client.portalViews(), demand));
         IrisViewPipelines.continueTraversals(client.portalViews().takeTraversalContinuations(), preparation.actual());
         IrisViewPipelines.continueCameras(client.portalViews().takeCameraContinuations(), options.views(), preparation.actual());
         IrisViewPipelines.retainPreparations(preparation.anchors(), client.portalViews(), options.home(), camera.eye(),
             chunks * 16.0D, (chunks - 1) * 16.0D);
         PortalStencilRenderer.instance().preparedViews(preparation.actual().size());
-        IrisViewPipelines.beginPreparationPlan(preparation.paths(), preparation.actual(), preparation.capacityMisses());
+        IrisViewPipelines.beginPreparationPlan(preparation.paths(), preparation.actual(), preparation.lendable(), preparation.capacityMisses());
     }
 
     private static List<IrisMeshCamera> streamed(PreparationOptions options, PortalViews views, NativeDemand demand) {
@@ -159,6 +167,7 @@ public final class IrisPipelines {
             if (plan.add(arrival.path())) {
                 admitted.add(arrival);
                 plan.anchors.put(arrival.path(), arrival.anchor());
+                plan.lend(arrival.view(), arrival.path());
             } else {
                 capacityMisses++;
             }
@@ -168,7 +177,7 @@ public final class IrisPipelines {
             requestChildren(plan, new ArrayList<>(List.of(arrival.view())), arrival.view(), arrival.render(),
                 arrival.view().recursion(), false);
         }
-        return new Preparation(List.copyOf(plan.paths), capacityMisses, actual, Map.copyOf(plan.anchors));
+        return new Preparation(List.copyOf(plan.paths), capacityMisses, actual, Map.copyOf(plan.anchors), Set.copyOf(plan.lendable));
     }
 
     private static void prepareSourceRoots(PreparationPlan plan, List<PortalView> roots, PreparationCamera camera,
@@ -209,6 +218,7 @@ public final class IrisPipelines {
                 break;
             }
             plan.anchors.put(candidate.path(), candidate.traversal().getFirst());
+            plan.lend(candidate.traversal().getFirst(), candidate.path());
             plan.sourceNative.add(candidate);
         }
     }
@@ -297,7 +307,7 @@ public final class IrisPipelines {
         Registry<DimensionType> types = connection.registryAccess().lookupOrThrow(Registries.DIMENSION_TYPE);
         List<String> dimensions = new ArrayList<>(connection.levels().size());
         for (ResourceKey<Level> level : connection.levels()) {
-            dimensions.add(text(resolve(level.identifier(), types, pack.get())));
+            dimensions.add(text(resolve(level, types, pack.get())));
         }
         Map<NamespacedId, WorldRenderingPipeline> existing = ((IrisPortalPipelineAccess) Iris.getPipelineManager()).wormholes$pipelines();
         Set<String> created = new HashSet<>(existing.size());
@@ -321,6 +331,7 @@ public final class IrisPipelines {
             WorldRenderingPipeline pipeline = manager.preparePipeline(target);
             if (!current && pipeline instanceof IrisRenderingPipeline) {
                 ((IrisPortalRenderingAccess) pipeline).wormholes$initializedBlockIds(true);
+                SETTINGS.put(dimension, IrisWorldSettings.capture());
             }
             LOGGER.info("Iris pipeline {} ready in {} ms", dimension, (System.nanoTime() - started) / 1_000_000L);
         } catch (RuntimeException failure) {
@@ -343,10 +354,30 @@ public final class IrisPipelines {
         }
     }
 
-    private static NamespacedId resolve(Identifier level, Registry<DimensionType> types, ShaderPack pack) {
-        DimensionType.Skybox skybox = types.get(ResourceKey.create(Registries.DIMENSION_TYPE, level))
+    static IrisWorldSettings dimensionSettings(String dimension) {
+        return SETTINGS.get(dimension);
+    }
+
+    public static void destroyed() {
+        SETTINGS.clear();
+    }
+
+    private static void captureCurrentSettings() {
+        NamespacedId current = Iris.getCurrentDimension();
+        if (current == null || Iris.getCurrentPack().isEmpty() || SETTINGS.containsKey(text(current))) {
+            return;
+        }
+        if (Iris.getPipelineManager().getPipelineNullable() instanceof IrisRenderingPipeline selected
+            && ((IrisPortalPipelineAccess) Iris.getPipelineManager()).wormholes$pipelines().get(current) == selected) {
+            SETTINGS.put(text(current), IrisWorldSettings.capture());
+        }
+    }
+
+    static NamespacedId resolve(ResourceKey<Level> level, Registry<DimensionType> types, ShaderPack pack) {
+        Identifier type = level.identifier().equals(POCKETS) ? POCKET_TYPE : level.identifier();
+        DimensionType.Skybox skybox = types.get(ResourceKey.create(Registries.DIMENSION_TYPE, type))
             .map(Holder::value).map(DimensionType::skybox).orElse(DimensionType.Skybox.OVERWORLD);
-        return resolve(level, skybox, pack);
+        return resolve(level.identifier(), skybox, pack);
     }
 
     private static NamespacedId resolve(ClientLevel level, ShaderPack pack) {
@@ -389,11 +420,12 @@ public final class IrisPipelines {
     }
 
     record PreparationOptions(List<PortalView> views, Function<PortalView, List<PortalView>> children,
-                              Predicate<IrisViewPipelinePath> prepared, ClientLevel home, Vec3d homeEye, int chunks, ShaderPack pack, int depth) {
+                              Predicate<IrisViewPipelinePath> prepared, ClientLevel home, Vec3d homeEye, int chunks, ShaderPack pack, int depth,
+                              Predicate<String> lenders) {
     }
 
     record Preparation(List<IrisViewPipelinePath> paths, int capacityMisses, List<IrisViewPipelinePath> actual,
-                       Map<IrisViewPipelinePath, PortalView> anchors) {
+                       Map<IrisViewPipelinePath, PortalView> anchors, Set<IrisViewPipelinePath> lendable) {
     }
 
     record NativePreparation(IrisViewPipelinePath path, List<PortalView> traversal) {
@@ -439,6 +471,8 @@ public final class IrisPipelines {
         private final Set<IrisViewPipelinePath> paths = new LinkedHashSet<>();
         private final List<NativePreparation> sourceNative = new ArrayList<>(MAX_PREPARATION_VIEWS);
         private final Map<IrisViewPipelinePath, PortalView> anchors = new LinkedHashMap<>();
+        private final Set<IrisViewPipelinePath> lendable = new LinkedHashSet<>();
+        private final Predicate<String> lenders;
         private final Function<NativeDemand, List<IrisMeshCamera>> streams;
 
         private PreparationPlan(PreparationOptions options, Function<NativeDemand, List<IrisMeshCamera>> streams) {
@@ -451,6 +485,7 @@ public final class IrisPipelines {
             reach = (options.chunks() - 1) * 16.0D;
             pack = options.pack();
             depth = options.depth();
+            lenders = options.lenders();
         }
 
         private boolean full() {
@@ -468,6 +503,12 @@ public final class IrisPipelines {
             }
             if (add(preparation.path()) && actual) {
                 sourceNative.add(preparation);
+            }
+        }
+
+        private void lend(PortalView root, IrisViewPipelinePath path) {
+            if (path.cameras().size() == 1 && lenders.test(path.dimension()) && !path.dimension().equals(text(resolve(root.source(), pack)))) {
+                lendable.add(path);
             }
         }
 
