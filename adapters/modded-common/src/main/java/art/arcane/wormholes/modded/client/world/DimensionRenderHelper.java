@@ -7,6 +7,7 @@ package art.arcane.wormholes.modded.client.world;
 
 import art.arcane.wormholes.modded.mixin.client.ClientWorldCameraAccess;
 import art.arcane.wormholes.modded.mixin.client.ClientWorldGameRendererAccess;
+import art.arcane.wormholes.modded.client.ClientRenderAccess;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.Lightmap;
@@ -33,7 +34,7 @@ final class DimensionRenderHelper implements AutoCloseable {
     static DimensionRenderHelper installed(ClientLevel level) {
         Minecraft minecraft = Minecraft.getInstance();
         return new DimensionRenderHelper(level, ((ClientWorldGameRendererAccess) minecraft.gameRenderer).wormholes$lightmap(),
-            minecraft.gameRenderer.mainCamera().attributeProbe());
+            ClientRenderAccess.mainCamera(minecraft).attributeProbe());
     }
 
     static DimensionRenderHelper create(ClientLevel level) {
@@ -90,7 +91,7 @@ final class DimensionRenderHelper implements AutoCloseable {
     void install() {
         Minecraft minecraft = Minecraft.getInstance();
         ((ClientWorldGameRendererAccess) minecraft.gameRenderer).wormholes$lightmap(lightmap);
-        ((ClientWorldCameraAccess) minecraft.gameRenderer.mainCamera()).wormholes$attributeProbe(probe);
+        ((ClientWorldCameraAccess) ClientRenderAccess.mainCamera(minecraft)).wormholes$attributeProbe(probe);
     }
 
     @Override

@@ -12,6 +12,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.players.NameAndId;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.DyeColor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -66,8 +67,8 @@ public final class MinecraftAccessMenu {
         return switch (role) {
             case OWNER -> Items.GOLDEN_HELMET;
             case CO_OWNER -> Items.IRON_HELMET;
-            case USER -> Items.STAINED_GLASS_PANE.lime();
-            case DENIED -> Items.STAINED_GLASS_PANE.red();
+            case USER -> MinecraftDyedItems.pane(DyeColor.LIME);
+            case DENIED -> MinecraftDyedItems.pane(DyeColor.RED);
         };
     }
 
@@ -85,7 +86,7 @@ public final class MinecraftAccessMenu {
         MinecraftWindow window = new MinecraftWindow(runtime, viewer);
         window.setTitle(MinecraftPortalText.router(runtime, portal, true));
         window.setViewportHeight(viewportHeight(portal.getRoles().size()));
-        window.setDecorator(Items.STAINED_GLASS_PANE.gray());
+        window.setDecorator(MinecraftDyedItems.pane(DyeColor.GRAY));
         populate(window, portal, viewer);
         window.setVisible(true);
     }

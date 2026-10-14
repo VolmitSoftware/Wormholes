@@ -2,6 +2,7 @@ package art.arcane.wormholes.clientgametest;
 
 import art.arcane.optics.math.Box;
 import art.arcane.wormholes.modded.mixin.client.ParticleEngineAccess;
+import art.arcane.wormholes.modded.client.ClientRenderAccess;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.particle.Particle;
 import net.minecraft.client.particle.ParticleEngine;
@@ -36,7 +37,7 @@ public final class ClientViewRimParticles {
             scope.focused, scope.totalDustCalls, scope.creationCallbacks, scope.nullParticles, scope.unqueuedParticles,
             scope.lastDust, scope.lastUnmatchedDust,
             new Vec3(scope.rim.getXa(), scope.rim.getYa(), scope.rim.getZa()),
-            new Vec3(scope.rim.getXb(), scope.rim.getYb(), scope.rim.getZb()), client.gameRenderer.mainCamera().position(),
+            new Vec3(scope.rim.getXb(), scope.rim.getYb(), scope.rim.getZb()), ClientRenderAccess.mainCamera(client).position(),
             engine.wormholes$level() == client.level, engine.wormholes$pending().size(), client.options.particles().get());
     }
 

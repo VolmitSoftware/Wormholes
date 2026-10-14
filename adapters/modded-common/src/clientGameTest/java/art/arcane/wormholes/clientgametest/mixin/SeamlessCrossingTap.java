@@ -1,5 +1,6 @@
 package art.arcane.wormholes.clientgametest.mixin;
 
+import art.arcane.wormholes.clientgametest.CrossingBenchTap;
 import art.arcane.wormholes.clientgametest.SeamlessTurningTap;
 import art.arcane.wormholes.clientgametest.VerticalCameraLoopTap;
 import art.arcane.wormholes.modded.client.ClientSeamlessTravel;
@@ -26,7 +27,10 @@ public abstract class SeamlessCrossingTap {
                                                float partial, Vec3 previous, Vec3 eye, Operation<Vec3> original) {
         SeamlessTurningTap.Attempt attempt = SeamlessTurningTap.entering(minecraft, player, arm, partial, previous, eye);
         VerticalCameraLoopTap.Attempt vertical = VerticalCameraLoopTap.entering(minecraft, player, arm, partial, previous, eye);
+        String from = minecraft.level.dimension().identifier().toString();
+        long started = System.nanoTime();
         Vec3 result = original.call(minecraft, player, arm, partial, previous, eye);
+        CrossingBenchTap.clientCrossing(started, System.nanoTime() - started, minecraft, from, result != null);
         SeamlessTurningTap.returned(attempt, minecraft, result);
         VerticalCameraLoopTap.returned(vertical, minecraft, result);
         return result;

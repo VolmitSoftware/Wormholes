@@ -245,7 +245,7 @@ final class MinecraftProjectionScheduleGameTest {
                 return;
             }
             place(standing.add((remaining & 1) == 0 ? WALK_STEP : 0.0D, 0.0D, 0.0D));
-            BlockState next = Blocks.WOOL.pick(DyeColor.values()[remaining % CYCLE_LENGTH]).defaultBlockState();
+            BlockState next = MinecraftDyedItems.woolBlock(DyeColor.values()[remaining % CYCLE_LENGTH]).defaultBlockState();
             helper.getLevel().setBlockAndUpdate(ahead.marker(), next);
             helper.getLevel().setBlockAndUpdate(behind.marker(), next);
             helper.runAfterDelay(1, this::walkAndToggle);

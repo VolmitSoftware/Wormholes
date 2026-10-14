@@ -2,6 +2,8 @@ package art.arcane.wormholes.modded.mixin;
 
 import art.arcane.wormholes.modded.MinecraftNetworkService;
 import art.arcane.wormholes.modded.MinecraftNexus;
+import art.arcane.wormholes.modded.WormholesModRuntime;
+import art.arcane.wormholes.modded.seamless.ResidentRoutesHolder;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
 import net.minecraft.server.level.ServerChunkCache;
@@ -32,6 +34,14 @@ public abstract class ViewChunkChangesMixin {
 
     @Inject(method = "onLightUpdate", at = @At("TAIL"))
     private void wormholesViewLight(LightLayer layer, SectionPos section, CallbackInfo callback) {
+        WormholesModRuntime runtime = WormholesModRuntime.forServer(level.getServer());
+        if (runtime != null && ((ResidentRoutesHolder) level).wormholesResidentRoutes() && !level.getServer().isStopped()) {
+            level.getServer().execute(() -> {
+                if (!level.getServer().isStopped() && WormholesModRuntime.forServer(level.getServer()) == runtime) {
+                    runtime.remoteRoutes().lightChanged(level, section.x(), section.z());
+                }
+            });
+        }
         MinecraftNetworkService network = MinecraftNetworkService.forServer(level.getServer());
         if (network != null && !level.getServer().isStopped()) {
             level.getServer().execute(() -> {

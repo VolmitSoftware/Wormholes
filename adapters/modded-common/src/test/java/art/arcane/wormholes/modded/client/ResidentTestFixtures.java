@@ -14,7 +14,6 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.client.particle.ParticleEngine;
 import net.minecraft.client.renderer.GameRenderer;
-import net.minecraft.client.renderer.extract.LevelExtractor;
 import net.minecraft.client.sounds.SoundManager;
 import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
@@ -64,7 +63,7 @@ final class ResidentTestFixtures {
         when(minecraft.getConnection()).thenReturn(connection);
         when(minecraft.isSameThread()).thenReturn(true);
         when(minecraft.getSoundManager()).thenReturn(mock(SoundManager.class));
-        engine(minecraft, "levelExtractor", mock(LevelExtractor.class));
+        engine(minecraft, NativeExtractorFixtures.FIELD, NativeExtractorFixtures.extractor());
         engine(minecraft, "particleEngine", particleEngine());
         engine(minecraft, "gameRenderer", mock(GameRenderer.class));
         return minecraft;

@@ -44,21 +44,21 @@ public final class PortalHorizonClientGameTest implements FabricClientGameTest {
 
     private static void run(ClientGameTestContext context, int sourceHeight, int destinationHeight) {
         try (TestSingleplayerContext world = context.worldBuilder().adjustSettings(PortalHorizonClientGameTest::horizonWorld).create()) {
-            SeamlessClient client = new FabricSeamlessClient(context, world.getConnection());
+            SeamlessClient client = new FabricSeamlessClient(context, FabricConnection.of(world));
             SeamlessScenario.join(client);
             double horizon = context.computeOnClient(minecraft -> minecraft.level.getLevelData().getHorizonHeight(minecraft.level));
             assertTrue(4.62D < horizon && horizon < 104.62D, "horizon fixture must place its cameras on opposite sides of the actual horizon: " + horizon);
-            Scene scene = world.getServer().computeOnServer(server -> build(server, world.getConnection().getServerPlayer(), sourceHeight, destinationHeight));
-            boolean hidden = context.computeOnClient(minecraft -> minecraft.gui.hud.isHidden());
+            Scene scene = world.getServer().computeOnServer(server -> build(server, FabricConnection.of(world).getServerPlayer(), sourceHeight, destinationHeight));
+            boolean hidden = context.computeOnClient(minecraft -> ClientGui.hudHidden(minecraft));
             try {
                 context.runOnClient(minecraft -> {
-                    if (!minecraft.gui.hud.isHidden()) {
-                        minecraft.gui.hud.toggle();
+                    if (!ClientGui.hudHidden(minecraft)) {
+                        ClientGui.toggleHud(minecraft);
                     }
                 });
                 context.waitFor(minecraft -> minecraft.player.position().distanceTo(scene.sourceFeet()) < 0.05D, TIMEOUT_TICKS);
                 context.getInput().lookAt(180.0F, 0.0F);
-                world.getConnection().waitForChunksRender();
+                FabricConnection.of(world).waitForChunksRender();
                 context.waitFor(minecraft -> WormholesClient.instance().seamlessTravel().armed(scene.source()), TIMEOUT_TICKS);
                 context.waitTicks(SETTLE_TICKS);
                 FramebufferProbe through = capture(context);
@@ -68,12 +68,12 @@ public final class PortalHorizonClientGameTest implements FabricClientGameTest {
                     runtime(server).portals().get(scene.destination()).setProjectionMode(ProjectionMode.OFF);
                     runtime(server).portals().save(runtime(server).portals().get(scene.source()));
                     runtime(server).portals().save(runtime(server).portals().get(scene.destination()));
-                    park(world.getConnection().getServerPlayer(), scene.destinationFeet());
+                    park(FabricConnection.of(world).getServerPlayer(), scene.destinationFeet());
                 });
                 context.waitFor(minecraft -> minecraft.player.position().distanceTo(scene.destinationFeet()) < 0.05D
                     && WormholesClient.instance().portalViews().current().isEmpty(), TIMEOUT_TICKS);
                 context.getInput().lookAt(180.0F, 0.0F);
-                world.getConnection().waitForChunksRender();
+                FabricConnection.of(world).waitForChunksRender();
                 context.waitTicks(SETTLE_TICKS);
                 FramebufferProbe direct = capture(context);
                 context.takeScreenshot("portal-horizon-direct-" + sourceHeight + "-to-" + destinationHeight);
@@ -89,12 +89,12 @@ public final class PortalHorizonClientGameTest implements FabricClientGameTest {
                 LOGGER.info("WORMHOLES_HORIZON_PASS source_height {} destination_height {} horizon_pixel_difference {}", sourceHeight, destinationHeight, difference);
             } finally {
                 context.runOnClient(minecraft -> {
-                    if (minecraft.gui.hud.isHidden() != hidden) {
-                        minecraft.gui.hud.toggle();
+                    if (ClientGui.hudHidden(minecraft) != hidden) {
+                        ClientGui.toggleHud(minecraft);
                     }
                 });
                 world.getServer().runOnServer(server -> {
-                    ServerPlayer player = world.getConnection().getServerPlayer();
+                    ServerPlayer player = FabricConnection.of(world).getServerPlayer();
                     runtime(server).portals().remove(player, scene.source());
                     runtime(server).portals().remove(player, scene.destination());
                 });

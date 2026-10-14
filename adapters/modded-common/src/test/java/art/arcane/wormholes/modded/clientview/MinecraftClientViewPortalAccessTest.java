@@ -52,6 +52,7 @@ import art.arcane.optics.plate.ViewPlateCache;
 import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Face;
 import art.arcane.wormholes.portal.ApertureKind;
+import art.arcane.wormholes.modded.MinecraftDyedItems;
 import net.minecraft.commands.arguments.blocks.BlockStateParser;
 import net.minecraft.network.Connection;
 import net.minecraft.network.protocol.PacketFlow;
@@ -376,7 +377,7 @@ public class MinecraftClientViewPortalAccessTest extends MinecraftTestBase {
         assertEquals(ApertureKind.FRAME, geometry.kind());
         assertEquals(0L, geometry.targetIdentity());
         assertEquals(ApertureDescriptor.BLACKOUT_SHELL, geometry.blackoutPolicy());
-        assertEquals(BlockStateParser.serialize(Blocks.CONCRETE.pick(DyeColor.BLACK).defaultBlockState()), palette.state(geometry.blackoutState()));
+        assertEquals(BlockStateParser.serialize(MinecraftDyedItems.concreteBlock(DyeColor.BLACK).defaultBlockState()), palette.state(geometry.blackoutState()));
         long front = portals.geometryRevision(fixture.peer(), fixture.source().getId());
         assertEquals(front, portals.geometryRevision(fixture.peer(), fixture.source().getId()));
         when(fixture.player().getEyePosition()).thenReturn(new Vec3(1.0D, 65.0D, -4.0D));

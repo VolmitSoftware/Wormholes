@@ -45,7 +45,7 @@ final class DriverWorlds {
     }
 
     void dedicated(String address, Runnable body) {
-        client.runOnClient(minecraft -> ConnectScreen.startConnecting(minecraft.gui.screen(), minecraft, ServerAddress.parseString(address),
+        client.runOnClient(minecraft -> ConnectScreen.startConnecting(ClientGui.screen(minecraft), minecraft, ServerAddress.parseString(address),
             new ServerData("Wormholes client gametest", address, ServerData.Type.OTHER), false, null));
         awaitWorld();
         body.run();
@@ -62,15 +62,15 @@ final class DriverWorlds {
             if (client.computeOnClient(DriverWorlds::experimentalWarning)) {
                 client.clickButton("gui.yes");
             }
-            String disconnected = client.computeOnClient(minecraft -> minecraft.gui.screen() instanceof DisconnectedScreen screen
+            String disconnected = client.computeOnClient(minecraft -> ClientGui.screen(minecraft) instanceof DisconnectedScreen screen
                 ? screen.getNarrationMessage().getString() : null);
             if (disconnected != null) {
                 throw new AssertionError("disconnected while joining: " + disconnected);
             }
-            if (client.computeOnClient(minecraft -> minecraft.gui.screen() instanceof BackupConfirmScreen)) {
+            if (client.computeOnClient(minecraft -> ClientGui.screen(minecraft) instanceof BackupConfirmScreen)) {
                 client.clickButton("selectWorld.backupJoinSkipButton");
             }
-            if (client.computeOnClient(minecraft -> minecraft.level != null && !(minecraft.gui.screen() instanceof LevelLoadingScreen))) {
+            if (client.computeOnClient(minecraft -> minecraft.level != null && !(ClientGui.screen(minecraft) instanceof LevelLoadingScreen))) {
                 return;
             }
             client.waitTicks(1);
@@ -80,12 +80,12 @@ final class DriverWorlds {
 
     private void returnToTitle() {
         client.waitTicks(2);
-        client.runOnClient(minecraft -> minecraft.gui.setScreen(new TitleScreen()));
+        client.runOnClient(minecraft -> ClientGui.setScreen(minecraft, new TitleScreen()));
     }
 
     private static void openCreateWorld(Minecraft minecraft) {
-        CreateWorldScreen.openFresh(minecraft, () -> minecraft.gui.setScreen(new TitleScreen()));
-        if (!(minecraft.gui.screen() instanceof CreateWorldScreen screen)) {
+        CreateWorldScreen.openFresh(minecraft, () -> ClientGui.setScreen(minecraft, new TitleScreen()));
+        if (!(ClientGui.screen(minecraft) instanceof CreateWorldScreen screen)) {
             throw new AssertionError("the create world screen did not open");
         }
         WorldCreationUiState state = screen.getUiState();
@@ -101,7 +101,7 @@ final class DriverWorlds {
     }
 
     private static boolean experimentalWarning(Minecraft minecraft) {
-        return minecraft.gui.screen() instanceof ConfirmScreen screen && screen.getTitle().getContents() instanceof TranslatableContents contents
+        return ClientGui.screen(minecraft) instanceof ConfirmScreen screen && screen.getTitle().getContents() instanceof TranslatableContents contents
             && "selectWorld.warning.experimental.title".equals(contents.getKey());
     }
 }

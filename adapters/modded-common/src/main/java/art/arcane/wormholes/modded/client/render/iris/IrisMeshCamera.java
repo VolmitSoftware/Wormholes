@@ -8,7 +8,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
-public record IrisMeshCamera(List<ApertureDescriptor> traversal, String source, String destination, Similarity transform) {
+public record IrisMeshCamera(List<ApertureDescriptor> traversal, String source, String destination, EnvironmentState.Skybox destinationSkybox,
+                             Similarity transform) {
     public IrisMeshCamera {
         List<ApertureDescriptor> normalized = new ArrayList<>(traversal.size());
         for (ApertureDescriptor aperture : traversal) {
@@ -20,11 +21,13 @@ public record IrisMeshCamera(List<ApertureDescriptor> traversal, String source, 
         }
         Objects.requireNonNull(source);
         Objects.requireNonNull(destination);
+        Objects.requireNonNull(destinationSkybox);
         Objects.requireNonNull(transform);
     }
 
     public static IrisMeshCamera of(List<ApertureDescriptor> traversal, String source, EnvironmentState environment) {
-        return new IrisMeshCamera(traversal, source, environment.world().dimensionKey(), Similarity.of(environment.transform(), environment.scale()));
+        return new IrisMeshCamera(traversal, source, environment.world().dimensionKey(), environment.sky().skybox(),
+            Similarity.of(environment.transform(), environment.scale()));
     }
 
     IrisViewPipelinePath append(List<IrisViewPipelinePath.Camera> enclosing, String dimension) {

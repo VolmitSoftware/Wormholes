@@ -173,6 +173,7 @@ tasks.named('test').configure {
     maxParallelForks = Math.max(1, Runtime.runtime.availableProcessors().intdiv(2))
     jvmArgs '--enable-native-access=ALL-UNNAMED'
     systemProperty('wormholes.projectVersion', project.version.toString())
+    systemProperty('junit.jupiter.execution.parallel.enabled', 'true')
     filter {
         excludeTestsMatching(runtimeJarTestFilter)
     }

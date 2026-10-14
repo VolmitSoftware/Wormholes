@@ -7,9 +7,7 @@ import art.arcane.wormholes.modded.client.WormholesClient;
 import art.arcane.wormholes.portal.PortalType;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
-import net.fabricmc.fabric.api.client.gametest.v1.context.TestDedicatedServerConnection;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestDedicatedServerContext;
-import net.fabricmc.fabric.api.client.gametest.v1.context.TestServerConnection;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestServerContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestSingleplayerContext;
 import net.minecraft.core.BlockPos;
@@ -44,15 +42,15 @@ public final class ClientViewClientGameTest implements FabricClientGameTest {
     public void runTest(ClientGameTestContext context) {
         ClientViewTestConfig.enable();
         try (TestSingleplayerContext singleplayer = context.worldBuilder().create()) {
-            runScenario(context, singleplayer.getConnection(), singleplayer.getServer(), "singleplayer");
+            runScenario(context, FabricConnection.of(singleplayer), singleplayer.getServer(), "singleplayer");
         }
         try (TestDedicatedServerContext server = context.worldBuilder().createServer(ClientViewTestConfig.serverProperties());
-             TestDedicatedServerConnection connection = server.connect()) {
+             FabricConnection connection = FabricConnection.connect(server)) {
             runScenario(context, connection, server, "dedicated");
         }
     }
 
-    private void runScenario(ClientGameTestContext context, TestServerConnection connection, TestServerContext server, String label) {
+    private void runScenario(ClientGameTestContext context, FabricConnection connection, TestServerContext server, String label) {
         connection.waitForChunksDownload();
         context.waitFor(client -> WormholesClient.instance() != null && WormholesClient.instance().session().active(), NEGOTIATION_TIMEOUT_TICKS);
         ServerPlayer player = server.computeOnServer(minecraftServer -> connection.getServerPlayer());
@@ -63,7 +61,7 @@ public final class ClientViewClientGameTest implements FabricClientGameTest {
         context.getInput().lookAt(SOURCE_MIN.offset(1, 1, 0));
         context.waitTick();
         awaitContent(context);
-        connection.waitForClientboundPackets();
+        connection.waitForClientboundPackets(context);
         assertPhysicalParity(context, server, connection);
         context.takeScreenshot("clientview-" + label + "-native");
         teleport(server, player, SOURCE_MIN.getX() + RELOAD_DISTANCE_BLOCKS, 70.0D, 26.5D, 0.0F);
@@ -76,7 +74,7 @@ public final class ClientViewClientGameTest implements FabricClientGameTest {
             ServerLevel level = connection.getServerLevel();
             player.connection.send(new ClientboundLevelChunkWithLightPacket(level.getChunkAt(SOURCE_MIN), level.getLightEngine(), null, null));
         });
-        connection.waitForClientboundPackets();
+        connection.waitForClientboundPackets(context);
         awaitContent(context);
         assertPhysicalParity(context, server, connection);
         boolean withinBudget = context.computeOnClient(client -> WormholesClient.instance().session().meshes().bytes()
@@ -110,7 +108,7 @@ public final class ClientViewClientGameTest implements FabricClientGameTest {
         context.computeOnClient(client -> { NativeClientViewAssertions.assertIsolated(); return true; });
     }
 
-    private static void assertPhysicalParity(ClientGameTestContext context, TestServerContext server, TestServerConnection connection) {
+    private static void assertPhysicalParity(ClientGameTestContext context, TestServerContext server, FabricConnection connection) {
         List<BlockPos> positions = new ArrayList<>();
         for (int x = -4; x <= 6; x++) {
             for (int y = 66; y <= 76; y++) {

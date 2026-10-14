@@ -8,6 +8,7 @@ import art.arcane.wormholes.modded.client.render.ClientPortalRenderer;
 import art.arcane.wormholes.modded.client.render.stencil.PortalStencilRenderer;
 import art.arcane.wormholes.modded.client.render.stencil.PortalView;
 import art.arcane.wormholes.network.client.TravelMessage;
+import art.arcane.wormholes.modded.client.ClientRenderAccess;
 import com.google.gson.GsonBuilder;
 import com.mojang.blaze3d.platform.NativeImage;
 import net.minecraft.client.Minecraft;
@@ -214,15 +215,15 @@ public final class AdjacentSourcePortalsTap {
         if (minecraft.player == null || minecraft.level == null || System.identityHashCode(minecraft.player) != initialPlayer
             || !WormholesClient.instance().session().active() || WormholesClient.instance().session().resets() != sessionResets
             || WormholesClient.instance().session().protocolFailures() != protocolFailures || !NativeTestWindow.hiddenAndUnfocused(minecraft)
-            || !NativeTestWindow.mouseReleased(minecraft) || minecraft.gameRenderer.mainRenderTarget().width != WIDTH
-            || minecraft.gameRenderer.mainRenderTarget().height != HEIGHT || projection == null) {
+            || !NativeTestWindow.mouseReleased(minecraft) || ClientRenderAccess.mainTarget(minecraft).width != WIDTH
+            || ClientRenderAccess.mainTarget(minecraft).height != HEIGHT || projection == null) {
             fail(new AssertionError("Missing connected hidden 1920x1080 adjacent frame or final projection at frame " + frame));
             return;
         }
         long end = System.nanoTime();
         String world = minecraft.level.dimension().identifier().toString();
         assertMeshEligibility(world);
-        CameraRenderState camera = minecraft.gameRenderer.gameRenderState().levelRenderState.cameraRenderState;
+        CameraRenderState camera = ClientRenderAccess.gameState(minecraft).levelRenderState.cameraRenderState;
         FRAMES.add(new Frame(frame, started, end, previousEnd == 0L ? 0L : end - previousEnd,
             world, System.identityHashCode(minecraft.level), CROSSINGS.size()));
         previousEnd = end;
@@ -241,7 +242,7 @@ public final class AdjacentSourcePortalsTap {
         }
         int index = issued++;
         maximumOutstanding = Math.max(maximumOutstanding, issued - processed);
-        Screenshot.takeScreenshot(minecraft.gameRenderer.mainRenderTarget(), image -> enqueue(index, pose, image));
+        Screenshot.takeScreenshot(ClientRenderAccess.mainTarget(minecraft), image -> enqueue(index, pose, image));
     }
 
     static synchronized void expect(UUID portal) {

@@ -19,9 +19,7 @@ import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.transit.OrientationPolicy;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
-import net.fabricmc.fabric.api.client.gametest.v1.context.TestDedicatedServerConnection;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestDedicatedServerContext;
-import net.fabricmc.fabric.api.client.gametest.v1.context.TestServerConnection;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestServerContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestSingleplayerContext;
 import net.minecraft.client.Minecraft;
@@ -76,15 +74,15 @@ public final class LookContinuityClientGameTest implements FabricClientGameTest 
     public void runTest(ClientGameTestContext context) {
         ClientViewTestConfig.enableSeamless(true);
         try (TestSingleplayerContext singleplayer = context.worldBuilder().create()) {
-            run(context, singleplayer.getConnection(), singleplayer.getServer(), "singleplayer");
+            run(context, FabricConnection.of(singleplayer), singleplayer.getServer(), "singleplayer");
         }
         try (TestDedicatedServerContext server = context.worldBuilder().createServer(ClientViewTestConfig.serverProperties());
-             TestDedicatedServerConnection connection = server.connect()) {
+             FabricConnection connection = FabricConnection.connect(server)) {
             run(context, connection, server, "dedicated");
         }
     }
 
-    private void run(ClientGameTestContext context, TestServerConnection connection, TestServerContext server, String label) {
+    private void run(ClientGameTestContext context, FabricConnection connection, TestServerContext server, String label) {
         connection.waitForChunksDownload();
         context.waitFor(client -> WormholesClient.instance() != null && WormholesClient.instance().session().active(), NEGOTIATION_TIMEOUT_TICKS);
         assertTrue(context.computeOnClient(client -> WormholesClient.instance().session().nativeSelected()),
@@ -107,7 +105,7 @@ public final class LookContinuityClientGameTest implements FabricClientGameTest 
         assertTrue(failures.isEmpty(), label + ": " + failures);
     }
 
-    private static void pole(ClientGameTestContext context, TestServerConnection connection, TestServerContext server, ServerPlayer player,
+    private static void pole(ClientGameTestContext context, FabricConnection connection, TestServerContext server, ServerPlayer player,
                              Layout layout, String label, List<String> failures) {
         Samples samples = fall(context, connection, server, player, layout.poleSource(), layout.poleToward(), POLE_SOURCE, POLE_YAW, label);
         List<TravelTap.Frame> frames = samples.frames();
@@ -129,7 +127,7 @@ public final class LookContinuityClientGameTest implements FabricClientGameTest 
         continuity(frames, crossing, layout.poleToward(), true, label, failures);
     }
 
-    private static void floorToWall(ClientGameTestContext context, TestServerConnection connection, TestServerContext server, ServerPlayer player,
+    private static void floorToWall(ClientGameTestContext context, FabricConnection connection, TestServerContext server, ServerPlayer player,
                                     Layout layout, String label, List<String> failures) {
         Samples samples = fall(context, connection, server, player, layout.wallSource(), layout.wallToward(), WALL_SOURCE, WALL_YAW, label);
         List<TravelTap.Frame> frames = samples.frames();
@@ -153,7 +151,7 @@ public final class LookContinuityClientGameTest implements FabricClientGameTest 
         continuity(frames, crossing, layout.wallToward(), false, label, failures);
     }
 
-    private static void twist(ClientGameTestContext context, TestServerConnection connection, TestServerContext server, ServerPlayer player,
+    private static void twist(ClientGameTestContext context, FabricConnection connection, TestServerContext server, ServerPlayer player,
                               Layout layout, String label, List<String> failures) {
         Vec3 start = new Vec3(TWIST_SOURCE.getX() + 1.5D, TWIST_SOURCE.getY() - 0.5D, TWIST_SOURCE.getZ() + APPROACH);
         place(context, server, player, start, 180.0F, 0.0F, false);
@@ -201,7 +199,7 @@ public final class LookContinuityClientGameTest implements FabricClientGameTest 
         }
     }
 
-    private static Samples fall(ClientGameTestContext context, TestServerConnection connection, TestServerContext server,
+    private static Samples fall(ClientGameTestContext context, FabricConnection connection, TestServerContext server,
                                 ServerPlayer player, UUID source, OpticTransform toward, BlockPos min, float yaw, String label) {
         Vec3 hover = new Vec3(min.getX() + 1.5D, min.getY() + HOVER, min.getZ() + 1.5D);
         place(context, server, player, hover, yaw, 90.0F, true);

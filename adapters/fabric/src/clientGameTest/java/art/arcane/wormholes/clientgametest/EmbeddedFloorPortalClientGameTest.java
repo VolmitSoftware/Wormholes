@@ -47,11 +47,11 @@ public final class EmbeddedFloorPortalClientGameTest implements FabricClientGame
 
     private static void run(ClientGameTestContext context, boolean blocked) {
         try (TestSingleplayerContext world = context.worldBuilder().create()) {
-            SeamlessClient client = new FabricSeamlessClient(context, world.getConnection());
+            SeamlessClient client = new FabricSeamlessClient(context, FabricConnection.of(world));
             SeamlessScenario.join(client);
             SeamlessScenario.assertSeamlessNegotiated(client);
             context.runOnClient(EmbeddedFloorPortalClientGameTest::assertHidden);
-            Scene scene = world.getServer().computeOnServer(server -> build(server, world.getConnection().getServerPlayer(), blocked));
+            Scene scene = world.getServer().computeOnServer(server -> build(server, FabricConnection.of(world).getServerPlayer(), blocked));
             try {
                 client.waitFor(minecraft -> minecraft.player.position().distanceTo(RIM) < 2.0D, PREPARE_TICKS);
                 client.waitForChunksDownload();
@@ -64,7 +64,7 @@ public final class EmbeddedFloorPortalClientGameTest implements FabricClientGame
                         && !WormholesClient.instance().seamlessTravel().pending(), PREPARE_TICKS);
                 }
                 world.getServer().runOnServer(server -> {
-                    ServerPlayer player = world.getConnection().getServerPlayer();
+                    ServerPlayer player = FabricConnection.of(world).getServerPlayer();
                     player.getAbilities().flying = true;
                     player.onUpdateAbilities();
                     park(player, server.overworld(), DROP);
@@ -73,7 +73,7 @@ public final class EmbeddedFloorPortalClientGameTest implements FabricClientGame
                 int identity = client.computeOnClient(minecraft -> System.identityHashCode(minecraft.player));
                 client.runOnClient(minecraft -> TravelTap.reset());
                 world.getServer().runOnServer(server -> {
-                    ServerPlayer player = world.getConnection().getServerPlayer();
+                    ServerPlayer player = FabricConnection.of(world).getServerPlayer();
                     player.getAbilities().flying = false;
                     player.onUpdateAbilities();
                 });
@@ -92,7 +92,7 @@ public final class EmbeddedFloorPortalClientGameTest implements FabricClientGame
                     blocked, observations);
             } finally {
                 world.getServer().runOnServer(server -> {
-                    ServerPlayer player = world.getConnection().getServerPlayer();
+                    ServerPlayer player = FabricConnection.of(world).getServerPlayer();
                     runtime(server).portals().remove(player, scene.source());
                     runtime(server).portals().remove(player, scene.destination());
                 });
@@ -143,7 +143,7 @@ public final class EmbeddedFloorPortalClientGameTest implements FabricClientGame
     private static void rim(SeamlessClient client, TestSingleplayerContext world) {
         client.waitTicks(40);
         assertTrue(client.computeOnClient(minecraft -> support(minecraft.player.position(), RIM)), "the solid rim did not support the client player");
-        assertTrue(world.getServer().computeOnServer(server -> support(world.getConnection().getServerPlayer().position(), RIM)),
+        assertTrue(world.getServer().computeOnServer(server -> support(FabricConnection.of(world).getServerPlayer().position(), RIM)),
             "the solid rim did not support the server player");
     }
 
@@ -169,7 +169,7 @@ public final class EmbeddedFloorPortalClientGameTest implements FabricClientGame
         }
         assertTrue(crossed, "gravity did not carry the client through the solid embedded floor: " + observations);
         assertTrue(client.computeOnClient(minecraft -> arrived(minecraft.player.position())), "the client did not remain in the destination landing shaft");
-        assertTrue(world.getServer().computeOnServer(server -> arrived(world.getConnection().getServerPlayer().position())),
+        assertTrue(world.getServer().computeOnServer(server -> arrived(FabricConnection.of(world).getServerPlayer().position())),
             "the server did not confirm the embedded floor crossing");
         assertTrue(client.computeOnClient(minecraft -> System.identityHashCode(minecraft.player)) == identity, "embedded floor crossing replaced the local player");
         assertTrue(TravelTap.respawns() == 0 && TravelTap.positions() == 0 && TravelTap.accepts() == 0,
@@ -183,7 +183,7 @@ public final class EmbeddedFloorPortalClientGameTest implements FabricClientGame
                 "solid destination allowed entry or a fall through the source ground: " + observations);
         }
         assertTrue(client.computeOnClient(minecraft -> blockedSupport(minecraft.player.position())), "blocked client entry lost its source support");
-        assertTrue(world.getServer().computeOnServer(server -> blockedSupport(world.getConnection().getServerPlayer().position())),
+        assertTrue(world.getServer().computeOnServer(server -> blockedSupport(FabricConnection.of(world).getServerPlayer().position())),
             "solid destination allowed server entry or removed source support");
     }
 
@@ -257,7 +257,7 @@ public final class EmbeddedFloorPortalClientGameTest implements FabricClientGame
         assertTrue(client.computeOnClient(minecraft -> Math.abs(minecraft.player.getYRot() - ENTRY_YAW) < 0.5F
             && Math.abs(minecraft.player.getXRot() - ENTRY_PITCH) < 0.5F), "horizontal crossing changed the client look direction");
         assertTrue(world.getServer().computeOnServer(server -> {
-            ServerPlayer player = world.getConnection().getServerPlayer();
+            ServerPlayer player = FabricConnection.of(world).getServerPlayer();
             return Math.abs(player.getYRot() - ENTRY_YAW) < 0.5F && Math.abs(player.getXRot() - ENTRY_PITCH) < 0.5F;
         }), "horizontal crossing changed the server look direction");
     }

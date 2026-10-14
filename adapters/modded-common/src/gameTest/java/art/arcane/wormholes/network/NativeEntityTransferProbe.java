@@ -16,7 +16,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntityTypes;
+import art.arcane.wormholes.modded.MinecraftEntityTypes;
 import net.minecraft.world.entity.animal.pig.Pig;
 import net.minecraft.world.phys.Vec3;
 import org.slf4j.LoggerFactory;
@@ -157,7 +157,7 @@ public final class NativeEntityTransferProbe {
     }
 
     private Pig pig(String name) {
-        Pig entity = helper.spawn(EntityTypes.PIG, new Vec3(3.5, 3, 3.5));
+        Pig entity = helper.spawn(MinecraftEntityTypes.PIG, new Vec3(3.5, 3, 3.5));
         entity.setNoAi(true);
         entity.setNoGravity(true);
         entity.setCustomName(Component.literal(name));

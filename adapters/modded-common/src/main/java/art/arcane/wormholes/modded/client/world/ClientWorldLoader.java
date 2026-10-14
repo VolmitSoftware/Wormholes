@@ -16,6 +16,7 @@ import art.arcane.wormholes.modded.mixin.client.ClientWorldMinecraftAccess;
 import art.arcane.wormholes.modded.mixin.client.ClientWorldOcclusionAccess;
 import art.arcane.wormholes.modded.mixin.client.ClientWorldSkyAccess;
 import art.arcane.wormholes.modded.mixin.client.PreparedLevelAccess;
+import art.arcane.wormholes.modded.client.ClientRenderAccess;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.logging.LogUtils;
 import net.minecraft.client.Minecraft;
@@ -64,9 +65,9 @@ public final class ClientWorldLoader {
         }
         mainLevel = level;
         RENDER_HELPER_MAP.put(level, DimensionRenderHelper.installed(level));
-        RenderTarget main = minecraft.gameRenderer.mainRenderTarget();
+        RenderTarget main = ClientRenderAccess.mainTarget(minecraft);
         WORLD_RENDERER_MAP.put(level, new WorldRenderer(minecraft.levelRenderer, minecraft.levelExtractor,
-            minecraft.gameRenderer.gameRenderState().levelRenderState, main.width, main.height));
+            ClientRenderAccess.gameState(minecraft).levelRenderState, main.width, main.height));
         FogRendererContext.initialize(level);
     }
 
@@ -146,7 +147,7 @@ public final class ClientWorldLoader {
         ((ClientWorldLightmapAccess) ((ClientWorldGameRendererAccess) minecraft.gameRenderer).wormholes$lightmapExtractor()).wormholes$needsUpdate(true);
         WorldRenderer previous = WORLD_RENDERER_MAP.get(source);
         WorldRenderer next = worldRenderer(destination);
-        LevelRenderState mainState = minecraft.gameRenderer.gameRenderState().levelRenderState;
+        LevelRenderState mainState = ClientRenderAccess.gameState(minecraft).levelRenderState;
         LevelRenderState detached = next.state;
         next.bind(mainState);
         if (previous != null) {
@@ -155,9 +156,13 @@ public final class ClientWorldLoader {
         ClientWorldMinecraftAccess access = (ClientWorldMinecraftAccess) minecraft;
         access.wormholes$levelRenderer(next.renderer);
         access.wormholes$levelExtractor(next.extractor);
-        next.attach(minecraft.gameRenderer.mainRenderTarget());
+        next.attach(ClientRenderAccess.mainTarget(minecraft));
         FogRendererContext.onPlayerTeleport(destination);
         mainLevel = destination;
+    }
+
+    public static void sectionDirty(int x, int y, int z) {
+        Minecraft.getInstance().levelExtractor.setSectionDirty(x, y, z);
     }
 
     public static void forceFullSectionDiscovery() {
@@ -190,7 +195,7 @@ public final class ClientWorldLoader {
         LevelRenderer renderer = minecraft.levelRenderer;
         ViewArea viewArea = renderer.viewArea();
         SectionRenderDispatcher dispatcher = renderer.sectionRenderDispatcher();
-        CameraRenderState camera = minecraft.gameRenderer.gameRenderState().levelRenderState.cameraRenderState;
+        CameraRenderState camera = ClientRenderAccess.gameState(minecraft).levelRenderState.cameraRenderState;
         if (viewArea == null || dispatcher == null || !camera.initialized) {
             return;
         }
@@ -311,7 +316,7 @@ public final class ClientWorldLoader {
 
     private static WorldRenderer createWorldRenderer(ClientLevel level) {
         Minecraft minecraft = Minecraft.getInstance();
-        RenderTarget main = minecraft.gameRenderer.mainRenderTarget();
+        RenderTarget main = ClientRenderAccess.mainTarget(minecraft);
         LevelRenderer renderer = new LevelRenderer(minecraft.getEntityRenderDispatcher(), minecraft.getBlockEntityRenderDispatcher(),
             minecraft.getModelManager(), minecraft.getTextureManager(), minecraft.getAtlasManager(), minecraft.getShaderManager(),
             minecraft.gameRenderer, main.width, main.height);
@@ -408,9 +413,13 @@ public final class ClientWorldLoader {
             }
         }
 
-        private void bind(LevelRenderState next) {
+        public void bindState(LevelRenderState next) {
             ((ClientWorldLevelRendererAccess) renderer).wormholes$levelRenderState(next);
             ((ClientWorldExtractorAccess) extractor).wormholes$levelRenderState(next);
+        }
+
+        private void bind(LevelRenderState next) {
+            bindState(next);
             state = next;
         }
     }

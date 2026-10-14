@@ -8,6 +8,7 @@
     "TravelConnectionTap",
     "TravelFrameTap",
     "TravelPacketTap",
+    "ResidentRemovalTap",
     "TravelTickTap",
     "SeamlessMouseTurnTap",
     "SeamlessCrossingTap",
@@ -24,6 +25,7 @@
     "IrisMeshHistoryFrameTap",
     "IrisMeshHistoryPipelineTap",
     "IrisMeshHistoryDrawTap",
+    "IrisShaderAllocationTap",
     "IrisPipelineCostMixin",
     "IrisPipelineCostMixin$IrisProgramLink",
     "IrisPipelineCostMixin$PortalPath",
@@ -58,12 +60,24 @@
     "AdjacentSourcePortalsProjectionTap$Layers",
     "AdjacentSourcePortalsProjectionTap$Meshes",
     "AdjacentSourcePortalsProjectionTap$MeshPortalAccess",
-    "AdjacentSourcePortalsProjectionTap$MeshDimensionsAccess"
+    "AdjacentSourcePortalsProjectionTap$MeshDimensionsAccess",
+    "CrossingBenchFrameTap",
+    "CrossingBenchFrameTap$Limiter"
   ],
   "injectors": {
     "defaultRequire": 1
   },
   "mixins": [
-    "ChunkLoadTap"
+    "ChunkLoadTap",
+    "CrossingBenchServerTap",
+    "CrossingBenchChunkTap",
+    "CrossingBenchPacketTap",
+    "CrossingBenchEncoderTap",
+    "CrossingBenchWormholesTap",
+    "CrossingBenchInboundTap",
+    "CrossingBenchMoveTap",
+    "CrossingBenchRoutedTap",
+    "SeamlessHeldChunkTap",
+    "HeldChunksAccess"
   ]
 }

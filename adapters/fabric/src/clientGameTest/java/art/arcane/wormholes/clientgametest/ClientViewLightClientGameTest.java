@@ -6,9 +6,7 @@ import art.arcane.wormholes.modded.client.WormholesClient;
 import art.arcane.wormholes.portal.PortalType;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
-import net.fabricmc.fabric.api.client.gametest.v1.context.TestDedicatedServerConnection;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestDedicatedServerContext;
-import net.fabricmc.fabric.api.client.gametest.v1.context.TestServerConnection;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestServerContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestSingleplayerContext;
 import net.minecraft.core.BlockPos;
@@ -56,16 +54,16 @@ public final class ClientViewLightClientGameTest implements FabricClientGameTest
     public void runTest(ClientGameTestContext context) {
         ClientViewTestConfig.enable(true);
         try (TestSingleplayerContext singleplayer = context.worldBuilder().create()) {
-            runScenario(context, singleplayer.getConnection(), singleplayer.getServer(), "singleplayer native light");
+            runScenario(context, FabricConnection.of(singleplayer), singleplayer.getServer(), "singleplayer native light");
         }
         ClientViewTestConfig.enable(false);
         try (TestDedicatedServerContext server = context.worldBuilder().createServer(ClientViewTestConfig.serverProperties());
-             TestDedicatedServerConnection connection = server.connect()) {
+             FabricConnection connection = FabricConnection.connect(server)) {
             runScenario(context, connection, server, "dedicated native light with plate fidelity disabled");
         }
     }
 
-    private void runScenario(ClientGameTestContext context, TestServerConnection connection, TestServerContext server, String label) {
+    private void runScenario(ClientGameTestContext context, FabricConnection connection, TestServerContext server, String label) {
         connection.waitForChunksDownload();
         connection.waitForChunksRender();
         context.waitFor(client -> WormholesClient.instance() != null && WormholesClient.instance().session().active(), NEGOTIATION_TIMEOUT_TICKS);
@@ -105,7 +103,7 @@ public final class ClientViewLightClientGameTest implements FabricClientGameTest
         context.takeScreenshot("clientview-light-" + label.replace(' ', '-') + "-dropped");
     }
 
-    private static void assertPhase(ClientGameTestContext context, TestServerContext server, TestServerConnection connection, String label,
+    private static void assertPhase(ClientGameTestContext context, TestServerContext server, FabricConnection connection, String label,
                                     DestinationLight destination) {
         assertProjectedLight(context, label, destination);
         context.computeOnClient(client -> { NativeClientViewAssertions.assertIsolated(); return true; });
@@ -113,7 +111,7 @@ public final class ClientViewLightClientGameTest implements FabricClientGameTest
         assertLightParity(context, server, connection, ROOM, label + ": real room cells");
     }
 
-    private static DestinationLight destinationLight(ClientGameTestContext context, TestServerContext server, TestServerConnection connection,
+    private static DestinationLight destinationLight(ClientGameTestContext context, TestServerContext server, FabricConnection connection,
                                                      String label) {
         waitForServerBlockLight(context, server, connection, LIT_CELL, label);
         int block = serverBrightness(server, connection, LightLayer.BLOCK, LIT_CELL);
@@ -132,7 +130,7 @@ public final class ClientViewLightClientGameTest implements FabricClientGameTest
         }, STREAM_TIMEOUT_TICKS);
     }
 
-    private static void assertLightParity(ClientGameTestContext context, TestServerContext server, TestServerConnection connection, Box box,
+    private static void assertLightParity(ClientGameTestContext context, TestServerContext server, FabricConnection connection, Box box,
                                           String label) {
         List<String> mismatches = List.of();
         for (int round = 0; round < PARITY_ROUNDS; round++) {
@@ -145,7 +143,7 @@ public final class ClientViewLightClientGameTest implements FabricClientGameTest
         assertTrue(false, label + ": " + mismatches.size() + " cells differ from the server: " + mismatches.subList(0, Math.min(12, mismatches.size())));
     }
 
-    private static List<String> lightMismatches(ClientGameTestContext context, TestServerContext server, TestServerConnection connection, Box box) {
+    private static List<String> lightMismatches(ClientGameTestContext context, TestServerContext server, FabricConnection connection, Box box) {
         int cells = box.sizeX() * box.sizeY() * box.sizeZ();
         int[] expectedSky = new int[cells];
         int[] expectedBlock = new int[cells];
@@ -190,7 +188,7 @@ public final class ClientViewLightClientGameTest implements FabricClientGameTest
             STREAM_TIMEOUT_TICKS);
     }
 
-    private static void waitForServerBlockLight(ClientGameTestContext context, TestServerContext server, TestServerConnection connection,
+    private static void waitForServerBlockLight(ClientGameTestContext context, TestServerContext server, FabricConnection connection,
                                                 BlockPos position, String label) {
         for (int waited = 0; waited < STREAM_TIMEOUT_TICKS; waited += PARITY_ROUND_TICKS) {
             if (serverBrightness(server, connection, LightLayer.BLOCK, position) > 0) {
@@ -201,7 +199,7 @@ public final class ClientViewLightClientGameTest implements FabricClientGameTest
         assertTrue(false, label + ": the server never lit " + position.toShortString());
     }
 
-    private static int serverBrightness(TestServerContext server, TestServerConnection connection, LightLayer layer, BlockPos position) {
+    private static int serverBrightness(TestServerContext server, FabricConnection connection, LightLayer layer, BlockPos position) {
         return server.computeOnServer(minecraftServer -> connection.getServerLevel().getBrightness(layer, position));
     }
 

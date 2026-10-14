@@ -21,9 +21,7 @@ import art.arcane.wormholes.modded.client.world.ClientWorldLoader;
 import art.arcane.wormholes.modded.gravity.MinecraftGravity;
 import art.arcane.wormholes.modded.mixin.client.CameraPoseAccess;
 import art.arcane.wormholes.modded.mixin.client.ClientWorldCameraAccess;
-import art.arcane.wormholes.modded.mixin.client.ClientWorldExtractorAccess;
 import art.arcane.wormholes.modded.mixin.client.ClientWorldGameRendererAccess;
-import art.arcane.wormholes.modded.mixin.client.ClientWorldLevelRendererAccess;
 import art.arcane.wormholes.modded.mixin.client.ClientWorldLightmapAccess;
 import art.arcane.wormholes.network.client.TravelMessage;
 import net.minecraft.client.Camera;
@@ -123,11 +121,11 @@ public final class ClientCrossingView {
         ClientLevel destination = current.level();
         ClientWorldLoader.WorldRenderer world = ClientWorldLoader.worldRenderer(destination);
         GameRenderer gameRenderer = minecraft.gameRenderer;
-        Camera camera = gameRenderer.mainCamera();
+        Camera camera = ClientRenderAccess.mainCamera(minecraft);
         LevelRenderState detached = world.state();
         EnvironmentAttributeProbe probe = camera.attributeProbe();
-        world.attach(gameRenderer.mainRenderTarget());
-        bind(world, gameRenderer.gameRenderState().levelRenderState);
+        world.attach(ClientRenderAccess.mainTarget(minecraft));
+        world.bindState(ClientRenderAccess.gameState(minecraft).levelRenderState);
         ((ClientWorldCameraAccess) camera).wormholes$attributeProbe(ClientWorldLoader.probe(destination));
         gameRenderer.setLevel(destination);
         lightmapChanged(gameRenderer);
@@ -138,7 +136,7 @@ public final class ClientCrossingView {
             minecraft.level = source;
             gameRenderer.setLevel(source);
             ((ClientWorldCameraAccess) camera).wormholes$attributeProbe(probe);
-            bind(world, detached);
+            world.bindState(detached);
             lightmapChanged(gameRenderer);
         }
         world.rendered();
@@ -260,10 +258,6 @@ public final class ClientCrossingView {
         return length <= 0.0D ? start : start.add(reach.normalize().scale(length));
     }
 
-    private static void bind(ClientWorldLoader.WorldRenderer world, LevelRenderState state) {
-        ((ClientWorldLevelRendererAccess) world.renderer()).wormholes$levelRenderState(state);
-        ((ClientWorldExtractorAccess) world.extractor()).wormholes$levelRenderState(state);
-    }
 
     private static void lightmapChanged(GameRenderer gameRenderer) {
         ((ClientWorldLightmapAccess) ((ClientWorldGameRendererAccess) gameRenderer).wormholes$lightmapExtractor()).wormholes$needsUpdate(true);

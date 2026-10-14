@@ -6,6 +6,7 @@
  */
 package art.arcane.wormholes.modded.client.render.stencil;
 
+import com.mojang.blaze3d.pipeline.MainTarget;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.GpuFormat;
 import com.mojang.blaze3d.textures.GpuTexture;
@@ -18,8 +19,13 @@ import org.lwjgl.opengl.GL30C;
 
 public final class PortalStencil {
     private static final int ALL_BITS = 0xFF;
+    private static final String LAYER_LABEL = "Wormholes portal layer ";
 
     private PortalStencil() {
+    }
+
+    public static boolean stencilTarget(RenderTarget target, String label) {
+        return target instanceof MainTarget || label.startsWith(LAYER_LABEL);
     }
 
     public static GpuFormat mainDepthFormat(GpuFormat requested) {

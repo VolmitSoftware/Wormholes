@@ -40,7 +40,7 @@ import net.minecraft.world.clock.WorldClock;
 import net.minecraft.world.entity.Display;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.EntityTypes;
+import art.arcane.wormholes.modded.MinecraftEntityTypes;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
@@ -84,7 +84,7 @@ public final class ClientLevelScene implements ClientSceneWorld {
             return false;
         }
         try {
-            if (type == EntityTypes.PLAYER) {
+            if (type == MinecraftEntityTypes.PLAYER) {
                 playerInfo(projectionId, visual).handle(connection);
                 playerProfiles.put(entityId, projectionId);
             }
@@ -451,6 +451,6 @@ public final class ClientLevelScene implements ClientSceneWorld {
     }
 
     private static boolean hanging(EntityType<?> type) {
-        return type == EntityTypes.ITEM_FRAME || type == EntityTypes.GLOW_ITEM_FRAME || type == EntityTypes.PAINTING;
+        return type == MinecraftEntityTypes.ITEM_FRAME || type == MinecraftEntityTypes.GLOW_ITEM_FRAME || type == MinecraftEntityTypes.PAINTING;
     }
 }

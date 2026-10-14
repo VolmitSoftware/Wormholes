@@ -17,8 +17,8 @@ public final class CrossingCompositionClientGameTest implements FabricClientGame
     public void runTest(ClientGameTestContext context) {
         ClientViewTestConfig.enableSeamless(true);
         try (TestSingleplayerContext singleplayer = context.worldBuilder().create()) {
-            FabricSeamlessClient client = new FabricSeamlessClient(context, singleplayer.getConnection());
-            FabricSeamlessServer server = new FabricSeamlessServer(singleplayer.getServer(), singleplayer.getConnection());
+            FabricSeamlessClient client = new FabricSeamlessClient(context, FabricConnection.of(singleplayer));
+            FabricSeamlessServer server = new FabricSeamlessServer(singleplayer.getServer(), FabricConnection.of(singleplayer));
             SeamlessScenario.join(client);
             SeamlessScenario.assertSeamlessNegotiated(client);
             cross(context, singleplayer, client, server, new Scene("far", Level.OVERWORLD, 0, 420));

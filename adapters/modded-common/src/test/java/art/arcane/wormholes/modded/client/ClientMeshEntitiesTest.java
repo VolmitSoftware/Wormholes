@@ -23,7 +23,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderDispatcher;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState;
-import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.EntityAttachments;
@@ -633,7 +632,7 @@ public class ClientMeshEntitiesTest extends MinecraftTestBase {
         assertEquals(expected.z(), actual.z(), 1.0E-6F);
     }
 
-    private static final class CameraNameRenderer extends EntityRenderer<Entity, EntityRenderState> {
+    private static final class CameraNameRenderer extends NativeNameRenderer {
         private CameraNameRenderer(EntityRendererProvider.Context context) {
             super(context);
         }
@@ -641,12 +640,6 @@ public class ClientMeshEntitiesTest extends MinecraftTestBase {
         @Override
         public EntityRenderState createRenderState() {
             return new EntityRenderState();
-        }
-
-        private EntityRenderState names(Entity entity) {
-            EntityRenderState state = createRenderState();
-            extractNameTags(entity, state, 0.5F);
-            return state;
         }
     }
 

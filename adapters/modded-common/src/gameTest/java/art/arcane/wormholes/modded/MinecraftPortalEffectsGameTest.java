@@ -14,7 +14,6 @@ import net.minecraft.network.protocol.game.ClientboundRemoveEntitiesPacket;
 import net.minecraft.network.protocol.game.ClientboundSetEntityDataPacket;
 import net.minecraft.network.protocol.game.ClientboundSoundPacket;
 import net.minecraft.network.protocol.game.GameProtocols;
-import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 import org.slf4j.LoggerFactory;
@@ -106,7 +105,7 @@ public final class MinecraftPortalEffectsGameTest {
                 if (packet instanceof ByteBuf bytes) {
                     packet = GameProtocols.CLIENTBOUND_TEMPLATE.bind(RegistryFriendlyByteBuf.decorator(runtime.server().registryAccess())).codec().decode(bytes.duplicate());
                 }
-                if (packet instanceof ClientboundAddEntityPacket added && added.getType() == EntityTypes.BLOCK_DISPLAY) {
+                if (packet instanceof ClientboundAddEntityPacket added && added.getType() == MinecraftEntityTypes.BLOCK_DISPLAY) {
                     spawned.add(added.getId());
                 } else if (packet instanceof ClientboundSetEntityDataPacket data) {
                     metadata.merge(data.id(), 1, Integer::sum);

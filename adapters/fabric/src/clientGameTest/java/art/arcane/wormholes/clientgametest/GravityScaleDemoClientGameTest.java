@@ -2,7 +2,6 @@ package art.arcane.wormholes.clientgametest;
 
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
-import net.fabricmc.fabric.api.client.gametest.v1.context.TestServerConnection;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestServerContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestSingleplayerContext;
 import net.minecraft.client.CameraType;
@@ -29,8 +28,8 @@ public final class GravityScaleDemoClientGameTest implements FabricClientGameTes
                 continue;
             }
             try (TestSingleplayerContext singleplayer = context.worldBuilder().create()) {
-                GravityPortalClientGameTest.demo(new FabricSeamlessClient(context, singleplayer.getConnection()),
-                    new Server(singleplayer.getServer(), singleplayer.getConnection()), controls -> flight(context, controls), camera, id);
+                GravityPortalClientGameTest.demo(new FabricSeamlessClient(context, FabricConnection.of(singleplayer)),
+                    new Server(singleplayer.getServer(), FabricConnection.of(singleplayer)), controls -> flight(context, controls), camera, id);
             }
         }
         for (CameraType camera : List.of(CameraType.FIRST_PERSON, CameraType.THIRD_PERSON_BACK)) {
@@ -39,7 +38,7 @@ public final class GravityScaleDemoClientGameTest implements FabricClientGameTes
                 continue;
             }
             try (TestSingleplayerContext singleplayer = context.worldBuilder().create()) {
-                ScaledPairClientGameTest.demo(context, singleplayer.getConnection(), singleplayer.getServer(), camera, id);
+                ScaledPairClientGameTest.demo(context, FabricConnection.of(singleplayer), singleplayer.getServer(), camera, id);
             }
         }
     }
@@ -57,7 +56,7 @@ public final class GravityScaleDemoClientGameTest implements FabricClientGameTes
         }
     }
 
-    private record Server(TestServerContext context, TestServerConnection connection) implements GravityPortalClientGameTest.Server {
+    private record Server(TestServerContext context, FabricConnection connection) implements GravityPortalClientGameTest.Server {
         @Override
         public void run(Consumer<MinecraftServer> action) {
             context.runOnServer(action::accept);

@@ -34,7 +34,7 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.ProblemReporter;
-import net.minecraft.world.entity.EntityTypes;
+import art.arcane.wormholes.modded.MinecraftEntityTypes;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.decoration.ArmorStand;
 import net.minecraft.world.item.Item;
@@ -78,7 +78,7 @@ public final class NativeViewProbe {
         runtime.requireServerThread();
         MinecraftServer server = runtime.server();
         ServerLevel level = helper.getLevel();
-        ServerPlayer owner = (ServerPlayer) helper.makeMockServerPlayer(GameType.CREATIVE);
+        ServerPlayer owner = MinecraftGameTestAccess.mockServerPlayer(helper, GameType.CREATIVE);
         BlockPos anchor = helper.absolutePos(new BlockPos(8, 2, 8));
         BlockPos sample = anchor.offset(0, 0, 1);
         BlockPos signPosition = sample.above();
@@ -96,7 +96,7 @@ public final class NativeViewProbe {
         portal.setNetworkViewLateralPad(1);
         portal.setRenderMode(ProjectionRenderMode.PANOPTIC);
         runtime.portals().save(portal);
-        ArmorStand entity = new ArmorStand(EntityTypes.ARMOR_STAND, level);
+        ArmorStand entity = new ArmorStand(MinecraftEntityTypes.ARMOR_STAND, level);
         entity.setPos(sample.getX() + 0.5D, sample.getY() + 1.0D, sample.getZ() + 0.5D);
         entity.setNoGravity(true);
         entity.setInvisible(true);

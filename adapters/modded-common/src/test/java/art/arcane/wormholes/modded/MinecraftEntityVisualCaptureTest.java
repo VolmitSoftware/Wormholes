@@ -13,7 +13,6 @@ import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import art.arcane.optics.entity.EntitySnapshot;
 import art.arcane.wormholes.network.view.ViewEntityState;
-import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Pose;
 import net.minecraft.world.phys.Vec3;
@@ -44,7 +43,7 @@ public class MinecraftEntityVisualCaptureTest extends MinecraftTestBase {
         when(animal.getEntityData()).thenReturn(data);
         when(animal.getScale()).thenReturn(1.0F);
         when(((EntityDataAccess) data).wormholesItems()).thenReturn(new SynchedEntityData.DataItem<?>[0]);
-        doReturn(EntityTypes.COW).when(animal).getType();
+        doReturn(MinecraftEntityTypes.COW).when(animal).getType();
         when(animal.position()).thenReturn(new Vec3(10, 64, 20));
         when(animal.getDeltaMovement()).thenReturn(Vec3.ZERO);
         when(animal.getPose()).thenReturn(Pose.STANDING);
@@ -74,7 +73,7 @@ public class MinecraftEntityVisualCaptureTest extends MinecraftTestBase {
         when(animal.getScale()).thenReturn(1.0F);
         UUID id = UUID.randomUUID();
         when(animal.getUUID()).thenReturn(id);
-        doReturn(EntityTypes.COW).when(animal).getType();
+        doReturn(MinecraftEntityTypes.COW).when(animal).getType();
         when(animal.position()).thenReturn(new Vec3(10, 64, 20));
         when(animal.getDeltaMovement()).thenReturn(Vec3.ZERO);
         when(animal.getPose()).thenReturn(Pose.STANDING);
@@ -118,7 +117,7 @@ public class MinecraftEntityVisualCaptureTest extends MinecraftTestBase {
     public void gravityAndEffectiveScaleChangesRefreshTheStreamedVisualImmediately() {
         LivingEntity animal = mock(LivingEntity.class, withSettings().extraInterfaces(GravityHolder.class));
         when(animal.getUUID()).thenReturn(UUID.randomUUID());
-        doReturn(EntityTypes.COW).when(animal).getType();
+        doReturn(MinecraftEntityTypes.COW).when(animal).getType();
         when(animal.position()).thenReturn(new Vec3(10, 64, 20));
         when(animal.getDeltaMovement()).thenReturn(Vec3.ZERO);
         when(animal.getPose()).thenReturn(Pose.STANDING);

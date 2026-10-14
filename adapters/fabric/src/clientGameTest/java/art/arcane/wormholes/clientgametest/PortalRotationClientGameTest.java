@@ -18,6 +18,8 @@ import art.arcane.wormholes.modded.client.world.ClientWorldLoader;
 import art.arcane.wormholes.network.client.TravelMessage;
 import art.arcane.wormholes.portal.AmbientParticleStyle;
 import art.arcane.wormholes.portal.PortalType;
+import art.arcane.wormholes.modded.MinecraftDyedItems;
+import art.arcane.wormholes.modded.client.ClientRenderAccess;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestServerContext;
@@ -91,14 +93,14 @@ public final class PortalRotationClientGameTest implements FabricClientGameTest 
     public void runTest(ClientGameTestContext context) {
         ClientViewTestConfig.enableSeamless(true);
         try (TestSingleplayerContext singleplayer = context.worldBuilder().create()) {
-            singleplayer.getConnection().waitForChunksDownload();
+            FabricConnection.of(singleplayer).waitForChunksDownload();
             context.waitFor(client -> WormholesClient.instance() != null && WormholesClient.instance().session().active(), TIMEOUT_TICKS);
             TestServerContext server = singleplayer.getServer();
-            ServerPlayer player = server.computeOnServer(minecraftServer -> singleplayer.getConnection().getServerPlayer());
+            ServerPlayer player = server.computeOnServer(minecraftServer -> FabricConnection.of(singleplayer).getServerPlayer());
             GameType gameMode = server.computeOnServer(minecraftServer -> player.gameMode.getGameModeForPlayer());
             MotionState serverMotion = server.computeOnServer(minecraftServer -> motionState(player));
             List<UUID> created = new ArrayList<UUID>();
-            ClientOptions options = context.computeOnClient(client -> new ClientOptions(client.gui.hud.isHidden(),
+            ClientOptions options = context.computeOnClient(client -> new ClientOptions(ClientGui.hudHidden(client),
                 client.options.getCameraType(), WormholesClient.instance().config().clientRecursion));
             MotionState clientMotion = context.computeOnClient(client -> motionState(client.player));
             try {
@@ -116,15 +118,15 @@ public final class PortalRotationClientGameTest implements FabricClientGameTest 
                     PortalEntityRenderTap.start();
                     client.options.setCameraType(CameraType.FIRST_PERSON);
                     WormholesClient.instance().config().clientRecursion = false;
-                    if (!client.gui.hud.isHidden()) {
-                        client.gui.hud.toggle();
+                    if (!ClientGui.hudHidden(client)) {
+                        ClientGui.toggleHud(client);
                     }
                 });
                 for (Phase phase : phases(source)) {
                     server.runOnServer(minecraftServer -> rotate(minecraftServer, sourceId, phase.definition(), target));
                     ViewTarget view = view(context, server, player, phase, sourceId, target);
                     awaitClientLighting(context, server, phase);
-                    singleplayer.getConnection().waitForChunksRender();
+                    FabricConnection.of(singleplayer).waitForChunksRender();
                     awaitView(context, server, player, phase, destination, view);
                     assertPixels(context, server, player, phase, destination, view);
                     context.takeScreenshot("portal-rotation-" + phase.label());
@@ -154,8 +156,8 @@ public final class PortalRotationClientGameTest implements FabricClientGameTest 
                         if (WormholesClient.instance() != null) {
                             WormholesClient.instance().config().clientRecursion = options.recursion();
                         }
-                        if (client.gui.hud.isHidden() != options.hidden()) {
-                            client.gui.hud.toggle();
+                        if (ClientGui.hudHidden(client) != options.hidden()) {
+                            ClientGui.toggleHud(client);
                         }
                     });
                 }
@@ -202,7 +204,7 @@ public final class PortalRotationClientGameTest implements FabricClientGameTest 
             for (int x = 45; x <= 51; x++) {
                 for (int y = 82; y <= 88; y++) {
                     DyeColor color = x < 48 ? y < 85 ? DyeColor.RED : DyeColor.LIME : y < 85 ? DyeColor.BLUE : DyeColor.YELLOW;
-                    level.setBlockAndUpdate(new BlockPos(x, y, z), Blocks.CONCRETE.pick(color).defaultBlockState());
+                    level.setBlockAndUpdate(new BlockPos(x, y, z), MinecraftDyedItems.concreteBlock(color).defaultBlockState());
                 }
             }
         }
@@ -330,7 +332,7 @@ public final class PortalRotationClientGameTest implements FabricClientGameTest 
                 + " native " + lighting(minecraftServer.overworld())));
         LOGGER.info("WORMHOLES_ROTATION_CLIENT_LIGHT phase {} {}", phase, context.computeOnClient(client -> {
             ClientLevel home = client.level;
-            LightmapRenderState lightmap = client.gameRenderer.gameRenderState().lightmapRenderState;
+            LightmapRenderState lightmap = ClientRenderAccess.gameState(client).lightmapRenderState;
             StringBuilder state = new StringBuilder("home ").append(System.identityHashCode(home))
                 .append(" main ").append(System.identityHashCode(ClientWorldLoader.mainLevel()))
                 .append(" sky_darken ").append(home.getSkyDarken())
@@ -493,7 +495,7 @@ public final class PortalRotationClientGameTest implements FabricClientGameTest 
 
     private static String clientViewFailure(Minecraft client, Phase phase, PortalDefinition destination, ViewTarget target) {
         LocalPlayer player = client.player;
-        Camera camera = client.gameRenderer.mainCamera();
+        Camera camera = ClientRenderAccess.mainCamera(client);
         if (client.level == null || player == null || player.level() != client.level || ClientWorldLoader.mainLevel() != client.level
             || client.getCameraEntity() != player || camera.entity() != player || !camera.isInitialized() || camera.isDetached()
             || client.options.getCameraType() != CameraType.FIRST_PERSON) {
@@ -524,7 +526,7 @@ public final class PortalRotationClientGameTest implements FabricClientGameTest 
             .distanceTo(new Vec3(forward.x(), forward.y(), forward.z())) > 0.005D) {
             return "native camera orientation differs from player angles";
         }
-        CameraRenderState rendered = client.gameRenderer.gameRenderState().levelRenderState.cameraRenderState;
+        CameraRenderState rendered = ClientRenderAccess.gameState(client).levelRenderState.cameraRenderState;
         if (!rendered.initialized || rendered.pos.distanceTo(target.eye()) >= POSITION_TOLERANCE
             || !lookMatches(rendered.yRot, rendered.xRot, target.look())) {
             return "native extracted main camera pose differs from fixture target";
@@ -565,15 +567,15 @@ public final class PortalRotationClientGameTest implements FabricClientGameTest 
 
     private static String clientViewState(Minecraft client, Phase phase) {
         LocalPlayer player = client.player;
-        Camera camera = client.gameRenderer.mainCamera();
+        Camera camera = ClientRenderAccess.mainCamera(client);
         Camera virtual = PortalStencilRenderer.instance().camera();
-        CameraRenderState rendered = client.gameRenderer.gameRenderState().levelRenderState.cameraRenderState;
+        CameraRenderState rendered = ClientRenderAccess.gameState(client).levelRenderState.cameraRenderState;
         StringBuilder state = new StringBuilder("home ").append(System.identityHashCode(client.level))
             .append(" main ").append(System.identityHashCode(ClientWorldLoader.mainLevel()))
             .append(" player ").append(System.identityHashCode(player))
             .append(" player_level ").append(System.identityHashCode(player.level()))
             .append(" camera_type ").append(client.options.getCameraType())
-            .append(" paused ").append(client.isPaused()).append(" screen ").append(client.gui.screen())
+            .append(" paused ").append(client.isPaused()).append(" screen ").append(ClientGui.screen(client))
             .append(" feet ").append(player.position()).append(" eye ").append(player.getEyePosition())
             .append(" yaw ").append(player.getYRot()).append(" pitch ").append(player.getXRot())
             .append(" old_feet ").append(new Vec3(player.xo, player.yo, player.zo))

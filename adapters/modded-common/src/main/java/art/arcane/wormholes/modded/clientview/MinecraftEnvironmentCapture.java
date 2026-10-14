@@ -10,6 +10,7 @@ import net.minecraft.server.level.ServerLevel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -19,15 +20,19 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 final class MinecraftEnvironmentCapture implements AutoCloseable {
+    static final Duration CAPTURE_DEADLINE = Duration.ofSeconds(5L);
+
     private static final Logger LOGGER = LoggerFactory.getLogger("Wormholes");
 
     private final WormholesModRuntime runtime;
+    private final Duration deadline;
     private final Map<Key, State> states = new HashMap<>();
     private final AtomicBoolean reported = new AtomicBoolean();
     private long nextPrune;
 
-    MinecraftEnvironmentCapture(WormholesModRuntime runtime) {
+    MinecraftEnvironmentCapture(WormholesModRuntime runtime, Duration deadline) {
         this.runtime = runtime;
+        this.deadline = deadline;
     }
 
     synchronized EnvironmentState capture(Request request) {
@@ -93,7 +98,7 @@ final class MinecraftEnvironmentCapture implements AutoCloseable {
             fail(request, state, failure);
             return;
         }
-        pending.orTimeout(5L, TimeUnit.SECONDS).whenComplete((value, failure) -> finish(request, state, pending, lease, value, failure));
+        pending.orTimeout(deadline.toNanos(), TimeUnit.NANOSECONDS).whenComplete((value, failure) -> finish(request, state, pending, lease, value, failure));
         try {
             lease.ready().whenComplete((ready, failure) -> {
                 if (failure != null) {

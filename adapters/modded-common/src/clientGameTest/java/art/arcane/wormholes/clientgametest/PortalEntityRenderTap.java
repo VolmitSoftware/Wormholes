@@ -2,6 +2,7 @@ package art.arcane.wormholes.clientgametest;
 
 import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.client.render.stencil.PortalView;
+import art.arcane.wormholes.modded.client.ClientRenderAccess;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.entity.state.AvatarRenderState;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
@@ -90,8 +91,8 @@ public final class PortalEntityRenderTap {
         path.add(view.key());
         Minecraft client = Minecraft.getInstance();
         ScreenCamera screen = LAYERS.isEmpty() ? new ScreenCamera(camera.pos,
-            new Matrix4f(projection).mul(camera.viewRotationMatrix), client.gameRenderer.mainRenderTarget().width,
-            client.gameRenderer.mainRenderTarget().height) : LAYERS.getLast().screen;
+            new Matrix4f(projection).mul(camera.viewRotationMatrix), ClientRenderAccess.mainTarget(client).width,
+            ClientRenderAccess.mainTarget(client).height) : LAYERS.getLast().screen;
         Vec3d eye = view.toDestination().point(new Vec3d(camera.pos.x, camera.pos.y, camera.pos.z));
         Layer layer = new Layer(new LayerSettings(view, depth, List.copyOf(path), new Vec3(eye.x(), eye.y(), eye.z()), screen));
         LAYERS.push(layer);

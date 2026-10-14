@@ -17,6 +17,7 @@ import art.arcane.wormholes.modded.client.render.PortalGpuMesh;
 import art.arcane.wormholes.modded.client.render.PortalShaderScope;
 import art.arcane.wormholes.modded.client.render.iris.IrisClipPlanes;
 import art.arcane.wormholes.modded.client.world.ClientWorldLoader;
+import art.arcane.wormholes.modded.client.ClientRenderAccess;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.logging.LogUtils;
@@ -161,7 +162,7 @@ public final class PortalStencilRenderer {
         PortalViewSelection.Camera parent = selectionStack.isEmpty() ? null : selectionStack.getLast();
         return new PortalViewSelection.Camera(new Vec3d(camera.pos.x, camera.pos.y, camera.pos.z), camera.viewRotationMatrix, projection,
             camera.cullFrustum, parent == null ? PortalViewSelection.Window.FULL : parent.window(),
-            parent == null ? null : parent.exit(), RenderSystem.getDevice().getDeviceInfo().isZZeroToOne());
+            parent == null ? null : parent.exit(), ClientRenderAccess.zeroToOneDepth());
     }
 
     private int recursionCeiling() {
@@ -225,7 +226,7 @@ public final class PortalStencilRenderer {
             }
             return;
         }
-        RenderTarget main = minecraft.gameRenderer.mainRenderTarget();
+        RenderTarget main = ClientRenderAccess.mainTarget(minecraft);
         if (layers.claimStencilClear()) {
             try (RenderPass pass = open(main, "Wormholes portal stencil clear")) {
                 PortalStencil.clear();
@@ -270,7 +271,7 @@ public final class PortalStencilRenderer {
         if (visible.isEmpty() && !meshes) {
             return;
         }
-        RenderTarget main = minecraft.gameRenderer.mainRenderTarget();
+        RenderTarget main = ClientRenderAccess.mainTarget(minecraft);
         long now = System.currentTimeMillis();
         WormholesClient client = WormholesClient.instance();
         int subdivisions = client == null ? WormholesClientConfig.DEFAULT_PORTAL_SHAPE_SUBDIVISIONS : client.config().portalShapeSubdivisions;
@@ -308,7 +309,7 @@ public final class PortalStencilRenderer {
         if (!layers.canEnter(recursionCeiling()) || !layers.claimView()) {
             return;
         }
-        RenderTarget main = Minecraft.getInstance().gameRenderer.mainRenderTarget();
+        RenderTarget main = ClientRenderAccess.mainTarget(Minecraft.getInstance());
         int outer = layers.depth();
         Vector4fc clipPlane = outer == 0 ? null : world.clipPlane();
         deferred.mark(outer, aperture, shaped, apertureView, projection, clipPlane);
@@ -332,14 +333,14 @@ public final class PortalStencilRenderer {
     }
 
     public void captureShadedLayer() {
-        deferred.capture(Minecraft.getInstance().gameRenderer.mainRenderTarget(), layers.depth());
+        deferred.capture(ClientRenderAccess.mainTarget(Minecraft.getInstance()), layers.depth());
     }
 
     public boolean clearLayer(Vector4fc fogColor) {
         if (!layers.nested() || deferredFrame) {
             return false;
         }
-        RenderTarget main = Minecraft.getInstance().gameRenderer.mainRenderTarget();
+        RenderTarget main = ClientRenderAccess.mainTarget(Minecraft.getInstance());
         try (RenderPass pass = open(main, "Wormholes portal layer clear")) {
             pass.setPipeline(compiled(StencilPipelines.CLEAR));
             pass.setUniform("DynamicTransforms", RenderSystem.getDynamicUniforms().writeTransform(new Matrix4f(),
@@ -387,7 +388,7 @@ public final class PortalStencilRenderer {
     }
 
     private boolean available(Minecraft minecraft) {
-        if (!PortalBackends.available() || !PortalStencil.available(minecraft.gameRenderer.mainRenderTarget())) {
+        if (!PortalBackends.available() || !PortalStencil.available(ClientRenderAccess.mainTarget(minecraft))) {
             return false;
         }
         int generation = PortalClipShaders.generation();

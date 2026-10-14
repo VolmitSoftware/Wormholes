@@ -10,6 +10,7 @@ import art.arcane.wormholes.localization.WormholesMessages;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.DyeColor;
 
 import java.util.List;
 import java.util.Objects;
@@ -42,7 +43,7 @@ final class MinecraftAtlasMenu {
             this.viewer = viewer;
             this.state = state;
             this.filter = filter;
-            window = new MinecraftWindow(runtime, viewer).setDecorator(Items.STAINED_GLASS_PANE.blue());
+            window = new MinecraftWindow(runtime, viewer).setDecorator(MinecraftDyedItems.pane(DyeColor.BLUE));
             window.setViewportHeight(6);
         }
 

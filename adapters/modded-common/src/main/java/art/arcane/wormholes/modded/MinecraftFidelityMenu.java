@@ -11,6 +11,7 @@ import art.arcane.optics.volume.LodProfile;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.DyeColor;
 
 import java.util.Objects;
 import java.util.function.Consumer;
@@ -32,9 +33,9 @@ public final class MinecraftFidelityMenu {
         MinecraftWindow window = new MinecraftWindow(runtime, viewer);
         window.setTitle(MinecraftPortalText.router(runtime, portal, true));
         window.setViewportHeight(3);
-        window.setDecorator(Items.STAINED_GLASS_PANE.cyan());
+        window.setDecorator(MinecraftDyedItems.pane(DyeColor.CYAN));
         window.setElement(0, 0, placard(viewer));
-        window.setElement(-3, 1, cycler("fidelity-atmosphere", Items.STAINED_GLASS.lightBlue(), FidelityMessages.MENU_ATMOSPHERE, "mode",
+        window.setElement(-3, 1, cycler("fidelity-atmosphere", MinecraftDyedItems.glass(DyeColor.LIGHT_BLUE), FidelityMessages.MENU_ATMOSPHERE, "mode",
             atmosphere == null ? null : atmosphere.configName(),
             target -> target.setAtmosphereMode(effectiveAtmosphereMode(target).next()),
             target -> target.setAtmosphereMode(null), viewer));

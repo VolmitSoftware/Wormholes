@@ -14,6 +14,7 @@ public final class IrisShaderStages {
     private static final IrisShaderStageCache CACHE = new IrisShaderStageCache(
         new IrisShaderStageCache.Options(MAX_STAGES, MAX_SOURCE_CHARACTERS, GL20C::glDeleteShader));
     private static final ArrayDeque<Scope> SCOPES = new ArrayDeque<>();
+    private static Compilation compiling;
     private static long compilationNanos;
 
     private IrisShaderStages() {
@@ -29,7 +30,7 @@ public final class IrisShaderStages {
     public static int acquire(int type, String source, IntSupplier compile) {
         Scope scope = SCOPES.peek();
         if (scope == null || source == null) {
-            return compile.getAsInt();
+            return source == null ? compile.getAsInt() : compile(compile);
         }
         int shader = CACHE.acquire(new IrisShaderStageCache.Key(type, source), () -> compile(compile));
         scope.shaders.add(shader);
@@ -45,6 +46,21 @@ public final class IrisShaderStages {
         return CACHE.release(shader);
     }
 
+    public static int createdShader(int shader) {
+        if (compiling != null) {
+            compiling.shader = shader;
+        }
+        return shader;
+    }
+
+    public static int createdProgram(int program) {
+        Scope scope = SCOPES.peek();
+        if (scope != null && program > 0) {
+            scope.programs.add(program);
+        }
+        return program;
+    }
+
     public static void clear() {
         RenderSystem.assertOnRenderThread();
         CACHE.clear();
@@ -58,9 +74,22 @@ public final class IrisShaderStages {
 
     private static int compile(IntSupplier operation) {
         long started = System.nanoTime();
+        Compilation previous = compiling;
+        Compilation allocation = new Compilation();
+        compiling = allocation;
         try {
             return operation.getAsInt();
+        } catch (RuntimeException | Error failure) {
+            if (allocation.shader > 0) {
+                try {
+                    GL20C.glDeleteShader(allocation.shader);
+                } catch (RuntimeException | Error cleanupFailure) {
+                    failure.addSuppressed(cleanupFailure);
+                }
+            }
+            throw failure;
         } finally {
+            compiling = previous;
             compilationNanos += System.nanoTime() - started;
         }
     }
@@ -71,6 +100,7 @@ public final class IrisShaderStages {
 
     public static final class Scope implements AutoCloseable {
         private final List<Integer> shaders = new ArrayList<>(5);
+        private final List<Integer> programs = new ArrayList<>(1);
 
         private Scope() {
         }
@@ -79,6 +109,11 @@ public final class IrisShaderStages {
             for (int shader : shaders) {
                 GL20C.glDetachShader(program, shader);
             }
+            programs.remove(Integer.valueOf(program));
+        }
+
+        public void complete() {
+            programs.clear();
         }
 
         @Override
@@ -88,6 +123,17 @@ public final class IrisShaderStages {
             }
             SCOPES.pop();
             Throwable failure = null;
+            for (int program : programs) {
+                try {
+                    GL20C.glDeleteProgram(program);
+                } catch (RuntimeException | Error deletionFailure) {
+                    if (failure == null) {
+                        failure = deletionFailure;
+                    } else {
+                        failure.addSuppressed(deletionFailure);
+                    }
+                }
+            }
             for (int shader : shaders) {
                 try {
                     if (!CACHE.release(shader)) {
@@ -108,5 +154,9 @@ public final class IrisShaderStages {
                 throw error;
             }
         }
+    }
+
+    private static final class Compilation {
+        private int shader;
     }
 }

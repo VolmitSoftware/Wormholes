@@ -37,7 +37,6 @@ import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.entity.Display;
-import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.storage.TagValueInput;
 import net.minecraft.world.phys.Vec3;
@@ -170,12 +169,12 @@ final class MinecraftPortalSurfaces implements AutoCloseable {
         brightness.putInt("sky", 15);
         data.put("brightness", brightness);
         data.putFloat("view_range", 64.0f);
-        Display.BlockDisplay display = new Display.BlockDisplay(EntityTypes.BLOCK_DISPLAY, player.level());
+        Display.BlockDisplay display = new Display.BlockDisplay(MinecraftEntityTypes.BLOCK_DISPLAY, player.level());
         display.load(TagValueInput.create(ProblemReporter.DISCARDING, player.level().registryAccess(), data));
         display.setPos(pane.anchorX(), pane.anchorY(), pane.anchorZ());
         surface.displays.add(display.getId());
         player.connection.send(new ClientboundAddEntityPacket(display.getId(), display.getUUID(), pane.anchorX(), pane.anchorY(), pane.anchorZ(),
-            0, 0, EntityTypes.BLOCK_DISPLAY, 0, Vec3.ZERO, 0));
+            0, 0, MinecraftEntityTypes.BLOCK_DISPLAY, 0, Vec3.ZERO, 0));
         List<SynchedEntityData.DataValue<?>> values = display.getEntityData().getNonDefaultValues();
         if (values != null && !values.isEmpty()) {
             player.connection.send(new ClientboundSetEntityDataPacket(display.getId(), values));

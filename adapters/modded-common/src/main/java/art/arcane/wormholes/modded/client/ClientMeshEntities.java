@@ -102,7 +102,7 @@ public final class ClientMeshEntities {
             return false;
         }
         int entityId = ProjectedEntityGuard.entityId(entity);
-        if (entityId == Entity.INVALID_ENTITY_ID) {
+        if (!ClientRenderAccess.assignedEntityId(entityId)) {
             return false;
         }
         ClientProjectedEntities projected = client.tickState().entities();
@@ -381,7 +381,7 @@ public final class ClientMeshEntities {
             if (renderer == null) {
                 continue;
             }
-            BlockEntityRenderState state = dispatcher.tryExtractRenderState(entity, partialTick, null, renderer.shouldRenderOffScreen());
+            BlockEntityRenderState state = ClientRenderAccess.extractBlockEntity(dispatcher, entity, partialTick, renderer.shouldRenderOffScreen());
             if (state != null) {
                 states.add(state);
             }

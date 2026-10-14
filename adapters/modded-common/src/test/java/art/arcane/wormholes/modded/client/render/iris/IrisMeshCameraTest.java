@@ -2,6 +2,7 @@ package art.arcane.wormholes.modded.client.render.iris;
 
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.frame.Similarity;
+import art.arcane.optics.stream.EnvironmentState;
 import art.arcane.optics.math.Face;
 import art.arcane.optics.shape.ShapeDescriptor;
 import org.junit.Test;
@@ -81,26 +82,26 @@ public class IrisMeshCameraTest {
             aperture.frontSide(), aperture.quarterTurns(), aperture.mirror(), aperture.apertureWidth(), aperture.apertureHeight(),
             aperture.apertureMask(), aperture.shape(), 0.7F, 0.2F, 0.9F, 64, 4, 1, 1, 1, 1, 3, 2, aperture.planeOffset(), 42,
             aperture.targetIdentity(), List.of());
-        assertEquals(new IrisMeshCamera(List.of(aperture), OVERWORLD, OVERWORLD, Similarity.IDENTITY),
-            new IrisMeshCamera(List.of(refreshed), OVERWORLD, OVERWORLD, Similarity.IDENTITY));
+        assertEquals(new IrisMeshCamera(List.of(aperture), OVERWORLD, OVERWORLD, EnvironmentState.Skybox.OVERWORLD, Similarity.IDENTITY),
+            new IrisMeshCamera(List.of(refreshed), OVERWORLD, OVERWORLD, EnvironmentState.Skybox.OVERWORLD, Similarity.IDENTITY));
     }
 
     @Test
     public void differentDestinationAndStreamedAncestorsStayIndependent() {
         ApertureDescriptor child = aperture(0, 7, 3);
-        assertNotEquals(new IrisMeshCamera(List.of(aperture(2, 0, 1), child), OVERWORLD, OVERWORLD, Similarity.IDENTITY),
-            new IrisMeshCamera(List.of(aperture(4, 0, 1), child), OVERWORLD, OVERWORLD, Similarity.IDENTITY));
-        assertNotEquals(new IrisMeshCamera(List.of(child), OVERWORLD, OVERWORLD, Similarity.IDENTITY),
-            new IrisMeshCamera(List.of(child), OVERWORLD, NETHER, Similarity.IDENTITY));
-        assertNotEquals(new IrisMeshCamera(List.of(child), OVERWORLD, OVERWORLD, Similarity.IDENTITY),
-            new IrisMeshCamera(List.of(aperture(0, 7, 4)), OVERWORLD, OVERWORLD, Similarity.IDENTITY));
+        assertNotEquals(new IrisMeshCamera(List.of(aperture(2, 0, 1), child), OVERWORLD, OVERWORLD, EnvironmentState.Skybox.OVERWORLD, Similarity.IDENTITY),
+            new IrisMeshCamera(List.of(aperture(4, 0, 1), child), OVERWORLD, OVERWORLD, EnvironmentState.Skybox.OVERWORLD, Similarity.IDENTITY));
+        assertNotEquals(new IrisMeshCamera(List.of(child), OVERWORLD, OVERWORLD, EnvironmentState.Skybox.OVERWORLD, Similarity.IDENTITY),
+            new IrisMeshCamera(List.of(child), OVERWORLD, NETHER, EnvironmentState.Skybox.NONE, Similarity.IDENTITY));
+        assertNotEquals(new IrisMeshCamera(List.of(child), OVERWORLD, OVERWORLD, EnvironmentState.Skybox.OVERWORLD, Similarity.IDENTITY),
+            new IrisMeshCamera(List.of(aperture(0, 7, 4)), OVERWORLD, OVERWORLD, EnvironmentState.Skybox.OVERWORLD, Similarity.IDENTITY));
     }
 
     @Test
     public void realSourceWorldsSharingOneShaderDimensionKeepSeparateHistories() {
         ApertureDescriptor aperture = aperture(0, 0, 1);
-        IrisMeshCamera first = new IrisMeshCamera(List.of(aperture), "example:first", OVERWORLD, Similarity.IDENTITY);
-        IrisMeshCamera second = new IrisMeshCamera(List.of(aperture), "example:second", OVERWORLD, Similarity.IDENTITY);
+        IrisMeshCamera first = new IrisMeshCamera(List.of(aperture), "example:first", OVERWORLD, EnvironmentState.Skybox.OVERWORLD, Similarity.IDENTITY);
+        IrisMeshCamera second = new IrisMeshCamera(List.of(aperture), "example:second", OVERWORLD, EnvironmentState.Skybox.OVERWORLD, Similarity.IDENTITY);
         IrisViewPipelinePath firstPath = first.append(List.of(), OVERWORLD);
         IrisViewPipelinePath secondPath = second.append(List.of(), OVERWORLD);
         assertEquals(firstPath.dimension(), secondPath.dimension());
@@ -132,7 +133,7 @@ public class IrisMeshCameraTest {
     }
 
     private static IrisMeshCamera camera(int x) {
-        return new IrisMeshCamera(List.of(aperture(x, 0, 1)), OVERWORLD, OVERWORLD, Similarity.IDENTITY);
+        return new IrisMeshCamera(List.of(aperture(x, 0, 1)), OVERWORLD, OVERWORLD, EnvironmentState.Skybox.OVERWORLD, Similarity.IDENTITY);
     }
 
     private static IrisViewPipelinePath.Camera parent(String key) {

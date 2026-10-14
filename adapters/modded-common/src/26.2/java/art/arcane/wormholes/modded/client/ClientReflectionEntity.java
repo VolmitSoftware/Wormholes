@@ -24,7 +24,7 @@ import net.minecraft.network.protocol.game.ClientboundSetEntityDataPacket;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntityTypes;
+import art.arcane.wormholes.modded.MinecraftEntityTypes;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.decoration.Mannequin;
@@ -160,7 +160,7 @@ public final class ClientReflectionEntity {
         float yaw = mirroredYaw(space, player.getYRot(), player.getXRot());
         float pitch = mirroredPitch(space, player.getYRot(), player.getXRot());
         float headYaw = mirroredYaw(space, player.getYHeadRot(), 0.0F);
-        new ClientboundAddEntityPacket(id, new UUID(UUID_PREFIX, id), point[0], point[1], point[2], pitch, yaw, EntityTypes.MANNEQUIN, 0,
+        new ClientboundAddEntityPacket(id, new UUID(UUID_PREFIX, id), point[0], point[1], point[2], pitch, yaw, MinecraftEntityTypes.MANNEQUIN, 0,
             Vec3.ZERO, headYaw).handle(connection);
         if (!(level.getEntity(id) instanceof Mannequin mannequin)) {
             return null;

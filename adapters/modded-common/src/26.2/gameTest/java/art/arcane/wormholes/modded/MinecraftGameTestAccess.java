@@ -3,25 +3,31 @@ package art.arcane.wormholes.modded;
 import it.unimi.dsi.fastutil.ints.IntList;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.particles.ParticleOptions;
+import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtOps;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.protocol.game.ClientboundLevelChunkWithLightPacket;
+import net.minecraft.network.protocol.game.ClientboundAnimatePacket;
 import net.minecraft.network.protocol.game.ClientboundLevelChunkPacketData;
+import net.minecraft.network.protocol.game.ClientboundLevelChunkWithLightPacket;
 import net.minecraft.network.protocol.game.ClientboundLevelParticlesPacket;
 import net.minecraft.network.protocol.game.ClientboundPlayerPositionPacket;
 import net.minecraft.network.protocol.game.ClientboundRemoveEntitiesPacket;
-import net.minecraft.network.protocol.game.ClientboundAnimatePacket;
 import net.minecraft.network.protocol.game.ServerboundAcceptTeleportationPacket;
 import net.minecraft.network.protocol.game.ServerboundSwingPacket;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.entity.SignBlockEntity;
 import net.minecraft.world.level.block.entity.SignText;
 
 public final class MinecraftGameTestAccess {
     private MinecraftGameTestAccess() {
+    }
+
+    public static ServerPlayer mockServerPlayer(GameTestHelper helper, GameType type) {
+        return (ServerPlayer) helper.makeMockServerPlayer(type);
     }
 
     public static void acknowledge(ServerPlayer player, ClientboundPlayerPositionPacket position) {

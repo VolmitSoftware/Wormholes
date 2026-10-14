@@ -6,7 +6,7 @@ import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.server.Bootstrap;
 import net.minecraft.world.entity.Display;
-import net.minecraft.world.entity.EntityTypes;
+import art.arcane.wormholes.modded.MinecraftEntityTypes;
 import org.joml.Vector3f;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -34,9 +34,9 @@ public class ClientDisplayPresentationTest {
         ClientLevel level = mock(ClientLevel.class);
         when(level.isClientSide()).thenReturn(true);
         Display[] displays = {
-            new Display.ItemDisplay(EntityTypes.ITEM_DISPLAY, level),
-            new Display.BlockDisplay(EntityTypes.BLOCK_DISPLAY, level),
-            new Display.TextDisplay(EntityTypes.TEXT_DISPLAY, level)
+            new Display.ItemDisplay(MinecraftEntityTypes.ITEM_DISPLAY, level),
+            new Display.BlockDisplay(MinecraftEntityTypes.BLOCK_DISPLAY, level),
+            new Display.TextDisplay(MinecraftEntityTypes.TEXT_DISPLAY, level)
         };
         ClientLevelScene scene = new ClientLevelScene(level, () -> null);
         for (int i = 0; i < displays.length; i++) {

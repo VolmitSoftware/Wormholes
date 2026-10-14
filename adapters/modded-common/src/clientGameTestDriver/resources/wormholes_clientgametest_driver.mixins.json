@@ -5,6 +5,7 @@
   "compatibilityLevel": "JAVA_21",
   "client": [
     "CursorFrameTap",
+    "DriverWindowSize",
     "LockstepClientTicks",
     "LockstepServerTicks",
     "QaReplyTap"

@@ -75,8 +75,7 @@ public final class PortalViewSelection {
         double maxX = -1.0D;
         double maxY = -1.0D;
         AperturePolygon aperture = surface.aperture();
-        AperturePolygon.ClipDepth depth = camera.zeroToOne() ? AperturePolygon.ClipDepth.ZERO_TO_ONE
-            : AperturePolygon.ClipDepth.NEGATIVE_ONE_TO_ONE;
+        AperturePolygon.ClipDepth depth = PortalLayerMath.coverageDepth(matrix, camera.zeroToOne());
         for (AperturePolygon.Rectangle rectangle : covered(aperture)) {
             for (AperturePolygon.ClipVertex vertex : aperture.project(rectangle, matrix, depth)) {
                 double x = vertex.x() / vertex.w();

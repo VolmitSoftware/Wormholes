@@ -5,6 +5,8 @@ import art.arcane.wormholes.modded.WormholesModRuntime;
 import art.arcane.wormholes.modded.client.WormholesClient;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.portal.ProjectionMode;
+import art.arcane.wormholes.modded.MinecraftDyedItems;
+import art.arcane.wormholes.modded.client.ClientRenderAccess;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestServerContext;
@@ -41,12 +43,12 @@ public final class MirrorWaterClientGameTest implements FabricClientGameTest {
     public void runTest(ClientGameTestContext context) {
         ClientViewTestConfig.enable();
         try (TestSingleplayerContext singleplayer = context.worldBuilder().create()) {
-            singleplayer.getConnection().waitForChunksDownload();
+            FabricConnection.of(singleplayer).waitForChunksDownload();
             context.waitFor(client -> WormholesClient.instance() != null && WormholesClient.instance().session().active(), TIMEOUT_TICKS);
             TestServerContext server = singleplayer.getServer();
-            ServerPlayer player = server.computeOnServer(minecraftServer -> singleplayer.getConnection().getServerPlayer());
+            ServerPlayer player = server.computeOnServer(minecraftServer -> FabricConnection.of(singleplayer).getServerPlayer());
             UUID mirror = server.computeOnServer(minecraftServer -> build(minecraftServer, player));
-            boolean hidden = context.computeOnClient(client -> client.gui.hud.isHidden());
+            boolean hidden = context.computeOnClient(client -> ClientGui.hudHidden(client));
             try {
                 server.runOnServer(minecraftServer -> {
                     player.setGameMode(GameType.CREATIVE);
@@ -58,24 +60,24 @@ public final class MirrorWaterClientGameTest implements FabricClientGameTest {
                 context.waitFor(client -> client.player.position().distanceTo(CAMERA_POSITION) < 0.05D, TIMEOUT_TICKS);
                 context.getInput().lookAt(180.0F, 15.0F);
                 context.runOnClient(client -> {
-                    if (!client.gui.hud.isHidden()) {
-                        client.gui.hud.toggle();
+                    if (!ClientGui.hudHidden(client)) {
+                        ClientGui.toggleHud(client);
                     }
                 });
-                singleplayer.getConnection().waitForChunksRender();
+                FabricConnection.of(singleplayer).waitForChunksRender();
                 context.waitTicks(SETTLE_TICKS);
                 Crop crop = context.computeOnClient(client -> {
                     int[] center = FramebufferProbe.screen(client, POND_CENTER);
                     int[] aperture = FramebufferProbe.screen(client, new Vec3(MIRROR_MIN.getX() + 1.5D, MIRROR_MIN.getY() + 1.5D, MIRROR_MIN.getZ() + 0.5D));
                     assertTrue(center != null && aperture != null, "pond and mirror must both be visible");
-                    int radius = Math.max(6, client.gameRenderer.mainRenderTarget().width / 80);
+                    int radius = Math.max(6, ClientRenderAccess.mainTarget(client).width / 80);
                     assertTrue(Math.abs(center[0] - aperture[0]) > radius * 2, "the pond crop must lie outside the mirror aperture");
                     return new Crop(center[0] - radius, center[1] - radius, radius * 2 + 1);
                 });
                 int[] dry = capture(context, crop);
                 context.takeScreenshot("mirror-water-dry-calibration");
                 server.runOnServer(minecraftServer -> fill(minecraftServer.overworld(), POND_MIN, 48, 1, 48, Blocks.WATER.defaultBlockState()));
-                singleplayer.getConnection().waitForChunksRender();
+                FabricConnection.of(singleplayer).waitForChunksRender();
                 context.waitTicks(SETTLE_TICKS);
                 int[] wet = capture(context, crop);
                 double contrast = difference(dry, wet);
@@ -94,7 +96,7 @@ public final class MirrorWaterClientGameTest implements FabricClientGameTest {
                     crop = context.computeOnClient(client -> {
                         int[] center = FramebufferProbe.screen(client, POND_CENTER);
                         assertTrue(center != null, "water crop left the moving camera view");
-                        int radius = Math.max(6, client.gameRenderer.mainRenderTarget().width / 80);
+                        int radius = Math.max(6, ClientRenderAccess.mainTarget(client).width / 80);
                         return new Crop(center[0] - radius, center[1] - radius, radius * 2 + 1);
                     });
                     wet = capture(context, crop);
@@ -107,8 +109,8 @@ public final class MirrorWaterClientGameTest implements FabricClientGameTest {
                 }
             } finally {
                 context.runOnClient(client -> {
-                    if (client.gui.hud.isHidden() != hidden) {
-                        client.gui.hud.toggle();
+                    if (ClientGui.hudHidden(client) != hidden) {
+                        ClientGui.toggleHud(client);
                     }
                 });
                 server.runOnServer(minecraftServer -> runtime(minecraftServer).portals().remove(player, mirror));
@@ -123,10 +125,10 @@ public final class MirrorWaterClientGameTest implements FabricClientGameTest {
         server.getCommands().performPrefixedCommand(server.createCommandSourceStack(), "time set noon");
         server.getCommands().performPrefixedCommand(server.createCommandSourceStack(), "weather clear");
         fill(level, new BlockPos(35, 69, 15), 20, 10, 20, Blocks.AIR.defaultBlockState());
-        fill(level, new BlockPos(35, 69, 15), 20, 1, 20, Blocks.CONCRETE.pick(DyeColor.WHITE).defaultBlockState());
+        fill(level, new BlockPos(35, 69, 15), 20, 1, 20, MinecraftDyedItems.concreteBlock(DyeColor.WHITE).defaultBlockState());
         fill(level, POND_MIN.below(), 48, 1, 48, Blocks.SEA_LANTERN.defaultBlockState());
         fill(level, POND_MIN, 48, 1, 48, Blocks.AIR.defaultBlockState());
-        fill(level, MIRROR_MIN.offset(-1, 0, -1), 5, 4, 1, Blocks.CONCRETE.pick(DyeColor.YELLOW).defaultBlockState());
+        fill(level, MIRROR_MIN.offset(-1, 0, -1), 5, 4, 1, MinecraftDyedItems.concreteBlock(DyeColor.YELLOW).defaultBlockState());
         WormholesModRuntime runtime = runtime(server);
         MinecraftPortal mirror = runtime.portals().create(player.getUUID(), level, cells(MIRROR_MIN), PortalType.PORTAL, new Vec3(0, 0, -1));
         mirror.setMirrorMode(true);

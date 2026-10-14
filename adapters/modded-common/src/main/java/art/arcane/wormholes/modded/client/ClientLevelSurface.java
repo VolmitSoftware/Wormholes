@@ -1,11 +1,11 @@
 package art.arcane.wormholes.modded.client;
 
+import art.arcane.wormholes.modded.client.world.ClientWorldLoader;
 import art.arcane.optics.fidelity.BlockEntitySample;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.objects.ObjectIterator;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
@@ -133,7 +133,7 @@ public final class ClientLevelSurface implements ClientViewSurface {
         for (int dx = minX; dx <= maxX; dx++) {
             for (int dy = minY; dy <= maxY; dy++) {
                 for (int dz = minZ; dz <= maxZ; dz++) {
-                    Minecraft.getInstance().levelExtractor.setSectionDirty(sectionX + dx, sectionY + dy, sectionZ + dz);
+                    ClientWorldLoader.sectionDirty(sectionX + dx, sectionY + dy, sectionZ + dz);
                 }
             }
         }
@@ -161,7 +161,7 @@ public final class ClientLevelSurface implements ClientViewSurface {
         }
         touched.clear();
         for (long key : dirtySections) {
-            Minecraft.getInstance().levelExtractor.setSectionDirty(SectionPos.x(key), SectionPos.y(key), SectionPos.z(key));
+            ClientWorldLoader.sectionDirty(SectionPos.x(key), SectionPos.y(key), SectionPos.z(key));
         }
         dirtySections.clear();
     }

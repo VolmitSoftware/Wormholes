@@ -19,7 +19,6 @@ import net.minecraft.network.protocol.game.ClientboundSetEntityDataPacket;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
@@ -127,7 +126,7 @@ public final class MinecraftOcclusionSkinGameTest {
         ClientboundAddEntityPacket spawn = null;
         int displays = 0;
         for (Object packet : packets) {
-            if (packet instanceof ClientboundAddEntityPacket added && added.getType() == EntityTypes.BLOCK_DISPLAY) {
+            if (packet instanceof ClientboundAddEntityPacket added && added.getType() == MinecraftEntityTypes.BLOCK_DISPLAY) {
                 spawn = added;
                 displays++;
             }

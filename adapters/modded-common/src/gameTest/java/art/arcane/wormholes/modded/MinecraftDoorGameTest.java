@@ -27,7 +27,6 @@ import net.minecraft.server.network.CommonListenerCookie;
 import net.minecraft.server.network.ServerGamePacketListenerImpl;
 import net.minecraft.server.permissions.LevelBasedPermissionSet;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -263,7 +262,7 @@ public final class MinecraftDoorGameTest {
         int displays = 0;
         int metadata = 0;
         for (Object packet : channel.outboundMessages()) {
-            if (packet instanceof ClientboundAddEntityPacket added && added.getType() == EntityTypes.BLOCK_DISPLAY) {
+            if (packet instanceof ClientboundAddEntityPacket added && added.getType() == MinecraftEntityTypes.BLOCK_DISPLAY) {
                 displays++;
                 helper.assertTrue(level.getEntity(added.getId()) == null, "Private selection display entered the shared world");
             } else if (packet instanceof ClientboundSetEntityDataPacket) {
@@ -321,7 +320,7 @@ public final class MinecraftDoorGameTest {
     private void openAndSpawn() {
         BlockState state = level.getBlockState(source);
         ((DoorBlock) state.getBlock()).setOpen(player, level, state, source, true);
-        traveler = helper.spawn(EntityTypes.PIG, helper.relativePos(source).getX() + 0.5F,
+        traveler = helper.spawn(MinecraftEntityTypes.PIG, helper.relativePos(source).getX() + 0.5F,
             helper.relativePos(source).getY(), helper.relativePos(source).getZ() - 0.5F);
         traveler.setNoAi(true);
         traveler.setNoGravity(true);

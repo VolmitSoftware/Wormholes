@@ -87,10 +87,6 @@ public final class RouteWindow {
         return otherCenterX == centerX && otherCenterZ == centerZ && otherRadius == radius;
     }
 
-    public RouteWindow withRadius(int next) {
-        return next == radius ? this : new RouteWindow(centerX, centerZ, next);
-    }
-
     public ChunkTrackingView.Positioned view() {
         return new ChunkTrackingView.Positioned(new ChunkPos(centerX, centerZ), radius);
     }

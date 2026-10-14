@@ -18,6 +18,7 @@ import art.arcane.wormholes.modded.mixin.client.ClientWorldLightmapAccess;
 import art.arcane.wormholes.modded.mixin.client.PortalGameRendererAccess;
 import art.arcane.wormholes.modded.mixin.client.PortalLevelExtractorAccess;
 import art.arcane.wormholes.modded.mixin.client.PortalLevelRendererAccess;
+import art.arcane.wormholes.modded.client.ClientRenderAccess;
 import com.mojang.blaze3d.ProjectionType;
 import com.mojang.blaze3d.platform.Lighting;
 import com.mojang.blaze3d.systems.RenderSystem;
@@ -127,7 +128,7 @@ final class PortalWorldRenderer {
             return;
         }
         ClientWorldLoader.WorldRenderer world = ClientWorldLoader.worldRenderer(destination);
-        world.attach(Minecraft.getInstance().gameRenderer.mainRenderTarget());
+        world.attach(ClientRenderAccess.mainTarget(Minecraft.getInstance()));
         world.rendered();
         ClientWorldLoader.withWorldRenderer(destination, () -> render(view, outer, projection, depth, mirrored, outerMirrored,
             world.renderer(), world.extractor()));
@@ -147,7 +148,7 @@ final class PortalWorldRenderer {
         Vector4d worldPlane = PortalLayerMath.destinationPlane(view.surface(), toDestination, CLIP_MARGIN);
         Vector4f clipPlane = PortalLayerMath.clipPlane(PortalLayerMath.viewPlane(worldPlane, inner, view3), projection);
         Frustum frustum = new Frustum(view3,
-            PortalLayerMath.cullingProjection(projection, RenderSystem.getDevice().getDeviceInfo().isZZeroToOne()));
+            PortalLayerMath.cullingProjection(projection, ClientRenderAccess.zeroToOneDepth()));
         frustum.prepare(inner.x(), inner.y(), inner.z());
         EnvironmentAttributeProbe probe = ClientWorldLoader.portalProbe(destination, innerPosition);
         LocalPlayer player = minecraft.player;
@@ -301,7 +302,7 @@ final class PortalWorldRenderer {
 
     private static void updateGlobals(LayerResources layer, GameRenderState game, ClientLevel destination, float partialTicks, Vec3 camera) {
         Minecraft minecraft = Minecraft.getInstance();
-        layer.globals().update(minecraft.gameRenderer.mainRenderTarget().width, minecraft.gameRenderer.mainRenderTarget().height,
+        layer.globals().update(ClientRenderAccess.mainTarget(minecraft).width, ClientRenderAccess.mainTarget(minecraft).height,
             game.optionsRenderState.glintStrength, destination.getGameTime(), minecraft.getDeltaTracker(), game.optionsRenderState.menuBackgroundBlurriness,
             camera, game.optionsRenderState.textureFiltering == TextureFilteringMethod.RGSS);
     }

@@ -15,4 +15,12 @@ final class MainRendererSections {
         SodiumWorldRenderer renderer = SodiumWorldRenderer.instanceNullable();
         return renderer == null ? 0 : renderer.getVisibleChunkCount();
     }
+
+    static boolean terrainComplete(Minecraft minecraft) {
+        if (!PortalBackends.sodium()) {
+            return minecraft.levelRenderer.hasRenderedAllSections();
+        }
+        SodiumWorldRenderer renderer = SodiumWorldRenderer.instanceNullable();
+        return renderer != null && renderer.isTerrainRenderComplete();
+    }
 }

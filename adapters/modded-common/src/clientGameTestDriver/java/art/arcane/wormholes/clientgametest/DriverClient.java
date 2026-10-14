@@ -1,5 +1,6 @@
 package art.arcane.wormholes.clientgametest;
 
+import art.arcane.wormholes.clientgametest.drivermixin.DriverWindowSize;
 import io.netty.channel.Channel;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractButton;
@@ -119,6 +120,19 @@ final class DriverClient implements SeamlessClient {
     }
 
     @Override
+    public void resizeWindow(int width, int height) {
+        runOnClient(client -> {
+            DriverWindowSize window = (DriverWindowSize) (Object) client.getWindow();
+            window.wormholesTest$width(width);
+            window.wormholesTest$height(height);
+            window.wormholesTest$framebufferWidth(width);
+            window.wormholesTest$framebufferHeight(height);
+            window.wormholesTest$setMode();
+            client.resizeGui();
+        });
+    }
+
+    @Override
     public void restoreDefaultGameOptions() {
         releaseForward();
     }
@@ -169,7 +183,7 @@ final class DriverClient implements SeamlessClient {
     void clickButton(String translationKey) {
         String text = Component.translatable(translationKey).getString();
         runOnClient(client -> {
-            Screen screen = client.gui.screen();
+            Screen screen = ClientGui.screen(client);
             if (screen == null || !press(screen, text)) {
                 throw new AssertionError("no '" + text + "' button on " + (screen == null ? "no screen" : screen.getClass().getName()));
             }

@@ -8,6 +8,8 @@ import art.arcane.wormholes.modded.client.render.stencil.PortalBackends;
 import art.arcane.wormholes.modded.client.render.stencil.PortalStencilRenderer;
 import art.arcane.wormholes.modded.client.render.stencil.PortalView;
 import art.arcane.wormholes.portal.PortalType;
+import art.arcane.wormholes.modded.MinecraftDyedItems;
+import art.arcane.wormholes.modded.client.ClientRenderAccess;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestServerContext;
@@ -51,20 +53,20 @@ public final class ShaderOcclusionClientGameTest implements FabricClientGameTest
         assertTrue(context.computeOnClient(client -> PortalBackends.pipeline().deferred()),
             "shader occlusion requires an enabled shader pack");
         try (TestSingleplayerContext singleplayer = context.worldBuilder().create()) {
-            singleplayer.getConnection().waitForChunksDownload();
+            FabricConnection.of(singleplayer).waitForChunksDownload();
             context.waitFor(client -> WormholesClient.instance() != null && WormholesClient.instance().session().active(), TIMEOUT_TICKS);
             TestServerContext server = singleplayer.getServer();
-            ServerPlayer player = server.computeOnServer(minecraftServer -> singleplayer.getConnection().getServerPlayer());
+            ServerPlayer player = server.computeOnServer(minecraftServer -> FabricConnection.of(singleplayer).getServerPlayer());
             List<UUID> created = new ArrayList<>();
-            ClientOptions options = context.computeOnClient(client -> new ClientOptions(client.gui.hud.isHidden(),
+            ClientOptions options = context.computeOnClient(client -> new ClientOptions(ClientGui.hudHidden(client),
                 client.options.getCameraType(), WormholesClient.instance().config().clientRecursion));
             try {
                 Scene scene = server.computeOnServer(minecraftServer -> build(minecraftServer, player, created));
                 context.runOnClient(client -> {
                     client.options.setCameraType(CameraType.FIRST_PERSON);
                     WormholesClient.instance().config().clientRecursion = false;
-                    if (!client.gui.hud.isHidden()) {
-                        client.gui.hud.toggle();
+                    if (!ClientGui.hudHidden(client)) {
+                        ClientGui.toggleHud(client);
                     }
                 });
                 server.runOnServer(minecraftServer -> {
@@ -76,12 +78,12 @@ public final class ShaderOcclusionClientGameTest implements FabricClientGameTest
                 });
                 context.waitFor(client -> client.player.position().distanceTo(CAMERA_POSITION) < 0.05D, TIMEOUT_TICKS);
                 context.getInput().lookAt(180.0F, 0.0F);
-                singleplayer.getConnection().waitForChunksRender();
+                FabricConnection.of(singleplayer).waitForChunksRender();
                 awaitView(context, FAR_SOURCE, true);
                 Crop crop = context.computeOnClient(client -> {
                     int[] center = FramebufferProbe.screen(client, APERTURE_CENTER);
                     assertTrue(center != null, "the overlapping portal apertures must be visible");
-                    int radius = Math.max(3, client.gameRenderer.mainRenderTarget().width / 160);
+                    int radius = Math.max(3, ClientRenderAccess.mainTarget(client).width / 160);
                     return new Crop(center[0] - radius, center[1] - radius, radius * 2 + 1);
                 });
                 int[] far = capture(context, crop);
@@ -113,8 +115,8 @@ public final class ShaderOcclusionClientGameTest implements FabricClientGameTest
                 }
                 context.takeScreenshot("shader-occlusion-overlap");
                 server.runOnServer(minecraftServer -> fill(minecraftServer.overworld(), FOREGROUND, 7, 5, 1,
-                    Blocks.CONCRETE.pick(DyeColor.GREEN).defaultBlockState()));
-                singleplayer.getConnection().waitForChunksRender();
+                    MinecraftDyedItems.concreteBlock(DyeColor.GREEN).defaultBlockState()));
+                FabricConnection.of(singleplayer).waitForChunksRender();
                 context.waitTicks(SETTLE_TICKS);
                 int[] blocked = capture(context, crop);
                 context.takeScreenshot("shader-occlusion-foreground-active");
@@ -135,8 +137,8 @@ public final class ShaderOcclusionClientGameTest implements FabricClientGameTest
                     if (WormholesClient.instance() != null) {
                         WormholesClient.instance().config().clientRecursion = options.recursion();
                     }
-                    if (client.gui.hud.isHidden() != options.hidden()) {
-                        client.gui.hud.toggle();
+                    if (ClientGui.hudHidden(client) != options.hidden()) {
+                        ClientGui.toggleHud(client);
                     }
                 });
                 server.runOnServer(minecraftServer -> {
@@ -171,8 +173,8 @@ public final class ShaderOcclusionClientGameTest implements FabricClientGameTest
     private static void markerRoom(ServerLevel level, BlockPos origin, DyeColor color) {
         fill(level, origin.offset(-5, 0, -12), 13, 9, 25, Blocks.AIR.defaultBlockState());
         fill(level, origin.offset(-5, -1, -12), 13, 1, 25, Blocks.SEA_LANTERN.defaultBlockState());
-        fill(level, origin.offset(-5, 0, -10), 13, 9, 1, Blocks.CONCRETE.pick(color).defaultBlockState());
-        fill(level, origin.offset(-5, 0, 6), 13, 9, 1, Blocks.CONCRETE.pick(color).defaultBlockState());
+        fill(level, origin.offset(-5, 0, -10), 13, 9, 1, MinecraftDyedItems.concreteBlock(color).defaultBlockState());
+        fill(level, origin.offset(-5, 0, 6), 13, 9, 1, MinecraftDyedItems.concreteBlock(color).defaultBlockState());
     }
 
     private static MinecraftPortal portal(MinecraftServer server, ServerPlayer player, BlockPos origin, List<UUID> created) {

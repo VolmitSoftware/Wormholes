@@ -23,6 +23,7 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.item.DyeColor;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
@@ -182,27 +183,27 @@ public final class MinecraftRulesGameTest {
             assertProfile(0L, 1000L, "gates", RuleOutcome.Kind.ALLOW);
             MinecraftSubsystemMenuProbe.left(player, -1, 2);
         }).thenIdle(CLICK_TICKS).thenExecute(() -> {
-            assertList(Items.STAINED_GLASS_PANE.gray(), RulesMessages.MENU_ADD_RULE, 0);
+            assertList(MinecraftDyedItems.pane(DyeColor.GRAY), RulesMessages.MENU_ADD_RULE, 0);
             MinecraftSubsystemMenuProbe.left(player, -2, 5);
         }).thenIdle(CLICK_TICKS).thenExecute(() -> {
             MinecraftSubsystemMenuProbe.assertClosed(helper, player, "Rule id prompt");
             helper.assertTrue(MinecraftChatInput.chat(player, "toll"), "Rule id prompt did not consume native chat");
         }).thenIdle(PROMPT_TICKS).thenExecute(() -> {
-            assertList(Items.STAINED_GLASS_PANE.gray(), RulesMessages.MENU_ADD_RULE, 1);
+            assertList(MinecraftDyedItems.pane(DyeColor.GRAY), RulesMessages.MENU_ADD_RULE, 1);
             Rule rule = runtime.rules().document(source).rules().getFirst();
             MinecraftSubsystemMenuProbe.assertElement(helper, player, -4, 0, Items.PAPER,
                 MinecraftSubsystemMenuProbe.name(player, RulesMessages.MENU_RULE, MinecraftPortalText.arguments("name", "toll",
                     "value", RulesMenuModel.summary(rule))), false, "Rule list entry");
             MinecraftSubsystemMenuProbe.left(player, -4, 0);
         }).thenIdle(CLICK_TICKS).thenExecute(() -> {
-            assertList(Items.STAINED_GLASS_PANE.cyan(), RulesMessages.MENU_ADD_LINE, 0);
+            assertList(MinecraftDyedItems.pane(DyeColor.CYAN), RulesMessages.MENU_ADD_LINE, 0);
             MinecraftSubsystemMenuProbe.left(player, -2, 5);
         }).thenIdle(CLICK_TICKS).thenExecute(() -> {
             helper.assertTrue(MinecraftChatInput.chat(player, "kind=ITEM;matcher.material=EMERALD;quantity=3"), "Rule line prompt did not consume native chat");
         }).thenIdle(PROMPT_TICKS).thenExecute(() -> {
             helper.assertTrue(runtime.rules().document(source).rules().size() == 1
                 && !runtime.rules().document(source).rules().getFirst().costs().isEmpty(), "Native rule line editor did not persist cost");
-            assertList(Items.STAINED_GLASS_PANE.cyan(), RulesMessages.MENU_ADD_LINE, 1);
+            assertList(MinecraftDyedItems.pane(DyeColor.CYAN), RulesMessages.MENU_ADD_LINE, 1);
             MinecraftSubsystemMenuProbe.assertElement(helper, player, -4, 0, Items.STRING,
                 MinecraftSubsystemMenuProbe.name(player, RulesMessages.MENU_LINE, MinecraftPortalText.arguments("value",
                     RulesMenuModel.lines(runtime.rules().document(source).rules().getFirst()).getFirst())), false, "Rule line entry");
@@ -210,7 +211,7 @@ public final class MinecraftRulesGameTest {
             helper.assertTrue(runtime.rules().document(source).rules().getFirst().costs().isEmpty(), "Rule line shift-left click did not remove the line");
             MinecraftSubsystemMenuProbe.left(player, 2, 5);
         }).thenIdle(CLICK_TICKS).thenExecute(() -> {
-            assertList(Items.STAINED_GLASS_PANE.gray(), RulesMessages.MENU_ADD_RULE, 1);
+            assertList(MinecraftDyedItems.pane(DyeColor.GRAY), RulesMessages.MENU_ADD_RULE, 1);
             MinecraftSubsystemMenuProbe.shiftLeft(player, -4, 0);
             helper.assertTrue(runtime.rules().document(source).rules().isEmpty(), "Rule shift-left click did not remove the rule");
             MinecraftSubsystemMenuProbe.left(player, 2, 5);
@@ -219,7 +220,7 @@ public final class MinecraftRulesGameTest {
             MinecraftSubsystemMenuProbe.left(player, 1, 2);
         }).thenIdle(CLICK_TICKS).thenExecute(() -> {
             MinecraftSubsystemMenuProbe.assertWindow(helper, player, MinecraftPortalText.router(runtime, source, true), 6,
-                Items.STAINED_GLASS_PANE.lightBlue(), MinecraftSubsystemMenuProbe.slot(-2, 5), "Rule templates");
+                MinecraftDyedItems.pane(DyeColor.LIGHT_BLUE), MinecraftSubsystemMenuProbe.slot(-2, 5), "Rule templates");
             MinecraftSubsystemMenuProbe.assertElement(helper, player, 2, 5, Items.ARROW,
                 MinecraftSubsystemMenuProbe.name(player, RulesMessages.MENU_BACK, MessageArgs.empty()), false, "Rule templates back");
             MinecraftSubsystemMenuProbe.left(player, 2, 5);
@@ -236,7 +237,7 @@ public final class MinecraftRulesGameTest {
 
     private void assertProfile(long cooldown, long warmup, String group, RuleOutcome.Kind outcome) {
         MinecraftSubsystemMenuProbe.assertWindow(helper, player, MinecraftPortalText.router(runtime, source, true), 4,
-            Items.STAINED_GLASS_PANE.brown(), MinecraftSubsystemMenuProbe.slot(0, 3), "Rule profile");
+            MinecraftDyedItems.pane(DyeColor.BROWN), MinecraftSubsystemMenuProbe.slot(0, 3), "Rule profile");
         TraversalProfile profile = profileOf();
         MinecraftSubsystemMenuProbe.assertElement(helper, player, -3, 0, Items.CLOCK,
             MinecraftSubsystemMenuProbe.name(player, RulesMessages.MENU_COOLDOWN, MinecraftPortalText.arguments("seconds", cooldown / 1000L)),
@@ -268,7 +269,7 @@ public final class MinecraftRulesGameTest {
     private void assertList(Item pane, LinesKey add, int entries) {
         MinecraftSubsystemMenuProbe.assertWindow(helper, player, MinecraftPortalText.router(runtime, source, true), 6, pane,
             MinecraftSubsystemMenuProbe.slot(4, 4), "Rule list");
-        MinecraftSubsystemMenuProbe.assertElement(helper, player, -2, 5, Items.DYE.lime(),
+        MinecraftSubsystemMenuProbe.assertElement(helper, player, -2, 5, MinecraftDyedItems.dye(DyeColor.LIME),
             MinecraftSubsystemMenuProbe.name(player, add, MessageArgs.empty()), false, "Rule add");
         MinecraftSubsystemMenuProbe.assertElement(helper, player, 0, 5, Items.PAPER,
             MinecraftSubsystemMenuProbe.name(player, RulesMessages.MENU_PAGE, MinecraftPortalText.arguments("page", 1, "pages",

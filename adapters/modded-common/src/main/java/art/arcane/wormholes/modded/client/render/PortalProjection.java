@@ -9,6 +9,7 @@ import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.frame.Similarity;
 import art.arcane.optics.transform.Affine;
 import art.arcane.optics.math.Vec3d;
+import art.arcane.wormholes.modded.client.ClientRenderAccess;
 
 final class PortalProjection {
     private static final Vec3d ORIGIN = new Vec3d(0.0D, 0.0D, 0.0D);
@@ -56,15 +57,18 @@ final class PortalProjection {
 
     static Matrix4f clip(Matrix4fc projection, Matrix4fc viewRotation, Vector4fc cameraPlane, boolean zeroToOne) {
         Vector4f plane = new Matrix4f(viewRotation).invert().transpose().transform(new Vector4f(cameraPlane));
-        float farClip = zeroToOne ? 0.0f : -1.0f;
+        float lowClip = zeroToOne ? 0.0f : -1.0f;
+        boolean reversed = ClientRenderAccess.reversedDepth();
+        float nearClip = reversed ? 1.0f : lowClip;
+        float farClip = reversed ? lowClip : 1.0f;
         Vector4f corner = new Matrix4f(projection).invert().transform(new Vector4f(
             plane.x > 0 ? -1 : 1, plane.y > 0 ? -1 : 1, farClip, 1));
         float denominator = plane.dot(corner);
         if (!Float.isFinite(denominator) || denominator >= -0.000001f) {
             return new Matrix4f(projection);
         }
-        plane.mul((farClip - 1.0f) / denominator);
-        return new Matrix4f(projection).m02(projection.m03() + plane.x).m12(projection.m13() + plane.y)
-            .m22(projection.m23() + plane.z).m32(projection.m33() + plane.w);
+        plane.mul((farClip - nearClip) / denominator);
+        return new Matrix4f(projection).m02(nearClip * projection.m03() + plane.x).m12(nearClip * projection.m13() + plane.y)
+            .m22(nearClip * projection.m23() + plane.z).m32(nearClip * projection.m33() + plane.w);
     }
 }

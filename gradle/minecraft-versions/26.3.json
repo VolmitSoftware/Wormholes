@@ -40,5 +40,6 @@
     "fabric",
     "neoforge"
   ],
-  "neoForgeSodiumJar": "META-INF/jarjar/net.caffeinemc.sodium-neoforge-0.9.2+mc26.3-mod.jar"
+  "neoForgeSodiumJar": "META-INF/jarjar/net.caffeinemc.sodium-neoforge-0.9.2+mc26.3-mod.jar",
+  "neoForgeRenderValidationProperty": "neoforge.disableBlaze3DValidation"
 }

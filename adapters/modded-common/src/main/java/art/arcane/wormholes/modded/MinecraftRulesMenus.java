@@ -15,6 +15,7 @@ import art.arcane.wormholes.rules.TraversalProfile;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.DyeColor;
 
 import java.util.List;
 import java.util.Locale;
@@ -49,7 +50,7 @@ public final class MinecraftRulesMenus {
         }
 
         private void open(ServerPlayer viewer) {
-            MinecraftWindow window = window(viewer, Items.STAINED_GLASS_PANE.brown(), 4);
+            MinecraftWindow window = window(viewer, MinecraftDyedItems.pane(DyeColor.BROWN), 4);
             populateProfile(window, viewer);
             window.setVisible(true);
         }
@@ -185,7 +186,7 @@ public final class MinecraftRulesMenus {
         }
 
         private void openRules(ServerPlayer viewer, int page) {
-            MinecraftWindow window = window(viewer, Items.STAINED_GLASS_PANE.gray(), 6);
+            MinecraftWindow window = window(viewer, MinecraftDyedItems.pane(DyeColor.GRAY), 6);
             populateRules(window, viewer, page);
             window.setVisible(true);
         }
@@ -206,7 +207,7 @@ public final class MinecraftRulesMenus {
                 });
                 window.setElement(slot % ROW_WIDTH - ROW_WIDTH / 2, slot / ROW_WIDTH, element);
             }
-            MinecraftElement add = element(viewer, "rules-add-rule", RulesMessages.MENU_ADD_RULE, MessageArgs.empty(), Items.DYE.lime());
+            MinecraftElement add = element(viewer, "rules-add-rule", RulesMessages.MENU_ADD_RULE, MessageArgs.empty(), MinecraftDyedItems.dye(DyeColor.LIME));
             add.onLeftClick(event -> prompt(viewer, RulesMessages.PROMPT_RULE_ID, input -> {
                 store(viewer, RulesMenuModel.addRule(document(), input));
                 notice(viewer, RulesMessages.NOTICE_RULE_ADDED, MinecraftPortalText.arguments("name", input));
@@ -230,7 +231,7 @@ public final class MinecraftRulesMenus {
             if (RulesMenuModel.indexOf(document(), ruleId) < 0) {
                 return;
             }
-            MinecraftWindow window = window(viewer, Items.STAINED_GLASS_PANE.cyan(), 6);
+            MinecraftWindow window = window(viewer, MinecraftDyedItems.pane(DyeColor.CYAN), 6);
             populateRule(window, viewer, ruleId, page);
             window.setVisible(true);
         }
@@ -254,7 +255,7 @@ public final class MinecraftRulesMenus {
                 });
                 window.setElement(slot % ROW_WIDTH - ROW_WIDTH / 2, slot / ROW_WIDTH, element);
             }
-            MinecraftElement add = element(viewer, "rules-add-line", RulesMessages.MENU_ADD_LINE, MessageArgs.empty(), Items.DYE.lime());
+            MinecraftElement add = element(viewer, "rules-add-line", RulesMessages.MENU_ADD_LINE, MessageArgs.empty(), MinecraftDyedItems.dye(DyeColor.LIME));
             add.onLeftClick(event -> prompt(viewer, RulesMessages.PROMPT_LINE, input -> {
                 try {
                     store(viewer, runtime.rules().authorDocument(viewer, RulesMenuModel.replaceRule(document(),
@@ -281,7 +282,7 @@ public final class MinecraftRulesMenus {
         }
 
         private void openTemplates(ServerPlayer viewer, int page) {
-            MinecraftWindow window = window(viewer, Items.STAINED_GLASS_PANE.lightBlue(), 6);
+            MinecraftWindow window = window(viewer, MinecraftDyedItems.pane(DyeColor.LIGHT_BLUE), 6);
             populateTemplates(window, viewer, page);
             window.setVisible(true);
         }

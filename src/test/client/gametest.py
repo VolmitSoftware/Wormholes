@@ -31,6 +31,14 @@ def version_manifest(version: str) -> dict:
     return json.loads(path.read_text())
 
 
+def supported_versions() -> list[str]:
+    return sorted(path.stem for path in (ROOT / "gradle/minecraft-versions").glob("*.json"))
+
+
+def version_overlays(version: str) -> list[str]:
+    return version_manifest(version).get("overlays", [version])
+
+
 def cached_mod(name: str, version: str) -> Path:
     key = "distantHorizons" if name == "distanthorizons" else name
     coordinate = version_manifest(version)["renderDependencies"]["fabric"][key]
@@ -40,6 +48,14 @@ def cached_mod(name: str, version: str) -> Path:
     if len(candidates) != 1:
         raise FileNotFoundError("Run the Fabric build to resolve its pinned " + name + " dependency first")
     return candidates[0]
+
+
+def native_frame(state: dict) -> bool:
+    frame: tuple = (state.get("frameWidth"), state.get("frameHeight"))
+    if frame == (1920, 1080):
+        return True
+    declared: list[str] = str(state.get("declaredFrameSize") or "").split("x")
+    return len(declared) == 2 and all(value.isdigit() for value in declared) and frame == (int(declared[0]), int(declared[1]))
 
 
 def selected_tests(suite: str, names: list[str]) -> list[str]:
@@ -193,6 +209,16 @@ def stop(process: subprocess.Popen) -> None:
         process.wait(timeout=10)
 
 
+def dump_owned_threads(run: Path, output: Path) -> None:
+    processes = subprocess.check_output(["ps", "-axo", "pid=,command="], text=True)
+    for line in processes.splitlines():
+        parts = line.strip().split(maxsplit=1)
+        if len(parts) != 2 or str(run) not in parts[1] or "/bin/java" not in parts[1]:
+            continue
+        dump = subprocess.run(["jcmd", parts[0], "Thread.print", "-l"], capture_output=True, text=True, timeout=60)
+        output.write_text(dump.stdout + dump.stderr)
+
+
 def stop_owned_client(run: Path) -> None:
     processes = subprocess.check_output(["ps", "-axo", "pid=,command="], text=True)
     for line in processes.splitlines():
@@ -278,9 +304,11 @@ def execute(args: argparse.Namespace) -> int:
         for path in (FABRIC / "src/clientGameTest/resources").iterdir():
             if path.is_file() and path.name != "fabric.mod.json":
                 shutil.copy2(path, resources / path.name)
-        override_resources = ROOT / "adapters/modded-common/src" / args.minecraft_version / "clientGameTest/resources"
-        if override_resources.is_dir():
-            shutil.copytree(override_resources, resources, dirs_exist_ok=True)
+        for overlay in version_overlays(args.minecraft_version):
+            for override_resources in [ROOT / "adapters/modded-common/src" / overlay / "clientGameTest/resources",
+                                       FABRIC / "src" / overlay / "clientGameTest/resources"]:
+                if override_resources.is_dir():
+                    shutil.copytree(override_resources, resources, dirs_exist_ok=True)
         token = uuid.uuid4().hex
         if args.record_demo:
             recorder = NativeCaptureRecorder(run / 'automator', token, args.demo_take or None)
@@ -306,6 +334,7 @@ def execute(args: argparse.Namespace) -> int:
                 if "WORMHOLES_DH_ACCEPTANCE_FAIL" in runtime_output:
                     raise RuntimeError("DH acceptance failed; inspect " + str(log))
                 if time.monotonic() - started > args.timeout:
+                    dump_owned_threads(run, evidence / "threads-at-timeout.txt")
                     raise TimeoutError("Client tests exceeded " + str(args.timeout) + " seconds")
                 if port is None:
                     match = re.search(r"Instance Automator listening on 127\.0\.0\.1:(\d+)", runtime_output)
@@ -322,14 +351,14 @@ def execute(args: argparse.Namespace) -> int:
                         state = None
                     if state is not None:
                         states.append({key: state.get(key) for key in ["frames", "ticks", "connected", "screen", "processId", "hiddenRenderer",
-                            "frameWidth", "frameHeight", "masterVolume", "windowVisible", "windowFocused", "windowMouseGrabbed", "relativeMouseMode", "mouseGrabbed"]})
+                            "frameWidth", "frameHeight", "declaredFrameSize", "masterVolume", "windowVisible", "windowFocused", "windowMouseGrabbed", "relativeMouseMode", "mouseGrabbed"]})
                         if state.get("hiddenRenderer") is not True or any(state.get(key) is not False for key in
                             ["windowVisible", "windowFocused", "windowMouseGrabbed", "relativeMouseMode", "mouseGrabbed"]):
                             raise AssertionError("Hidden client visibility/focus/mouse invariant failed: " + json.dumps(states[-1], sort_keys=True))
                         if state.get("masterVolume") != 0.0:
                             raise AssertionError("Test client master audio must stay muted")
-                        if (state.get("frameWidth"), state.get("frameHeight")) != (1920, 1080):
-                            raise AssertionError("Client framebuffer must be native 1920x1080")
+                        if not native_frame(state):
+                            raise AssertionError("Client framebuffer must be native 1920x1080 or the size a test declared")
                 if time.monotonic() - last_progress >= 20:
                     print("Hidden client tests running: " + str(round(time.monotonic() - started)) + "s", flush=True)
                     last_progress = time.monotonic()
@@ -357,7 +386,7 @@ def execute(args: argparse.Namespace) -> int:
             stop(process)
         stop_owned_client(run)
         try:
-            for name in ["screenshots", "crash-reports", "logs", "dh-acceptance.json", "dh-shaders"]:
+            for name in ["screenshots", "crash-reports", "logs", "dh-acceptance.json", "dh-shaders", "crossbench"]:
                 source = run / name
                 if source.exists():
                     if source.is_dir():
@@ -384,7 +413,7 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("tests", nargs="*")
     parser.add_argument("--suite", choices=["edge", "compatibility", "shader", "dh"], default="edge")
-    parser.add_argument("--minecraft-version", choices=["26.2", "26.3"], default="26.3")
+    parser.add_argument("--minecraft-version", choices=supported_versions(), default="26.3")
     parser.add_argument("--renderer", choices=["vanilla", "sodium"], default="sodium")
     parser.add_argument("--shader-pack", type=Path)
     parser.add_argument("--distant-horizons", type=Path)

@@ -4,6 +4,7 @@ import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.modded.mixin.RemoteTrackedEntityAccess;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
+import net.minecraft.network.protocol.game.ClientboundRemoveEntitiesPacket;
 import net.minecraft.server.level.ServerEntity;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.network.ServerGamePacketListenerImpl;
@@ -48,6 +49,36 @@ public class RemoteViewerPairingTest extends MinecraftTestBase {
     }
 
     @Test
+    public void aPairedEntityStaysPairedWhileItsColumnWaitsForAResend() {
+        Fixture fixture = new Fixture(true);
+        RouteStream stream = new RouteStream(new RouteWindow(0, 0, 4));
+        stream.markDelivered(ChunkPos.pack(0, 0));
+        when(fixture.route.stream()).thenReturn(stream);
+        RoutedSends sends = mock(RoutedSends.class);
+        RemoteViewer.update(fixture.route, fixture.tracked, fixture.player, sends);
+
+        stream.lightChanged(ChunkPos.pack(0, 0), false);
+        stream.changed(ChunkPos.pack(0, 0));
+        RemoteViewer.update(fixture.route, fixture.tracked, fixture.player, sends);
+
+        assertTrue(fixture.seenBy.contains(fixture.viewer));
+        assertTrue(fixture.paired.contains(7));
+        verify(sends, never()).send(any(), any(ClientboundRemoveEntitiesPacket.class));
+        verify(fixture.tracked.wormholesTrackedEntity(), never()).stopSeenByPlayer(fixture.player);
+    }
+
+    @Test
+    public void anEntityWhoseColumnTheClientNeverReceivedIsNotRouted() {
+        Fixture fixture = new Fixture(true);
+        when(fixture.route.stream()).thenReturn(new RouteStream(new RouteWindow(0, 0, 4)));
+
+        RemoteViewer.update(fixture.route, fixture.tracked, fixture.player, mock(RoutedSends.class));
+
+        assertFalse(fixture.seenBy.contains(fixture.viewer));
+        assertTrue(fixture.paired.isEmpty());
+    }
+
+    @Test
     public void aRouteIntoThePlayersOwnLevelLeavesVanillaTrackedEntitiesToVanilla() {
         Fixture fixture = new Fixture(false);
         RemoteViewer.update(fixture.route, fixture.tracked, fixture.player, mock(RoutedSends.class));
@@ -67,7 +98,7 @@ public class RemoteViewerPairingTest extends MinecraftTestBase {
             player.connection = mock(ServerGamePacketListenerImpl.class);
             seenBy.add(player.connection);
             RouteStream stream = mock(RouteStream.class);
-            when(stream.delivered(anyLong())).thenReturn(true);
+            when(stream.present(anyLong())).thenReturn(true);
             when(route.viewer()).thenReturn(viewer);
             when(route.window()).thenReturn(new RouteWindow(0, 0, 4));
             when(route.anchor()).thenReturn(new Vec3d(8.0D, 64.0D, 8.0D));

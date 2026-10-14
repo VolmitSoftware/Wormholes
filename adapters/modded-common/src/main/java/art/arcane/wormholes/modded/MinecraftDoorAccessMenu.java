@@ -17,6 +17,7 @@ import net.minecraft.server.players.NameAndId;
 import net.minecraft.server.players.UserNameToIdResolver;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.DyeColor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -83,16 +84,16 @@ final class MinecraftDoorAccessMenu {
 
     static Item stateIcon(DoorAccessState state) {
         return switch (Objects.requireNonNull(state, "state")) {
-            case NEUTRAL -> Items.STAINED_GLASS_PANE.black();
-            case WHITELIST -> Items.STAINED_GLASS_PANE.green();
-            case BLACKLIST -> Items.STAINED_GLASS_PANE.red();
+            case NEUTRAL -> MinecraftDyedItems.pane(DyeColor.BLACK);
+            case WHITELIST -> MinecraftDyedItems.pane(DyeColor.GREEN);
+            case BLACKLIST -> MinecraftDyedItems.pane(DyeColor.RED);
         };
     }
 
     static Item openStateIcon(DoorOpenState state) {
         return switch (Objects.requireNonNull(state, "state")) {
-            case OPEN -> Items.DYE.lime();
-            case CLOSED -> Items.DYE.gray();
+            case OPEN -> MinecraftDyedItems.dye(DyeColor.LIME);
+            case CLOSED -> MinecraftDyedItems.dye(DyeColor.GRAY);
         };
     }
 
@@ -137,7 +138,7 @@ final class MinecraftDoorAccessMenu {
         window.setTitle(MinecraftLegacyText.text(viewer, WormholesMessages.DOOR_MENU_ACCESS_TITLE,
             MinecraftPortalText.arguments("kind", kindLabel(viewer, door.identity().kind()))));
         window.setViewportHeight(viewportHeight(record.players().size()));
-        window.setDecorator(Items.STAINED_GLASS_PANE.gray());
+        window.setDecorator(MinecraftDyedItems.pane(DyeColor.GRAY));
         populate(window, viewer, door, record);
         window.open();
     }

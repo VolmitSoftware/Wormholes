@@ -2,7 +2,6 @@ package art.arcane.wormholes.clientgametest;
 
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
-import net.fabricmc.fabric.api.client.gametest.v1.context.TestServerConnection;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestServerContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestSingleplayerContext;
 import net.minecraft.server.MinecraftServer;
@@ -16,8 +15,8 @@ public final class GravityMovementAcceptanceClientGameTest implements FabricClie
     public void runTest(ClientGameTestContext context) {
         ClientViewTestConfig.enableSeamless(true);
         try (TestSingleplayerContext singleplayer = context.worldBuilder().create()) {
-            GravityMovementClientGameTest.run(new FabricSeamlessClient(context, singleplayer.getConnection()),
-                new Server(singleplayer.getServer(), singleplayer.getConnection()), controls -> input(context, controls));
+            GravityMovementClientGameTest.run(new FabricSeamlessClient(context, FabricConnection.of(singleplayer)),
+                new Server(singleplayer.getServer(), FabricConnection.of(singleplayer)), controls -> input(context, controls));
         }
     }
 
@@ -49,7 +48,7 @@ public final class GravityMovementAcceptanceClientGameTest implements FabricClie
         }
     }
 
-    private record Server(TestServerContext context, TestServerConnection connection) implements GravityMovementClientGameTest.Server {
+    private record Server(TestServerContext context, FabricConnection connection) implements GravityMovementClientGameTest.Server {
         @Override
         public void run(Consumer<MinecraftServer> action) {
             context.runOnServer(action::accept);

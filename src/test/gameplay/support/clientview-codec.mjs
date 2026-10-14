@@ -1,7 +1,7 @@
 import { deflateSync, inflateSync } from 'node:zlib'
 
-export const CHANNEL = 'wormholes:v10'
-export const WIRE_VERSION = 8
+export const CHANNEL = 'wormholes:v11'
+export const WIRE_VERSION = 9
 export const S2C_HEADER_BYTES = 6
 export const FLAG_DEFLATED = 1
 export const FLAG_LAST = 2

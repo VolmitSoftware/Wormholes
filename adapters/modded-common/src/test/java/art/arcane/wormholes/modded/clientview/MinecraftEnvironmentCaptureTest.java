@@ -17,6 +17,7 @@ import net.minecraft.world.level.chunk.LevelChunk;
 import org.junit.Test;
 import org.mockito.MockedStatic;
 
+import java.time.Duration;
 import java.util.ArrayDeque;
 import java.util.Queue;
 import java.util.UUID;
@@ -150,7 +151,7 @@ public class MinecraftEnvironmentCaptureTest extends MinecraftTestBase {
 
     @Test(timeout = 8000L)
     public void deadlineReleasesLeaseEvenWhenOwnerDispatchNeverRuns() throws InterruptedException {
-        Fixture fixture = fixture();
+        Fixture fixture = fixture(Duration.ofMillis(500L));
         MinecraftEnvironmentCapture.Request request = request(fixture, new Vec3d(0, 80, 0));
         try (MockedStatic<MinecraftPortalEnvironment> sampler = mockStatic(MinecraftPortalEnvironment.class)) {
             fixture.capture().capture(request);
@@ -171,8 +172,12 @@ public class MinecraftEnvironmentCaptureTest extends MinecraftTestBase {
             OpticTransform.of(AxisPermutation.of(Face.E, Face.U, Face.S), -128, 0, 0), 1L);
     }
 
-    @SuppressWarnings("unchecked")
     private static Fixture fixture() {
+        return fixture(MinecraftEnvironmentCapture.CAPTURE_DEADLINE);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Fixture fixture(Duration deadline) {
         WormholesModRuntime runtime = mock(WormholesModRuntime.class);
         MinecraftServer server = mock(MinecraftServer.class);
         ServerLevel world = mock(ServerLevel.class);
@@ -192,7 +197,7 @@ public class MinecraftEnvironmentCaptureTest extends MinecraftTestBase {
             tasks.add(invocation.getArgument(0));
             return null;
         }).when(server).execute(any(Runnable.class));
-        return new Fixture(new MinecraftEnvironmentCapture(runtime), world, leases, lease, ready, tasks);
+        return new Fixture(new MinecraftEnvironmentCapture(runtime, deadline), world, leases, lease, ready, tasks);
     }
 
     private record Fixture(MinecraftEnvironmentCapture capture, ServerLevel world, ChunkLeaseRegistry<ServerLevel> leases,

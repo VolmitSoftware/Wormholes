@@ -12,7 +12,7 @@ import art.arcane.wormholes.network.client.TravelMessage;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityDimensions;
-import net.minecraft.world.entity.EntityTypes;
+import art.arcane.wormholes.modded.MinecraftEntityTypes;
 import net.minecraft.world.entity.InterpolationHandler;
 import net.minecraft.world.phys.Vec3;
 import org.junit.Test;
@@ -123,7 +123,7 @@ public class ClientEntityCrossingsTest extends MinecraftTestBase {
     @Test
     public void theServerTeleportEchoOfAClientSimulatedEntityIsAbsorbedAfterTheCrossing() {
         Faller faller = new Faller(80.25D);
-        doReturn(EntityTypes.ITEM).when(faller.entity).getType();
+        doReturn(MinecraftEntityTypes.ITEM).when(faller.entity).getType();
         NativeCrossingFixtures.simulated(faller.entity);
         ClientEntityCrossings crossings = new ClientEntityCrossings();
         assertTrue(crossings.receive(faller.level, null, CROSSED));
@@ -189,7 +189,7 @@ public class ClientEntityCrossingsTest extends MinecraftTestBase {
 
         Faller(double y) {
             when(entity.getInterpolation()).thenReturn(interpolation);
-            doReturn(EntityTypes.PIG).when(entity).getType();
+            doReturn(MinecraftEntityTypes.PIG).when(entity).getType();
             when(entity.position()).thenReturn(new Vec3(1.5D, y, 1.5D));
             when(entity.oldPosition()).thenReturn(new Vec3(1.5D, y + 3.5D, 1.5D));
             when(entity.getYRot()).thenReturn(90.0F);

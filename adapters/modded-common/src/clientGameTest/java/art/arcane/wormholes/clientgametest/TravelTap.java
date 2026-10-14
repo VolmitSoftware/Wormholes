@@ -1,5 +1,6 @@
 package art.arcane.wormholes.clientgametest;
 
+import art.arcane.wormholes.modded.client.ClientRenderAccess;
 import com.mojang.logging.LogUtils;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
@@ -10,9 +11,11 @@ import net.minecraft.client.gui.screens.LevelLoadingScreen;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.util.Mth;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.EntityDimensions;
 import net.minecraft.world.phys.Vec3;
+import org.joml.Vector3f;
 import org.joml.Vector3fc;
 import org.slf4j.Logger;
 
@@ -30,8 +33,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public final class TravelTap {
     private static final Logger LOGGER = LogUtils.getLogger();
+    private static final double CROSSING_JUMP = 4.0D;
     private static final List<Frame> FRAMES = new ArrayList<>();
     private static final Set<UUID> ADDED = new HashSet<>();
+    private static final Set<UUID> RESIDENT_REMOVED = new HashSet<>();
     private static final AtomicInteger ACCEPTS = new AtomicInteger();
     private static final IntList RESPAWN_FRAMES = new IntArrayList();
     private static final IntList POSITION_FRAMES = new IntArrayList();
@@ -46,6 +51,7 @@ public final class TravelTap {
     private static int captureFramesRemaining;
     private static ClientFrameEvent profileFrame;
     private static ClientRenderEvent profileRender;
+    private static Set<UUID> crossingEntities;
 
     private TravelTap() {
     }
@@ -54,6 +60,8 @@ public final class TravelTap {
         SeamlessTurningTap.close();
         FRAMES.clear();
         ADDED.clear();
+        RESIDENT_REMOVED.clear();
+        crossingEntities = null;
         RESPAWN_FRAMES.clear();
         POSITION_FRAMES.clear();
         SCALE_PACKETS.clear();
@@ -93,6 +101,10 @@ public final class TravelTap {
         ADDED.add(entity);
     }
 
+    public static synchronized void residentRemoved(UUID entity) {
+        RESIDENT_REMOVED.add(entity);
+    }
+
     public static void accepted() {
         ACCEPTS.incrementAndGet();
     }
@@ -119,9 +131,9 @@ public final class TravelTap {
 
     public static synchronized void frame(Minecraft minecraft) {
         finishProfileRender(minecraft);
-        Camera camera = minecraft.gameRenderer.mainCamera();
+        Camera camera = ClientRenderAccess.mainCamera(minecraft);
         ClientPacketListener connection = minecraft.getConnection();
-        loadingScreen |= minecraft.gui.screen() instanceof LevelLoadingScreen;
+        loadingScreen |= ClientGui.screen(minecraft) instanceof LevelLoadingScreen;
         unloaded |= connection != null && !connection.hasClientLoaded();
         if (!camera.isInitialized() || minecraft.level == null || minecraft.player == null) {
             return;
@@ -131,7 +143,8 @@ public final class TravelTap {
         CrossingCompositionTap.frame(minecraft);
         NetherCrossingCompositionTap.frame(minecraft);
         captureCrossingFrames(minecraft, camera);
-        CameraRenderState rendered = minecraft.gameRenderer.gameRenderState().levelRenderState.cameraRenderState;
+        recordCrossingEntities(minecraft, camera);
+        CameraRenderState rendered = ClientRenderAccess.gameState(minecraft).levelRenderState.cameraRenderState;
         EntityDimensions dimensions = minecraft.player.getDimensions(minecraft.player.getPose());
         float partialTicks = camera.getCameraEntityPartialTicks(minecraft.getDeltaTracker());
         PlayerPose pose = new PlayerPose(minecraft.player.getPosition(partialTicks),
@@ -141,7 +154,8 @@ public final class TravelTap {
             minecraft.level.dimension().identifier().toString(), System.identityHashCode(minecraft.level),
             System.identityHashCode(minecraft.player), gameTicks + minecraft.getDeltaTracker().getGameTimeDeltaPartialTick(true),
             minecraft.player.position().distanceTo(new Vec3(minecraft.player.xo, minecraft.player.yo, minecraft.player.zo)),
-            Mth.wrapDegrees(minecraft.player.getYRot() - minecraft.player.yHeadRot), 0L, vector(camera.forwardVector()), vector(camera.upVector()),
+            Mth.wrapDegrees(minecraft.player.getYRot() - minecraft.player.yHeadRot), 0L, vector(rendered.viewRotationMatrix.positiveZ(new Vector3f()).negate()),
+            vector(rendered.viewRotationMatrix.positiveY(new Vector3f())),
             minecraft.player.getAttributeValue(Attributes.SCALE), System.nanoTime(), pose, rendered.pos, minecraft.options.getCameraType().isFirstPerson()));
         profileFrame(FRAMES.getLast());
     }
@@ -174,8 +188,7 @@ public final class TravelTap {
         }
         if (!FRAMES.isEmpty()) {
             Frame previous = FRAMES.getLast();
-            if (previous.level() != System.identityHashCode(minecraft.level)
-                || previous.camera().distanceTo(camera.position()) > 4.0D) {
+            if (crossed(previous, minecraft, camera)) {
                 captureSequence++;
                 captureFramesRemaining = 4;
             }
@@ -185,8 +198,23 @@ public final class TravelTap {
         }
         String name = "crossing-frame-" + captureSequence + "-" + (4 - captureFramesRemaining) + ".png";
         captureFramesRemaining--;
-        Screenshot.grab(minecraft.gameDirectory, name, minecraft.gameRenderer.mainRenderTarget(), 1,
+        Screenshot.grab(minecraft.gameDirectory, name, ClientRenderAccess.mainTarget(minecraft), 1,
             message -> LOGGER.info("Crossing capture: {}", message.getString()));
+    }
+
+    private static void recordCrossingEntities(Minecraft minecraft, Camera camera) {
+        if (crossingEntities != null || FRAMES.isEmpty() || !crossed(FRAMES.getLast(), minecraft, camera)) {
+            return;
+        }
+        Set<UUID> resident = new HashSet<>();
+        for (Entity entity : minecraft.level.entitiesForRendering()) {
+            resident.add(entity.getUUID());
+        }
+        crossingEntities = resident;
+    }
+
+    private static boolean crossed(Frame previous, Minecraft minecraft, Camera camera) {
+        return previous.level() != System.identityHashCode(minecraft.level) || previous.camera().distanceTo(camera.position()) > CROSSING_JUMP;
     }
 
     public static synchronized int frameIndex() {
@@ -213,8 +241,20 @@ public final class TravelTap {
         return countSince(POSITION_FRAMES, frame);
     }
 
-    public static synchronized boolean addedAny(UUID first, UUID second) {
-        return ADDED.contains(first) || ADDED.contains(second);
+    public static synchronized boolean addedAgain(UUID entity) {
+        return ADDED.contains(entity);
+    }
+
+    public static synchronized boolean removedFromResident(UUID entity) {
+        return RESIDENT_REMOVED.contains(entity);
+    }
+
+    public static synchronized boolean deliveredBeforeCrossing(UUID entity) {
+        return crossingEntities != null && crossingEntities.contains(entity);
+    }
+
+    public static synchronized boolean crossingRecorded() {
+        return crossingEntities != null;
     }
 
     public static int accepts() {

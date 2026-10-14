@@ -2,11 +2,13 @@ package art.arcane.wormholes.clientgametest.mixin;
 
 import art.arcane.wormholes.clientgametest.IrisMeshHistoryTap;
 import net.irisshaders.iris.pipeline.IrisRenderingPipeline;
+import net.irisshaders.iris.shaderpack.programs.ProgramSet;
 import net.irisshaders.iris.targets.RenderTargets;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Pseudo;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -18,8 +20,16 @@ public abstract class IrisMeshHistoryPipelineTap {
     @Final
     private RenderTargets renderTargets;
 
+    @Unique
+    private ProgramSet wormholesTest$programs;
+
+    @Inject(method = "<init>", at = @At("RETURN"))
+    private void wormholesTest$programs(ProgramSet programs, CallbackInfo callback) {
+        wormholesTest$programs = programs;
+    }
+
     @Inject(method = "finalizeLevelRendering", at = @At("TAIL"))
     private void wormholesTest$meshHistory(CallbackInfo callback) {
-        IrisMeshHistoryTap.finalized((IrisRenderingPipeline) (Object) this, renderTargets);
+        IrisMeshHistoryTap.finalized((IrisRenderingPipeline) (Object) this, renderTargets, wormholesTest$programs);
     }
 }

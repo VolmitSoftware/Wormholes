@@ -11,6 +11,8 @@ import art.arcane.wormholes.modded.client.render.stencil.PortalView;
 import art.arcane.wormholes.portal.AmbientParticleStyle;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.portal.ProjectionMode;
+import art.arcane.wormholes.modded.MinecraftDyedItems;
+import art.arcane.wormholes.modded.client.ClientRenderAccess;
 import com.google.gson.GsonBuilder;
 import net.minecraft.client.CameraType;
 import net.minecraft.client.Minecraft;
@@ -80,8 +82,8 @@ public final class NestedHorizontalPortalClientGameTest {
             && runtime.portals().link(player, ceiling.getId(), floor.getId()), "Nested fixture horizontal child link rejected");
         for (int z : List.of(22, 34)) {
             for (int x = 294; x <= 314; x++) {
-                level.setBlockAndUpdate(new BlockPos(x, 105, z), Blocks.CONCRETE.pick(DyeColor.MAGENTA).defaultBlockState());
-                level.setBlockAndUpdate(new BlockPos(x, 103, z), Blocks.CONCRETE.pick(DyeColor.CYAN).defaultBlockState());
+                level.setBlockAndUpdate(new BlockPos(x, 105, z), MinecraftDyedItems.concreteBlock(DyeColor.MAGENTA).defaultBlockState());
+                level.setBlockAndUpdate(new BlockPos(x, 103, z), MinecraftDyedItems.concreteBlock(DyeColor.CYAN).defaultBlockState());
             }
             int lightZ = z == 22 ? 21 : 35;
             level.setBlockAndUpdate(new BlockPos(304, 105, lightZ), Blocks.SEA_LANTERN.defaultBlockState());
@@ -231,7 +233,7 @@ public final class NestedHorizontalPortalClientGameTest {
             int[] outside = FramebufferProbe.screen(minecraft, viewpoint.landmark().add(-10.0D, 0.0D, 0.0D));
             assertTrue(pixel != null && outside != null, viewpoint.name() + ": nested landmark/clipping projection is outside the framebuffer");
             int frame = TravelTap.frameIndex();
-            Screenshot.grab(minecraft.gameDirectory, "nested-horizontal-" + viewpoint.name() + ".png", minecraft.gameRenderer.mainRenderTarget(), 1,
+            Screenshot.grab(minecraft.gameDirectory, "nested-horizontal-" + viewpoint.name() + ".png", ClientRenderAccess.mainTarget(minecraft), 1,
                 message -> LOGGER.info("Nested horizontal frame sample: {}", message.getString()));
             FramebufferProbe.capture(minecraft, probe -> result.set(sample(probe, viewpoint, pixel, outside, frame)));
         });
@@ -377,7 +379,7 @@ public final class NestedHorizontalPortalClientGameTest {
                     boolean floor = y == 99 || y == 100 || y == 108 || y == 109;
                     boolean light = (x == -4 || x == 12) && y == 104;
                     level.setBlockAndUpdate(new BlockPos(offset + x, y, z), light ? Blocks.SEA_LANTERN.defaultBlockState()
-                        : floor ? Blocks.CONCRETE.pick(DyeColor.WHITE).defaultBlockState() : Blocks.AIR.defaultBlockState());
+                        : floor ? MinecraftDyedItems.concreteBlock(DyeColor.WHITE).defaultBlockState() : Blocks.AIR.defaultBlockState());
                 }
             }
         }

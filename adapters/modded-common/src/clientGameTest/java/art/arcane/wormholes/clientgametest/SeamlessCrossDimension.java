@@ -35,7 +35,7 @@ final class SeamlessCrossDimension {
             SeamlessScenario.awaitReady(client);
             for (int trip = 1; trip <= STRESS_TRIPS; trip++) {
                 SeamlessScenario.Crossing outbound = SeamlessScenario.walkThrough(client, label + "-" + trip);
-                SeamlessScenario.assertSeamlessTravel(client, route, outbound, SeamlessScenario.LOADED_RETURN_VIEW_TICKS);
+                SeamlessScenario.assertStreamedTravel(client, route, outbound, SeamlessScenario.LOADED_RETURN_VIEW_TICKS);
                 SeamlessScenario.turnAround(client, route.inbound().exit().sourceOrigin());
                 SeamlessScenario.Crossing inbound = SeamlessScenario.walkThrough(client, label + "-" + trip + "-return");
                 SeamlessScenario.assertSeamlessReturn(client, route, inbound, SeamlessScenario.LOADED_RETURN_VIEW_TICKS);

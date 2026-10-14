@@ -5,6 +5,7 @@ import art.arcane.wormholes.modded.client.render.stencil.PortalStencil;
 import art.arcane.wormholes.modded.client.render.stencil.PortalStencilRenderer;
 import art.arcane.wormholes.modded.client.render.stencil.PortalView;
 import art.arcane.wormholes.modded.mixin.client.DhPortalClientApiAccess;
+import art.arcane.wormholes.modded.client.ClientRenderAccess;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.textures.GpuTextureView;
 import com.seibel.distanthorizons.common.wrappers.world.ClientLevelWrapper;
@@ -92,7 +93,7 @@ public final class DhPortalRenderContext implements DhPortalRendering.Scope {
         if (!renderer.nested() || renderer.deferredActive()) {
             return depth;
         }
-        RenderTarget main = Minecraft.getInstance().gameRenderer.mainRenderTarget();
+        RenderTarget main = ClientRenderAccess.mainTarget(Minecraft.getInstance());
         return color.texture() == main.getColorTexture() && PortalStencil.available(main) ? main.getDepthTextureView() : depth;
     }
 

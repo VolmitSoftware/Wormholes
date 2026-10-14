@@ -10,6 +10,8 @@ import art.arcane.optics.frame.AxisPermutation;
 import art.arcane.optics.frame.Similarity;
 import art.arcane.optics.math.Face;
 import art.arcane.optics.math.Vec3d;
+import art.arcane.wormholes.modded.client.ClientRenderAccess;
+import art.arcane.optics.aperture.AperturePolygon;
 import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
 import org.joml.Quaternionf;
@@ -60,11 +62,25 @@ public final class PortalLayerMath {
     }
 
     public static Matrix4f cullingProjection(Matrix4fc projection, boolean zeroToOne) {
+        if (!ClientRenderAccess.reversedDepth()) {
+            return new Matrix4f(projection);
+        }
         return new Matrix4f(projection)
             .m02((zeroToOne ? projection.m03() : 0.0F) - projection.m02())
             .m12((zeroToOne ? projection.m13() : 0.0F) - projection.m12())
             .m22((zeroToOne ? projection.m23() : 0.0F) - projection.m22())
             .m32((zeroToOne ? projection.m33() : 0.0F) - projection.m32());
+    }
+
+    public static AperturePolygon.ClipDepth coverageDepth(double[] matrix, boolean zeroToOne) {
+        if (ClientRenderAccess.reversedDepth()) {
+            return zeroToOne ? AperturePolygon.ClipDepth.ZERO_TO_ONE : AperturePolygon.ClipDepth.NEGATIVE_ONE_TO_ONE;
+        }
+        matrix[2] = matrix[3];
+        matrix[6] = matrix[7];
+        matrix[10] = matrix[11];
+        matrix[14] = matrix[15];
+        return AperturePolygon.ClipDepth.ZERO_TO_ONE;
     }
 
     public static Matrix4f rotation(AxisPermutation permutation) {

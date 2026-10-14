@@ -7,6 +7,7 @@ import art.arcane.wormholes.modded.client.render.stencil.PortalLayer;
 import net.irisshaders.iris.Iris;
 import net.irisshaders.iris.pipeline.IrisRenderingPipeline;
 import net.irisshaders.iris.pipeline.WorldRenderingPipeline;
+import net.irisshaders.iris.shaderpack.programs.ProgramSet;
 import net.irisshaders.iris.targets.RenderTarget;
 import net.irisshaders.iris.targets.RenderTargets;
 import net.irisshaders.iris.uniforms.CameraUniforms;
@@ -87,7 +88,7 @@ public final class IrisMeshHistoryTap {
         }
     }
 
-    public static void finalized(IrisRenderingPipeline pipeline, RenderTargets targets) {
+    public static void finalized(IrisRenderingPipeline pipeline, RenderTargets targets, ProgramSet programs) {
         if (!enabled) {
             return;
         }
@@ -124,13 +125,13 @@ public final class IrisMeshHistoryTap {
             BlockPos parentOrigin = entered.layer == null ? null : origin(entered.layer.view().surface().geometry());
             Key key = new Key(identity, entered.parent);
             Sample sample = new Sample(pipeline, primary, alternate, camera, matrix, frame, 1, entered.draws,
-                identity, parentOrigin, entered.layer == null ? 0 : entered.layer.depth(), entered.parent);
+                identity, parentOrigin, entered.layer == null ? 0 : entered.layer.depth(), entered.parent, programs);
             STREAMS.put(key, merge(STREAMS.get(key), sample, "streamed camera " + identity));
             return;
         }
         PortalLayer layer = IrisHistoryTap.currentLayer();
         Sample sample = new Sample(pipeline, primary, alternate, camera, matrix, frame, 1, 0, null,
-            layer == null ? null : origin(layer.view().surface().geometry()), layer == null ? 0 : layer.depth(), null);
+            layer == null ? null : origin(layer.view().surface().geometry()), layer == null ? 0 : layer.depth(), null, programs);
         if (layer == null) {
             main = merge(main, sample, "main camera");
         } else if (layer.depth() == 1) {
@@ -184,7 +185,7 @@ public final class IrisMeshHistoryTap {
             fail(label + " replaced its full pipeline or actual temporal texture pair");
         }
         return new Sample(next.pipeline(), next.mainTexture(), next.altTexture(), next.camera(), next.matrix(), next.frame(),
-            previous.renders() + 1, previous.draws() + next.draws(), next.identity(), next.parentOrigin(), next.parentDepth(), next.parent());
+            previous.renders() + 1, previous.draws() + next.draws(), next.identity(), next.parentOrigin(), next.parentDepth(), next.parent(), next.programs());
     }
 
     private static BlockPos origin(ApertureDescriptor geometry) {
@@ -199,7 +200,7 @@ public final class IrisMeshHistoryTap {
 
     public record Sample(IrisRenderingPipeline pipeline, int mainTexture, int altTexture, Vec3 camera, Matrix4f matrix,
                          int frame, int renders, int draws, IrisMeshCamera identity, BlockPos parentOrigin, int parentDepth,
-                         WorldRenderingPipeline parent) {
+                         WorldRenderingPipeline parent, ProgramSet programs) {
     }
 
     private record Key(IrisMeshCamera camera, WorldRenderingPipeline parent) {

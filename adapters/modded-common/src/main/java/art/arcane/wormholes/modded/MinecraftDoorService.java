@@ -62,7 +62,6 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.Leashable;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ExperienceOrb;
@@ -1375,7 +1374,7 @@ public final class MinecraftDoorService implements AutoCloseable {
     private boolean canEnter(Entity entity, PlacedDoorEndpoint endpoint) {
         boolean object = entity instanceof ItemEntity || entity instanceof Projectile || entity instanceof ExperienceOrb;
         return DoorTravelerPolicy.canEnter(endpoint.identity().kind(), entity instanceof ServerPlayer,
-            entity instanceof Mob || entity instanceof VehicleEntity, object, entity.getType() == EntityTypes.ENDER_DRAGON || entity.getType() == EntityTypes.WITHER, entity.getType() == EntityTypes.ENDER_DRAGON,
+            entity instanceof Mob || entity instanceof VehicleEntity, object, entity.getType() == MinecraftEntityTypes.ENDER_DRAGON || entity.getType() == MinecraftEntityTypes.WITHER, entity.getType() == MinecraftEntityTypes.ENDER_DRAGON,
             entity.isPassenger() || entity.isVehicle() || entity instanceof Leashable leashable && leashable.isLeashed(),
             entity.getBbWidth(), entity.getBbHeight()) && canAccess(entity, endpoint);
     }

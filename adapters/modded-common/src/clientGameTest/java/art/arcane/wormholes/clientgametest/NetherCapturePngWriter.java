@@ -1,6 +1,7 @@
 package art.arcane.wormholes.clientgametest;
 
 import com.mojang.blaze3d.platform.NativeImage;
+import org.lwjgl.system.MemoryUtil;
 
 import java.io.BufferedOutputStream;
 import java.io.DataOutputStream;
@@ -33,10 +34,7 @@ final class NetherCapturePngWriter {
             throw new IOException("Nether capture requires positive image dimensions");
         }
         int stride = Math.multiplyExact(width, components);
-        ByteBuffer pixels = image.getPixelBytes();
-        if (pixels.remaining() != Math.multiplyExact(stride, height)) {
-            throw new IOException("Nether capture pixel buffer does not match image dimensions");
-        }
+        ByteBuffer pixels = MemoryUtil.memByteBuffer(image.getPointer(), Math.multiplyExact(stride, height));
         byte[] row = new byte[Math.addExact(stride, 1)];
         byte[] encoded = new byte[OUTPUT_BUFFER_BYTES];
         Deflater deflater = new Deflater(Deflater.NO_COMPRESSION);

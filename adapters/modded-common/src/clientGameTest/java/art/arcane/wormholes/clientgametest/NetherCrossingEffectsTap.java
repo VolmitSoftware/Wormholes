@@ -7,6 +7,7 @@ import art.arcane.wormholes.modded.client.render.stencil.PortalStencilRenderer;
 import art.arcane.wormholes.modded.client.render.stencil.PortalSurface;
 import art.arcane.wormholes.modded.client.render.stencil.PortalView;
 import art.arcane.wormholes.network.client.TravelMessage;
+import art.arcane.wormholes.modded.client.ClientRenderAccess;
 import com.google.gson.GsonBuilder;
 import com.mojang.blaze3d.platform.NativeImage;
 import net.minecraft.client.Minecraft;
@@ -163,13 +164,13 @@ public final class NetherCrossingEffectsTap {
 
     private static void capturePose(Matrix4f projection, Effects effects) {
         Minecraft minecraft = Minecraft.getInstance();
-        if (minecraft.player == null || minecraft.level == null || !minecraft.gameRenderer.mainCamera().isInitialized()) {
+        if (minecraft.player == null || minecraft.level == null || !ClientRenderAccess.mainCamera(minecraft).isInitialized()) {
             fail(new AssertionError("Native client disconnected during continuous effects capture"));
             return;
         }
-        CameraRenderState camera = minecraft.gameRenderer.gameRenderState().levelRenderState.cameraRenderState;
+        CameraRenderState camera = ClientRenderAccess.gameState(minecraft).levelRenderState.cameraRenderState;
         ClientCrossingView crossingView = WormholesClient.instance().seamlessTravel().view();
-        float partial = minecraft.gameRenderer.mainCamera().getCameraEntityPartialTicks(minecraft.getDeltaTracker());
+        float partial = ClientRenderAccess.mainCamera(minecraft).getCameraEntityPartialTicks(minecraft.getDeltaTracker());
         Vec3 physicalEye = minecraft.player.getEyePosition();
         Vec3 interpolatedEye = minecraft.player.getEyePosition(partial);
         List<Arm> arms = new ArrayList<>();
@@ -225,7 +226,7 @@ public final class NetherCrossingEffectsTap {
             minecraft.player.portalEffectIntensity, minecraft.player.oPortalEffectIntensity,
             minecraft.player.getEffectBlendFactor(MobEffects.NAUSEA, partial), minecraft.player.hurtTime,
             minecraft.options.bobView().get(), minecraft.options.fovEffectScale().get(), minecraft.options.fov().get(),
-            hidden, released, minecraft.gameRenderer.mainRenderTarget().width, minecraft.gameRenderer.mainRenderTarget().height,
+            hidden, released, ClientRenderAccess.mainTarget(minecraft).width, ClientRenderAccess.mainTarget(minecraft).height,
             matrix(projection), matrix(camera.projectionMatrix),
             matrix(camera.viewRotationMatrix), matrix(finalViewProjection), List.copyOf(arms), List.copyOf(viewStates));
     }
@@ -300,7 +301,7 @@ public final class NetherCrossingEffectsTap {
             request = new CaptureRequest(directory, label, preparing, capture);
         }
         try {
-            Screenshot.takeScreenshot(minecraft.gameRenderer.mainRenderTarget(), image -> active.accept(request, image));
+            Screenshot.takeScreenshot(ClientRenderAccess.mainTarget(minecraft), image -> active.accept(request, image));
         } catch (Throwable error) {
             active.readbackFailed(request, error);
         }

@@ -1,8 +1,8 @@
 import org.gradle.api.file.SourceDirectorySet
 import java.nio.file.Path
 
-String targetVersion = project.ext.minecraftTargetVersion
-List<File> versionRoots = [file("../modded-common/src/${targetVersion}"), file("src/${targetVersion}")]
+List<String> overlays = (List<String>) (project.ext.minecraftTarget['overlays'] ?: [project.ext.minecraftTargetVersion])
+List<File> versionRoots = overlays.collectMany { String overlay -> [file("../modded-common/src/${overlay}"), file("src/${overlay}")] }
 Map<String, String> sourcePaths = [main: '', test: 'test/', gameTest: 'gameTest/', clientGameTest: 'clientGameTest/']
 sourceSets.configureEach { SourceSet sourceSet ->
     String sourcePath = sourcePaths[sourceSet.name]
@@ -20,8 +20,14 @@ sourceSets.configureEach { SourceSet sourceSet ->
             directorySet.srcDir(directory)
         }
         directorySet.exclude { FileTreeElement entry ->
+            if (entry.name.endsWith('.removed')) {
+                return true
+            }
             for (int index = versionDirectories.size() - 1; index >= 0; index--) {
                 File replacement = new File(versionDirectories[index], entry.relativePath.pathString)
+                if (new File(versionDirectories[index], entry.relativePath.pathString + '.removed').isFile()) {
+                    return managedRoots.any { Path root -> entry.file.canonicalFile.toPath().startsWith(root) }
+                }
                 if (replacement.isFile()) {
                     File source = entry.file.canonicalFile
                     return source != replacement.canonicalFile && managedRoots.any { Path root -> source.toPath().startsWith(root) }

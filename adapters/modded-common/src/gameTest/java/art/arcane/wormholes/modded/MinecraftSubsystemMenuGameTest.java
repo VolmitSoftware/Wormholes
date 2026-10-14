@@ -16,6 +16,7 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.gametest.framework.GameTestSequence;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.DyeColor;
 import org.slf4j.LoggerFactory;
 
 import java.util.Objects;
@@ -68,13 +69,13 @@ final class MinecraftSubsystemMenuGameTest {
             helper.assertTrue(portal.role(guest.player().getUUID()) == PortalRole.USER, "Access prompt did not add the player as trusted");
             helper.assertTrue(entry.enchanted(portal, viewer()), "Access entry did not glow with roles");
             assertAccessHeader(2);
-            MinecraftSubsystemMenuProbe.assertElement(helper, viewer(), -4, 1, Items.STAINED_GLASS_PANE.lime(),
+            MinecraftSubsystemMenuProbe.assertElement(helper, viewer(), -4, 1, MinecraftDyedItems.pane(DyeColor.LIME),
                 MinecraftSubsystemMenuProbe.name(viewer(), AccessMessages.MENU_ROLE, MinecraftPortalText.arguments(
                     "name", guest.player().getGameProfile().name(), "state", label(AccessMessages.LABEL_USER))), false, "Access role");
             MinecraftSubsystemMenuProbe.left(viewer(), -4, 1);
         }).thenIdle(CLICK_TICKS).thenExecute(() -> {
             helper.assertTrue(portal.role(guest.player().getUUID()) == PortalRole.USER.next(), "Left click did not cycle the role forward");
-            MinecraftSubsystemMenuProbe.assertElement(helper, viewer(), -4, 1, Items.STAINED_GLASS_PANE.red(),
+            MinecraftSubsystemMenuProbe.assertElement(helper, viewer(), -4, 1, MinecraftDyedItems.pane(DyeColor.RED),
                 MinecraftSubsystemMenuProbe.name(viewer(), AccessMessages.MENU_ROLE, MinecraftPortalText.arguments(
                     "name", guest.player().getGameProfile().name(), "state", label(AccessMessages.LABEL_DENIED))), false, "Access cycled role");
             MinecraftSubsystemMenuProbe.right(viewer(), -4, 1);
@@ -120,7 +121,7 @@ final class MinecraftSubsystemMenuGameTest {
 
     private void assertAccessHeader(int rows) {
         String title = MinecraftPortalText.router(runtime, portal, true);
-        MinecraftSubsystemMenuProbe.assertWindow(helper, viewer(), title, rows, Items.STAINED_GLASS_PANE.gray(),
+        MinecraftSubsystemMenuProbe.assertWindow(helper, viewer(), title, rows, MinecraftDyedItems.pane(DyeColor.GRAY),
             MinecraftSubsystemMenuProbe.slot(4, 0), "Access window");
         MinecraftSubsystemMenuProbe.assertElement(helper, viewer(), -4, 0, Items.NAME_TAG,
             MinecraftSubsystemMenuProbe.name(viewer(), AccessMessages.MENU_PLACARD, MinecraftPortalText.arguments("portal", portal.getName(),
@@ -171,11 +172,11 @@ final class MinecraftSubsystemMenuGameTest {
 
     private void assertFidelity(String atmosphere) {
         MinecraftSubsystemMenuProbe.assertWindow(helper, viewer(), MinecraftPortalText.router(runtime, portal, true), 3,
-            Items.STAINED_GLASS_PANE.cyan(), MinecraftSubsystemMenuProbe.slot(-4, 0), "Fidelity window");
+            MinecraftDyedItems.pane(DyeColor.CYAN), MinecraftSubsystemMenuProbe.slot(-4, 0), "Fidelity window");
         MinecraftSubsystemMenuProbe.assertElement(helper, viewer(), 0, 0, Items.COMPARATOR,
             MinecraftSubsystemMenuProbe.name(viewer(), FidelityMessages.MENU_PLACARD, MessageArgs.empty()), false, "Fidelity placard");
         String fallback = label(FidelityMessages.MENU_DEFAULT);
-        MinecraftSubsystemMenuProbe.assertElement(helper, viewer(), -3, 1, Items.STAINED_GLASS.lightBlue(),
+        MinecraftSubsystemMenuProbe.assertElement(helper, viewer(), -3, 1, MinecraftDyedItems.glass(DyeColor.LIGHT_BLUE),
             MinecraftSubsystemMenuProbe.legacy(viewer(), FidelityMessages.MENU_ATMOSPHERE,
                 MinecraftPortalText.arguments("mode", atmosphere == null ? fallback : atmosphere)), atmosphere != null, "Fidelity atmosphere");
         MinecraftSubsystemMenuProbe.assertElement(helper, viewer(), -1, 1, Items.NOTE_BLOCK,
@@ -199,7 +200,7 @@ final class MinecraftSubsystemMenuGameTest {
                 && entry.visible(portal, viewer()) && !entry.enchanted(portal, viewer()), "Transit entry identity differs from Bukkit");
             entry.onLeftClick(portal, viewer(), new MinecraftWindow(runtime, viewer()));
             MinecraftSubsystemMenuProbe.assertWindow(helper, viewer(), MinecraftPortalText.router(runtime, portal, true), 3,
-                Items.STAINED_GLASS_PANE.cyan(), MinecraftSubsystemMenuProbe.slot(0, 0), "Transit window");
+                MinecraftDyedItems.pane(DyeColor.CYAN), MinecraftSubsystemMenuProbe.slot(0, 0), "Transit window");
             MinecraftSubsystemMenuProbe.assertElement(helper, viewer(), -2, 1, Items.SLIME_BALL,
                 MinecraftSubsystemMenuProbe.name(viewer(), TransitMessages.MENU_MOMENTUM, MinecraftPortalText.arguments("mode", defaultMomentum().label(), "value", "1")),
                 false, "Transit momentum");

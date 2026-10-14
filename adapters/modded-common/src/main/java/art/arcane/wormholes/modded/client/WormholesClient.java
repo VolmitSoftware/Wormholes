@@ -233,7 +233,7 @@ public final class WormholesClient {
         }
         registerDebugEntry(minecraft);
         LocalPlayer player = minecraft.player;
-        Camera camera = minecraft.gameRenderer.mainCamera();
+        Camera camera = ClientRenderAccess.mainCamera(minecraft);
         Vec3 eye = camera.isInitialized() ? camera.position() : player == null ? Vec3.ZERO : player.getEyePosition();
         Vec3 velocity = player == null ? Vec3.ZERO : player.getDeltaMovement();
         tick.tick(eye.x, eye.y, eye.z, velocity.x, velocity.y, velocity.z, System.currentTimeMillis());

@@ -12,6 +12,8 @@ import art.arcane.wormholes.modded.mixin.client.DhPortalClientApiAccess;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.portal.ProjectionMode;
 import art.arcane.wormholes.transit.OrientationPolicy;
+import art.arcane.wormholes.modded.MinecraftDyedItems;
+import art.arcane.wormholes.modded.client.ClientRenderAccess;
 import com.seibel.distanthorizons.common.wrappers.chunk.ChunkWrapper;
 import com.seibel.distanthorizons.common.wrappers.world.ClientLevelWrapper;
 import com.seibel.distanthorizons.common.wrappers.world.ServerLevelWrapper;
@@ -87,16 +89,16 @@ public final class DistantHorizonsClientGameTest implements FabricClientGameTest
         });
         DistantHorizonsTap.History[] closingHistories = new DistantHorizonsTap.History[2];
         try (TestSingleplayerContext world = context.worldBuilder().create()) {
-            SeamlessClient client = new FabricSeamlessClient(context, world.getConnection());
+            SeamlessClient client = new FabricSeamlessClient(context, FabricConnection.of(world));
             SeamlessScenario.join(client);
             SeamlessScenario.assertSeamlessNegotiated(client);
             context.runOnClient(minecraft -> ClientMeshLightingAssertions.verify(minecraft.level));
             System.out.println("WORMHOLES_CLIENT_LIGHTING_SCOPE_PASS");
             Options options = context.computeOnClient(minecraft -> new Options(minecraft.options.getCameraType(),
-                minecraft.gui.hud.isHidden(), minecraft.options.renderDistance().get(),
+                ClientGui.hudHidden(minecraft), minecraft.options.renderDistance().get(),
                 WormholesClient.instance().config().clientRecursion, Config.Client.Advanced.Graphics.Quality.lodChunkRenderDistanceRadius.get()));
             TestServerContext server = world.getServer();
-            ServerPlayer player = server.computeOnServer(minecraftServer -> world.getConnection().getServerPlayer());
+            ServerPlayer player = server.computeOnServer(minecraftServer -> FabricConnection.of(world).getServerPlayer());
             List<UUID> created = new ArrayList<>();
             try {
                 context.runOnClient(minecraft -> {
@@ -106,11 +108,11 @@ public final class DistantHorizonsClientGameTest implements FabricClientGameTest
                     minecraft.options.renderDistance().set(4);
                     WormholesClient.instance().config().clientRecursion = true;
                     Config.Client.Advanced.Graphics.Quality.lodChunkRenderDistanceRadius.set(64);
-                    if (!minecraft.gui.hud.isHidden()) {
-                        minecraft.gui.hud.toggle();
+                    if (!ClientGui.hudHidden(minecraft)) {
+                        ClientGui.toggleHud(minecraft);
                     }
                 });
-                FabricSeamlessServer travelServer = new FabricSeamlessServer(server, world.getConnection());
+                FabricSeamlessServer travelServer = new FabricSeamlessServer(server, FabricConnection.of(world));
                 server.runOnServer(minecraftServer -> prepareWorlds(minecraftServer, player));
                 seed(context, world, player, Level.OVERWORLD, SOURCE);
                 seed(context, world, player, Level.END, DESTINATION);
@@ -133,8 +135,8 @@ public final class DistantHorizonsClientGameTest implements FabricClientGameTest
                     DhComposedImageAssertions.assertDestinationLandmark(destinationControl);
                 }
                 teleport(context, server, player, Level.OVERWORLD, new Vec3(1.5D, 70.0D, 26.5D), 180.0F);
-                world.getConnection().waitForChunksDownload();
-                world.getConnection().waitForChunksRender();
+                FabricConnection.of(world).waitForChunksDownload();
+                FabricConnection.of(world).waitForChunksRender();
                 context.waitTicks(SETTLE_TICKS);
                 long referenceSamples = context.computeOnClient(minecraft -> DistantHorizonsTap.visibleSamples(SOURCE, 1));
                 context.waitTicks(20);
@@ -243,8 +245,8 @@ public final class DistantHorizonsClientGameTest implements FabricClientGameTest
                     minecraft.options.renderDistance().set(options.renderDistance());
                     Config.Client.Advanced.Graphics.Quality.lodChunkRenderDistanceRadius.set(options.lodDistance());
                     WormholesClient.instance().config().clientRecursion = options.recursion();
-                    if (minecraft.gui.hud.isHidden() != options.hidden()) {
-                        minecraft.gui.hud.toggle();
+                    if (ClientGui.hudHidden(minecraft) != options.hidden()) {
+                        ClientGui.toggleHud(minecraft);
                     }
                 });
                 server.runOnServer(minecraftServer -> {
@@ -374,11 +376,11 @@ public final class DistantHorizonsClientGameTest implements FabricClientGameTest
         for (int side : new int[]{-1, 1}) {
             BlockPos landmark = center.offset(-24, -1, side * 256);
             fill(level, landmark.offset(0, 0, -24), 96, 1, 48, Blocks.STONE.defaultBlockState());
-            fill(level, landmark.offset(0, 1, -4), 96, 40, 8, Blocks.CONCRETE.pick(color).defaultBlockState());
+            fill(level, landmark.offset(0, 1, -4), 96, 40, 8, MinecraftDyedItems.concreteBlock(color).defaultBlockState());
             if (color == DyeColor.MAGENTA) {
                 BlockPos background = center.offset(150, -1, side * 256);
                 fill(level, background.offset(0, 0, -24), 96, 1, 48, Blocks.STONE.defaultBlockState());
-                fill(level, background.offset(0, 1, -4), 96, 40, 8, Blocks.CONCRETE.pick(color).defaultBlockState());
+                fill(level, background.offset(0, 1, -4), 96, 40, 8, MinecraftDyedItems.concreteBlock(color).defaultBlockState());
             }
         }
     }
@@ -402,7 +404,7 @@ public final class DistantHorizonsClientGameTest implements FabricClientGameTest
                 assertTrue(DistantHorizonsTap.failure() == null, DistantHorizonsTap.failure());
                 assertTrue(minecraft.level.dimension().equals(Level.OVERWORLD) && minecraft.player.level() == minecraft.level
                     && minecraft.player.position().distanceTo(new Vec3(1.5D, 70.0D, 26.5D)) < 0.1D
-                    && minecraft.gameRenderer.mainCamera().position().distanceTo(minecraft.player.getEyePosition()) < 0.1D,
+                    && ClientRenderAccess.mainCamera(minecraft).position().distanceTo(minecraft.player.getEyePosition()) < 0.1D,
                     "DH source reference has the wrong physical player or client level");
             });
             BufferedImage reference = DhComposedImageAssertions.read(context.takeScreenshot("dh-source-floor-reference"));
@@ -443,9 +445,9 @@ public final class DistantHorizonsClientGameTest implements FabricClientGameTest
                                      ResourceKey<Level> dimension, Vec3 position, BlockPos wall) {
         TestServerContext server = world.getServer();
         teleport(context, server, player, dimension, position, 180.0F);
-        world.getConnection().waitForChunksDownload();
-        world.getConnection().waitForChunksRender();
-        BlockState expected = Blocks.CONCRETE.pick(dimension.equals(Level.OVERWORLD) ? DyeColor.MAGENTA : DyeColor.CYAN).defaultBlockState();
+        FabricConnection.of(world).waitForChunksDownload();
+        FabricConnection.of(world).waitForChunksRender();
+        BlockState expected = MinecraftDyedItems.concreteBlock(dimension.equals(Level.OVERWORLD) ? DyeColor.MAGENTA : DyeColor.CYAN).defaultBlockState();
         CompletableFuture<?> lighting = server.computeOnServer(minecraftServer -> {
             ServerLevel level = Objects.requireNonNull(minecraftServer.getLevel(dimension));
             List<CompletableFuture<?>> tasks = new ArrayList<>();
@@ -962,7 +964,7 @@ public final class DistantHorizonsClientGameTest implements FabricClientGameTest
             context.runOnClient(minecraft -> {
                 DistantHorizonsTap.checkpoint("timeout-" + label);
                 System.err.println("DH timeout client level=" + minecraft.level.dimension() + " player=" + minecraft.player.position()
-                    + " camera=" + minecraft.gameRenderer.mainCamera().position() + " yaw=" + minecraft.player.getYRot());
+                    + " camera=" + ClientRenderAccess.mainCamera(minecraft).position() + " yaw=" + minecraft.player.getYRot());
             });
             context.takeScreenshot("dh-timeout-" + label);
             throw failure;
@@ -1000,7 +1002,7 @@ public final class DistantHorizonsClientGameTest implements FabricClientGameTest
     private static void assertHidden(Minecraft client) {
         assertTrue(Boolean.getBoolean("automator.hidden") && NativeTestWindow.hiddenAndUnfocused(client), "DH acceptance requires a hidden, unfocused native GPU client");
         assertTrue(NativeTestWindow.mouseReleased(client), "DH acceptance grabbed the desktop mouse");
-        assertTrue(client.gameRenderer.mainRenderTarget().width == 1920 && client.gameRenderer.mainRenderTarget().height == 1080,
+        assertTrue(ClientRenderAccess.mainTarget(client).width == 1920 && ClientRenderAccess.mainTarget(client).height == 1080,
             "DH acceptance requires a native 1920x1080 GPU framebuffer");
     }
 

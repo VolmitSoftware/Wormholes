@@ -31,7 +31,7 @@ java {
     }
 }
 
-List<String> sharedClientTestClasses = [
+List<String> forgeCoveredClientTestClasses = [
     'art.arcane.wormholes.modded.mixin.client.GravityCameraScaleHistoryTest',
     'art.arcane.wormholes.modded.client.NativeLightNotificationTest',
     'art.arcane.wormholes.modded.client.ClientSeamlessTravelTest',
@@ -39,6 +39,7 @@ List<String> sharedClientTestClasses = [
     'art.arcane.wormholes.modded.client.ClientSeamlessTravelScaleTest',
     'art.arcane.wormholes.modded.client.ClientSeamlessTravelGravityTest',
     'art.arcane.wormholes.modded.client.ClientCrossingViewTest',
+    'art.arcane.wormholes.modded.client.ClientCameraRollApplyTest',
     'art.arcane.wormholes.modded.client.ClientParticleLevelsTest',
     'art.arcane.wormholes.modded.client.ClientLevelSwitchProbeTest',
     'art.arcane.wormholes.modded.client.ClientEntityCrossingsTest',
@@ -53,6 +54,8 @@ List<String> sharedClientTestClasses = [
     'art.arcane.wormholes.modded.client.ResourceArgumentGrammarTest',
     'art.arcane.wormholes.modded.client.ClientVanillaPortalEffectTest',
     'art.arcane.wormholes.modded.client.render.dh.DhMainRenderContextTest',
+    'art.arcane.wormholes.modded.client.render.iris.IrisDimensionPreloadStateTest',
+    'art.arcane.wormholes.modded.client.render.iris.IrisCapturedStateTest',
     'art.arcane.wormholes.modded.client.render.sodium.SodiumArrivalSectionTest'
 ]
 
@@ -63,7 +66,7 @@ sourceSets {
     }
     test {
         java.srcDir('../modded-common/src/test/java')
-        for (String testClass : sharedClientTestClasses) {
+        for (String testClass : forgeCoveredClientTestClasses) {
             java.exclude(testClass.replace('.', '/') + '.java')
         }
     }
@@ -183,7 +186,7 @@ neoForge {
 
 tasks.named('test').configure {
     useJUnitPlatform()
-    for (String testClass : sharedClientTestClasses) {
+    for (String testClass : forgeCoveredClientTestClasses) {
         exclude(testClass.replace('.', '/') + '*.class')
     }
     inputs.files(file('../../optics/src/test/resources/block-state-goldens.txt'),
@@ -193,25 +196,6 @@ tasks.named('test').configure {
     filter {
         excludeTestsMatching('art.arcane.wormholes.modded.client.render.PortalSectionMeshTest')
     }
-}
-
-evaluationDependsOn(':clientTestHost')
-Project clientTestHost = project(':clientTestHost')
-TaskProvider<Test> sharedClientTest = tasks.register('sharedClientTest', Test) {
-    group = 'verification'
-    dependsOn(clientTestHost.tasks.named('testClasses'))
-    testClassesDirs = clientTestHost.sourceSets.test.output.classesDirs
-    classpath = clientTestHost.sourceSets.test.runtimeClasspath
-    filter {
-        for (String testClass : sharedClientTestClasses) {
-            includeTestsMatching(testClass)
-        }
-    }
-    shouldRunAfter(tasks.named('test'))
-}
-
-tasks.named('check').configure {
-    dependsOn(sharedClientTest)
 }
 
 tasks.withType(JavaCompile).configureEach {

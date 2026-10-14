@@ -33,6 +33,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.ItemLore;
 import net.minecraft.world.item.component.TooltipDisplay;
+import net.minecraft.world.item.DyeColor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -634,7 +635,7 @@ final class MinecraftLanguageEditor implements AutoCloseable {
             MessageArgument.untrusted("plugin", MinecraftLanguageSwitcher.PLUGIN),
             MessageArgument.untrusted("section", section(player, view))).plain();
         ItemStack[] contents = new ItemStack[SIZE];
-        ItemStack filler = formattedItem(Items.STAINED_GLASS_PANE.black(), ComponentText.literal(" "), List.of());
+        ItemStack filler = formattedItem(MinecraftDyedItems.pane(DyeColor.BLACK), ComponentText.literal(" "), List.of());
         for (int slot = 0; slot < SIZE; slot++) {
             contents[slot] = filler.copy();
         }

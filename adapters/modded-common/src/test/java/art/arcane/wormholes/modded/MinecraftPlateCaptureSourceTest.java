@@ -26,7 +26,6 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.entity.BlockEntityTypes;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.LevelChunkSection;
@@ -269,7 +268,7 @@ public class MinecraftPlateCaptureSourceTest extends MinecraftTestBase {
 
     private static BlockEntity sign(BlockPos position) {
         BlockEntity entity = mock(BlockEntity.class);
-        doReturn(BlockEntityTypes.SIGN).when(entity).getType();
+        doReturn(MinecraftTestAccess.signType()).when(entity).getType();
         when(entity.getBlockPos()).thenReturn(position);
         CompoundTag tag = new CompoundTag();
         tag.putString("front_text", "hello");

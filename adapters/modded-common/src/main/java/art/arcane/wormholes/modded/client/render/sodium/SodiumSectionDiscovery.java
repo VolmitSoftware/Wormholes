@@ -6,6 +6,7 @@
  */
 package art.arcane.wormholes.modded.client.render.sodium;
 
+import art.arcane.wormholes.modded.client.render.PortalShaderScope;
 import net.caffeinemc.mods.sodium.client.render.SodiumWorldRenderer;
 import net.caffeinemc.mods.sodium.client.render.chunk.RenderSectionManager;
 import net.caffeinemc.mods.sodium.client.render.viewport.Viewport;
@@ -42,7 +43,7 @@ public final class SodiumSectionDiscovery {
 
     public static void terrainReady(SodiumWorldRenderer renderer, Viewport viewport, FogParameters fog) {
         SodiumPortalRenderer world = (SodiumPortalRenderer) renderer;
-        if (!world.wormholes$discoveryArmed() || SodiumLayers.slot() != 0) {
+        if (!world.wormholes$discoveryArmed() || SodiumLayers.slot() != 0 || PortalShaderScope.shadowPass()) {
             return;
         }
         RenderSectionManager sections = world.wormholes$sections();

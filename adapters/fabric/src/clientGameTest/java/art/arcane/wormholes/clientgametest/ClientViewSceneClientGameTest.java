@@ -11,9 +11,7 @@ import art.arcane.wormholes.portal.rtp.RtpRotationMode;
 import art.arcane.wormholes.portal.rtp.RtpSettings;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
-import net.fabricmc.fabric.api.client.gametest.v1.context.TestDedicatedServerConnection;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestDedicatedServerContext;
-import net.fabricmc.fabric.api.client.gametest.v1.context.TestServerConnection;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestServerContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestSingleplayerContext;
 import net.minecraft.core.BlockPos;
@@ -23,7 +21,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.level.ParticleStatus;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySpawnReason;
-import net.minecraft.world.entity.EntityTypes;
+import art.arcane.wormholes.modded.MinecraftEntityTypes;
 import net.minecraft.world.entity.decoration.ArmorStand;
 import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.block.Blocks;
@@ -43,12 +41,12 @@ public final class ClientViewSceneClientGameTest implements FabricClientGameTest
     private static final int NEGOTIATION_TIMEOUT_TICKS = 400;
     private static final int STREAM_TIMEOUT_TICKS = 600;
     private static final int LIGHT_POLL_TICKS = 10;
-    private static final BlockPos SOURCE_MIN = new BlockPos(0, 70, 20);
-    private static final BlockPos DESTINATION_MIN = new BlockPos(0, 70, 220);
-    private static final BlockPos RTP_MIN = new BlockPos(12, 70, 20);
-    private static final BlockPos STAND = new BlockPos(1, 70, 216);
-    private static final BlockPos GLOWSTONE = new BlockPos(0, 72, 214);
-    private static final BlockPos LIT_CELL = new BlockPos(1, 71, 215);
+    private static final BlockPos SOURCE_MIN = new BlockPos(600_000, 70, 20);
+    private static final BlockPos DESTINATION_MIN = new BlockPos(600_000, 70, 220);
+    private static final BlockPos RTP_MIN = new BlockPos(600_012, 70, 20);
+    private static final BlockPos STAND = new BlockPos(600_001, 70, 216);
+    private static final BlockPos GLOWSTONE = new BlockPos(600_000, 72, 214);
+    private static final BlockPos LIT_CELL = new BlockPos(600_001, 71, 215);
     private static final int OFFSET_Z = SOURCE_MIN.getZ() - DESTINATION_MIN.getZ();
     private static final double POSITION_TOLERANCE = 0.1D;
 
@@ -56,15 +54,15 @@ public final class ClientViewSceneClientGameTest implements FabricClientGameTest
     public void runTest(ClientGameTestContext context) {
         ClientViewTestConfig.enable();
         try (TestSingleplayerContext singleplayer = context.worldBuilder().create()) {
-            runScenario(context, singleplayer.getConnection(), singleplayer.getServer(), "singleplayer");
+            runScenario(context, FabricConnection.of(singleplayer), singleplayer.getServer(), "singleplayer");
         }
         try (TestDedicatedServerContext server = context.worldBuilder().createServer(ClientViewTestConfig.serverProperties());
-             TestDedicatedServerConnection connection = server.connect()) {
+             FabricConnection connection = FabricConnection.connect(server)) {
             runScenario(context, connection, server, "dedicated");
         }
     }
 
-    private void runScenario(ClientGameTestContext context, TestServerConnection connection, TestServerContext server, String label) {
+    private void runScenario(ClientGameTestContext context, FabricConnection connection, TestServerContext server, String label) {
         connection.waitForChunksDownload();
         connection.waitForChunksRender();
         context.waitFor(client -> WormholesClient.instance() != null && WormholesClient.instance().session().active(), NEGOTIATION_TIMEOUT_TICKS);
@@ -174,7 +172,7 @@ public final class ClientViewSceneClientGameTest implements FabricClientGameTest
         assertTrue(failures.isEmpty(), String.join("; ", failures));
     }
 
-    private static void assertDestinationLight(ClientGameTestContext context, TestServerContext server, TestServerConnection connection) {
+    private static void assertDestinationLight(ClientGameTestContext context, TestServerContext server, FabricConnection connection) {
         int destination = server.computeOnServer(minecraftServer -> connection.getServerLevel().getBrightness(LightLayer.BLOCK, LIT_CELL));
         assertTrue(destination > 0, "the destination glowstone produced no light");
         context.waitFor(client -> NativeClientViewAssertions.light(NativeClientViewAssertions.portalKey(SOURCE_MIN), LIT_CELL, false) == destination,
@@ -187,9 +185,9 @@ public final class ClientViewSceneClientGameTest implements FabricClientGameTest
         ServerLevel level = server.overworld();
         fill(level, SOURCE_MIN.offset(-2, -1, 1), 6, 1, 8, Blocks.STONE.defaultBlockState());
         fill(level, DESTINATION_MIN.offset(-6, -2, -10), 13, 8, 10, Blocks.STONE.defaultBlockState());
-        fill(level, new BlockPos(0, 70, 213), 3, 3, 7, Blocks.AIR.defaultBlockState());
+        fill(level, DESTINATION_MIN.offset(0, 0, -7), 3, 3, 7, Blocks.AIR.defaultBlockState());
         level.setBlockAndUpdate(GLOWSTONE, Blocks.GLOWSTONE.defaultBlockState());
-        ArmorStand stand = EntityTypes.ARMOR_STAND.create(level, EntitySpawnReason.COMMAND);
+        ArmorStand stand = MinecraftEntityTypes.ARMOR_STAND.create(level, EntitySpawnReason.COMMAND);
         assertTrue(stand != null, "armour stand could not be created");
         stand.snapTo(STAND.getX() + 0.5D, STAND.getY(), STAND.getZ() + 0.5D, 0.0F, 0.0F);
         stand.setNoGravity(true);

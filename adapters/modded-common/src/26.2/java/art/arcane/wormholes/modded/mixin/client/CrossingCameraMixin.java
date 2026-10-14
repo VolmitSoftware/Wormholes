@@ -7,6 +7,7 @@ package art.arcane.wormholes.modded.mixin.client;
 
 import art.arcane.wormholes.modded.client.ClientCrossingView;
 import art.arcane.wormholes.modded.client.WormholesClient;
+import art.arcane.wormholes.modded.client.ClientRenderAccess;
 import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import net.minecraft.client.Camera;
@@ -31,7 +32,7 @@ public abstract class CrossingCameraMixin {
     private void wormholes$crossing(DeltaTracker tracker, CallbackInfo callback) {
         WormholesClient client = WormholesClient.instance();
         if (client != null) {
-            client.seamlessTravel().frame(Minecraft.getInstance().gameRenderer.mainCamera(), tracker);
+            client.seamlessTravel().frame(ClientRenderAccess.mainCamera(Minecraft.getInstance()), tracker);
         }
     }
 
@@ -56,7 +57,7 @@ public abstract class CrossingCameraMixin {
         try {
             view.within(() -> original.call(tracker, renderLevel));
         } finally {
-            view.finish(Minecraft.getInstance().gameRenderer.mainCamera());
+            view.finish(ClientRenderAccess.mainCamera(Minecraft.getInstance()));
         }
     }
 

@@ -96,7 +96,7 @@ public final class MinecraftPortalMenuGameTest {
             helper.assertTrue(outsider.player().containerMenu == outsider.player().inventoryMenu, "Denied player received a portal window");
             runtime.server().getCommands().performPrefixedCommand(owner.player().createCommandSourceStack(), "wormholes edit " + source.getId());
             homeTitle = MinecraftPortalText.router(runtime, source, true);
-            window(4, Items.STAINED_GLASS_PANE.gray(), homeTitle, "home");
+            window(4, MinecraftDyedItems.pane(DyeColor.GRAY), homeTitle, "home");
             int accessible = 0;
             for (MinecraftPortal portal : runtime.portals().snapshot()) {
                 accessible += portal.getType() == PortalType.GATEWAY ? 0 : 1;
@@ -130,7 +130,7 @@ public final class MinecraftPortalMenuGameTest {
         });
         step(() -> {
             helper.assertTrue(source.getProjectionMode() == ProjectionMode.OFF, "Inventory transfer changed portal state");
-            window(5, Items.STAINED_GLASS_PANE.gray(), homeTitle, "settings");
+            window(5, MinecraftDyedItems.pane(DyeColor.GRAY), homeTitle, "settings");
         });
     }
 
@@ -186,7 +186,7 @@ public final class MinecraftPortalMenuGameTest {
             slot(30, Items.NAME_TAG, true);
             click(40);
         });
-        step(() -> window(4, Items.STAINED_GLASS_PANE.gray(), homeTitle, "home after settings back"));
+        step(() -> window(4, MinecraftDyedItems.pane(DyeColor.GRAY), homeTitle, "home after settings back"));
     }
 
     private void quality() {
@@ -194,7 +194,7 @@ public final class MinecraftPortalMenuGameTest {
         step(() -> click(14));
         step(() -> {
             helper.assertTrue(source.getNetworkViewQuality() == NetworkViewQuality.STANDARD.next(), "Stream quality did not cycle in place");
-            window(5, Items.STAINED_GLASS_PANE.gray(), homeTitle, "settings after quality cycle");
+            window(5, MinecraftDyedItems.pane(DyeColor.GRAY), homeTitle, "settings after quality cycle");
             runtime.portals().update(owner.player(), source.getId(), portal -> portal.setNetworkViewQuality(NetworkViewQuality.values()[NetworkViewQuality.CUSTOM.ordinal() - 1]));
             owner.player().closeContainer();
             runtime.menus().open(owner.player(), source.getId());
@@ -206,7 +206,7 @@ public final class MinecraftPortalMenuGameTest {
         });
         step(() -> {
             helper.assertTrue(source.getNetworkViewQuality() == NetworkViewQuality.CUSTOM, "Stream quality did not reach custom");
-            window(6, Items.STAINED_GLASS_PANE.gray(), homeTitle, "custom settings");
+            window(6, MinecraftDyedItems.pane(DyeColor.GRAY), homeTitle, "custom settings");
             slot(19, Items.SPYGLASS, false);
             slot(21, Items.CLOCK, false);
             slot(23, Items.ENDER_EYE, false);
@@ -230,14 +230,14 @@ public final class MinecraftPortalMenuGameTest {
         });
         step(() -> {
             helper.assertTrue(source.getNetworkViewQuality() == NetworkViewQuality.CUSTOM.next(), "Stream quality did not leave custom");
-            window(5, Items.STAINED_GLASS_PANE.gray(), homeTitle, "settings after leaving custom");
+            window(5, MinecraftDyedItems.pane(DyeColor.GRAY), homeTitle, "settings after leaving custom");
         });
     }
 
     private void advanced() {
         step(() -> chest().clicked(14, 0, ContainerInput.QUICK_MOVE, owner.player()));
         step(() -> {
-            window(5, Items.STAINED_GLASS_PANE.black(), homeTitle, "advanced settings");
+            window(5, MinecraftDyedItems.pane(DyeColor.BLACK), homeTitle, "advanced settings");
             named(4, Items.COMPARATOR, WormholesMessages.PORTAL_MENU_ADVANCED_SETTINGS);
             slot(10, Items.SPYGLASS, false);
             slot(12, Items.CLOCK, false);
@@ -258,7 +258,7 @@ public final class MinecraftPortalMenuGameTest {
         });
         step(() -> {
             helper.assertTrue(source.getNetworkViewFallbackBlock().equals("minecraft:stone"), "Network fallback prompt did not apply");
-            window(5, Items.STAINED_GLASS_PANE.gray(), homeTitle, "settings after fallback prompt");
+            window(5, MinecraftDyedItems.pane(DyeColor.GRAY), homeTitle, "settings after fallback prompt");
             chest().clicked(14, 0, ContainerInput.QUICK_MOVE, owner.player());
         });
         step(() -> {
@@ -284,31 +284,31 @@ public final class MinecraftPortalMenuGameTest {
     private void cosmetics() {
         step(() -> click(15));
         step(() -> {
-            window(5, Items.STAINED_GLASS_PANE.gray(), homeTitle, "settings for cosmetics");
+            window(5, MinecraftDyedItems.pane(DyeColor.GRAY), homeTitle, "settings for cosmetics");
             click(18);
         });
         step(() -> {
             helper.assertTrue(source.isBlackoutBackground(), "Blackout toggle did not apply");
-            slot(18, Items.CONCRETE.pick(DyeColor.BLACK), true);
+            slot(18, MinecraftDyedItems.concrete(DyeColor.BLACK), true);
             chest().clicked(18, 1, ContainerInput.PICKUP, owner.player());
         });
         step(() -> {
-            window(4, Items.STAINED_GLASS_PANE.black(), homeTitle, "blackout colours");
-            slot(9, Items.CONCRETE.pick(DyeColor.WHITE), false);
-            slot(16, Items.CONCRETE.pick(DyeColor.GRAY), false);
-            slot(18, Items.CONCRETE.pick(DyeColor.LIGHT_GRAY), false);
-            slot(25, Items.CONCRETE.pick(DyeColor.BLACK), true);
+            window(4, MinecraftDyedItems.pane(DyeColor.BLACK), homeTitle, "blackout colours");
+            slot(9, MinecraftDyedItems.concrete(DyeColor.WHITE), false);
+            slot(16, MinecraftDyedItems.concrete(DyeColor.GRAY), false);
+            slot(18, MinecraftDyedItems.concrete(DyeColor.LIGHT_GRAY), false);
+            slot(25, MinecraftDyedItems.concrete(DyeColor.BLACK), true);
             named(31, Items.ARROW, WormholesMessages.PORTAL_MENU_BACK_SETTINGS);
             click(11);
         });
         step(() -> {
             helper.assertTrue(source.getBlackoutColor() == BlackoutColor.values()[2], "Blackout palette did not apply");
-            slot(11, Items.CONCRETE.pick(DyeColor.MAGENTA), true);
-            slot(4, Items.CONCRETE.pick(DyeColor.MAGENTA), false);
+            slot(11, MinecraftDyedItems.concrete(DyeColor.MAGENTA), true);
+            slot(4, MinecraftDyedItems.concrete(DyeColor.MAGENTA), false);
             click(31);
         });
         step(() -> {
-            window(5, Items.STAINED_GLASS_PANE.gray(), homeTitle, "settings after blackout");
+            window(5, MinecraftDyedItems.pane(DyeColor.GRAY), homeTitle, "settings after blackout");
             click(24);
         });
         step(() -> {
@@ -316,19 +316,19 @@ public final class MinecraftPortalMenuGameTest {
             chest().clicked(24, 1, ContainerInput.PICKUP, owner.player());
         });
         step(() -> {
-            window(5, Items.STAINED_GLASS_PANE.black(), homeTitle, "ambient colours");
+            window(5, MinecraftDyedItems.pane(DyeColor.BLACK), homeTitle, "ambient colours");
             slot(4, Items.FIREWORK_STAR, false);
-            slot(11, Items.DYE.red(), false);
-            slot(13, Items.DYE.green(), false);
-            slot(15, Items.DYE.blue(), false);
-            slot(18, Items.WOOL.pick(DyeColor.WHITE), false);
-            slot(34, Items.WOOL.pick(DyeColor.BLACK), false);
+            slot(11, MinecraftDyedItems.dye(DyeColor.RED), false);
+            slot(13, MinecraftDyedItems.dye(DyeColor.GREEN), false);
+            slot(15, MinecraftDyedItems.dye(DyeColor.BLUE), false);
+            slot(18, MinecraftDyedItems.wool(DyeColor.WHITE), false);
+            slot(34, MinecraftDyedItems.wool(DyeColor.BLACK), false);
             named(40, Items.ARROW, WormholesMessages.PORTAL_MENU_BACK_SETTINGS);
             click(18);
         });
         step(() -> {
             helper.assertTrue(source.getAmbientColor() == (DyeColor.WHITE.getTextureDiffuseColor() & 0xFFFFFF), "Ambient dye option did not apply");
-            slot(18, Items.WOOL.pick(DyeColor.WHITE), true);
+            slot(18, MinecraftDyedItems.wool(DyeColor.WHITE), true);
             chest().clicked(11, 1, ContainerInput.PICKUP, owner.player());
             helper.assertTrue(((source.getAmbientColor() >> 16) & 0xFF) == ((DyeColor.WHITE.getTextureDiffuseColor() >> 16) & 0xFF) - 8,
                 "Ambient red channel did not step down");
@@ -336,7 +336,7 @@ public final class MinecraftPortalMenuGameTest {
         });
         step(() -> chest().clicked(26, 1, ContainerInput.PICKUP, owner.player()));
         step(() -> {
-            window(3, Items.STAINED_GLASS_PANE.cyan(), homeTitle, "surface skins");
+            window(3, MinecraftDyedItems.pane(DyeColor.CYAN), homeTitle, "surface skins");
             slot(4, Items.GLASS, false);
             named(12, Items.GLASS, WormholesMessages.PORTAL_MENU_SURFACE_SKIN_GLASS);
             named(14, Items.BARRIER, WormholesMessages.PORTAL_MENU_SURFACE_SKIN_CLEAR);
@@ -356,7 +356,7 @@ public final class MinecraftPortalMenuGameTest {
             closePermissions();
             click(22);
         });
-        step(() -> window(5, Items.STAINED_GLASS_PANE.gray(), homeTitle, "settings after skins"));
+        step(() -> window(5, MinecraftDyedItems.pane(DyeColor.GRAY), homeTitle, "settings after skins"));
     }
 
     private void extensionsAndCosts() {
@@ -376,14 +376,14 @@ public final class MinecraftPortalMenuGameTest {
                 synthetic.add(new RecordingEntry("synthetic-" + index, index == 0, index != 10, clicks));
             }
             new MinecraftPortalExtensionsMenu(runtime.menus(), synthetic).open(owner.player(), source);
-            window(4, Items.STAINED_GLASS_PANE.cyan(), homeTitle, "more settings");
+            window(4, MinecraftDyedItems.pane(DyeColor.CYAN), homeTitle, "more settings");
             named(4, Items.COMPARATOR, WormholesMessages.PORTAL_MENU_EXTENSIONS);
             for (int index = 0; index < 10; index++) {
                 named(9 + index, Items.PAPER, WormholesMessages.PORTAL_MENU_DELETE);
             }
             slot(9, Items.PAPER, true);
             slot(10, Items.PAPER, false);
-            helper.assertTrue(item(19).is(Items.STAINED_GLASS_PANE.cyan()), "Hidden more settings entry was shown");
+            helper.assertTrue(item(19).is(MinecraftDyedItems.pane(DyeColor.CYAN)), "Hidden more settings entry was shown");
             named(31, Items.ARROW, WormholesMessages.PORTAL_MENU_BACK_SETTINGS);
             chest().clicked(9, 1, ContainerInput.PICKUP, owner.player());
             chest().clicked(10, 0, ContainerInput.QUICK_MOVE, owner.player());
@@ -395,11 +395,11 @@ public final class MinecraftPortalMenuGameTest {
             click(31);
         });
         step(() -> {
-            window(5, Items.STAINED_GLASS_PANE.gray(), homeTitle, "settings after more settings");
+            window(5, MinecraftDyedItems.pane(DyeColor.GRAY), homeTitle, "settings after more settings");
             click(32);
         });
         step(() -> {
-            window(4, Items.STAINED_GLASS_PANE.brown(), homeTitle, "travel cost");
+            window(4, MinecraftDyedItems.pane(DyeColor.BROWN), homeTitle, "travel cost");
             slot(4, Items.CHEST, false);
             named(11, Items.FEATHER, WormholesMessages.PORTAL_MENU_COST_MODE_FREE);
             helper.assertTrue(item(11).hasFoil(), "Free cost mode was not marked active");
@@ -407,13 +407,13 @@ public final class MinecraftPortalMenuGameTest {
             boolean currency = runtime.costs().currencyAvailable();
             named(15, currency ? Items.EMERALD : Items.REDSTONE,
                 currency ? WormholesMessages.PORTAL_MENU_COST_MODE_VAULT : WormholesMessages.PORTAL_MENU_COST_MODE_VAULT_UNAVAILABLE);
-            named(21, Items.STAINED_GLASS_PANE.white(), WormholesMessages.PORTAL_MENU_COST_FREE_DETAIL);
-            named(23, Items.STAINED_GLASS_PANE.brown(), WormholesMessages.PORTAL_MENU_COST_SECONDARY_EMPTY);
+            named(21, MinecraftDyedItems.pane(DyeColor.WHITE), WormholesMessages.PORTAL_MENU_COST_FREE_DETAIL);
+            named(23, MinecraftDyedItems.pane(DyeColor.BROWN), WormholesMessages.PORTAL_MENU_COST_SECONDARY_EMPTY);
             named(31, Items.ARROW, WormholesMessages.PORTAL_MENU_BACK_SETTINGS);
             click(31);
         });
         step(() -> {
-            window(5, Items.STAINED_GLASS_PANE.gray(), homeTitle, "settings after cost");
+            window(5, MinecraftDyedItems.pane(DyeColor.GRAY), homeTitle, "settings after cost");
             owner.player().closeContainer();
         });
         step(() -> helper.assertTrue(owner.player().containerMenu == owner.player().inventoryMenu, "Settings window reopened after closing"));
@@ -429,7 +429,7 @@ public final class MinecraftPortalMenuGameTest {
             click(24);
         });
         step(() -> {
-            window(3, Items.STAINED_GLASS_PANE.gray(), homeTitle, "mode");
+            window(3, MinecraftDyedItems.pane(DyeColor.GRAY), homeTitle, "mode");
             slot(4, Items.BEACON, false);
             slot(9, Items.ENDER_EYE, true);
             slot(11, Items.ENDER_PEARL, false);
@@ -443,7 +443,7 @@ public final class MinecraftPortalMenuGameTest {
             owner.player().closeContainer();
         });
         step(() -> {
-            window(4, Items.STAINED_GLASS_PANE.gray(), homeTitle, "home reopened after mode close");
+            window(4, MinecraftDyedItems.pane(DyeColor.GRAY), homeTitle, "home reopened after mode close");
             click(24);
         });
         step(() -> click(11));
@@ -499,7 +499,7 @@ public final class MinecraftPortalMenuGameTest {
             click(22);
         });
         step(() -> {
-            window(3, Items.STAINED_GLASS_PANE.blue(), homeTitle, "orientation");
+            window(3, MinecraftDyedItems.pane(DyeColor.BLUE), homeTitle, "orientation");
             slot(4, Items.COMPASS, false);
             slot(10, Items.COMPASS, false);
             slot(12, Items.TARGET, false);
@@ -510,7 +510,7 @@ public final class MinecraftPortalMenuGameTest {
         });
         step(() -> {
             helper.assertTrue(source.getDirection() == originalFrame.getNormal().reverse(), "Flip face control did not reverse portal");
-            window(4, Items.STAINED_GLASS_PANE.gray(), homeTitle, "home after flip");
+            window(4, MinecraftDyedItems.pane(DyeColor.GRAY), homeTitle, "home after flip");
             click(22);
         });
         step(() -> click(12));
@@ -557,20 +557,20 @@ public final class MinecraftPortalMenuGameTest {
         step(() -> {
             helper.assertTrue(source.getName().equals("Renamed through native chat"), "Validated chat hook did not consume rename input");
             homeTitle = MinecraftPortalText.router(runtime, source, true);
-            window(4, Items.STAINED_GLASS_PANE.gray(), homeTitle, "home after rename");
+            window(4, MinecraftDyedItems.pane(DyeColor.GRAY), homeTitle, "home after rename");
             click(20);
         });
         step(() -> broadcast(owner.player(), MinecraftPortalText.localized(owner.player(), WormholesMessages.PORTAL_INPUT_CANCEL)));
         step(() -> {
             helper.assertTrue(source.getName().equals("Renamed through native chat"), "Cancelled rename changed the portal");
-            window(4, Items.STAINED_GLASS_PANE.gray(), homeTitle, "home after cancelled rename");
+            window(4, MinecraftDyedItems.pane(DyeColor.GRAY), homeTitle, "home after cancelled rename");
         });
     }
 
     private void destinations() {
         step(() -> click(11));
         step(() -> {
-            window(6, Items.STAINED_GLASS_PANE.gray(), homeTitle, "destinations");
+            window(6, MinecraftDyedItems.pane(DyeColor.GRAY), homeTitle, "destinations");
             named(47, Items.COMPARATOR, null);
             named(49, Items.PAPER, null);
             helper.assertTrue(!item(51).is(Items.ENDER_EYE), "Link and return offered without a link");
@@ -582,7 +582,7 @@ public final class MinecraftPortalMenuGameTest {
             runtime.menus().open(owner.player(), source.getId());
             homeTitle = MinecraftPortalText.router(runtime, source, true);
             helper.assertTrue(homeTitle.endsWith(destination.getName()), "Home title did not route to the linked destination");
-            window(4, Items.STAINED_GLASS_PANE.gray(), homeTitle, "linked home");
+            window(4, MinecraftDyedItems.pane(DyeColor.GRAY), homeTitle, "linked home");
             click(11);
         });
         step(() -> {
@@ -613,10 +613,10 @@ public final class MinecraftPortalMenuGameTest {
             click(11);
         });
         step(() -> {
-            window(6, Items.STAINED_GLASS_PANE.gray(), homeTitle, "destinations before close");
+            window(6, MinecraftDyedItems.pane(DyeColor.GRAY), homeTitle, "destinations before close");
             owner.player().closeContainer();
         });
-        step(() -> window(4, Items.STAINED_GLASS_PANE.gray(), homeTitle, "home reopened after destination close"));
+        step(() -> window(4, MinecraftDyedItems.pane(DyeColor.GRAY), homeTitle, "home reopened after destination close"));
     }
 
     private void gateway() {
@@ -628,7 +628,7 @@ public final class MinecraftPortalMenuGameTest {
             click(11);
         });
         step(() -> {
-            window(3, Items.STAINED_GLASS_PANE.black(), homeTitle, "gateway pairing");
+            window(3, MinecraftDyedItems.pane(DyeColor.BLACK), homeTitle, "gateway pairing");
             slot(4, Items.RESPAWN_ANCHOR, false);
             named(4, Items.RESPAWN_ANCHOR, WormholesMessages.PORTAL_MENU_GATEWAY_UNPAIRED);
             named(11, Items.PAPER, WormholesMessages.PORTAL_MENU_GATEWAY_EXPORT);
@@ -642,11 +642,11 @@ public final class MinecraftPortalMenuGameTest {
             broadcast(owner.player(), MinecraftPortalText.localized(owner.player(), WormholesMessages.PORTAL_INPUT_CANCEL));
         });
         step(() -> {
-            window(3, Items.STAINED_GLASS_PANE.black(), homeTitle, "gateway pairing after cancelled import");
+            window(3, MinecraftDyedItems.pane(DyeColor.BLACK), homeTitle, "gateway pairing after cancelled import");
             click(22);
         });
         step(() -> {
-            window(4, Items.STAINED_GLASS_PANE.gray(), homeTitle, "home after gateway back");
+            window(4, MinecraftDyedItems.pane(DyeColor.GRAY), homeTitle, "home after gateway back");
             owner.player().closeContainer();
             runtime.portals().update(owner.player(), source.getId(), portal -> portal.setType(PortalType.PORTAL));
         });
@@ -655,10 +655,10 @@ public final class MinecraftPortalMenuGameTest {
     private void selection() {
         step(() -> {
             runtime.server().getCommands().performPrefixedCommand(owner.player().createCommandSourceStack(), "wormholes edit");
-            window(6, Items.STAINED_GLASS_PANE.gray(), "", "portal selection");
+            window(6, MinecraftDyedItems.pane(DyeColor.GRAY), "", "portal selection");
             click(find(source.getName()));
         });
-        step(() -> window(4, Items.STAINED_GLASS_PANE.gray(), homeTitle, "home from selection"));
+        step(() -> window(4, MinecraftDyedItems.pane(DyeColor.GRAY), homeTitle, "home from selection"));
     }
 
     private void revocation() {

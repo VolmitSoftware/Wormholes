@@ -24,6 +24,7 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.item.DyeColor;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
@@ -165,7 +166,7 @@ public final class MinecraftCostGameTest {
 
     private void costWindow() {
         helper.assertTrue(player.containerMenu instanceof MinecraftWindowMenu menu && menu.getRowCount() == 4, "Cost window was not a four-row window");
-        helper.assertTrue(item(0).is(Items.STAINED_GLASS_PANE.brown()), "Cost window did not use the brown pane");
+        helper.assertTrue(item(0).is(MinecraftDyedItems.pane(DyeColor.BROWN)), "Cost window did not use the brown pane");
         helper.assertTrue(item(4).is(Items.CHEST) && item(31).is(Items.ARROW), "Cost window placard or back control missing");
     }
 

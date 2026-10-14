@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded.client.render.stencil;
 
+import art.arcane.wormholes.modded.client.ClientRenderAccess;
 import com.mojang.blaze3d.buffers.Std140Builder;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.renderpearl.api.buffers.GpuBuffer;
@@ -79,7 +80,7 @@ final class LayerResources implements AutoCloseable {
         if (features == null) {
             buffers = new RenderBuffers(0);
             features = new FeatureRenderDispatcher(buffers, minecraft.getModelManager(), minecraft.getAtlasManager(), minecraft.font,
-                minecraft.gameRenderer.gameRenderState());
+                ClientRenderAccess.gameState(minecraft));
         }
         return features;
     }

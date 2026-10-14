@@ -4,6 +4,7 @@ import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.frame.Similarity;
+import art.arcane.optics.stream.EnvironmentState;
 import art.arcane.optics.math.Face;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.shape.ShapeDescriptor;
@@ -674,7 +675,7 @@ public class IrisViewPipelinePathTest extends MinecraftTestBase {
     @Test
     public void unchangedStreamedTailMovesOnlyToItsExactAdmittedPath() {
         try (PhysicalCrossing fixture = new PhysicalCrossing()) {
-            IrisMeshCamera stream = new IrisMeshCamera(List.of(mirrorGeometry(32)), OVERWORLD, "example:remote", Similarity.IDENTITY);
+            IrisMeshCamera stream = new IrisMeshCamera(List.of(mirrorGeometry(32)), OVERWORLD, "example:remote", EnvironmentState.Skybox.OVERWORLD, Similarity.IDENTITY);
             IrisViewPipelinePath source = stream.append(fixture.source.cameras(), OVERWORLD);
             fixture.cross();
             fixture.frame(true);
@@ -682,7 +683,7 @@ public class IrisViewPipelinePathTest extends MinecraftTestBase {
             assertEquals(3, target.cameras().size());
             assertEquals(source.cameras().getLast(), target.cameras().getLast());
             IrisMeshCamera changed = new IrisMeshCamera(List.of(mirrorGeometry(48), mirrorGeometry(32)), OVERWORLD,
-                "example:remote", Similarity.IDENTITY);
+                "example:remote", EnvironmentState.Skybox.OVERWORLD, Similarity.IDENTITY);
             IrisViewPipelinePath differentAncestry = changed.append(target.cameras().subList(0, 2), OVERWORLD);
             AtomicInteger created = new AtomicInteger();
             IrisViewPipelineCache<IrisViewPipelinePath, AtomicInteger> cache = new IrisViewPipelineCache<>(

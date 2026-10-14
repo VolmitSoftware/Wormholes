@@ -15,7 +15,6 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.phys.Vec3;
@@ -100,8 +99,8 @@ public final class MinecraftLookContinuityGameTest {
                 helper.assertTrue(look.subtract(exit).length() < 0.02D, "The floor-to-wall arrival " + look + " does not look along the exit " + exit);
                 helper.assertTrue(runtime.portals().link(player, source.getId(), upward.getId()), "The floor portal did not relink upward");
                 placePlayer(FLOOR_Y + 40.0D, 0.0F, 0.0F);
-                spawned.add(spawn(EntityTypes.ARMOR_STAND, 0.0D));
-                spawned.add(spawn(EntityTypes.PIG, 1.0D));
+                spawned.add(spawn(MinecraftEntityTypes.ARMOR_STAND, 0.0D));
+                spawned.add(spawn(MinecraftEntityTypes.PIG, 1.0D));
             }).thenIdle(2).thenExecute(() -> {
                 for (Entity entity : spawned) {
                     LivingEntity living = (LivingEntity) entity;

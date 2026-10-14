@@ -8,6 +8,7 @@ import art.arcane.optics.frame.Similarity;
 import art.arcane.optics.math.Face;
 import art.arcane.optics.shape.ShapeDescriptor;
 import art.arcane.wormholes.portal.ApertureKind;
+import art.arcane.wormholes.modded.client.ClientRenderAccess;
 import art.arcane.wormholes.modded.client.render.PortalGpuMesh;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import net.minecraft.client.Camera;
@@ -77,7 +78,7 @@ public class PortalStreamedScopeTest extends MinecraftTestBase {
         Field gameRenderer = Minecraft.class.getDeclaredField("gameRenderer");
         gameRenderer.setAccessible(true);
         gameRenderer.set(minecraft, game);
-        when(game.mainRenderTarget()).thenReturn(main);
+        when(ClientRenderAccess.mainTarget(minecraft)).thenReturn(main);
         deferredField.set(renderer, deferred);
         cameraField.set(renderer, outerCamera);
         try (MockedStatic<Minecraft> client = mockStatic(Minecraft.class);

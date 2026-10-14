@@ -15,7 +15,9 @@ public abstract class IrisPortalProgramStageScopeMixin {
     private static ProgramBuilder wormholes$programStages(String name, String vertex, String geometry, String fragment,
                                                           ImmutableSet<Integer> reservedUnits, Operation<ProgramBuilder> original) {
         try (IrisShaderStages.Scope stages = IrisShaderStages.open()) {
-            return original.call(name, vertex, geometry, fragment, reservedUnits);
+            ProgramBuilder builder = original.call(name, vertex, geometry, fragment, reservedUnits);
+            stages.complete();
+            return builder;
         }
     }
 
@@ -23,7 +25,9 @@ public abstract class IrisPortalProgramStageScopeMixin {
     private static ProgramBuilder wormholes$computeStages(String name, String source, ImmutableSet<Integer> reservedUnits,
                                                           Operation<ProgramBuilder> original) {
         try (IrisShaderStages.Scope stages = IrisShaderStages.open()) {
-            return original.call(name, source, reservedUnits);
+            ProgramBuilder builder = original.call(name, source, reservedUnits);
+            stages.complete();
+            return builder;
         }
     }
 }

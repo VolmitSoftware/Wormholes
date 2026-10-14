@@ -13,6 +13,7 @@ import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Face;
 import art.arcane.optics.shape.ShapeDescriptor;
 import art.arcane.wormholes.portal.ApertureKind;
+import art.arcane.wormholes.modded.client.ClientRenderAccess;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.pipeline.TextureTarget;
 import com.mojang.renderpearl.api.buffers.GpuBuffer;
@@ -184,7 +185,7 @@ public class ClientPortalRendererTest extends MinecraftTestBase {
         TextureTarget main = mock(TextureTarget.class);
         main.width = 1920;
         main.height = 1080;
-        when(minecraft.gameRenderer.mainRenderTarget()).thenReturn(main);
+        when(ClientRenderAccess.mainTarget(minecraft)).thenReturn(main);
         set(renderer, "models", minecraft.getModelManager().getBlockStateModelSet());
         set(renderer, "ambientOcclusion", false);
         set(renderer, "pipelines", mock(PortalPipelines.class));

@@ -18,7 +18,6 @@ import net.minecraft.server.network.ServerGamePacketListenerImpl;
 import net.minecraft.world.clock.ClockNetworkState;
 import net.minecraft.world.clock.WorldClock;
 import net.minecraft.world.entity.EntitySpawnReason;
-import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -150,7 +149,7 @@ public final class MinecraftPocketRulesGameTest {
     }
 
     private void assertSpawn(boolean allowed) {
-        Mob mob = EntityTypes.PIG.create(level, EntitySpawnReason.COMMAND);
+        Mob mob = MinecraftEntityTypes.PIG.create(level, EntitySpawnReason.COMMAND);
         options.helper().assertTrue(mob != null, "Could not create pocket spawn probe");
         mob.setPos(options.player().position());
         boolean added = level.addFreshEntity(mob);

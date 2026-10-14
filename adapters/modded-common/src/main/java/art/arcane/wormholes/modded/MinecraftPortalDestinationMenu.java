@@ -13,6 +13,7 @@ import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.portal.RemotePortal;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.DyeColor;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -94,7 +95,7 @@ final class MinecraftPortalDestinationMenu {
                 window = menus.window(viewer, portal);
                 window.onClosed(closed -> menus.runEntity(viewer, () -> menus.uiOpenPortalMenu(viewer, portal)));
             }
-            window.setDecorator(Items.STAINED_GLASS_PANE.gray());
+            window.setDecorator(MinecraftDyedItems.pane(DyeColor.GRAY));
             window.setViewportHeight(6);
         }
 

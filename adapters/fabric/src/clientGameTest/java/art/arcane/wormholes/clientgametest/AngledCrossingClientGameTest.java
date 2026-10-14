@@ -52,13 +52,13 @@ public final class AngledCrossingClientGameTest implements FabricClientGameTest 
     public void runTest(ClientGameTestContext context) {
         ClientViewTestConfig.enableSeamless(true);
         try (TestSingleplayerContext world = context.worldBuilder().create()) {
-            SeamlessClient client = new FabricSeamlessClient(context, world.getConnection());
+            SeamlessClient client = new FabricSeamlessClient(context, FabricConnection.of(world));
             SeamlessScenario.join(client);
             SeamlessScenario.assertSeamlessNegotiated(client);
             assertTrue(client.computeOnClient(minecraft -> WormholesClient.instance().session().nativeSelected()),
                 "angled crossings require native singleplayer portal travel");
             for (Face normal : new Face[]{Face.N, Face.S, Face.E, Face.W}) {
-                Route route = world.getServer().computeOnServer(server -> build(server, world.getConnection().getServerPlayer(), normal));
+                Route route = world.getServer().computeOnServer(server -> build(server, FabricConnection.of(world).getServerPlayer(), normal));
                 try {
                     for (boolean front : new boolean[]{true, false}) {
                         roundTrip(client, world, route, front, 45.0D, 0.65D, 0.0D, "oblique");
@@ -77,7 +77,7 @@ public final class AngledCrossingClientGameTest implements FabricClientGameTest 
                     client.releaseForward();
                     world.getServer().runOnServer(server -> {
                         WormholesModRuntime runtime = runtime(server);
-                        ServerPlayer player = world.getConnection().getServerPlayer();
+                        ServerPlayer player = FabricConnection.of(world).getServerPlayer();
                         runtime.portals().remove(player, route.source());
                         runtime.portals().remove(player, route.destination());
                     });
@@ -256,7 +256,7 @@ public final class AngledCrossingClientGameTest implements FabricClientGameTest 
 
     private static void place(SeamlessClient client, TestSingleplayerContext world, Vec3 start, float yaw, float pitch) {
         world.getServer().runOnServer(server -> {
-            ServerPlayer player = world.getConnection().getServerPlayer();
+            ServerPlayer player = FabricConnection.of(world).getServerPlayer();
             player.teleportTo(server.overworld(), start.x, start.y, start.z, Set.of(), yaw, pitch, false);
             player.setDeltaMovement(Vec3.ZERO);
         });
@@ -302,7 +302,7 @@ public final class AngledCrossingClientGameTest implements FabricClientGameTest 
 
     private static String authorityDiagnostic(TestSingleplayerContext world, Route route) {
         return world.getServer().computeOnServer(server -> {
-            ServerPlayer player = world.getConnection().getServerPlayer();
+            ServerPlayer player = FabricConnection.of(world).getServerPlayer();
             WormholesModRuntime runtime = runtime(server);
             MinecraftPortal source = runtime.portals().get(route.source());
             MinecraftPortal destination = runtime.portals().get(route.destination());
@@ -412,7 +412,7 @@ public final class AngledCrossingClientGameTest implements FabricClientGameTest 
         client.waitTicks(3);
         Snapshot local = client.computeOnClient(AngledCrossingClientGameTest::snapshot);
         Snapshot authority = world.getServer().computeOnServer(server -> {
-            ServerPlayer player = world.getConnection().getServerPlayer();
+            ServerPlayer player = FabricConnection.of(world).getServerPlayer();
             return new Snapshot(player.position(), player.getYRot(), player.getXRot(), player.level().dimension().identifier().toString(),
                 System.identityHashCode(player), System.identityHashCode(player.level()));
         });

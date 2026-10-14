@@ -3,11 +3,15 @@ package art.arcane.wormholes.modded.mixin.client;
 import art.arcane.wormholes.modded.client.render.iris.IrisShaderStages;
 import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import net.irisshaders.iris.gl.shader.ShaderType;
+import net.irisshaders.iris.gl.shader.ShaderCompileException;
+import org.lwjgl.opengl.GL20C;
 import net.irisshaders.iris.pipeline.programs.PartialShader;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Pseudo;
+import org.spongepowered.asm.mixin.injection.At;
 
 @Pseudo
 @Mixin(targets = "net.irisshaders.iris.pipeline.programs.ShaderCreator", remap = false)
@@ -18,6 +22,9 @@ public abstract class IrisPortalShaderStagesMixin {
                                                         Operation<PartialShader> original) {
         try (IrisShaderStages.Scope stages = IrisShaderStages.open()) {
             PartialShader shader = original.call(name, vertex, geometry, tessControl, tessEval, fragment, format, extended);
+            if (GL20C.glGetProgrami(shader.program(), GL20C.GL_LINK_STATUS) != GL20C.GL_TRUE) {
+                throw new ShaderCompileException(name, GL20C.glGetProgramInfoLog(shader.program()));
+            }
             stages.linked(shader.program());
             return new PartialShader(shader.program(), -1, -1, -1, -1, -1);
         }
@@ -26,5 +33,15 @@ public abstract class IrisPortalShaderStagesMixin {
     @WrapMethod(method = "createShader")
     private static int wormholes$reuseStage(String name, ShaderType type, String source, Operation<Integer> original) {
         return IrisShaderStages.acquire(type.id, source, () -> original.call(name, type, source));
+    }
+
+    @WrapOperation(method = "createShader", at = @At(value = "INVOKE", target = "Lcom/mojang/blaze3d/opengl/GlStateManager;glCreateShader(I)I"))
+    private static int wormholes$allocatedStage(int type, Operation<Integer> original) {
+        return IrisShaderStages.createdShader(original.call(type));
+    }
+
+    @WrapOperation(method = "link", at = @At(value = "INVOKE", target = "Lcom/mojang/blaze3d/opengl/GlStateManager;glCreateProgram()I"))
+    private static int wormholes$allocatedProgram(Operation<Integer> original) {
+        return IrisShaderStages.createdProgram(original.call());
     }
 }

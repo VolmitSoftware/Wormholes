@@ -53,7 +53,7 @@ public final class PortalShaderScope implements AutoCloseable {
         return RENDER_DEPTH.get() > 0;
     }
 
-    static boolean shadowPass() {
+    public static boolean shadowPass() {
         return IRIS.bindings() != null && IrisApi.getInstance().isRenderingShadowPass();
     }
 

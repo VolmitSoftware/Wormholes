@@ -17,7 +17,8 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.EntitySpawnReason;
-import net.minecraft.world.entity.EntityTypes;
+import art.arcane.wormholes.modded.MinecraftEntityTypes;
+import art.arcane.wormholes.modded.client.ClientRenderAccess;
 import net.minecraft.world.entity.animal.sheep.Sheep;
 import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.level.GameType;
@@ -50,26 +51,26 @@ public final class RecursivePortalEntitiesClientGameTest implements FabricClient
     public void runTest(ClientGameTestContext context) {
         ClientViewTestConfig.enableSeamless(true);
         try (TestSingleplayerContext world = context.worldBuilder().create()) {
-            SeamlessClient client = new FabricSeamlessClient(context, world.getConnection());
+            SeamlessClient client = new FabricSeamlessClient(context, FabricConnection.of(world));
             SeamlessScenario.join(client);
             SeamlessScenario.assertSeamlessNegotiated(client);
             ClientOptions options = context.computeOnClient(minecraft -> new ClientOptions(minecraft.options.getCameraType(),
-                minecraft.gui.hud.isHidden(), WormholesClient.instance().config().clientRecursion));
+                ClientGui.hudHidden(minecraft), WormholesClient.instance().config().clientRecursion));
             List<UUID> portals = new ArrayList<>(2);
-            Scene scene = world.getServer().computeOnServer(server -> build(server, world.getConnection().getServerPlayer(), portals));
+            Scene scene = world.getServer().computeOnServer(server -> build(server, FabricConnection.of(world).getServerPlayer(), portals));
             try {
                 context.runOnClient(minecraft -> {
                     assertHidden(minecraft);
                     minecraft.options.setCameraType(CameraType.FIRST_PERSON);
                     WormholesClient.instance().config().clientRecursion = true;
-                    if (!minecraft.gui.hud.isHidden()) {
-                        minecraft.gui.hud.toggle();
+                    if (!ClientGui.hudHidden(minecraft)) {
+                        ClientGui.toggleHud(minecraft);
                     }
                 });
                 context.waitFor(minecraft -> minecraft.player.position().distanceTo(POSITION) < 0.05D
                     && minecraft.level.getEntity(scene.mobId()) != null, TIMEOUT_TICKS);
                 context.getInput().lookAt(180.0F, 0.0F);
-                world.getConnection().waitForChunksRender();
+                FabricConnection.of(world).waitForChunksRender();
                 context.waitFor(minecraft -> armed(scene.portals()), TIMEOUT_TICKS);
                 context.runOnClient(minecraft -> PortalEntityRenderTap.start());
                 context.waitTicks(SETTLE_TICKS);
@@ -105,7 +106,7 @@ public final class RecursivePortalEntitiesClientGameTest implements FabricClient
                 assertTrue(mobPixels > Math.max(1.0D, mobNoise * 3.0D + 0.5D),
                     "the submitted recursive mob produced no visible GPU body: pixel difference " + mobPixels + ", idle noise " + mobNoise);
                 int[] withoutMob = capture(context, playerCrop);
-                world.getServer().runOnServer(server -> world.getConnection().getServerPlayer()
+                world.getServer().runOnServer(server -> FabricConnection.of(world).getServerPlayer()
                     .addEffect(new MobEffectInstance(MobEffects.INVISIBILITY, 600, 0, true, false)));
                 context.waitFor(minecraft -> minecraft.player.isInvisible(), TIMEOUT_TICKS);
                 context.waitTicks(SETTLE_TICKS);
@@ -121,12 +122,12 @@ public final class RecursivePortalEntitiesClientGameTest implements FabricClient
                     PortalEntityRenderTap.stop();
                     minecraft.options.setCameraType(options.camera());
                     WormholesClient.instance().config().clientRecursion = options.recursion();
-                    if (minecraft.gui.hud.isHidden() != options.hidden()) {
-                        minecraft.gui.hud.toggle();
+                    if (ClientGui.hudHidden(minecraft) != options.hidden()) {
+                        ClientGui.toggleHud(minecraft);
                     }
                 });
                 world.getServer().runOnServer(server -> {
-                    ServerPlayer player = world.getConnection().getServerPlayer();
+                    ServerPlayer player = FabricConnection.of(world).getServerPlayer();
                     player.removeEffect(MobEffects.INVISIBILITY);
                     server.overworld().getEntity(scene.mob()).discard();
                     for (UUID portal : portals) {
@@ -167,7 +168,7 @@ public final class RecursivePortalEntitiesClientGameTest implements FabricClient
         portals.add(second.getId());
         runtime.nexus().pair(player, first, second, true);
         assertTrue(second.getId().equals(first.getDestinationId()) && first.getId().equals(second.getDestinationId()), "hallway portals are not reciprocal");
-        Sheep mob = Objects.requireNonNull(EntityTypes.SHEEP.create(level, EntitySpawnReason.COMMAND));
+        Sheep mob = Objects.requireNonNull(MinecraftEntityTypes.SHEEP.create(level, EntitySpawnReason.COMMAND));
         mob.setColor(DyeColor.MAGENTA);
         mob.setNoAi(true);
         mob.setNoGravity(true);
@@ -260,7 +261,7 @@ public final class RecursivePortalEntitiesClientGameTest implements FabricClient
         assertTrue(NativeTestWindow.hiddenAndUnfocused(client),
             "recursive entity acceptance requires a hidden, unfocused native GPU window");
         assertTrue(NativeTestWindow.mouseReleased(client), "recursive entity acceptance grabbed the desktop mouse");
-        assertTrue(client.gameRenderer.mainRenderTarget().width >= 640 && client.gameRenderer.mainRenderTarget().height >= 360,
+        assertTrue(ClientRenderAccess.mainTarget(client).width >= 640 && ClientRenderAccess.mainTarget(client).height >= 360,
             "recursive entity acceptance requires a native GPU framebuffer");
     }
 

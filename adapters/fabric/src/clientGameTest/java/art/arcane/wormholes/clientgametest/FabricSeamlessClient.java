@@ -1,7 +1,6 @@
 package art.arcane.wormholes.clientgametest;
 
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
-import net.fabricmc.fabric.api.client.gametest.v1.context.TestServerConnection;
 import net.minecraft.client.Minecraft;
 
 import java.util.function.Consumer;
@@ -10,9 +9,9 @@ import java.util.function.Predicate;
 
 final class FabricSeamlessClient implements SeamlessClient {
     private final ClientGameTestContext context;
-    private final TestServerConnection connection;
+    private final FabricConnection connection;
 
-    FabricSeamlessClient(ClientGameTestContext context, TestServerConnection connection) {
+    FabricSeamlessClient(ClientGameTestContext context, FabricConnection connection) {
         this.context = context;
         this.connection = connection;
     }
@@ -70,6 +69,11 @@ final class FabricSeamlessClient implements SeamlessClient {
     @Override
     public void moveCursor(double deltaX, double deltaY) {
         NativeSeamlessInput.moveCursor(this, deltaX, deltaY);
+    }
+
+    @Override
+    public void resizeWindow(int width, int height) {
+        context.getInput().resizeWindow(width, height);
     }
 
     @Override

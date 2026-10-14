@@ -23,7 +23,6 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.DyeColor;
-import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.dimension.BuiltinDimensionTypes;
 
@@ -131,7 +130,7 @@ public final class MinecraftViewPlates {
 
     public static BlockState blackoutState(MinecraftPortal portal, ContentView<BlockState, BlockState> destView) {
         BlockState state = BuiltInRegistries.BLOCK.getOptional(Identifier.parse(portal.getBlackoutColor().blockState()))
-            .orElse(Blocks.CONCRETE.pick(DyeColor.BLACK)).defaultBlockState();
+            .orElse(MinecraftDyedItems.concreteBlock(DyeColor.BLACK)).defaultBlockState();
         if (!FogPlatePolicy.applies(FidelitySettings.fogPlate, atmosphereMode(portal)) || !(destView instanceof MinecraftProjectionWorldView local)) {
             return state;
         }

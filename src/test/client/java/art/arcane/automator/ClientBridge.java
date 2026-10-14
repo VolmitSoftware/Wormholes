@@ -181,7 +181,7 @@ public final class ClientBridge {
     }
 
     public static boolean hasCursor() {
-        Screen screen = Minecraft.getInstance().gui.screen();
+        Screen screen = ClientGui.screen(Minecraft.getInstance());
         return cursorScreen != null && screen == cursorScreen;
     }
 
@@ -236,7 +236,7 @@ public final class ClientBridge {
         if (!client.getLevelSource().levelExists(name)) {
             throw new IllegalArgumentException("World does not exist: " + name);
         }
-        client.createWorldOpenFlows().openWorld(name, () -> client.gui.setScreen(new TitleScreen()));
+        client.createWorldOpenFlows().openWorld(name, () -> ClientGui.setScreen(client, new TitleScreen()));
     }
 
     private static JsonObject execute(Minecraft client, JsonObject input) {
@@ -265,7 +265,7 @@ public final class ClientBridge {
                 pendingText = null;
                 release(client);
                 client.disconnectWithSavingScreen();
-                client.gui.setScreen(new TitleScreen());
+                ClientGui.setScreen(client, new TitleScreen());
             }
             case "quit" -> {
                 release(client);
@@ -273,8 +273,8 @@ public final class ClientBridge {
             }
             case "fit-window" -> LiveCapture.fitWindow(client, integer(input, "width"), integer(input, "height"));
             case "hud" -> {
-                if (client.gui.hud.isHidden() == input.get("visible").getAsBoolean()) {
-                    client.gui.hud.toggle();
+                if (ClientGui.hudHidden(client) == input.get("visible").getAsBoolean()) {
+                    ClientGui.toggleHud(client);
                 }
             }
             case "look" -> look(client, input);
@@ -284,14 +284,14 @@ public final class ClientBridge {
             case "click" -> click(client, text(input, "key"));
             case "slot" -> selectSlot(client, integer(input, "index"));
             case "chat" -> chat(client, input);
-            case "clear-chat" -> client.gui.hud.getChat().clearMessages(false);
+            case "clear-chat" -> ClientGui.chat(client).clearMessages(false);
             case "pause-screen" -> {
                 requirePlayer(client);
                 client.pauseGame(false);
             }
             case "chat-screen" -> {
                 requirePlayer(client);
-                client.gui.setScreen(new ChatScreen(input.has("text") ? text(input, "text") : "", true));
+                ClientGui.setScreen(client, new ChatScreen(input.has("text") ? text(input, "text") : "", true));
             }
             case "gui" -> gui(client, input);
             case "sign-text" -> signText(client, input);
@@ -303,9 +303,9 @@ public final class ClientBridge {
                 pendingWindow = null;
                 pendingGui = null;
                 pendingText = null;
-                client.gui.setScreen(null);
+                ClientGui.setScreen(client, null);
             }
-            case "screenshot" -> screenshot(client.gameRenderer.mainRenderTarget(), text(input, "name"));
+            case "screenshot" -> screenshot(ClientGui.mainTarget(client), text(input, "name"));
             case "portal-screenshot" -> screenshot(WormholesStatus.portalTarget(integer(input, "portalKey")), text(input, "name"));
             case "portal-block" -> {
                 JsonObject result = snapshot(client);
@@ -498,7 +498,7 @@ public final class ClientBridge {
     }
 
     private static Screen requireScreen(Minecraft client, JsonObject input) {
-        Screen screen = client.gui.screen();
+        Screen screen = ClientGui.screen(client);
         if (screen == null) {
             throw new IllegalStateException("No GUI screen is open");
         }
@@ -540,7 +540,7 @@ public final class ClientBridge {
         }
         pendingGui = null;
         try {
-            if (client.gui.screen() != pending.screen()) {
+            if (ClientGui.screen(client) != pending.screen()) {
                 throw new IllegalStateException("GUI changed during cursor travel");
             }
             MouseButtonEvent event = new MouseButtonEvent(cursorX(), cursorY(), new MouseButtonInfo(GuiMouseButton.fromProtocol(pending.button()), 0));
@@ -580,7 +580,7 @@ public final class ClientBridge {
             return;
         }
         try {
-            if (client.gui.screen() != pending.screen) {
+            if (ClientGui.screen(client) != pending.screen) {
                 throw new IllegalStateException("GUI changed during text input");
             }
             if (pending.index >= pending.plan.text().length()) {
@@ -640,7 +640,7 @@ public final class ClientBridge {
             throw new IllegalArgumentException("Only explicit IPv4 loopback servers are accepted");
         }
         JoinMultiplayerScreen screen = new JoinMultiplayerScreen(new TitleScreen());
-        client.gui.setScreen(screen);
+        ClientGui.setScreen(client, screen);
         while (screen.getServers().size() > 0) {
             screen.getServers().remove(screen.getServers().get(0));
         }
@@ -677,7 +677,7 @@ public final class ClientBridge {
 
     private static AbstractContainerScreen<?> requireContainer(Minecraft client, JsonObject input) {
         requirePlayer(client);
-        if (!(client.gui.screen() instanceof AbstractContainerScreen<?> screen)) {
+        if (!(ClientGui.screen(client) instanceof AbstractContainerScreen<?> screen)) {
             throw new IllegalStateException("No container screen is open");
         }
         if (input.has("containerId") && integer(input, "containerId") != client.player.containerMenu.containerId) {
@@ -733,7 +733,7 @@ public final class ClientBridge {
         pendingWindow = null;
         try {
             requirePlayer(client);
-            if (client.gui.screen() != pending.screen() || client.player.containerMenu.containerId != pending.containerId()) {
+            if (ClientGui.screen(client) != pending.screen() || client.player.containerMenu.containerId != pending.containerId()) {
                 throw new IllegalStateException("Container changed during cursor travel");
             }
             if (pending.action().equals("hover")) {
@@ -835,13 +835,14 @@ public final class ClientBridge {
         result.add("frameMetrics", frameMetrics());
         result.add("crossingCosts", CrossingCosts.snapshot());
         result.addProperty("dimension", client.level == null ? null : client.level.dimension().identifier().toString());
-        result.addProperty("frameWidth", client.gameRenderer.mainRenderTarget().width);
-        result.addProperty("frameHeight", client.gameRenderer.mainRenderTarget().height);
+        result.addProperty("frameWidth", ClientGui.mainTarget(client).width);
+        result.addProperty("frameHeight", ClientGui.mainTarget(client).height);
+        result.addProperty("declaredFrameSize", System.getProperty("automator.declaredFrameSize"));
         result.addProperty("paused", client.isPaused());
         result.addProperty("hiddenRenderer", HiddenRenderer.enabled());
         result.addProperty("masterVolume", client.options.getSoundSourceVolume(SoundSource.MASTER));
         result.addProperty("windowActive", client.isWindowActive());
-        result.addProperty("hudVisible", !client.gui.hud.isHidden());
+        result.addProperty("hudVisible", !ClientGui.hudHidden(client));
         result.addProperty("firstPerson", client.options.getCameraType().isFirstPerson());
         NativeClientPlatform.appendWindowState(result, client);
         result.addProperty("bridgeAttackActive", hasActiveAttackLease());
@@ -859,7 +860,7 @@ public final class ClientBridge {
         cursor.addProperty("x", client.mouseHandler.getScaledXPos(client.getWindow()));
         cursor.addProperty("y", client.mouseHandler.getScaledYPos(client.getWindow()));
         result.add("cursor", cursor);
-        Screen screen = client.gui.screen();
+        Screen screen = ClientGui.screen(client);
         result.addProperty("screen", screen == null ? null : screen.getClass().getName());
         result.addProperty("screenTitle", screen == null ? null : screen.getTitle().getString());
         if (screen != null) {

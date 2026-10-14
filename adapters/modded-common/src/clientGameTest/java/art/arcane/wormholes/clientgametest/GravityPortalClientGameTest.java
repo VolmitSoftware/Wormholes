@@ -21,6 +21,7 @@ import art.arcane.wormholes.network.client.TravelMessage;
 import art.arcane.wormholes.portal.AmbientParticleStyle;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.transit.OrientationPolicy;
+import art.arcane.wormholes.modded.client.ClientRenderAccess;
 import net.minecraft.client.Camera;
 import net.minecraft.client.CameraType;
 import net.minecraft.client.Minecraft;
@@ -126,7 +127,7 @@ public final class GravityPortalClientGameTest {
         SeamlessScenario.assertSeamlessNegotiated(client);
         Scene scene = server.compute(nativeServer -> build(nativeServer, server.player(), new SceneSettings(4, ScaleRule.OFF)));
         NativeDemoCapture capture = new NativeDemoCapture(client);
-        boolean hiddenHud = client.computeOnClient(minecraft -> minecraft.gui.hud.isHidden());
+        boolean hiddenHud = client.computeOnClient(minecraft -> ClientGui.hudHidden(minecraft));
         boolean recording = false;
         try {
             client.runOnClient(minecraft -> {
@@ -135,8 +136,8 @@ public final class GravityPortalClientGameTest {
                 minecraft.options.bobView().set(false);
                 minecraft.options.fovEffectScale().set(0.0D);
                 minecraft.options.fov().set(70);
-                if (!minecraft.gui.hud.isHidden()) {
-                    minecraft.gui.hud.toggle();
+                if (!ClientGui.hudHidden(minecraft)) {
+                    ClientGui.toggleHud(minecraft);
                 }
             });
             prepare(client, server);
@@ -175,7 +176,7 @@ public final class GravityPortalClientGameTest {
                 && Math.abs(authoritative.scale() - 1.0D) < 1.0E-6D, "Gravity demo server state diverged: " + authoritative);
             client.runOnClient(minecraft -> {
                 hidden(minecraft);
-                assertTrue(minecraft.options.getCameraType() == camera && minecraft.gui.hud.isHidden(),
+                assertTrue(minecraft.options.getCameraType() == camera && ClientGui.hudHidden(minecraft),
                     "Gravity demo changed its camera or showed the HUD");
                 assertTrue(TravelTap.respawns() == 0 && TravelTap.positions() == 0 && TravelTap.accepts() == 0
                     && !TravelTap.loadingScreenShown() && !TravelTap.clientUnloaded(),
@@ -193,8 +194,8 @@ public final class GravityPortalClientGameTest {
                 input.accept(new FlightControls(false, false));
                 client.releaseForward();
                 client.runOnClient(minecraft -> {
-                    if (minecraft.gui.hud.isHidden() != hiddenHud) {
-                        minecraft.gui.hud.toggle();
+                    if (ClientGui.hudHidden(minecraft) != hiddenHud) {
+                        ClientGui.toggleHud(minecraft);
                     }
                 });
                 client.restoreDefaultGameOptions();
@@ -297,7 +298,7 @@ public final class GravityPortalClientGameTest {
         BlockPos support = BlockPos.containing(APPROACH).below();
         return new Preparation(snapshot(minecraft.player), minecraft.player.getAbilities().flying, minecraft.player.getAbilities().mayfly,
             minecraft.level.hasChunkAt(support), minecraft.level.getBlockState(support).toString(), null,
-            minecraft.gui.screen() == null ? "none" : minecraft.gui.screen().getClass().getSimpleName(), minecraft.player.tickCount);
+            ClientGui.screen(minecraft) == null ? "none" : ClientGui.screen(minecraft).getClass().getSimpleName(), minecraft.player.tickCount);
     }
 
     private static Preparation serverPreparation(ServerPlayer player) {
@@ -506,7 +507,7 @@ public final class GravityPortalClientGameTest {
                 "Gravity floor overlay check did not test ordinary grounded physics outside the portal: " + stage);
             assertTrue(!NativeTestWindow.hasBlockOverlay(minecraft),
                 "A clear gravity-relative eye produced a native block overlay at " + stage + ": feet=" + minecraft.player.position()
-                    + ", eye=" + minecraft.player.getEyePosition() + ", camera=" + minecraft.gameRenderer.mainCamera().position());
+                    + ", eye=" + minecraft.player.getEyePosition() + ", camera=" + ClientRenderAccess.mainCamera(minecraft).position());
         });
     }
 
@@ -535,7 +536,7 @@ public final class GravityPortalClientGameTest {
     }
 
     private static void validateCamera(Minecraft minecraft, GravityFrame gravity, CameraType type) {
-        Camera camera = minecraft.gameRenderer.mainCamera();
+        Camera camera = ClientRenderAccess.mainCamera(minecraft);
         float partialTicks = camera.getCameraEntityPartialTicks(minecraft.getDeltaTracker());
         float yaw = minecraft.player.getViewYRot(partialTicks);
         float pitch = minecraft.player.getViewXRot(partialTicks);

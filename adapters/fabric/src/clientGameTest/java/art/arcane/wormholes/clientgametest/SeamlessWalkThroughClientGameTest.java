@@ -11,12 +11,12 @@ public final class SeamlessWalkThroughClientGameTest implements FabricClientGame
     public void runTest(ClientGameTestContext context) {
         ClientViewTestConfig.enableSeamless(true);
         try (TestSingleplayerContext singleplayer = context.worldBuilder().adjustSettings(settings -> settings.setAllowCommands(true)).create()) {
-            SeamlessWalkThrough.netherPortal(new FabricSeamlessClient(context, singleplayer.getConnection()),
-                new FabricSeamlessServer(singleplayer.getServer(), singleplayer.getConnection()), "walk-nether-portal", TRIPS);
+            SeamlessWalkThrough.netherPortal(new FabricSeamlessClient(context, FabricConnection.of(singleplayer)),
+                new FabricSeamlessServer(singleplayer.getServer(), FabricConnection.of(singleplayer)), "walk-nether-portal", TRIPS);
         }
         try (TestSingleplayerContext singleplayer = context.worldBuilder().adjustSettings(settings -> settings.setAllowCommands(true)).create()) {
-            SeamlessWalkThrough.framePortal(new FabricSeamlessClient(context, singleplayer.getConnection()),
-                new FabricSeamlessServer(singleplayer.getServer(), singleplayer.getConnection()), "walk-frame-portal", TRIPS);
+            SeamlessWalkThrough.framePortal(new FabricSeamlessClient(context, FabricConnection.of(singleplayer)),
+                new FabricSeamlessServer(singleplayer.getServer(), FabricConnection.of(singleplayer)), "walk-frame-portal", TRIPS);
         }
     }
 }

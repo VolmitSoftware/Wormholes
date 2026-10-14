@@ -77,9 +77,25 @@ final class CommandSeamlessServer implements SeamlessServer {
     }
 
     @Override
+    public List<UUID> buildStencilResize() {
+        return RouteCodec.ids(client.command("wormholesqa stencilresize", "stencilresize", REPLY_TIMEOUT_TICKS).trim());
+    }
+
+    @Override
+    public void removePortals(List<UUID> portals) {
+        client.command("wormholesqa remove " + String.join(" ", portals.stream().map(UUID::toString).toList()), "removed", REPLY_TIMEOUT_TICKS);
+    }
+
+    @Override
     public boolean chunkEverLoaded(ResourceKey<Level> level, int chunkX, int chunkZ) {
         return Boolean.parseBoolean(client.command("wormholesqa loaded " + RouteCodec.level(level) + " " + chunkX + " " + chunkZ, "loaded",
             REPLY_TIMEOUT_TICKS).trim());
+    }
+
+    @Override
+    public Vec3 playerPosition() {
+        String[] values = client.command("wormholesqa position", "position", REPLY_TIMEOUT_TICKS).trim().split(",");
+        return new Vec3(Double.parseDouble(values[0]), Double.parseDouble(values[1]), Double.parseDouble(values[2]));
     }
 
     @Override

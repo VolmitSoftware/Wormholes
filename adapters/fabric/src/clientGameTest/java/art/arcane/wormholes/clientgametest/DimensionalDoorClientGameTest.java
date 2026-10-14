@@ -66,14 +66,14 @@ public final class DimensionalDoorClientGameTest implements FabricClientGameTest
 
     private static void paired(ClientGameTestContext context, ResourceKey<Level> destinationLevel, boolean blocked) {
         try (TestSingleplayerContext world = context.worldBuilder().adjustSettings(settings -> settings.setAllowCommands(true)).create()) {
-            SeamlessClient client = new FabricSeamlessClient(context, world.getConnection());
+            SeamlessClient client = new FabricSeamlessClient(context, FabricConnection.of(world));
             SeamlessScenario.join(client);
             SeamlessScenario.assertSeamlessNegotiated(client);
             List<ItemStack> items = unpack(context, world);
             DoorItemIdentity source = place(context, world, Level.OVERWORLD, SOURCE, items.getFirst());
             DoorItemIdentity destination = place(context, world, destinationLevel, DESTINATION, items.get(1));
             world.getServer().runOnServer(server -> {
-                ServerPlayer player = world.getConnection().getServerPlayer();
+                ServerPlayer player = FabricConnection.of(world).getServerPlayer();
                 ServerLevel level = Objects.requireNonNull(server.getLevel(destinationLevel));
                 assertTrue(!level.getBlockState(DESTINATION).getValue(DoorBlock.OPEN), "paired destination was already open before source interaction");
                 if (blocked) {
@@ -114,7 +114,7 @@ public final class DimensionalDoorClientGameTest implements FabricClientGameTest
 
     private static List<ItemStack> unpack(ClientGameTestContext context, TestSingleplayerContext world) {
         world.getServer().runOnServer(server -> {
-            ServerPlayer player = world.getConnection().getServerPlayer();
+            ServerPlayer player = FabricConnection.of(world).getServerPlayer();
             assertAdministrator(server, player);
             LOGGER.info("WORMHOLES_DOOR_PERMISSION_READY {}", permissionDetails(server, player));
             player.setGameMode(GameType.CREATIVE);
@@ -124,8 +124,8 @@ public final class DimensionalDoorClientGameTest implements FabricClientGameTest
             player.setItemInHand(InteractionHand.MAIN_HAND, MinecraftDoorItems.pairKit(DoorForm.DOOR));
             assertTrue(runtime(server).useItem(player, InteractionHand.MAIN_HAND), "paired door kit did not unpack");
         });
-        waitForServer(context, world, server -> tagged(world.getConnection().getServerPlayer()).size() == 2, "kit did not supply two paired door items");
-        return world.getServer().computeOnServer(server -> tagged(world.getConnection().getServerPlayer()));
+        waitForServer(context, world, server -> tagged(FabricConnection.of(world).getServerPlayer()).size() == 2, "kit did not supply two paired door items");
+        return world.getServer().computeOnServer(server -> tagged(FabricConnection.of(world).getServerPlayer()));
     }
 
     private static void assertAdministrator(MinecraftServer server, ServerPlayer player) {
@@ -169,15 +169,15 @@ public final class DimensionalDoorClientGameTest implements FabricClientGameTest
         world.getServer().runOnServer(server -> {
             ServerLevel level = Objects.requireNonNull(server.getLevel(dimension));
             preparePlacement(level, block);
-            ServerPlayer player = world.getConnection().getServerPlayer();
+            ServerPlayer player = FabricConnection.of(world).getServerPlayer();
             assertTrue(player.teleportTo(level, block.getX() + 0.5D, block.getY(), block.getZ() - 2.0D,
                 Set.of(), 0.0F, 0.0F, false), "door fixture teleport failed");
         });
         context.waitFor(client -> client.level.dimension().equals(dimension)
             && client.player.position().distanceTo(start(block)) < 0.5D, PREPARE_TICKS);
-        world.getConnection().waitForChunksDownload();
+        FabricConnection.of(world).waitForChunksDownload();
         world.getServer().runOnServer(server -> {
-            ServerPlayer player = world.getConnection().getServerPlayer();
+            ServerPlayer player = FabricConnection.of(world).getServerPlayer();
             player.setItemInHand(InteractionHand.MAIN_HAND, item.copy());
             player.getInventory().setChanged();
             player.containerMenu.broadcastFullState();
@@ -187,7 +187,7 @@ public final class DimensionalDoorClientGameTest implements FabricClientGameTest
         int selectedSlot = context.computeOnClient(client -> client.player.getInventory().getSelectedSlot());
         world.getServer().runOnServer(server -> {
             ServerLevel level = Objects.requireNonNull(server.getLevel(dimension));
-            ServerPlayer player = world.getConnection().getServerPlayer();
+            ServerPlayer player = FabricConnection.of(world).getServerPlayer();
             assertTrue(player.getInventory().getSelectedSlot() == selectedSlot, "door fixture client/server selected slots differ");
             assertPlacementReady(server, player, level, block, identity);
             LOGGER.info("WORMHOLES_DOOR_PLACEMENT_READY {}", placementDetails(server, player, level, block, item));
@@ -260,13 +260,13 @@ public final class DimensionalDoorClientGameTest implements FabricClientGameTest
             }
             if (tick == 0 || tick == 20 || tick == 100) {
                 String details = world.getServer().computeOnServer(server -> placementDetails(server,
-                    world.getConnection().getServerPlayer(), Objects.requireNonNull(server.getLevel(dimension)), block, item));
+                    FabricConnection.of(world).getServerPlayer(), Objects.requireNonNull(server.getLevel(dimension)), block, item));
                 LOGGER.info("WORMHOLES_DOOR_PLACEMENT_WAIT tick {} {}", tick, details);
             }
             context.waitTicks(1);
         }
         String details = world.getServer().computeOnServer(server -> placementDetails(server,
-            world.getConnection().getServerPlayer(), Objects.requireNonNull(server.getLevel(dimension)), block, item));
+            FabricConnection.of(world).getServerPlayer(), Objects.requireNonNull(server.getLevel(dimension)), block, item));
         throw new AssertionError("tagged door was not placed at " + block + ": " + details);
     }
 
@@ -330,7 +330,7 @@ public final class DimensionalDoorClientGameTest implements FabricClientGameTest
         }
         client.waitTicks(10);
         assertTrue(world.getServer().computeOnServer(server -> {
-            ServerPlayer player = world.getConnection().getServerPlayer();
+            ServerPlayer player = FabricConnection.of(world).getServerPlayer();
             return player.level().dimension().equals(destination) && player.position().distanceTo(Vec3.atBottomCenterOf(door)) < 3.0D;
         }), label + ": server did not reach the paired destination");
         assertTrue(client.computeOnClient(minecraft -> System.identityHashCode(minecraft.player)) == identity, label + ": client player was replaced");
@@ -350,7 +350,7 @@ public final class DimensionalDoorClientGameTest implements FabricClientGameTest
         assertTrue(client.computeOnClient(minecraft -> minecraft.level.dimension().equals(Level.OVERWORLD)
             && minecraft.player.position().distanceTo(Vec3.atBottomCenterOf(SOURCE)) < 3.0D), "solid destination obstacle allowed the client through the door");
         assertTrue(world.getServer().computeOnServer(server -> {
-            ServerPlayer player = world.getConnection().getServerPlayer();
+            ServerPlayer player = FabricConnection.of(world).getServerPlayer();
             ServerLevel level = Objects.requireNonNull(server.getLevel(destination));
             return player.level() == server.overworld() && player.position().distanceTo(Vec3.atBottomCenterOf(SOURCE)) < 3.0D
                 && level.getBlockState(DESTINATION.offset(0, 0, 1)).is(Blocks.STONE)

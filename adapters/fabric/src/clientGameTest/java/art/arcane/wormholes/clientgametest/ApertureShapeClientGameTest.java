@@ -17,11 +17,10 @@ import art.arcane.wormholes.modded.client.render.stencil.PortalView;
 import art.arcane.wormholes.network.client.ClientViewExtensions;
 import art.arcane.wormholes.portal.AmbientParticleStyle;
 import art.arcane.wormholes.portal.PortalType;
+import art.arcane.wormholes.modded.MinecraftDyedItems;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
-import net.fabricmc.fabric.api.client.gametest.v1.context.TestDedicatedServerConnection;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestDedicatedServerContext;
-import net.fabricmc.fabric.api.client.gametest.v1.context.TestServerConnection;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestServerContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestSingleplayerContext;
 import net.minecraft.client.CameraType;
@@ -69,20 +68,21 @@ public final class ApertureShapeClientGameTest implements FabricClientGameTest {
     private static final int OFF_SCREEN = 0;
     private static final double CROSSING_JUMP = 4.0D;
     private static final double DOMINANCE = 1.15D;
-    private static final BlockState LIME = Blocks.CONCRETE.pick(DyeColor.LIME).defaultBlockState();
-    private static final BlockState MAGENTA = Blocks.CONCRETE.pick(DyeColor.MAGENTA).defaultBlockState();
+    private static final BlockState LIME = MinecraftDyedItems.concreteBlock(DyeColor.LIME).defaultBlockState();
+    private static final BlockState MAGENTA = MinecraftDyedItems.concreteBlock(DyeColor.MAGENTA).defaultBlockState();
     private static final ShapeDescriptor CIRCLE = ShapeDescriptor.parse("circle");
     private static final ShapeDescriptor FLOWER = ShapeDescriptor.parse("flower(petals=5)");
+    private static final ShapeDescriptor NARROW = ShapeDescriptor.parse("full@scale(0.114285714,1)@fit(stretch)");
     private static final ShapeDescriptor TURNED_CIRCLE = ShapeDescriptor.parse("circle@rotate(45)");
 
     @Override
     public void runTest(ClientGameTestContext context) {
         ClientViewTestConfig.enable();
         try (TestSingleplayerContext singleplayer = context.worldBuilder().create()) {
-            runScenario(context, singleplayer.getConnection(), singleplayer.getServer(), "singleplayer");
+            runScenario(context, FabricConnection.of(singleplayer), singleplayer.getServer(), "singleplayer");
         }
         try (TestDedicatedServerContext server = context.worldBuilder().createServer(ClientViewTestConfig.serverProperties());
-             TestDedicatedServerConnection connection = server.connect()) {
+             FabricConnection connection = FabricConnection.connect(server)) {
             runScenario(context, connection, server, "dedicated");
         }
         ClientViewTestConfig.enableSeamless(false);
@@ -95,13 +95,13 @@ public final class ApertureShapeClientGameTest implements FabricClientGameTest {
         }
     }
 
-    private void runScenario(ClientGameTestContext context, TestServerConnection connection, TestServerContext server, String label) {
+    private void runScenario(ClientGameTestContext context, FabricConnection connection, TestServerContext server, String label) {
         connection.waitForChunksDownload();
         context.waitFor(client -> WormholesClient.instance() != null && WormholesClient.instance().session().active(), NEGOTIATION_TIMEOUT_TICKS);
         assertTrue(context.computeOnClient(client -> nativeRendering()), label + " shape crossing fixture did not negotiate native travel");
         ServerPlayer player = server.computeOnServer(minecraftServer -> connection.getServerPlayer());
         UUID[] portals = server.computeOnServer(minecraftServer -> build(minecraftServer, player));
-        ClientOptions options = context.computeOnClient(client -> new ClientOptions(client.gui.hud.isHidden(),
+        ClientOptions options = context.computeOnClient(client -> new ClientOptions(ClientGui.hudHidden(client),
             client.options.getCameraType(), WormholesClient.instance().config().portalEdgeFeather));
         List<String> failures = new ArrayList<>();
         try {
@@ -120,6 +120,15 @@ public final class ApertureShapeClientGameTest implements FabricClientGameTest {
             restoreView(context, options.hidden());
             fly(context, server, player, B_MIN, new double[] {0.0D, -0.75D}, false, label + " flower notch flight", failures);
             fly(context, server, player, B_MIN, new double[] {0.0D, 0.75D}, true, label + " flower petal flight", failures);
+            assertTrue(server.computeOnServer(minecraftServer -> shape(runtime(minecraftServer), player, portals[0], NARROW)), "narrow shape refused");
+            view(context, connection, server, player, A_MIN, NARROW, LIME);
+            assertMesh(context, A_MIN, failures, label + " narrow rectangle");
+            probe(context, A_MIN, new double[] {0.0D, 0.0D}, new double[] {-0.14D, 0.0D},
+                label + " narrow center and closed edge", failures);
+            context.takeScreenshot("aperture-shape-narrow-" + label);
+            restoreView(context, options.hidden());
+            fly(context, server, player, A_MIN, new double[] {-0.14D, 0.0D}, false, label + " narrow closed edge flight", failures);
+            fly(context, server, player, A_MIN, new double[] {0.0D, 0.0D}, true, label + " narrow center flight", failures);
         } finally {
             context.runOnClient(client -> {
                 hud(client, options.hidden());
@@ -135,14 +144,14 @@ public final class ApertureShapeClientGameTest implements FabricClientGameTest {
     }
 
     private static void streamedFeather(ClientGameTestContext context, TestSingleplayerContext world) {
-        TestServerConnection connection = world.getConnection();
+        FabricConnection connection = FabricConnection.of(world);
         TestServerContext server = world.getServer();
         connection.waitForChunksDownload();
         context.waitFor(client -> WormholesClient.instance() != null && WormholesClient.instance().session().active(), NEGOTIATION_TIMEOUT_TICKS);
         assertTrue(context.computeOnClient(client -> !nativeRendering()), "feather fixture negotiated native ARM rendering");
         ServerPlayer player = server.computeOnServer(minecraftServer -> connection.getServerPlayer());
         UUID[] portals = server.computeOnServer(minecraftServer -> build(minecraftServer, player));
-        ClientOptions options = context.computeOnClient(client -> new ClientOptions(client.gui.hud.isHidden(),
+        ClientOptions options = context.computeOnClient(client -> new ClientOptions(ClientGui.hudHidden(client),
             client.options.getCameraType(), WormholesClient.instance().config().portalEdgeFeather));
         List<String> failures = new ArrayList<>();
         try {
@@ -193,7 +202,7 @@ public final class ApertureShapeClientGameTest implements FabricClientGameTest {
         return updated && accepted[0];
     }
 
-    private static void view(ClientGameTestContext context, TestServerConnection connection, TestServerContext server, ServerPlayer player,
+    private static void view(ClientGameTestContext context, FabricConnection connection, TestServerContext server, ServerPlayer player,
                              BlockPos min, ShapeDescriptor shape, BlockState destinationWall) {
         Vec3 center = Vec3.atLowerCornerOf(min).add(EDGE / 2.0D, EDGE / 2.0D, 0.5D);
         Vec3 position = new Vec3(center.x, center.y - EYE_HEIGHT, center.z + VIEW_DISTANCE);
@@ -369,10 +378,10 @@ public final class ApertureShapeClientGameTest implements FabricClientGameTest {
         }
     }
 
-    private static void feather(ClientGameTestContext context, TestServerConnection connection, TestServerContext server, ServerPlayer player,
+    private static void feather(ClientGameTestContext context, FabricConnection connection, TestServerContext server, ServerPlayer player,
                                 UUID circle, String label, List<String> failures) {
         ShapeMesh before = context.computeOnClient(client -> ClientPortalRenderer.instance().apertureShape(NativeClientViewAssertions.portalKey(A_MIN)));
-        ClientOptions options = context.computeOnClient(client -> new ClientOptions(client.gui.hud.isHidden(),
+        ClientOptions options = context.computeOnClient(client -> new ClientOptions(ClientGui.hudHidden(client),
             client.options.getCameraType(), WormholesClient.instance().config().portalEdgeFeather));
         context.runOnClient(client -> WormholesClient.instance().config().portalEdgeFeather = 0.25D);
         try {
@@ -399,8 +408,8 @@ public final class ApertureShapeClientGameTest implements FabricClientGameTest {
     }
 
     private static void hud(Minecraft client, boolean hidden) {
-        if (client.gui.hud.isHidden() != hidden) {
-            client.gui.hud.toggle();
+        if (ClientGui.hudHidden(client) != hidden) {
+            ClientGui.toggleHud(client);
         }
     }
 

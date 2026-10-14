@@ -37,6 +37,7 @@ public class ClientPortalRendererStreamSelectionTest extends MinecraftTestBase {
             assertEquals(2, selected.size());
             assertEquals(2, selected.getFirst().traversal().size());
             assertEquals(3, selected.getLast().traversal().size());
+            assertEquals(EnvironmentState.Skybox.OVERWORLD, selected.getFirst().destinationSkybox());
             for (int index = 0; index < 40; index++) {
                 scene.renderer.replaceScene(20, scene.portal(geometry(100 + index, -4, 17, Face.S)));
                 scene.renderer.replaceScene(21, scene.portal(geometry(0, -4, 17, Face.N)));
@@ -91,6 +92,9 @@ public class ClientPortalRendererStreamSelectionTest extends MinecraftTestBase {
             EnvironmentState.World world = mock(EnvironmentState.World.class);
             when(world.dimensionKey()).thenReturn("minecraft:overworld");
             when(environment.world()).thenReturn(world);
+            EnvironmentState.Sky sky = mock(EnvironmentState.Sky.class);
+            when(sky.skybox()).thenReturn(EnvironmentState.Skybox.OVERWORLD);
+            when(environment.sky()).thenReturn(sky);
             when(environment.transform()).thenReturn(OpticTransform.IDENTITY);
             when(environment.scale()).thenReturn(1.0F);
             selection = fullSelection();

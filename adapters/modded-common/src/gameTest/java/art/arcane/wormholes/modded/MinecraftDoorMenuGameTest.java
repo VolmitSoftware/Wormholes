@@ -25,7 +25,6 @@ import net.minecraft.server.network.CommonListenerCookie;
 import net.minecraft.server.network.ServerGamePacketListenerImpl;
 import net.minecraft.server.players.NameAndId;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -34,6 +33,7 @@ import net.minecraft.world.level.block.DoorBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.item.DyeColor;
 import org.slf4j.LoggerFactory;
 
 import java.util.HashSet;
@@ -103,20 +103,20 @@ public final class MinecraftDoorMenuGameTest {
                 options.helper().assertTrue(record().players().isEmpty(), "Owner name prompt listed the owner");
                 return prompt(stranger.getGameProfile().name());
             }).thenCompose(ignored -> await(() -> listedState() == DoorAccessState.NEUTRAL && rows() == 2
-                && item(FIRST_ENTRY_SLOT).is(Items.STAINED_GLASS_PANE.black())
+                && item(FIRST_ENTRY_SLOT).is(MinecraftDyedItems.pane(DyeColor.BLACK))
                 && item(FIRST_ENTRY_SLOT).getHoverName().getString().equals(stranger.getGameProfile().name())))
             .thenCompose(ignored -> {
                 header(2);
                 options.helper().assertTrue(chatted(WormholesMessages.DOOR_ACCESS_ADDED,
                     MinecraftPortalText.arguments("name", stranger.getGameProfile().name())), "Added player notice was not sent to chat");
                 for (int slot = FIRST_ENTRY_SLOT + 1; slot < 18; slot++) {
-                    options.helper().assertTrue(item(slot).is(Items.STAINED_GLASS_PANE.gray()), "Empty access entry slot " + slot + " is not a gray pane");
+                    options.helper().assertTrue(item(slot).is(MinecraftDyedItems.pane(DyeColor.GRAY)), "Empty access entry slot " + slot + " is not a gray pane");
                 }
                 click(FIRST_ENTRY_SLOT, 0, ContainerInput.PICKUP);
-                return await(() -> listedState() == DoorAccessState.WHITELIST && item(FIRST_ENTRY_SLOT).is(Items.STAINED_GLASS_PANE.green()));
+                return await(() -> listedState() == DoorAccessState.WHITELIST && item(FIRST_ENTRY_SLOT).is(MinecraftDyedItems.pane(DyeColor.GREEN)));
             }).thenCompose(ignored -> {
                 click(FIRST_ENTRY_SLOT, 1, ContainerInput.PICKUP);
-                return await(() -> listedState() == DoorAccessState.BLACKLIST && item(FIRST_ENTRY_SLOT).is(Items.STAINED_GLASS_PANE.red()));
+                return await(() -> listedState() == DoorAccessState.BLACKLIST && item(FIRST_ENTRY_SLOT).is(MinecraftDyedItems.pane(DyeColor.RED)));
             }).thenCompose(ignored -> {
                 options.helper().assertTrue(options.runtime().useBlock(stranger, InteractionHand.MAIN_HAND, hit()),
                     "Blacklisted player door interaction was not denied");
@@ -152,7 +152,7 @@ public final class MinecraftDoorMenuGameTest {
         options.helper().assertTrue(item(ADD_SLOT).is(Items.WRITABLE_BOOK), "Add player control is not right of center");
         options.helper().assertTrue(item(PROJECTION_SLOT).is(Items.SPYGLASS), "Projection control is not beside the add control");
         for (int slot : List.of(0, 1, 2, 7, 8)) {
-            options.helper().assertTrue(item(slot).is(Items.STAINED_GLASS_PANE.gray()), "Header slot " + slot + " is not a gray pane");
+            options.helper().assertTrue(item(slot).is(MinecraftDyedItems.pane(DyeColor.GRAY)), "Header slot " + slot + " is not a gray pane");
         }
     }
 
@@ -195,7 +195,7 @@ public final class MinecraftDoorMenuGameTest {
             strangerChannel.runPendingTasks();
             int metadata = 0;
             for (Object packet : strangerChannel.outboundMessages()) {
-                if (packet instanceof ClientboundAddEntityPacket spawn && spawn.getType() == EntityTypes.BLOCK_DISPLAY) {
+                if (packet instanceof ClientboundAddEntityPacket spawn && spawn.getType() == MinecraftEntityTypes.BLOCK_DISPLAY) {
                     displays.add(spawn.getId());
                     options.helper().assertTrue(stranger.level().getEntity(spawn.getId()) == null, "Door surface entity entered shared world");
                 } else if (packet instanceof ClientboundSetEntityDataPacket update && displays.contains(update.id())) {
@@ -270,7 +270,7 @@ public final class MinecraftDoorMenuGameTest {
     }
 
     private static Item openIcon(DoorOpenState state) {
-        return state == DoorOpenState.OPEN ? Items.DYE.lime() : Items.DYE.gray();
+        return state == DoorOpenState.OPEN ? MinecraftDyedItems.dye(DyeColor.LIME) : MinecraftDyedItems.dye(DyeColor.GRAY);
     }
 
     private PlacedDoorEndpoint endpoint() {

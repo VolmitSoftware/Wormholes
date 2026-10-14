@@ -3,6 +3,8 @@ package art.arcane.wormholes.modded.client.render.iris;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.client.WormholesClient;
 import art.arcane.wormholes.modded.client.render.ClientPortalRenderer;
+import art.arcane.wormholes.modded.client.render.PortalFramebufferScope;
+import art.arcane.wormholes.modded.client.render.PortalTextureScope;
 import art.arcane.wormholes.modded.client.render.stencil.PortalLayerMath;
 import art.arcane.wormholes.modded.client.render.stencil.PortalView;
 import art.arcane.wormholes.modded.client.render.stencil.PortalViews;
@@ -12,9 +14,11 @@ import art.arcane.wormholes.modded.client.render.stencil.PortalViewSelection;
 import art.arcane.wormholes.modded.client.world.ClientWorldLoader;
 import art.arcane.wormholes.modded.mixin.client.IrisPortalPipelineAccess;
 import art.arcane.wormholes.modded.mixin.client.IrisPortalRenderingAccess;
-import com.mojang.blaze3d.systems.RenderSystem;
+import art.arcane.wormholes.modded.client.ClientRenderAccess;
 import com.mojang.logging.LogUtils;
 import net.irisshaders.iris.Iris;
+import net.irisshaders.iris.gl.program.ProgramSamplers;
+import net.irisshaders.iris.gl.program.ProgramUniforms;
 import net.irisshaders.iris.pipeline.IrisRenderingPipeline;
 import net.irisshaders.iris.pipeline.PipelineManager;
 import net.irisshaders.iris.pipeline.WorldRenderingPipeline;
@@ -84,7 +88,7 @@ public final class IrisPipelines {
     public static void requestViews(CameraRenderState camera, Matrix4fc projection) {
         requestViews(new PreparationCamera(new Vec3d(camera.pos.x, camera.pos.y, camera.pos.z),
             camera.viewRotationMatrix, projection, camera.cullFrustum, PortalViewSelection.Window.FULL, null,
-            RenderSystem.getDevice().getDeviceInfo().isZZeroToOne()));
+            ClientRenderAccess.zeroToOneDepth()));
     }
 
     private static void requestViews(PreparationCamera camera) {
@@ -120,8 +124,8 @@ public final class IrisPipelines {
         }
         return ClientPortalRenderer.instance().streamedCameras(parentKey, options.home(), demand.depth(), demand.ceiling(), nativeChildren,
             new ClientPortalRenderer.StreamSelection(demand.camera().selection(),
-                Minecraft.getInstance().gameRenderer.mainRenderTarget().width,
-                Minecraft.getInstance().gameRenderer.mainRenderTarget().height));
+                ClientRenderAccess.mainTarget(Minecraft.getInstance()).width,
+                ClientRenderAccess.mainTarget(Minecraft.getInstance()).height));
     }
 
     static Preparation preparation(PreparationOptions options, PreparationCamera camera) {
@@ -225,7 +229,7 @@ public final class IrisPipelines {
         }
         if (actual && !plan.full()) {
             for (IrisMeshCamera stream : plan.streams.apply(new NativeDemand(parent, camera, traversal.size(), Math.min(plan.depth, recursion)))) {
-                plan.add(stream.append(cameras(traversal), text(resolve(parent.destination(), plan.pack))));
+                plan.add(stream.append(cameras(traversal), text(resolve(stream, plan.pack))));
                 if (plan.full()) {
                     return;
                 }
@@ -304,13 +308,16 @@ public final class IrisPipelines {
         return IrisPipelineSchedule.pending(order, created, FAILED);
     }
 
-    private static void create(String dimension) {
+    static void create(String dimension) {
         PipelineManager manager = Iris.getPipelineManager();
         NamespacedId target = new NamespacedId(dimension);
         boolean current = target.equals(Iris.getCurrentDimension());
         WorldRenderingPipeline selected = manager.getPipelineNullable();
+        IrisWorldSettings settings = current ? null : IrisWorldSettings.capture();
+        IrisCapturedState captured = current ? null : IrisCapturedState.capture();
         long started = System.nanoTime();
-        try {
+        try (PortalTextureScope textures = current ? null : new PortalTextureScope();
+             PortalFramebufferScope framebuffer = current ? null : PortalFramebufferScope.capture()) {
             WorldRenderingPipeline pipeline = manager.preparePipeline(target);
             if (!current && pipeline instanceof IrisRenderingPipeline) {
                 ((IrisPortalRenderingAccess) pipeline).wormholes$initializedBlockIds(true);
@@ -321,7 +328,17 @@ public final class IrisPipelines {
             LOGGER.error("Unable to create the Iris pipeline for {}; portal views into it compile it on first use", dimension, failure);
         } finally {
             if (!current) {
-                ((IrisPortalPipelineAccess) manager).wormholes$pipeline(selected);
+                try {
+                    captured.restore();
+                } finally {
+                    try {
+                        settings.apply();
+                    } finally {
+                        ((IrisPortalPipelineAccess) manager).wormholes$pipeline(selected);
+                        ProgramUniforms.clearActiveUniforms();
+                        ProgramSamplers.clearActiveSamplers();
+                    }
+                }
             }
         }
     }
@@ -334,6 +351,15 @@ public final class IrisPipelines {
 
     private static NamespacedId resolve(ClientLevel level, ShaderPack pack) {
         return resolve(level.dimension().identifier(), level.dimensionType().skybox(), pack);
+    }
+
+    static NamespacedId resolve(IrisMeshCamera camera, ShaderPack pack) {
+        DimensionType.Skybox skybox = switch (camera.destinationSkybox()) {
+            case NONE -> DimensionType.Skybox.NONE;
+            case OVERWORLD -> DimensionType.Skybox.OVERWORLD;
+            case END -> DimensionType.Skybox.END;
+        };
+        return resolve(Identifier.parse(camera.destination()), skybox, pack);
     }
 
     private static NamespacedId resolve(Identifier level, DimensionType.Skybox skybox, ShaderPack pack) {

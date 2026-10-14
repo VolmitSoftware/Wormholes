@@ -9,6 +9,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.DyeColor;
 
 import java.util.HashMap;
 import java.util.Locale;
@@ -35,7 +36,7 @@ final class MinecraftPortalCostMenu {
         }
         MinecraftWindow window = menus.window(viewer, portal);
         window.setViewportHeight(4);
-        window.setDecorator(Items.STAINED_GLASS_PANE.brown());
+        window.setDecorator(MinecraftDyedItems.pane(DyeColor.BROWN));
         refresh(window, viewer, portal);
         window.open();
     }
@@ -156,7 +157,7 @@ final class MinecraftPortalCostMenu {
             return element;
         }
         return MinecraftPortalText.localizedElement(viewer, "travel-cost-free-detail", WormholesMessages.PORTAL_MENU_COST_FREE_DETAIL,
-            MinecraftPortalText.arguments(), Items.STAINED_GLASS_PANE.white());
+            MinecraftPortalText.arguments(), MinecraftDyedItems.pane(DyeColor.WHITE));
     }
 
     private MinecraftElement detailSecondaryElement(MinecraftWindow window, ServerPlayer viewer, MinecraftPortal portal) {
@@ -171,7 +172,7 @@ final class MinecraftPortalCostMenu {
             return element;
         }
         return MinecraftPortalText.localizedElement(viewer, "travel-cost-secondary-empty", WormholesMessages.PORTAL_MENU_COST_SECONDARY_EMPTY,
-            MinecraftPortalText.arguments(), Items.STAINED_GLASS_PANE.brown());
+            MinecraftPortalText.arguments(), MinecraftDyedItems.pane(DyeColor.BROWN));
     }
 
     private void beginItemCapture(MinecraftWindow window, ServerPlayer viewer, MinecraftPortal portal) {

@@ -38,7 +38,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.EntityTypes;
+import art.arcane.wormholes.modded.MinecraftEntityTypes;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 
@@ -77,7 +77,7 @@ public final class MinecraftClientViewScene implements EntityScenes<MinecraftCli
         this.secret = new SecureRandom().nextLong();
         this.transform = new EntityProjection();
         this.lights = new PlateLight.Cache<BlockState>();
-        this.environments = new MinecraftEnvironmentCapture(runtime);
+        this.environments = new MinecraftEnvironmentCapture(runtime, MinecraftEnvironmentCapture.CAPTURE_DEADLINE);
         this.outlines = new HashMap<UUID, AmbientOutlineGeometry>();
         this.metadata = new HashMap<UUID, PatchedMetadata>();
         this.spectators = new ConcurrentHashMap<UUID, Long>();
@@ -121,8 +121,8 @@ public final class MinecraftClientViewScene implements EntityScenes<MinecraftCli
             if (type == null) {
                 continue;
             }
-            boolean itemFrame = type == EntityTypes.ITEM_FRAME || type == EntityTypes.GLOW_ITEM_FRAME;
-            boolean hanging = itemFrame || type == EntityTypes.PAINTING;
+            boolean itemFrame = type == MinecraftEntityTypes.ITEM_FRAME || type == MinecraftEntityTypes.GLOW_ITEM_FRAME;
+            boolean hanging = itemFrame || type == MinecraftEntityTypes.PAINTING;
             EntitySnapshot profiled = withProfile(visual, view.getProfile(visual.id()));
             EntityProjection.Projected projected = nativeMesh ? transform.nativeModel(profiled, frame, hanging, secret)
                 : transform.project(profiled, frame, hanging, itemFrame, secret, ProjectedEntityIdentity.NAMING);

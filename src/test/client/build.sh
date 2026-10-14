@@ -17,8 +17,10 @@ game_version: str = os.environ.get('AUTOMATOR_MINECRAFT_VERSION', '26.3')
 platform: str = os.environ.get('AUTOMATOR_PLATFORM', 'fabric')
 if platform not in ('fabric', 'forge', 'neoforge'):
     raise SystemExit('Unsupported client platform: ' + platform)
-if game_version not in ('26.2', '26.3'):
+target_manifest: pathlib.Path = project / 'gradle/minecraft-versions' / (game_version + '.json')
+if not target_manifest.is_file():
     raise SystemExit('Unsupported client game version: ' + game_version)
+overlays: list[str] = json.loads(target_manifest.read_text()).get('overlays', [game_version])
 output: pathlib.Path = project / 'build' / 'client-automator'
 if game_version != '26.3':
     output = output / game_version
@@ -87,10 +89,11 @@ workspace: pathlib.Path = pathlib.Path(tempfile.mkdtemp(prefix='.build-', dir=ou
 try:
     classes: pathlib.Path = workspace / 'classes'
     classes.mkdir()
-    overrides: pathlib.Path = source / game_version / 'java'
-    replacement_sources: dict[pathlib.Path, pathlib.Path] = {path.relative_to(overrides): path for path in overrides.rglob('*.java')} if overrides.is_dir() else {}
     sources: dict[pathlib.Path, pathlib.Path] = {path.relative_to(source / 'java'): path for path in (source / 'java').rglob('*.java')}
-    sources.update(replacement_sources)
+    for overlay in overlays:
+        overrides: pathlib.Path = source / overlay / 'java'
+        if overrides.is_dir():
+            sources.update({path.relative_to(overrides): path for path in overrides.rglob('*.java')})
     if platform != 'fabric':
         hidden_source: pathlib.Path = sources[pathlib.Path('art/arcane/automator/HiddenRenderer.java')]
         hidden_text: str = hidden_source.read_text().replace('import net.fabricmc.loader.api.entrypoint.PreLaunchEntrypoint;\n', '').replace(' implements PreLaunchEntrypoint', '').replace('    @Override\n', '')
@@ -102,8 +105,8 @@ try:
     shutil.copytree(source / 'resources', classes, dirs_exist_ok=True)
     mixin_metadata: pathlib.Path = classes / 'instance-automator.mixins.json'
     mixin_document: dict = json.loads(mixin_metadata.read_text())
-    if game_version == '26.2':
-        mixin_document['client'].remove('WindowMixin$NeoForgeEarlyWindowHandoff')
+    mixin_package: pathlib.Path = classes / mixin_document['package'].replace('.', '/')
+    mixin_document['client'] = [name for name in mixin_document['client'] if (mixin_package / (name + '.class')).is_file()]
     mixin_metadata.write_text(json.dumps(mixin_document, indent=2) + '\n')
     mod_metadata: pathlib.Path = classes / 'fabric.mod.json'
     mod_document: dict = json.loads(mod_metadata.read_text())

@@ -14,6 +14,7 @@ import art.arcane.wormholes.transit.ScaleRuleSettings;
 import art.arcane.wormholes.transit.TransitionProfile;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.DyeColor;
 
 import java.util.Locale;
 import java.util.Objects;
@@ -36,7 +37,7 @@ public final class MinecraftTransitMenu {
         MinecraftWindow window = new MinecraftWindow(runtime, viewer);
         window.setTitle(MinecraftPortalText.router(runtime, portal, true));
         window.setViewportHeight(3);
-        window.setDecorator(Items.STAINED_GLASS_PANE.cyan());
+        window.setDecorator(MinecraftDyedItems.pane(DyeColor.CYAN));
         window.setElement(-3, 1, gravityElement(window, viewer));
         window.setElement(-2, 1, momentumElement(window, viewer));
         window.setElement(-1, 1, orientationElement(window, viewer));

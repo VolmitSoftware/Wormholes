@@ -17,9 +17,10 @@ import art.arcane.wormholes.network.client.ClientViewExtensions;
 import art.arcane.wormholes.portal.AmbientParticleStyle;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.transit.OrientationPolicy;
+import art.arcane.wormholes.modded.MinecraftDyedItems;
+import art.arcane.wormholes.modded.client.ClientRenderAccess;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
-import net.fabricmc.fabric.api.client.gametest.v1.context.TestServerConnection;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestServerContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestSingleplayerContext;
 import net.minecraft.client.CameraType;
@@ -79,27 +80,27 @@ public final class ScaledPairClientGameTest implements FabricClientGameTest {
     private static final int SETTLE_TICKS = 30;
     private static final int OFF_SCREEN = 0;
     private static final ScaleRule RATIO = ScaleRule.ratio(0.25D, 4.0D);
-    private static final BlockState LIME = Blocks.CONCRETE.pick(DyeColor.LIME).defaultBlockState();
-    private static final BlockState MAGENTA = Blocks.CONCRETE.pick(DyeColor.MAGENTA).defaultBlockState();
-    private static final BlockState YELLOW = Blocks.CONCRETE.pick(DyeColor.YELLOW).defaultBlockState();
+    private static final BlockState LIME = MinecraftDyedItems.concreteBlock(DyeColor.LIME).defaultBlockState();
+    private static final BlockState MAGENTA = MinecraftDyedItems.concreteBlock(DyeColor.MAGENTA).defaultBlockState();
+    private static final BlockState YELLOW = MinecraftDyedItems.concreteBlock(DyeColor.YELLOW).defaultBlockState();
     private static final double MODEL_Z = BACKDROP_Z + 3.0D;
 
     @Override
     public void runTest(ClientGameTestContext context) {
         ClientViewTestConfig.enableSeamless(true);
         try (TestSingleplayerContext singleplayer = context.worldBuilder().create()) {
-            run(context, singleplayer.getConnection(), singleplayer.getServer(), "singleplayer");
+            run(context, FabricConnection.of(singleplayer), singleplayer.getServer(), "singleplayer");
         }
     }
 
-    static void demo(ClientGameTestContext context, TestServerConnection connection, TestServerContext server, CameraType camera, String id) {
+    static void demo(ClientGameTestContext context, FabricConnection connection, TestServerContext server, CameraType camera, String id) {
         SeamlessClient client = new FabricSeamlessClient(context, connection);
         SeamlessScenario.join(client);
         SeamlessScenario.assertSeamlessNegotiated(client);
         ServerPlayer player = server.computeOnServer(minecraftServer -> connection.getServerPlayer());
         Scene scene = server.computeOnServer(minecraftServer -> buildDemo(minecraftServer, player));
         NativeDemoCapture capture = new NativeDemoCapture(client);
-        boolean hiddenHud = context.computeOnClient(minecraft -> minecraft.gui.hud.isHidden());
+        boolean hiddenHud = context.computeOnClient(minecraft -> ClientGui.hudHidden(minecraft));
         boolean recording = false;
         List<String> failures = new ArrayList<>();
         try {
@@ -131,7 +132,7 @@ public final class ScaledPairClientGameTest implements FabricClientGameTest {
             context.getInput().holdKeyFor(options -> options.keyUp, 25);
             capture.turn(150.0F, 0.0F, 30);
             context.waitTicks(40);
-            context.runOnClient(minecraft -> assertTrue(Math.abs(minecraft.gameRenderer.mainCamera().position().x - minecraft.player.getX()) < 8.0D,
+            context.runOnClient(minecraft -> assertTrue(Math.abs(ClientRenderAccess.mainCamera(minecraft).position().x - minecraft.player.getX()) < 8.0D,
                 id + ": return camera remained across the portal instead of showing the restored-size traveller"));
             assertTrue(failures.isEmpty(), id + ": " + failures);
             LOGGER.info("WORMHOLES_NATIVE_DEMO_PASS: {} actual 3x3 to 9x9 traversal grew to 300% and returned to 100%", id);
@@ -158,7 +159,7 @@ public final class ScaledPairClientGameTest implements FabricClientGameTest {
             label + ": server scale is " + authoritative + " instead of " + scale);
         context.runOnClient(minecraft -> {
             assertHidden(minecraft);
-            assertTrue(minecraft.options.getCameraType() == camera && minecraft.gui.hud.isHidden(),
+            assertTrue(minecraft.options.getCameraType() == camera && ClientGui.hudHidden(minecraft),
                 label + ": camera changed or HUD became visible");
             assertTrue(TravelTap.respawns() == 0 && TravelTap.positions() == 0 && TravelTap.accepts() == 0
                 && !TravelTap.loadingScreenShown() && !TravelTap.clientUnloaded(),
@@ -185,14 +186,14 @@ public final class ScaledPairClientGameTest implements FabricClientGameTest {
             Blocks.AIR.defaultBlockState());
     }
 
-    private void run(ClientGameTestContext context, TestServerConnection connection, TestServerContext server, String label) {
+    private void run(ClientGameTestContext context, FabricConnection connection, TestServerContext server, String label) {
         connection.waitForChunksDownload();
         waitFor(context, "scaled-session-negotiation", client -> WormholesClient.instance() != null
             && WormholesClient.instance().session().active(), NEGOTIATION_TIMEOUT_TICKS);
         ServerPlayer player = server.computeOnServer(minecraftServer -> connection.getServerPlayer());
         Scene scene = server.computeOnServer(minecraftServer -> build(minecraftServer, player));
         UUID[] portals = scene.portals();
-        boolean hidden = context.computeOnClient(client -> client.gui.hud.isHidden());
+        boolean hidden = context.computeOnClient(client -> ClientGui.hudHidden(client));
         CameraType camera = context.computeOnClient(client -> client.options.getCameraType());
         List<String> failures = new ArrayList<>();
         try {
@@ -248,7 +249,7 @@ public final class ScaledPairClientGameTest implements FabricClientGameTest {
         assertTrue(failures.isEmpty(), label + ": " + failures);
     }
 
-    private static void view(ClientGameTestContext context, TestServerConnection connection, TestServerContext server, ServerPlayer player,
+    private static void view(ClientGameTestContext context, FabricConnection connection, TestServerContext server, ServerPlayer player,
                              String label, List<String> failures) {
         place(context, server, player, SMALL.approach(0.0D), 180.0F);
         connection.waitForChunksRender();
@@ -306,7 +307,7 @@ public final class ScaledPairClientGameTest implements FabricClientGameTest {
         }
     }
 
-    private static Measurement measuredView(ClientGameTestContext context, TestServerConnection connection, TestServerContext server,
+    private static Measurement measuredView(ClientGameTestContext context, FabricConnection connection, TestServerContext server,
                                             ServerPlayer player, Square from, Square to, int bandWidth, String label, List<String> failures) {
         place(context, server, player, from.approach(0.0D), 180.0F);
         connection.waitForChunksRender();
@@ -357,7 +358,7 @@ public final class ScaledPairClientGameTest implements FabricClientGameTest {
         int[] modelTop = screen(client, back, modelCenter.add(-0.7D, 0.8D, 0.0D));
         int[] modelBottom = screen(client, back, modelCenter.add(0.7D, -0.8D, 0.0D));
         int[] outside = FramebufferProbe.screen(client, new Vec3(from.min().getX() - 0.125D,
-            client.gameRenderer.mainCamera().position().y, from.center().z));
+            ClientRenderAccess.mainCamera(client).position().y, from.center().z));
         if (outside == null) {
             outside = FramebufferProbe.screen(client, new Vec3(from.center().x, from.min().getY() - 0.125D, from.center().z));
         }
@@ -547,7 +548,7 @@ public final class ScaledPairClientGameTest implements FabricClientGameTest {
             BlockPos marker = new BlockPos(to.min().getX() + to.edge() / 2, to.min().getY() + to.edge() / 2, BACKDROP_Z);
             assertTrue(YELLOW.equals(view.destination().getBlockState(marker)), label + ": destination marker is unavailable during walking");
             LOGGER.info("WORMHOLES_SCALED_WALKING_PROJECTION {}: position={}, camera={}, velocity={}, bodyScale={}, projectionRatio={}, marker={}",
-                label, client.player.position(), client.gameRenderer.mainCamera().position(), client.player.getDeltaMovement(),
+                label, client.player.position(), ClientRenderAccess.mainCamera(client).position(), client.player.getDeltaMovement(),
                 client.player.getScale(), ratio, marker);
         });
         context.takeScreenshot(label.replace(' ', '-') + "-walking-bob");
@@ -582,10 +583,10 @@ public final class ScaledPairClientGameTest implements FabricClientGameTest {
     private static Scene buildDemo(MinecraftServer server, ServerPlayer actor) {
         Scene scene = build(server, actor);
         ServerLevel level = server.overworld();
-        demoBackdrop(level, SMALL, new DemoBackdrop(6, 15, 13, 0, Blocks.CONCRETE.pick(DyeColor.BLUE).defaultBlockState(),
-            Blocks.CONCRETE.pick(DyeColor.ORANGE).defaultBlockState()));
-        demoBackdrop(level, LARGE, new DemoBackdrop(8, 25, 19, BAND, Blocks.CONCRETE.pick(DyeColor.CYAN).defaultBlockState(),
-            Blocks.CONCRETE.pick(DyeColor.WHITE).defaultBlockState()));
+        demoBackdrop(level, SMALL, new DemoBackdrop(6, 15, 13, 0, MinecraftDyedItems.concreteBlock(DyeColor.BLUE).defaultBlockState(),
+            MinecraftDyedItems.concreteBlock(DyeColor.ORANGE).defaultBlockState()));
+        demoBackdrop(level, LARGE, new DemoBackdrop(8, 25, 19, BAND, MinecraftDyedItems.concreteBlock(DyeColor.CYAN).defaultBlockState(),
+            MinecraftDyedItems.concreteBlock(DyeColor.WHITE).defaultBlockState()));
         demoFrame(level, SMALL, Blocks.SANDSTONE.defaultBlockState());
         demoFrame(level, LARGE, Blocks.GOLD_BLOCK.defaultBlockState());
         return scene;
@@ -639,7 +640,7 @@ public final class ScaledPairClientGameTest implements FabricClientGameTest {
     private static UUID model(ServerLevel level, Square square) {
         ArmorStand stand = new ArmorStand(level, square.center().x + 0.75D, square.center().y - 1.0D, MODEL_Z);
         stand.setNoGravity(true);
-        stand.setItemSlot(EquipmentSlot.HEAD, new ItemStack(Blocks.CONCRETE.pick(DyeColor.CYAN)));
+        stand.setItemSlot(EquipmentSlot.HEAD, new ItemStack(MinecraftDyedItems.concreteBlock(DyeColor.CYAN)));
         assertTrue(level.addFreshEntity(stand), "scaled native model spawn rejected");
         return stand.getUUID();
     }
@@ -715,7 +716,7 @@ public final class ScaledPairClientGameTest implements FabricClientGameTest {
                     + ", flying=" + (client.player != null && client.player.getAbilities().flying)
                     + ", grounded=" + (client.player != null && client.player.onGround())
                     + ", scale=" + (client.player == null ? Double.NaN : client.player.getScale())
-                    + ", screen=" + (client.gui.screen() == null ? "none" : client.gui.screen().getClass().getSimpleName())
+                    + ", screen=" + (ClientGui.screen(client) == null ? "none" : ClientGui.screen(client).getClass().getSimpleName())
                     + ", arms=" + (mod == null ? 0 : mod.seamlessTravel().arms().size())
                     + ", unprepared=" + (mod == null ? null : mod.seamlessTravel().unprepared())
                     + ", nativeViews=" + (mod == null ? 0 : mod.portalViews().current().size());
@@ -741,8 +742,8 @@ public final class ScaledPairClientGameTest implements FabricClientGameTest {
     }
 
     private static void hud(Minecraft client, boolean hidden) {
-        if (client.gui.hud.isHidden() != hidden) {
-            client.gui.hud.toggle();
+        if (ClientGui.hudHidden(client) != hidden) {
+            ClientGui.toggleHud(client);
         }
     }
 

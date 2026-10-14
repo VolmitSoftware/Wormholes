@@ -23,7 +23,7 @@ public final class RemoteViewer {
     }
 
     public static boolean visible(Sight sight) {
-        if (sight.self() || sight.vanillaPaired() || !sight.broadcast() || !sight.delivered()) {
+        if (sight.self() || sight.vanillaPaired() || !sight.broadcast() || !sight.present()) {
             return false;
         }
         double range = Math.min(sight.effectiveRange(), sight.windowRadius() * 16.0D);
@@ -41,7 +41,7 @@ public final class RemoteViewer {
         ChunkPos chunk = entity.chunkPosition();
         Vec3d anchor = route.anchor();
         boolean visible = route.window().contains(chunk.x(), chunk.z()) && visible(new Sight(entity == player, vanilla,
-            entity.broadcastToPlayer(player), route.stream().delivered(chunk.pack()), entity.getX() - anchor.x(), entity.getZ() - anchor.z(),
+            entity.broadcastToPlayer(player), route.stream().present(chunk.pack()), entity.getX() - anchor.x(), entity.getZ() - anchor.z(),
             tracked.wormholesEffectiveRange(), route.window().radius()));
         if (visible) {
             pair(route, tracked, player, sends);
@@ -100,7 +100,7 @@ public final class RemoteViewer {
         }
     }
 
-    public record Sight(boolean self, boolean vanillaPaired, boolean broadcast, boolean delivered, double dx, double dz,
+    public record Sight(boolean self, boolean vanillaPaired, boolean broadcast, boolean present, double dx, double dz,
                         int effectiveRange, int windowRadius) {
     }
 }

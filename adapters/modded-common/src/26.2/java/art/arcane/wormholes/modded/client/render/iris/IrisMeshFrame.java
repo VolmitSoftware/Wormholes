@@ -1,6 +1,7 @@
 package art.arcane.wormholes.modded.client.render.iris;
 
 import art.arcane.wormholes.modded.mixin.client.IrisPortalRenderingAccess;
+import art.arcane.wormholes.modded.client.ClientRenderAccess;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
@@ -119,7 +120,7 @@ public final class IrisMeshFrame implements AutoCloseable {
         stack.pushMatrix();
         modelView = true;
         stack.set(view.shaderView());
-        RenderTarget main = Minecraft.getInstance().gameRenderer.mainRenderTarget();
+        RenderTarget main = ClientRenderAccess.mainTarget(Minecraft.getInstance());
         RenderSystem.getDevice().createCommandEncoder().clearColorAndDepthTextures(main.getColorTexture(),
             new Vector4f(view.fogColor().x(), view.fogColor().y(), view.fogColor().z(), 0.0F), main.getDepthTexture(), 0.0D);
         pipeline.beginLevelRendering();

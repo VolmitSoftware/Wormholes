@@ -12,7 +12,7 @@ import urllib.request
 import uuid
 import zipfile
 
-from gametest import QA_WORKSPACE, ROOT, dh_jar, groovy, stop, stop_owned_client, supported_dh_pack, version_manifest
+from gametest import QA_WORKSPACE, ROOT, dh_jar, dump_owned_threads, groovy, native_frame, stop, stop_owned_client, supported_dh_pack, supported_versions, version_manifest, version_overlays
 
 
 def native_bridge(game_version: str, platform: str) -> Path:
@@ -57,7 +57,7 @@ def native_dh(path: Path, game_version: str) -> dict:
     dependencies: list[dict] = native.get("dependencies", {}).get("distanthorizons", [])
     declared: list[str] = [dependency.get("versionRange", "") for dependency in dependencies
                            if dependency.get("modId") == "minecraft"]
-    if len(declared) != 1 or declared[0] not in {"[" + game_version + "]", "[" + game_version + ".0]"}:
+    if len(declared) != 1 or not {game_version, game_version + ".0"} & set(re.findall(r"\[([^\],]+)\]", declared[0])):
         raise ValueError("The DH native metadata does not declare Minecraft " + game_version + " support")
     if not any(dependency.get("modId") == "neoforge" for dependency in dependencies):
         raise ValueError("The DH jar does not declare a NeoForge runtime")
@@ -82,7 +82,7 @@ def launch_command(args: argparse.Namespace, script: Path, target: dict) -> list
             "-P" + loader_property + "=" + target["loaders"][args.platform], "--console=plain", "--no-daemon"]
 
 
-def init_script(platform: str, run: Path, resources: Path, bridge: Path, properties: Path) -> str:
+def init_script(platform: str, run: Path, resources: Path, bridge: Path, properties: Path, jvm_args: list[str]) -> str:
     configure = """
         project.extensions.getByName('neoForge').runs.named('clientGameTest').configure { run ->
             run.gameDirectory.set(runDirectory)
@@ -90,6 +90,7 @@ def init_script(platform: str, run: Path, resources: Path, bridge: Path, propert
             if (System.getProperty('os.name').toLowerCase(Locale.ROOT).contains('mac')) {
                 run.jvmArgument('-XstartOnFirstThread')
             }
+            JVM_ARGUMENTS
         }
 """ if platform == "neoforge" else """
         project.extensions.getByName('minecraft').runs.named('client').configure { run ->
@@ -98,6 +99,7 @@ def init_script(platform: str, run: Path, resources: Path, bridge: Path, propert
             if (System.getProperty('os.name').toLowerCase(Locale.ROOT).contains('mac')) {
                 run.jvmArgs('-XstartOnFirstThread')
             }
+            JVM_ARGUMENTS
         }
         project.tasks.named('clientGameTestJar').configure {
             manifest.attributes('MixinConfigs': 'wormholes_clientgametest.mixins.json,wormholes_clientgametest_driver.mixins.json,instance-automator.mixins.json')
@@ -106,6 +108,8 @@ def init_script(platform: str, run: Path, resources: Path, bridge: Path, propert
             destinationDir = new File(runDirectory, 'mods')
         }
 """
+    method: str = "jvmArgument" if platform == "neoforge" else "jvmArgs"
+    configure = configure.replace("JVM_ARGUMENTS", "\n            ".join("run." + method + "(" + groovy(argument) + ")" for argument in jvm_args))
     return """import groovy.json.JsonSlurper
 gradle.beforeProject { Project project ->
     project.afterEvaluate {
@@ -169,11 +173,13 @@ def execute(args: argparse.Namespace) -> int:
             archive.extractall(bridge)
         resources = evidence / "resources"
         resources.mkdir()
-        for source in [ROOT / "adapters/modded-common/src/clientGameTest/resources",
-                       ROOT / "adapters/modded-common/src/clientGameTestDriver/resources",
-                       ROOT / "adapters" / args.platform / "src/clientGameTest/resources",
-                       ROOT / "adapters/modded-common/src" / args.minecraft_version / "clientGameTest/resources",
-                       ROOT / "adapters" / args.platform / "src" / args.minecraft_version / "clientGameTest/resources"]:
+        sources: list[Path] = [ROOT / "adapters/modded-common/src/clientGameTest/resources",
+                               ROOT / "adapters/modded-common/src/clientGameTestDriver/resources",
+                               ROOT / "adapters" / args.platform / "src/clientGameTest/resources"]
+        for overlay in version_overlays(args.minecraft_version):
+            sources += [ROOT / "adapters/modded-common/src" / overlay / "clientGameTest/resources",
+                        ROOT / "adapters" / args.platform / "src" / overlay / "clientGameTest/resources"]
+        for source in sources:
             if source.is_dir():
                 shutil.copytree(source, resources, dirs_exist_ok=True)
         shutil.copy2(bridge / "instance-automator.mixins.json", resources)
@@ -203,16 +209,20 @@ def execute(args: argparse.Namespace) -> int:
                 shutil.copy2(shader, packs / shader.name)
             (config / "iris.properties").write_text("enableShaders=true\nshaderPack=" + shader.name + "\n")
         (run / "options.txt").write_text("soundCategory_master:0.0\nonboardAccessibility:false\n")
-        properties = evidence / "properties.json"
-        properties.write_text(json.dumps({"automator.hidden": "true", "automator.muted": "true",
+        system_properties: dict[str, str] = {"automator.hidden": "true", "automator.muted": "true",
             "automator.frameWidth": "1920", "automator.frameHeight": "1080", "automator.port": "0",
             "automator.token": token, "automator.output": str(run / "automator"),
             "wormholes.test.dhShutdown": str(distant_horizons is not None).lower(),
             "wormholes.test.dhAcceptance": str(dh_acceptance).lower(),
             "wormholes.test.dhShaders": str(shader is not None).lower(),
-            "wormholes.clientgametest": "true", "wormholes.clientgametest.filter": args.filter}))
+            "wormholes.clientgametest": "true", "wormholes.clientgametest.filter": args.filter,
+            "wormholes.clientgametest.repeat": str(args.repeat)}
+        if shader is not None:
+            system_properties[target["neoForgeRenderValidationProperty"]] = "true"
+        properties = evidence / "properties.json"
+        properties.write_text(json.dumps(system_properties))
         script = evidence / "launch.init.gradle"
-        script.write_text(init_script(args.platform, run, resources, bridge, properties))
+        script.write_text(init_script(args.platform, run, resources, bridge, properties, args.jvm_arg))
         log = evidence / "runtime.log"
         print("Evidence: " + str(evidence), flush=True)
         if distant_horizons is not None and not dh_acceptance:
@@ -230,6 +240,7 @@ def execute(args: argparse.Namespace) -> int:
                 if "WORMHOLES_CLIENT_GAME_TEST_FAIL" in text or "WORMHOLES_DH_ACCEPTANCE_FAIL" in text:
                     raise RuntimeError("Native platform fixture failed; inspect " + str(log))
                 if time.monotonic() - started > args.timeout:
+                    dump_owned_threads(run, evidence / "threads-at-timeout.txt")
                     raise TimeoutError("Native platform fixture exceeded its timeout")
                 match = re.search(r"Instance Automator listening on 127\.0\.0\.1:(\d+)", text)
                 if match is not None:
@@ -243,13 +254,13 @@ def execute(args: argparse.Namespace) -> int:
                         state = None
                     if state is not None:
                         states.append({key: state.get(key) for key in ["frames", "ticks", "connected", "hiddenRenderer",
-                            "frameWidth", "frameHeight", "masterVolume", "windowVisible", "windowFocused",
+                            "frameWidth", "frameHeight", "declaredFrameSize", "masterVolume", "windowVisible", "windowFocused",
                             "windowMouseGrabbed", "relativeMouseMode", "mouseGrabbed"]})
                         if state.get("hiddenRenderer") is not True or any(state.get(key) is not False for key in
                             ["windowVisible", "windowFocused", "windowMouseGrabbed", "relativeMouseMode", "mouseGrabbed"]):
                             raise AssertionError("Hidden client visibility/focus/mouse invariant failed: " + json.dumps(states[-1], sort_keys=True))
-                        if state.get("masterVolume") != 0.0 or (state.get("frameWidth"), state.get("frameHeight")) != (1920, 1080):
-                            raise AssertionError("Native client must stay muted at 1920x1080")
+                        if state.get("masterVolume") != 0.0 or not native_frame(state):
+                            raise AssertionError("Native client must stay muted at 1920x1080 or the size a test declared")
                 if time.monotonic() - progress >= 20:
                     print("Hidden " + args.platform + " client running: " + str(round(time.monotonic() - started)) + "s", flush=True)
                     progress = time.monotonic()
@@ -262,6 +273,8 @@ def execute(args: argparse.Namespace) -> int:
             if not all(marker in text for marker in ["WORMHOLES_CLIENT_MIXIN_AUDIT complete",
                 "WORMHOLES_CLIENT_LIGHTING_MIXIN_PASS", "WORMHOLES_CLIENT_LIGHTING_SCOPE_PASS"]):
                 raise RuntimeError("Missing successful native mixin audit or lighting assertions; inspect " + str(log))
+            if not dh_acceptance and args.filter in "portal-clip-singleplayer" and "WORMHOLES_PORTAL_CLIP_PASS fixture=portal-clip-singleplayer" not in text:
+                raise AssertionError("Missing successful native portal clip image assertion; inspect " + str(log))
             if dh_acceptance:
                 required: list[str] = ["WORMHOLES_DH_ACCEPTANCE_PASS shaders=" + str(shader is not None).lower()
                     + " native=true fixture=dh-acceptance-singleplayer", "WORMHOLES_DH_CLIP_SCOPE_PASS",
@@ -287,7 +300,7 @@ def execute(args: argparse.Namespace) -> int:
         if process is not None:
             stop(process)
         stop_owned_client(run)
-        for name in ["logs", "crash-reports", "automator", "screenshots", "dh-shaders"]:
+        for name in ["logs", "crash-reports", "automator", "screenshots", "dh-shaders", "crossbench"]:
             if (run / name).is_dir():
                 shutil.copytree(run / name, evidence / name, dirs_exist_ok=True)
         if (run / "dh-acceptance.json").is_file():
@@ -302,7 +315,7 @@ def execute(args: argparse.Namespace) -> int:
             "distantHorizonsVersion": dh_metadata["version"] if dh_metadata is not None else None,
             "distantHorizonsPixelAssertions": success and dh_acceptance,
             "suite": "dh" if dh_acceptance else "traversal",
-            "filter": args.filter, "failure": failure}, indent=2) + "\n")
+            "filter": args.filter, "repeat": args.repeat, "failure": failure}, indent=2) + "\n")
         (evidence / "properties.json").unlink(missing_ok=True)
         assert run.parent.resolve() == QA_WORKSPACE.resolve() and marker.read_text() == run_id
         shutil.rmtree(run)
@@ -313,13 +326,15 @@ def execute(args: argparse.Namespace) -> int:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--platform", choices=["forge", "neoforge"], required=True)
-    parser.add_argument("--minecraft-version", choices=["26.2", "26.3"], default="26.2")
+    parser.add_argument("--minecraft-version", choices=supported_versions(), default="26.2")
     parser.add_argument("--suite", choices=["traversal", "dh"], default="traversal")
     parser.add_argument("--filter")
+    parser.add_argument("--repeat", type=int, default=1)
     parser.add_argument("--renderer", choices=["vanilla", "sodium"], default="vanilla")
     parser.add_argument("--shader-pack", type=Path)
     parser.add_argument("--distant-horizons", type=Path)
     parser.add_argument("--timeout", type=int, default=1200)
+    parser.add_argument("--jvm-arg", action="append", default=[])
     args = parser.parse_args()
     lock_path = ROOT / ".qa/native-client.lock"
     lock_path.parent.mkdir(parents=True, exist_ok=True)

@@ -16,7 +16,7 @@ public abstract class PortalStencilLayerTargetMixin {
     @ModifyArg(method = "createBuffers", at = @At(value = "INVOKE",
         target = "Lcom/mojang/blaze3d/systems/GpuDevice;createTexture(Ljava/util/function/Supplier;ILcom/mojang/blaze3d/GpuFormat;IIII)Lcom/mojang/blaze3d/textures/GpuTexture;",
         ordinal = 0), index = 2)
-    private GpuFormat wormholes$layerStencil(GpuFormat depth) {
-        return label.startsWith("Wormholes portal layer ") ? PortalStencil.mainDepthFormat(depth) : depth;
+    private GpuFormat wormholes$stencilDepth(GpuFormat depth) {
+        return PortalStencil.stencilTarget((RenderTarget) (Object) this, label) ? PortalStencil.mainDepthFormat(depth) : depth;
     }
 }

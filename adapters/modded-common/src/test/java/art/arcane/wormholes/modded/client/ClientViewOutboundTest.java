@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded.client;
 
+import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.optics.stream.ViewStreamMessage;
 import org.junit.Test;
 
@@ -88,5 +89,28 @@ public class ClientViewOutboundTest {
         }
         assertEquals(896, sent.size());
         assertEquals(553, outbound.pending());
+    }
+
+    @Test
+    public void aStallInsideABurstNeverLetsTheReceiverCountMoreThanItsPerSecondLimit() {
+        AtomicLong clock = new AtomicLong();
+        List<Long> constructed = new ArrayList<>();
+        ClientViewOutbound outbound = new ClientViewOutbound(message -> {
+            clock.addAndGet(constructed.size() == 548 ? 600_000_000L : 20_000L);
+            constructed.add(clock.get());
+        }, clock::get);
+        for (int index = 0; index < 3000; index++) {
+            outbound.send(new ViewStreamMessage.MeshAck(1, 1, index, 0, 0, 1));
+        }
+        while (outbound.pending() > 0) {
+            clock.addAndGet(10_000_000L);
+            outbound.flush();
+        }
+        int limit = ViewStreamLimits.MAX_C2S_MESSAGES_PER_SECOND;
+        assertEquals(3000, constructed.size());
+        for (int index = limit; index < constructed.size(); index++) {
+            assertTrue("receiver saw more than " + limit + " messages within one second at message " + index,
+                constructed.get(index) - constructed.get(index - limit) >= 1_000_000_000L);
+        }
     }
 }

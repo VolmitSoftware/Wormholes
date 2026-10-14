@@ -19,11 +19,11 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.gametest.framework.GameTestSequence;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.decoration.ArmorStand;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.item.DyeColor;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
@@ -95,7 +95,7 @@ public final class MinecraftNexusGameTest {
             MinecraftNexus nexus = runtime.nexus();
             nexus.policy(actor.player(), source, new DestinationPolicy(DestinationMode.PER_PLAYER,
                 List.of(new DestinationEntry(DestinationEntry.TargetKind.ADDRESS, "CCCC", 1, 0, 0, "")), SelectionRule.ROUND_ROBIN));
-            traveler = helper.spawn(EntityTypes.ARMOR_STAND, new Vec3(3, 2, 3.5));
+            traveler = helper.spawn(MinecraftEntityTypes.ARMOR_STAND, new Vec3(3, 2, 3.5));
             traveler.setNoGravity(true);
             runtime.schedule(() -> {
                 Vec3 start = Vec3.atBottomCenterOf(helper.absolutePos(new BlockPos(3, 2, 3)));
@@ -172,7 +172,7 @@ public final class MinecraftNexusGameTest {
         ServerPlayer viewer = actor.player();
         runtime.nexus().menus().open(viewer, source);
         MinecraftSubsystemMenuProbe.assertWindow(helper, viewer, MinecraftPortalText.router(runtime, source, true), 6,
-            Items.STAINED_GLASS_PANE.cyan(), MinecraftSubsystemMenuProbe.slot(-4, 5), "Dial window");
+            MinecraftDyedItems.pane(DyeColor.CYAN), MinecraftSubsystemMenuProbe.slot(-4, 5), "Dial window");
         MinecraftSubsystemMenuProbe.assertElement(helper, viewer, -4, 0, Items.ENDER_PEARL, dialEntry(viewer, "BBBB", projected), true, "Dialed address");
         MinecraftSubsystemMenuProbe.assertElement(helper, viewer, -3, 0, Items.ENDER_PEARL, dialEntry(viewer, "CCCC", destination), false, "Dial address");
         MinecraftSubsystemMenuProbe.assertElement(helper, viewer, 0, 5, Items.PAPER, MinecraftSubsystemMenuProbe.name(viewer,
@@ -257,7 +257,7 @@ public final class MinecraftNexusGameTest {
         });
         idle(sequence, 3, () -> {
             MinecraftSubsystemMenuProbe.assertWindow(helper, viewer, MinecraftPortalText.router(runtime, menuSource, true), 6,
-                Items.STAINED_GLASS_PANE.cyan(), MinecraftSubsystemMenuProbe.slot(4, 4), "Network dial window");
+                MinecraftDyedItems.pane(DyeColor.CYAN), MinecraftSubsystemMenuProbe.slot(4, 4), "Network dial window");
             String peerAddress = String.valueOf(menuPeer.setting("nexus.address"));
             MinecraftSubsystemMenuProbe.assertElement(helper, viewer, -4, 0, Items.ENDER_PEARL, dialEntry(viewer, peerAddress, menuPeer), false,
                 "Network dial entry");
@@ -280,7 +280,7 @@ public final class MinecraftNexusGameTest {
 
     private void assertJoinLayout(ServerPlayer viewer, MinecraftPortal portal) {
         MinecraftSubsystemMenuProbe.assertWindow(helper, viewer, MinecraftPortalText.router(runtime, portal, true), 4,
-            Items.STAINED_GLASS_PANE.cyan(), MinecraftSubsystemMenuProbe.slot(-3, 1), "Network join window");
+            MinecraftDyedItems.pane(DyeColor.CYAN), MinecraftSubsystemMenuProbe.slot(-3, 1), "Network join window");
         MinecraftSubsystemMenuProbe.assertElement(helper, viewer, 0, 0, Items.COMPASS, MinecraftSubsystemMenuProbe.name(viewer,
             NexusMessages.MENU_PLACARD, MinecraftPortalText.arguments("name", "", "address", "", "count", 0)), false, "Network placard");
         MinecraftSubsystemMenuProbe.assertElement(helper, viewer, -1, 1, Items.ENDER_EYE,
@@ -293,7 +293,7 @@ public final class MinecraftNexusGameTest {
         PortalNetwork network = runtime.nexus().networks().byId(menuNetwork.id());
         String address = String.valueOf(portal.setting("nexus.address"));
         MinecraftSubsystemMenuProbe.assertWindow(helper, viewer, MinecraftPortalText.router(runtime, portal, true), 4,
-            Items.STAINED_GLASS_PANE.cyan(), MinecraftSubsystemMenuProbe.slot(0, 2), "Network window");
+            MinecraftDyedItems.pane(DyeColor.CYAN), MinecraftSubsystemMenuProbe.slot(0, 2), "Network window");
         MinecraftSubsystemMenuProbe.assertElement(helper, viewer, 0, 0, Items.COMPASS, MinecraftSubsystemMenuProbe.name(viewer,
             NexusMessages.MENU_PLACARD, MinecraftPortalText.arguments("name", network.name(), "address", address, "count",
                 network.members().size())), false, "Network placard");

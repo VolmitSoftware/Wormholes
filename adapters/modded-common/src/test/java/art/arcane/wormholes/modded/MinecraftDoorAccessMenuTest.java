@@ -5,6 +5,7 @@ import art.arcane.wormholes.door.DoorAccessState;
 import art.arcane.wormholes.door.DoorOpenState;
 import art.arcane.wormholes.door.DoorProjectionState;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.DyeColor;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -50,11 +51,11 @@ public class MinecraftDoorAccessMenuTest {
 
     @Test
     public void iconsMatchTheBukkitMaterials() {
-        assertSame(Items.STAINED_GLASS_PANE.black(), MinecraftDoorAccessMenu.stateIcon(DoorAccessState.NEUTRAL));
-        assertSame(Items.STAINED_GLASS_PANE.green(), MinecraftDoorAccessMenu.stateIcon(DoorAccessState.WHITELIST));
-        assertSame(Items.STAINED_GLASS_PANE.red(), MinecraftDoorAccessMenu.stateIcon(DoorAccessState.BLACKLIST));
-        assertSame(Items.DYE.lime(), MinecraftDoorAccessMenu.openStateIcon(DoorOpenState.OPEN));
-        assertSame(Items.DYE.gray(), MinecraftDoorAccessMenu.openStateIcon(DoorOpenState.CLOSED));
+        assertSame(MinecraftDyedItems.pane(DyeColor.BLACK), MinecraftDoorAccessMenu.stateIcon(DoorAccessState.NEUTRAL));
+        assertSame(MinecraftDyedItems.pane(DyeColor.GREEN), MinecraftDoorAccessMenu.stateIcon(DoorAccessState.WHITELIST));
+        assertSame(MinecraftDyedItems.pane(DyeColor.RED), MinecraftDoorAccessMenu.stateIcon(DoorAccessState.BLACKLIST));
+        assertSame(MinecraftDyedItems.dye(DyeColor.LIME), MinecraftDoorAccessMenu.openStateIcon(DoorOpenState.OPEN));
+        assertSame(MinecraftDyedItems.dye(DyeColor.GRAY), MinecraftDoorAccessMenu.openStateIcon(DoorOpenState.CLOSED));
         for (DoorProjectionState state : DoorProjectionState.values()) {
             assertSame(Items.SPYGLASS, MinecraftDoorAccessMenu.projectionIcon(state));
         }

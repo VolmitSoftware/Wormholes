@@ -62,6 +62,10 @@ public final class RouteStream {
         return delivered.containsKey(key) && !dirty.contains(key);
     }
 
+    public boolean present(long key) {
+        return delivered.containsKey(key);
+    }
+
     public int revision(long key) {
         return delivered.getOrDefault(key, 0);
     }
@@ -116,6 +120,12 @@ public final class RouteStream {
         }
     }
 
+    public void lightChanged(long key, boolean ticking) {
+        if (!ticking) {
+            changed(key);
+        }
+    }
+
     public void live(long key, boolean ticking) {
         if (ticking && delivered(key)) {
             live.add(key);
@@ -165,27 +175,6 @@ public final class RouteStream {
             selected.add(key);
         }
         return selected == null ? LongList.of() : selected;
-    }
-
-    public boolean complete(RouteWindow core) {
-        LongList keys = core.keys();
-        for (int index = 0; index < keys.size(); index++) {
-            if (!delivered(keys.getLong(index))) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    public int deliveredRadius() {
-        int best = 0;
-        for (int radius = 1; radius <= window.radius(); radius++) {
-            if (!complete(window.withRadius(radius))) {
-                break;
-            }
-            best = radius;
-        }
-        return best;
     }
 
     public LongSet deliveredKeys() {

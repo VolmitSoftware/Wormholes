@@ -39,6 +39,29 @@ public class RemoteRoutesBudgetTest extends MinecraftTestBase {
     }
 
     @Test
+    public void lightChangedInADeliveredNonTickingColumnResendsItWithCurrentLight() {
+        RouteStream stream = new RouteStream(new RouteWindow(0, 0, 1));
+        long resting = ChunkPos.pack(0, 0);
+        long ticking = ChunkPos.pack(1, 0);
+        long pending = ChunkPos.pack(0, 1);
+        stream.markDelivered(resting);
+        stream.markDelivered(ticking);
+        stream.live(ticking, true);
+
+        stream.lightChanged(resting, false);
+        stream.lightChanged(ticking, true);
+        stream.lightChanged(pending, false);
+
+        assertFalse(stream.delivered(resting));
+        assertTrue(stream.needs(resting));
+        assertTrue(stream.delivered(ticking));
+        assertTrue(stream.live(ticking));
+        assertFalse(stream.delivered(pending));
+        assertEquals(2, stream.markDelivered(resting));
+        assertTrue(stream.delivered(resting));
+    }
+
+    @Test
     public void planTakesTheNearestUndeliveredColumnsWithinTheChunkBudget() {
         RouteStream stream = new RouteStream(new RouteWindow(0, 0, 3));
 
@@ -155,6 +178,32 @@ public class RemoteRoutesBudgetTest extends MinecraftTestBase {
     }
 
     @Test
+    public void aDeliveredColumnStaysOnTheClientWhileItWaitsForAResend() {
+        RouteStream stream = new RouteStream(new RouteWindow(0, 0, 3));
+        long changed = ChunkPos.pack(0, 0);
+        long relit = ChunkPos.pack(1, 0);
+        long leaving = ChunkPos.pack(3, 0);
+        stream.markDelivered(changed);
+        stream.markDelivered(relit);
+        stream.markDelivered(leaving);
+
+        stream.changed(changed);
+        stream.lightChanged(relit, false);
+        stream.window(new RouteWindow(0, 0, 1), 10L);
+
+        assertFalse(stream.delivered(changed));
+        assertTrue(stream.present(changed));
+        assertFalse(stream.delivered(relit));
+        assertTrue(stream.present(relit));
+        assertTrue(stream.present(leaving));
+        assertFalse(stream.present(ChunkPos.pack(0, 1)));
+        stream.forgets(10L + RouteStream.FORGET_HYSTERESIS_TICKS);
+        assertFalse(stream.present(leaving));
+        stream.clear();
+        assertFalse(stream.present(changed));
+    }
+
+    @Test
     public void columnsLeavingTheWindowAreForgottenOnlyAfterTheHysteresis() {
         RouteStream stream = new RouteStream(new RouteWindow(0, 0, 3));
         long edge = ChunkPos.pack(4, 0);
@@ -171,20 +220,6 @@ public class RemoteRoutesBudgetTest extends MinecraftTestBase {
         assertEquals(edge, forgotten.getLong(0));
         assertEquals(0, stream.revision(edge));
         assertTrue(stream.delivered(ChunkPos.pack(0, 0)));
-    }
-
-    @Test
-    public void deliveredRadiusIsTheLargestCompletelyDeliveredWindow() {
-        RouteWindow window = new RouteWindow(5, -5, 3);
-        RouteStream stream = new RouteStream(window);
-        assertEquals(0, stream.deliveredRadius());
-        LongList inner = window.withRadius(2).keys();
-        for (int index = 0; index < inner.size(); index++) {
-            stream.markDelivered(inner.getLong(index));
-        }
-        assertEquals(2, stream.deliveredRadius());
-        assertTrue(stream.complete(window.withRadius(1)));
-        assertFalse(stream.complete(window));
     }
 
     @Test

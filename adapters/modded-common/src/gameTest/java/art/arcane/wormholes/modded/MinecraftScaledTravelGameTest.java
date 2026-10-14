@@ -9,7 +9,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EntitySpawnReason;
-import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.animal.pig.Pig;
@@ -102,7 +101,7 @@ public final class MinecraftScaledTravelGameTest {
             .thenWaitUntil(() -> helper.assertTrue(near(player, LARGE_X, LARGE), "The third loop pass did not arrive"))
             .thenExecute(() -> {
                 assertFactor(player, 4.0D, "after the clamped loop pass");
-                pig = EntityTypes.PIG.create(helper.getLevel(), EntitySpawnReason.COMMAND);
+                pig = MinecraftEntityTypes.PIG.create(helper.getLevel(), EntitySpawnReason.COMMAND);
                 helper.assertTrue(pig != null, "Could not create the pig");
                 pig.setNoAi(true);
                 Vec3 at = player.position().add(2.0D, 0.0D, 0.0D);

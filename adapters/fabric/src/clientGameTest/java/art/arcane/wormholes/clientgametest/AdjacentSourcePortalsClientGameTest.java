@@ -12,6 +12,7 @@ import art.arcane.wormholes.portal.AmbientParticleStyle;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.portal.ProjectionMode;
 import art.arcane.wormholes.transit.OrientationPolicy;
+import art.arcane.wormholes.modded.MinecraftDyedItems;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestSingleplayerContext;
@@ -52,12 +53,12 @@ public final class AdjacentSourcePortalsClientGameTest implements FabricClientGa
         boolean repeatFirst = Boolean.getBoolean("wormholes.clientgametest.adjacentPortals.repeatFirst");
         ClientViewTestConfig.enableSeamless(true);
         try (TestSingleplayerContext world = context.worldBuilder().adjustSettings(settings -> settings.setAllowCommands(true)).create()) {
-            FabricSeamlessClient client = new FabricSeamlessClient(context, world.getConnection());
+            FabricSeamlessClient client = new FabricSeamlessClient(context, FabricConnection.of(world));
             SeamlessScenario.join(client);
             SeamlessScenario.assertSeamlessNegotiated(client);
-            AdjacentSourcePortalsScene scene = world.getServer().computeOnServer(server -> build(server, world.getConnection().getServerPlayer()));
+            AdjacentSourcePortalsScene scene = world.getServer().computeOnServer(server -> build(server, FabricConnection.of(world).getServerPlayer()));
             world.getServer().runOnServer(server -> {
-                ServerPlayer player = world.getConnection().getServerPlayer();
+                ServerPlayer player = FabricConnection.of(world).getServerPlayer();
                 player.setGameMode(GameType.SURVIVAL);
                 player.teleportTo(server.overworld(), 3.5D, 70.0D, 29.0D, Set.of(), 180.0F, 0.0F, false);
             });
@@ -71,10 +72,10 @@ public final class AdjacentSourcePortalsClientGameTest implements FabricClientGa
                 minecraft.options.bobView().set(!capture);
                 minecraft.options.fovEffectScale().set(capture ? 0.0D : 1.0D);
                 minecraft.options.framerateLimit().set(capture ? 20 : 120);
-                if (!minecraft.gui.hud.isHidden()) {
-                    minecraft.gui.hud.toggle();
+                if (!ClientGui.hudHidden(minecraft)) {
+                    ClientGui.toggleHud(minecraft);
                 }
-                minecraft.gui.toastManager().clear();
+                ClientGui.clearToasts(minecraft);
                 minecraft.player.setSprinting(false);
             });
             client.lookAt(180.0F, 0.0F);
@@ -256,7 +257,7 @@ public final class AdjacentSourcePortalsClientGameTest implements FabricClientGa
                     case 4 -> DyeColor.CYAN;
                     default -> DyeColor.MAGENTA;
                 };
-                BlockState state = Blocks.CONCRETE.pick(color).defaultBlockState();
+                BlockState state = MinecraftDyedItems.concreteBlock(color).defaultBlockState();
                 level.setBlockAndUpdate(position, state);
             }
         }

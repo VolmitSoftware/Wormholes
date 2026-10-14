@@ -1,5 +1,6 @@
 package art.arcane.wormholes.clientgametest;
 
+import art.arcane.wormholes.modded.client.ClientRenderAccess;
 import net.minecraft.client.Minecraft;
 import org.lwjgl.sdl.SDLMouse;
 import org.lwjgl.sdl.SDLVideo;
@@ -20,6 +21,6 @@ final class NativeTestWindow {
     }
 
     static boolean hasBlockOverlay(Minecraft client) {
-        return client.gameRenderer.gameRenderState().levelRenderState.playerRenderState.blockOverlay != null;
+        return ClientRenderAccess.gameState(client).levelRenderState.playerRenderState.blockOverlay != null;
     }
 }

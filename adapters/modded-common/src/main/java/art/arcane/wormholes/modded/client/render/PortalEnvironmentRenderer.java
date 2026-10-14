@@ -2,6 +2,7 @@ package art.arcane.wormholes.modded.client.render;
 
 import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.stream.EnvironmentState;
+import art.arcane.wormholes.modded.client.ClientRenderAccess;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.renderpearl.api.buffers.GpuBufferSlice;
 import com.mojang.renderpearl.api.commands.RenderPass;
@@ -51,7 +52,7 @@ final class PortalEnvironmentRenderer implements AutoCloseable {
             blendTicks = previous == null ? 0 : Math.clamp(environment.gameTime() - previous.gameTime(), 1L, 20L);
             receivedTime = now;
         }
-        LightmapRenderState local = minecraft.gameRenderer.gameRenderState().lightmapRenderState;
+        LightmapRenderState local = ClientRenderAccess.gameState(minecraft).lightmapRenderState;
         if (changed || local.needsUpdate) {
             lightmap.render(PortalEnvironment.light(environment, local));
         }

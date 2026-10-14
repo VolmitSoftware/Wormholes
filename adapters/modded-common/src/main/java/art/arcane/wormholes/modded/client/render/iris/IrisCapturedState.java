@@ -1,24 +1,39 @@
 package art.arcane.wormholes.modded.client.render.iris;
 
+import art.arcane.wormholes.modded.mixin.client.IrisPortalCapturedStateAccess;
 import net.irisshaders.iris.uniforms.CapturedRenderingState;
 import org.joml.Matrix4f;
+import org.joml.Matrix4fc;
 import org.joml.Vector3d;
 
 record IrisCapturedState(Matrix4f view, Matrix4f projection, Vector3d fog, float fogDensity, float tickDelta, float realTickDelta,
                          float darkness, float alphaTest, float cloudTime, int entity, int blockEntity, int item) {
     static IrisCapturedState capture() {
-        CapturedRenderingState state = CapturedRenderingState.INSTANCE;
-        return new IrisCapturedState(new Matrix4f(state.getGbufferModelView()), new Matrix4f(state.getGbufferProjection()),
-            new Vector3d(state.getFogColor()), state.getFogDensity(), state.getTickDelta(), state.getRealTickDelta(),
+        return capture(CapturedRenderingState.INSTANCE);
+    }
+
+    static IrisCapturedState capture(CapturedRenderingState state) {
+        Matrix4fc view = state.getGbufferModelView();
+        Matrix4fc projection = state.getGbufferProjection();
+        Vector3d fog = ((IrisPortalCapturedStateAccess) state).wormholes$fog();
+        return new IrisCapturedState(view == null ? null : new Matrix4f(view), projection == null ? null : new Matrix4f(projection),
+            fog == null ? null : new Vector3d(fog), state.getFogDensity(), state.getTickDelta(), state.getRealTickDelta(),
             state.getDarknessLightFactor(), state.getCurrentAlphaTest(), state.getCloudTime(), state.getCurrentRenderedEntity(),
             state.getCurrentRenderedBlockEntity(), state.getCurrentRenderedItem());
     }
 
     void restore() {
-        CapturedRenderingState state = CapturedRenderingState.INSTANCE;
+        restore(CapturedRenderingState.INSTANCE);
+    }
+
+    void restore(CapturedRenderingState state) {
         state.setGbufferModelView(view);
-        state.setGbufferProjection(projection);
-        state.setFogColor((float) fog.x, (float) fog.y, (float) fog.z);
+        if (projection == null) {
+            ((IrisPortalCapturedStateAccess) state).wormholes$projection(null);
+        } else {
+            state.setGbufferProjection(projection);
+        }
+        ((IrisPortalCapturedStateAccess) state).wormholes$fog(fog);
         state.setFogDensity(fogDensity);
         state.setTickDelta(tickDelta);
         state.setRealTickDelta(realTickDelta);

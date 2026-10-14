@@ -6,7 +6,7 @@ The central [Wormholes manual](https://github.com/VolmitSoftware/docs/blob/maste
 
 The projection library lives in the [Optics](https://github.com/VolmitSoftware/Optics) submodule at `optics/`; clone with `git clone --recurse-submodules` or run `git submodule update --init` in an existing checkout.
 
-Build the Bukkit distribution and all declared Minecraft versions for Fabric, Forge, and NeoForge with Java 25 and `./gradlew buildAllToOut`. The jars are exported to the sibling `PluginOuts/` directory. `buildAll`, `buildPsychoLT`, and the workspace `build-psycho-lt.sh` include the same versions automatically. Single-platform builds and consumer dropins default to Minecraft 26.3; select 26.2 with `-PminecraftVersion=26.2`. Use `./gradlew buildModdedVersionsToOut` to export only native distributions.
+Build the Bukkit distribution and all declared Minecraft versions for Fabric, Forge, and NeoForge with Java 25 and `./gradlew buildAllToOut`. The jars are exported to the sibling `PluginOuts/` directory. `buildAll`, `buildPsychoLT`, and the workspace `build-psycho-lt.sh` include the same versions automatically. Single-platform builds and consumer dropins default to Minecraft 26.3; select 26.2 or 26.1.2 with `-PminecraftVersion=26.2` or `-PminecraftVersion=26.1.2`. Use `./gradlew buildModdedVersionsToOut` to export only native distributions. `./gradlew checkAll` runs every Bukkit, core, Optics, and proxy check plus the Fabric, Forge, and NeoForge build and unit tests for every declared Minecraft version without exporting jars; loaders build concurrently and unchanged targets are skipped.
 
 ## Known issues
 

@@ -63,6 +63,7 @@ public final class ClientViewOutbound {
                 meshCursor = (meshCursor + 1) % meshSent.length;
             }
             sender.accept(message);
+            now = clock.getAsLong();
         }
     }
 

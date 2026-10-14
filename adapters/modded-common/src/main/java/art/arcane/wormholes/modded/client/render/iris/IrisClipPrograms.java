@@ -1,7 +1,7 @@
 package art.arcane.wormholes.modded.client.render.iris;
 
 import art.arcane.wormholes.modded.client.render.dh.DhClipPrograms;
-import com.mojang.blaze3d.systems.RenderSystem;
+import art.arcane.wormholes.modded.client.ClientRenderAccess;
 import com.mojang.logging.LogUtils;
 import io.github.douira.glsl_transformer.ast.transform.TransformationException;
 import io.github.douira.glsl_transformer.parser.ParsingException;
@@ -54,7 +54,7 @@ public final class IrisClipPrograms {
         if (binding.depth() < 0) {
             return;
         }
-        boolean zeroToOne = RenderSystem.getDevice().getDeviceInfo().isZZeroToOne();
+        boolean zeroToOne = ClientRenderAccess.zeroToOneDepth();
         GL20C.glUniform2f(binding.depth(), zeroToOne ? -2.0F : -1.0F, zeroToOne ? 1.0F : 0.0F);
     }
 

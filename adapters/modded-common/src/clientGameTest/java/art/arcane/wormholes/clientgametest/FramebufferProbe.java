@@ -1,5 +1,6 @@
 package art.arcane.wormholes.clientgametest;
 
+import art.arcane.wormholes.modded.client.ClientRenderAccess;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.platform.NativeImage;
 import net.minecraft.client.Camera;
@@ -9,6 +10,10 @@ import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 import org.joml.Vector4f;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.function.Consumer;
 
 final class FramebufferProbe {
@@ -23,19 +28,33 @@ final class FramebufferProbe {
     }
 
     static void capture(Minecraft client, Consumer<FramebufferProbe> sink) {
-        RenderTarget target = client.gameRenderer.mainRenderTarget();
+        RenderTarget target = ClientRenderAccess.mainTarget(client);
         Screenshot.takeScreenshot(target, image -> sink.accept(copy(image)));
     }
 
+    static void capture(Minecraft client, Path output, Consumer<FramebufferProbe> sink) {
+        RenderTarget target = ClientRenderAccess.mainTarget(client);
+        Screenshot.takeScreenshot(target, image -> {
+            try {
+                Files.createDirectories(output.getParent());
+                image.writeToFile(output);
+            } catch (IOException failure) {
+                image.close();
+                throw new UncheckedIOException("framebuffer capture could not be written to " + output, failure);
+            }
+            sink.accept(copy(image));
+        });
+    }
+
     static int[] screen(Minecraft client, Vec3 world) {
-        Camera camera = client.gameRenderer.mainCamera();
+        Camera camera = ClientRenderAccess.mainCamera(client);
         Vec3 eye = camera.position();
         Matrix4f viewProjection = camera.getViewRotationProjectionMatrix(new Matrix4f());
         Vector4f clip = viewProjection.transform(new Vector4f((float) (world.x - eye.x), (float) (world.y - eye.y), (float) (world.z - eye.z), 1.0F));
         if (clip.w <= 0.0F) {
             return null;
         }
-        RenderTarget target = client.gameRenderer.mainRenderTarget();
+        RenderTarget target = ClientRenderAccess.mainTarget(client);
         int x = (int) Math.floor((clip.x / clip.w + 1.0F) * 0.5F * target.width);
         int y = (int) Math.floor((1.0F - clip.y / clip.w) * 0.5F * target.height);
         return x < 0 || y < 0 || x >= target.width || y >= target.height ? null : new int[] {x, y};

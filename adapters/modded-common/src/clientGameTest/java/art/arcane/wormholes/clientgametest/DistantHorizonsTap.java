@@ -24,6 +24,7 @@ import art.arcane.wormholes.modded.client.render.stencil.PortalLayer;
 import art.arcane.wormholes.modded.client.render.stencil.PortalLayerMath;
 import art.arcane.wormholes.modded.mixin.client.DhPortalBlazeTemporalAccess;
 import art.arcane.wormholes.modded.mixin.client.DhPortalClientApiAccess;
+import art.arcane.wormholes.modded.client.ClientRenderAccess;
 import com.google.gson.GsonBuilder;
 import com.mojang.renderpearl.api.pipeline.RenderPipeline;
 import com.mojang.renderpearl.api.pipeline.ShaderType;
@@ -171,7 +172,7 @@ public final class DistantHorizonsTap {
         StringBuilder values = new StringBuilder();
         Minecraft minecraft = Minecraft.getInstance();
         values.append("frame=").append(SystemTimeUniforms.COUNTER.getAsInt()).append(" level=").append(minecraft.level.dimension().identifier())
-            .append(" bossFog=").append(minecraft.gui.hud.getBossOverlay().shouldCreateWorldFog()).append('\n');
+            .append(" bossFog=").append(ClientGui.bossFog(minecraft)).append('\n');
         for (int program = 1; program <= 4096; program++) {
             if (!GL20C.glIsProgram(program) || GL20C.glGetProgrami(program, GL20C.GL_LINK_STATUS) == 0) {
                 continue;
@@ -290,7 +291,7 @@ public final class DistantHorizonsTap {
                     fail("DH virtual main-camera draw selected the player's world instead of the camera's world");
                 }
                 Vec3 actual = new Vec3(params.exactCameraPosition.x, params.exactCameraPosition.y, params.exactCameraPosition.z);
-                if (actual.distanceTo(minecraft.gameRenderer.mainCamera().position()) > 0.001D) {
+                if (actual.distanceTo(ClientRenderAccess.mainCamera(minecraft).position()) > 0.001D) {
                     fail("DH virtual main-camera position differs from the active Minecraft camera");
                 }
             }
@@ -393,7 +394,7 @@ public final class DistantHorizonsTap {
     }
 
     public static void terrainImage() {
-        copyInputImage(Minecraft.getInstance().gameRenderer.mainRenderTarget().getColorTextureView(), "sodium-child-opaque");
+        copyInputImage(ClientRenderAccess.mainTarget(Minecraft.getInstance()).getColorTextureView(), "sodium-child-opaque");
     }
 
     public static int beginCopy(GpuTextureView input, GpuTextureView destination, int count) {
@@ -401,7 +402,7 @@ public final class DistantHorizonsTap {
         if (!enabled || shaders || layer == null) {
             return 0;
         }
-        if (destination.texture() != Minecraft.getInstance().gameRenderer.mainRenderTarget().getColorTexture()) {
+        if (destination.texture() != ClientRenderAccess.mainTarget(Minecraft.getInstance()).getColorTexture()) {
             return 0;
         }
         Key key = key(layer);
@@ -435,7 +436,7 @@ public final class DistantHorizonsTap {
         }
         int inputTexture = ((GlTexture) input.texture()).glId();
         CopyState before = copyState(inputTexture);
-        int expectedStencil = ((GlTexture) Minecraft.getInstance().gameRenderer.mainRenderTarget().getDepthTexture()).glId();
+        int expectedStencil = ((GlTexture) ClientRenderAccess.mainTarget(Minecraft.getInstance()).getDepthTexture()).glId();
         boolean valid = before.clipDistances() == 0 && before.stencilEnabled() && before.function() == GL11C.GL_EQUAL
             && before.reference() == layer.depth() && before.mask() == 0xFF
             && GL30C.glIsFramebuffer(before.framebuffer())
@@ -921,7 +922,7 @@ public final class DistantHorizonsTap {
                 GL30C.glGetFramebufferAttachmentParameteri(GL30C.GL_DRAW_FRAMEBUFFER, GL30C.GL_DEPTH_ATTACHMENT,
                     GL30C.GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME),
                 clipDistances(), stencil.get(0) & 0xFF, color.getInt(0), inputTexture,
-                ((GlTexture) Minecraft.getInstance().gameRenderer.mainRenderTarget().getColorTexture()).glId(),
+                ((GlTexture) ClientRenderAccess.mainTarget(Minecraft.getInstance()).getColorTexture()).glId(),
                 program, unit, texture, colorMask, GL11C.glIsEnabled(GL11C.GL_DEPTH_TEST), GL11C.glGetInteger(GL11C.GL_DEPTH_FUNC),
                 GL11C.glGetBoolean(GL11C.GL_DEPTH_WRITEMASK));
         }
@@ -948,8 +949,8 @@ public final class DistantHorizonsTap {
         if (expectedDepth != 1) {
             throw new AssertionError("DH copy visibility did not reach its outermost portal aperture");
         }
-        int width = Minecraft.getInstance().gameRenderer.mainRenderTarget().width;
-        int height = Minecraft.getInstance().gameRenderer.mainRenderTarget().height;
+        int width = ClientRenderAccess.mainTarget(Minecraft.getInstance()).width;
+        int height = ClientRenderAccess.mainTarget(Minecraft.getInstance()).height;
         return new CopyCamera(current.eye(), layer.view().surface().planePoint(), aperture.minW(), aperture.maxW(), aperture.rectangles(),
             aperture.pixels(), intersection.size(), copyArea(intersection) * width * height / 8.0D, List.copyOf(parents),
             current.view().toString(), layer.camera().projectionMatrix.toString(), layer.view().kind().name());
@@ -965,8 +966,8 @@ public final class DistantHorizonsTap {
         ApertureDescriptor geometry = layer.view().surface().geometry();
         Matrix4d transform = projection.mul(new Matrix4d(view)).translate(-eye.x(), -eye.y(), -eye.z())
             .mul(layer.view().surface().model()).translate(-geometry.originX(), -geometry.originY(), -geometry.originZ());
-        int width = Minecraft.getInstance().gameRenderer.mainRenderTarget().width;
-        int height = Minecraft.getInstance().gameRenderer.mainRenderTarget().height;
+        int width = ClientRenderAccess.mainTarget(Minecraft.getInstance()).width;
+        int height = ClientRenderAccess.mainTarget(Minecraft.getInstance()).height;
         CopyProjection aperture = projectCopy(layer.view().surface().aperture(), transform, width, height);
         return new CopyAperture(eye, view, aperture);
     }
@@ -1073,8 +1074,8 @@ public final class DistantHorizonsTap {
     }
 
     private static CopyPixels copyPixels(int framebuffer) {
-        int width = Minecraft.getInstance().gameRenderer.mainRenderTarget().width;
-        int height = Minecraft.getInstance().gameRenderer.mainRenderTarget().height;
+        int width = ClientRenderAccess.mainTarget(Minecraft.getInstance()).width;
+        int height = ClientRenderAccess.mainTarget(Minecraft.getInstance()).height;
         CopyPixels pixels = new CopyPixels(width, height, MemoryUtil.memAlloc(width * height), MemoryUtil.memAlloc(width * height * 4),
             MemoryUtil.memAlloc(width * height * 4));
         try {
@@ -1127,7 +1128,7 @@ public final class DistantHorizonsTap {
     private static void copyImage(String name) {
         Minecraft minecraft = Minecraft.getInstance();
         copyImage(name, GlStateManager.getFrameBuffer(GL30C.GL_DRAW_FRAMEBUFFER),
-            minecraft.gameRenderer.mainRenderTarget().width, minecraft.gameRenderer.mainRenderTarget().height);
+            ClientRenderAccess.mainTarget(minecraft).width, ClientRenderAccess.mainTarget(minecraft).height);
     }
 
     private static void copyImage(String name, int framebuffer, int width, int height) {

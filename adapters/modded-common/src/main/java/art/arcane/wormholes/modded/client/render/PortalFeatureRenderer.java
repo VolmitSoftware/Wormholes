@@ -2,6 +2,7 @@ package art.arcane.wormholes.modded.client.render;
 
 import art.arcane.optics.stream.EnvironmentState;
 import art.arcane.optics.frame.OpticTransform;
+import art.arcane.wormholes.modded.client.ClientRenderAccess;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.MeshData;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -52,7 +53,7 @@ public final class PortalFeatureRenderer implements AutoCloseable {
         if (dispatcher == null) {
             buffers = new RenderBuffers(0);
             dispatcher = new FeatureRenderDispatcher(buffers, minecraft.getModelManager(), minecraft.getAtlasManager(), minecraft.font,
-                minecraft.gameRenderer.gameRenderState());
+                ClientRenderAccess.gameState(minecraft));
         }
         Matrix4fStack modelView = RenderSystem.getModelViewStack();
         modelView.pushMatrix();

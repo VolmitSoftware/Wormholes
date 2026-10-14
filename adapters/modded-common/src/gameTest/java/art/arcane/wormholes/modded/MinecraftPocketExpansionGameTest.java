@@ -24,7 +24,6 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.EntitySpawnReason;
-import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.ChunkPos;
@@ -100,7 +99,7 @@ public final class MinecraftPocketExpansionGameTest {
             open(near);
             open(new BlockPos(target.position().x(), target.position().y(), target.position().z()));
             forcedChunk = level.setChunkForced(near.getX() >> 4, near.getZ() >> 4, true);
-            traveler = EntityTypes.CHICKEN.create(level, EntitySpawnReason.COMMAND);
+            traveler = MinecraftEntityTypes.CHICKEN.create(level, EntitySpawnReason.COMMAND);
             options.helper().assertTrue(traveler != null, "Could not create room traveler");
             traveler.setNoGravity(true);
             traveler.snapTo(near.getX() + 0.5, near.getY(), near.getZ() + 1.5);

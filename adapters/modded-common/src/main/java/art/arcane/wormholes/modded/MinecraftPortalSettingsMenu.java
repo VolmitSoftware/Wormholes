@@ -14,6 +14,7 @@ import art.arcane.wormholes.portal.ProjectionRenderMode;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.DyeColor;
 
 import java.util.Map;
 import java.util.Objects;
@@ -51,7 +52,7 @@ final class MinecraftPortalSettingsMenu {
         MinecraftWindow window = menus.window(p, portal);
         boolean custom = portal.getNetworkViewQuality() == NetworkViewQuality.CUSTOM;
         window.setViewportHeight(custom ? 6 : 5);
-        window.setDecorator(Items.STAINED_GLASS_PANE.gray());
+        window.setDecorator(MinecraftDyedItems.pane(DyeColor.GRAY));
 
         window.setElement(0, 0, MinecraftPortalText.localizedElement(p, "settings-placard",
             WormholesMessages.PORTAL_MENU_SETTINGS_PLACARD_GATEWAY, MessageArgs.empty(), Items.LEVER));
@@ -100,7 +101,7 @@ final class MinecraftPortalSettingsMenu {
     private void openAdvanced(ServerPlayer p, MinecraftPortal portal) {
         MinecraftWindow window = menus.window(p, portal);
         window.setViewportHeight(5);
-        window.setDecorator(Items.STAINED_GLASS_PANE.black());
+        window.setDecorator(MinecraftDyedItems.pane(DyeColor.BLACK));
         MinecraftPortalCosmeticsMenu cosmetics = menus.cosmetics();
         window.setElement(0, 0, MinecraftPortalText.localizedElement(p, "advanced-settings-placard",
             WormholesMessages.PORTAL_MENU_ADVANCED_SETTINGS, MessageArgs.empty(), Items.COMPARATOR));
@@ -445,7 +446,7 @@ final class MinecraftPortalSettingsMenu {
             element.addLore(MinecraftLegacyText.text(viewer, WormholesMessages.PORTAL_APERTURE_SHAPE_TOO_SMALL,
                 MinecraftPortalText.arguments("shape", cursor.refused.format())));
         }
-        element.setMaterial(shape.isFull() ? Items.GLASS_PANE : Items.STAINED_GLASS_PANE.cyan());
+        element.setMaterial(shape.isFull() ? Items.GLASS_PANE : MinecraftDyedItems.pane(DyeColor.CYAN));
         element.setEnchanted(!shape.isFull());
     }
 

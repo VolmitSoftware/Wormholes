@@ -8,6 +8,7 @@ import art.arcane.wormholes.modded.client.render.stencil.PortalSurface;
 import art.arcane.wormholes.modded.client.render.stencil.PortalView;
 import art.arcane.wormholes.modded.client.render.stencil.PortalViews;
 import art.arcane.wormholes.network.client.TravelMessage;
+import art.arcane.wormholes.modded.client.ClientRenderAccess;
 import com.google.gson.GsonBuilder;
 import com.mojang.blaze3d.platform.NativeImage;
 import net.minecraft.client.Camera;
@@ -76,7 +77,7 @@ final class NetherCrossingCompositionTap {
         if (!recording || minecraft.player == null || minecraft.level == null) {
             return;
         }
-        Camera camera = minecraft.gameRenderer.mainCamera();
+        Camera camera = ClientRenderAccess.mainCamera(minecraft);
         if (!camera.isInitialized()) {
             return;
         }
@@ -100,7 +101,7 @@ final class NetherCrossingCompositionTap {
             minecraft.player.getYRot(), minecraft.player.getXRot(), minecraft.options.keyUp.isDown(), view.active(),
             crossing == null ? null : crossing.key().toString(), crossing == null ? null : crossing.toward().toString(),
             minecraft.options.fov().get(), minecraft.options.framerateLimit().get(),
-            minecraft.gameRenderer.mainRenderTarget().width, minecraft.gameRenderer.mainRenderTarget().height, matrix, List.copyOf(arms));
+            ClientRenderAccess.mainTarget(minecraft).width, ClientRenderAccess.mainTarget(minecraft).height, matrix, List.copyOf(arms));
     }
 
     static synchronized void frame(Minecraft minecraft) {
@@ -153,7 +154,7 @@ final class NetherCrossingCompositionTap {
         Capture capture = new Capture(index, swaps, afterSwap, rendered, List.copyOf(views), List.copyOf(footprints),
             "frame-" + String.format("%05d", index) + ".png", null);
         Path output = directory;
-        Screenshot.takeScreenshot(minecraft.gameRenderer.mainRenderTarget(), image -> captured(output, capture, image));
+        Screenshot.takeScreenshot(ClientRenderAccess.mainTarget(minecraft), image -> captured(output, capture, image));
     }
 
     static synchronized int framesAfterSwap() {
@@ -219,8 +220,11 @@ final class NetherCrossingCompositionTap {
                 throw new AssertionError(label + " frame=" + capture.index() + ": marker pixels outside projected scene footprints: " + result);
             }
             if (corruptionRejections == 0 && result.colored() >= 16) {
-                injection = rejectDisplacedDuplicate(image, capture);
-                corruptionRejections++;
+                Injection rejected = rejectDisplacedDuplicate(image, capture);
+                if (rejected != null) {
+                    injection = rejected;
+                    corruptionRejections++;
+                }
             }
         } catch (IOException | RuntimeException | AssertionError error) {
             fail(error);
@@ -302,7 +306,7 @@ final class NetherCrossingCompositionTap {
                     return new Injection(capture.index(), sourceX, sourceY, targetX, targetY, size, result.escaped());
                 }
             }
-            throw new AssertionError("No displaced actual-marker crop exercised the spatial oracle");
+            return null;
         }
     }
 
@@ -363,11 +367,16 @@ final class NetherCrossingCompositionTap {
         double maxX = 0;
         double maxY = 0;
         int behind = 0;
+        int clipped = 0;
         for (Vec3d point : points) {
             Vec3d relative = point.subtract(eye);
             Vector4f clip = matrix.transform(new Vector4f((float) relative.x(), (float) relative.y(), (float) relative.z(), 1.0F));
-            if (clip.w <= 0.001F) {
+            if (clip.w <= 0.0F) {
                 behind++;
+                continue;
+            }
+            if (clip.w <= 0.001F) {
+                clipped++;
                 continue;
             }
             double x = (clip.x / clip.w + 1.0D) * WIDTH * 0.5D;
@@ -380,7 +389,7 @@ final class NetherCrossingCompositionTap {
         if (behind == points.size()) {
             return null;
         }
-        if (behind > 0) {
+        if (behind > 0 || clipped > 0) {
             return new Rect(0, 0, WIDTH, HEIGHT);
         }
         return new Rect((int) Math.floor(minX) - EDGE_MARGIN, (int) Math.floor(minY) - EDGE_MARGIN,

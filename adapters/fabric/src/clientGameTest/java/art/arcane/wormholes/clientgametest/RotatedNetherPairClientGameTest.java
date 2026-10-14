@@ -63,7 +63,7 @@ public final class RotatedNetherPairClientGameTest implements FabricClientGameTe
     public void runTest(ClientGameTestContext context) {
         ClientViewTestConfig.enableSeamless(true);
         try (TestSingleplayerContext world = context.worldBuilder().adjustSettings(settings -> settings.setAllowCommands(true)).create()) {
-            FabricSeamlessClient client = new FabricSeamlessClient(context, world.getConnection());
+            FabricSeamlessClient client = new FabricSeamlessClient(context, FabricConnection.of(world));
             SeamlessScenario.join(client);
             SeamlessScenario.assertSeamlessNegotiated(client);
             client.runOnClient(minecraft -> {
@@ -72,7 +72,7 @@ public final class RotatedNetherPairClientGameTest implements FabricClientGameTe
                 minecraft.options.pauseOnLostFocus = false;
             });
             world.getServer().runOnServer(server -> {
-                ServerPlayer player = world.getConnection().getServerPlayer();
+                ServerPlayer player = FabricConnection.of(world).getServerPlayer();
                 player.setGameMode(GameType.SURVIVAL);
                 SeamlessWalkThrough.light(server, player, new SeamlessWalkThrough.NetherFrameFixture(SOURCE, 3));
             });
@@ -84,7 +84,7 @@ public final class RotatedNetherPairClientGameTest implements FabricClientGameTe
                 awaitIntegrity(client, world, pair, "after round trip");
                 Pair normalChanged = new Pair(pair.source(), pair.destination(), pair.rotated().withNormal(Face.U), pair.gravity(), pair.leases());
                 world.getServer().runOnServer(server -> {
-                    assertTrue(runtime(server).portals().update(world.getConnection().getServerPlayer(), pair.source().id(),
+                    assertTrue(runtime(server).portals().update(FabricConnection.of(world).getServerPlayer(), pair.source().id(),
                         portal -> portal.setFrame(normalChanged.rotated())), "Actual source frame normal change rejected");
                     assertSynced(server, normalChanged, RULE);
                 });
@@ -100,7 +100,7 @@ public final class RotatedNetherPairClientGameTest implements FabricClientGameTe
                     pair.source().id(), pair.destination().id(), pair.gravity(), SCALE, INTEGRITY_TICKS);
             } finally {
                 client.releaseForward();
-                world.getServer().runOnServer(server -> cleanup(server, world.getConnection().getServerPlayer(), pair));
+                world.getServer().runOnServer(server -> cleanup(server, FabricConnection.of(world).getServerPlayer(), pair));
             }
         } finally {
             context.getInput().releaseKey(options -> options.keyUp);
@@ -172,7 +172,7 @@ public final class RotatedNetherPairClientGameTest implements FabricClientGameTe
 
     private static void edit(FabricSeamlessClient client, TestSingleplayerContext world, Pair pair) {
         world.getServer().runOnServer(server -> {
-            ServerPlayer player = world.getConnection().getServerPlayer();
+            ServerPlayer player = FabricConnection.of(world).getServerPlayer();
             MinecraftPortalRegistry registry = runtime(server).portals();
             assertTrue(registry.update(player, pair.source().id(), portal -> portal.setSettingsSyncEnabled(false)), "Source sync disable rejected");
             assertTrue(registry.update(player, pair.destination().id(), portal -> portal.setSettingsSyncEnabled(false)), "Target sync disable rejected");
@@ -182,7 +182,7 @@ public final class RotatedNetherPairClientGameTest implements FabricClientGameTe
         });
         awaitIntegrity(client, world, pair, "clockwise90 with sync disabled");
         world.getServer().runOnServer(server -> {
-            ServerPlayer player = world.getConnection().getServerPlayer();
+            ServerPlayer player = FabricConnection.of(world).getServerPlayer();
             MinecraftPortalRegistry registry = runtime(server).portals();
             assertTrue(!registry.get(pair.destination().id()).isGravityRotationEnabled(), "Target gravity was enabled before source edit");
             assertTrue(registry.update(player, pair.source().id(), portal -> portal.setGravityRotationEnabled(true)), "Source gravity enable rejected");
@@ -194,7 +194,7 @@ public final class RotatedNetherPairClientGameTest implements FabricClientGameTe
         awaitIntegrity(client, world, pair, "gravity, scale and ordinary edit");
         world.getServer().runOnServer(server -> {
             MinecraftPortalRegistry registry = runtime(server).portals();
-            assertTrue(registry.update(world.getConnection().getServerPlayer(), pair.source().id(), portal -> {
+            assertTrue(registry.update(FabricConnection.of(world).getServerPlayer(), pair.source().id(), portal -> {
                 assertTrue(portal.setApertureShape(CIRCLE), "Circle aperture mask rejected");
             }), "Aperture update rejected");
             assertTrue(registry.get(pair.destination().id()).getApertureShape().isFull(), "Settings sync copied the source aperture mask");
@@ -203,7 +203,7 @@ public final class RotatedNetherPairClientGameTest implements FabricClientGameTe
         prepare(client, world, pair);
         awaitNative(client, world, pair.source().id(), CIRCLE);
         world.getServer().runOnServer(server -> {
-            assertTrue(runtime(server).portals().update(world.getConnection().getServerPlayer(), pair.source().id(), portal -> {
+            assertTrue(runtime(server).portals().update(FabricConnection.of(world).getServerPlayer(), pair.source().id(), portal -> {
                 assertTrue(portal.setApertureShape(ShapeDescriptor.FULL), "Full aperture restore rejected");
                 portal.setOrientation(OrientationPolicy.FRAME);
             }), "Full aperture update rejected");
@@ -275,7 +275,7 @@ public final class RotatedNetherPairClientGameTest implements FabricClientGameTe
         Vec3 feet = origin.add(normal.scale(4.0D)).add(0.0D, -1.0D, 0.0D);
         float yaw = (float) Math.toDegrees(Math.atan2(normal.x, -normal.z));
         world.getServer().runOnServer(server -> {
-            ServerPlayer player = world.getConnection().getServerPlayer();
+            ServerPlayer player = FabricConnection.of(world).getServerPlayer();
             player.setGameMode(GameType.CREATIVE);
             player.getAbilities().flying = true;
             player.onUpdateAbilities();
@@ -425,7 +425,7 @@ public final class RotatedNetherPairClientGameTest implements FabricClientGameTe
         client.waitFor(minecraft -> !WormholesClient.instance().seamlessTravel().pending(), TIMEOUT_TICKS);
         for (int tick = 0; tick < TIMEOUT_TICKS; tick++) {
             boolean confirmed = world.getServer().computeOnServer(server -> {
-                ServerPlayer player = world.getConnection().getServerPlayer();
+                ServerPlayer player = FabricConnection.of(world).getServerPlayer();
                 return player.level().dimension().identifier().toString().equals(destination.world())
                     && MinecraftGravity.frame(player).equals(gravity) && Math.abs(player.getScale() - SCALE) < 1.0E-6D;
             });

@@ -7,8 +7,11 @@ import net.minecraft.data.registries.VanillaRegistries;
 import net.minecraft.network.protocol.game.ClientboundRemoveEntitiesPacket;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.InterpolationHandler;
 import net.minecraft.world.level.WorldGenLevel;
+import net.minecraft.world.level.block.entity.BlockEntityType;
+import net.minecraft.world.level.block.entity.BlockEntityTypes;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.feature.EndPodiumFeature;
 import net.minecraft.world.level.levelgen.feature.configurations.NoneFeatureConfiguration;
@@ -22,6 +25,18 @@ import static org.mockito.ArgumentMatchers.anyInt;
 
 public final class MinecraftTestAccess {
     private MinecraftTestAccess() {
+    }
+
+    public static BlockEntityType<?> signType() {
+        return BlockEntityTypes.SIGN;
+    }
+
+    public static int unassignedEntityId() {
+        return Entity.INVALID_ENTITY_ID;
+    }
+
+    public static void pickableFromInside(Entity entity) {
+        when(entity.canBePickedFromInside()).thenReturn(true);
     }
 
     public static InterpolationHandler idleInterpolation() {

@@ -1,5 +1,6 @@
 package art.arcane.wormholes.clientgametest.mixin;
 
+import art.arcane.wormholes.clientgametest.CrossingBenchTap;
 import art.arcane.wormholes.clientgametest.LoadedChunks;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.chunk.LevelChunk;
@@ -15,6 +16,7 @@ public abstract class ChunkLoadTap {
         LevelChunk chunk = (LevelChunk) (Object) this;
         if (loaded && chunk.getLevel() instanceof ServerLevel level) {
             LoadedChunks.loaded(level, chunk.getPos());
+            CrossingBenchTap.chunkLoaded(level);
         }
     }
 }

@@ -12,9 +12,7 @@ import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.wormholes.portal.PortalType;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
-import net.fabricmc.fabric.api.client.gametest.v1.context.TestDedicatedServerConnection;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestDedicatedServerContext;
-import net.fabricmc.fabric.api.client.gametest.v1.context.TestServerConnection;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestServerContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestSingleplayerContext;
 import net.minecraft.client.Minecraft;
@@ -54,15 +52,15 @@ public final class ClientViewMirrorClientGameTest implements FabricClientGameTes
     public void runTest(ClientGameTestContext context) {
         ClientViewTestConfig.enable();
         try (TestSingleplayerContext singleplayer = context.worldBuilder().create()) {
-            runScenario(context, singleplayer.getConnection(), singleplayer.getServer(), "singleplayer");
+            runScenario(context, FabricConnection.of(singleplayer), singleplayer.getServer(), "singleplayer");
         }
         try (TestDedicatedServerContext server = context.worldBuilder().createServer(ClientViewTestConfig.serverProperties());
-             TestDedicatedServerConnection connection = server.connect()) {
+             FabricConnection connection = FabricConnection.connect(server)) {
             runScenario(context, connection, server, "dedicated");
         }
     }
 
-    private void runScenario(ClientGameTestContext context, TestServerConnection connection, TestServerContext server, String label) {
+    private void runScenario(ClientGameTestContext context, FabricConnection connection, TestServerContext server, String label) {
         connection.waitForChunksDownload();
         context.waitFor(client -> WormholesClient.instance() != null && WormholesClient.instance().session().active(), NEGOTIATION_TIMEOUT_TICKS);
         boolean mirrorCaps = context.computeOnClient(client -> WormholesClient.instance().session().has(ViewStreamCapability.CLIENT_MIRROR)
@@ -92,7 +90,7 @@ public final class ClientViewMirrorClientGameTest implements FabricClientGameTes
         runCeilingScenario(context, connection, server, player, label);
     }
 
-    private void runCeilingScenario(ClientGameTestContext context, TestServerConnection connection, TestServerContext server, ServerPlayer player,
+    private void runCeilingScenario(ClientGameTestContext context, FabricConnection connection, TestServerContext server, ServerPlayer player,
                                     String label) {
         UUID ceilingId = server.computeOnServer(minecraftServer -> buildCeilingMirror(minecraftServer, player));
         teleport(server, player, CEILING_MIN.getX() + 1.5D, CEILING_MIN.getY() - CEILING_ROOM_HEIGHT, CEILING_MIN.getZ() + 1.5D, 180.0F, -90.0F);
@@ -178,7 +176,7 @@ public final class ClientViewMirrorClientGameTest implements FabricClientGameTes
         return null;
     }
 
-    private static void assertNestedContent(ClientGameTestContext context, TestServerConnection connection) {
+    private static void assertNestedContent(ClientGameTestContext context, FabricConnection connection) {
         context.waitFor(client -> {
             for (ClientPortal portal : WormholesClient.instance().session().portals().values()) {
                 if (!portal.nested() || portal.geometry().parentPortalKey() != mirrorKey()) {

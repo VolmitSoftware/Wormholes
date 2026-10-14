@@ -3,6 +3,7 @@ package art.arcane.wormholes.modded.client.render.iris;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.frame.Similarity;
+import art.arcane.optics.stream.EnvironmentState;
 import art.arcane.optics.math.Face;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.shape.ShapeDescriptor;
@@ -112,7 +113,7 @@ public class IrisPipelinesPreloadTest extends MinecraftTestBase {
             views.add(scene.sourceMirror("hidden", geometry(24, 6, true)));
             doAnswer(invocation -> invocation.<AABB>getArgument(0).minX < 10.0D)
                 .when(scene.frustum).isVisible(any());
-            IrisMeshCamera stream = new IrisMeshCamera(List.of(geometry(0, -8, true)), OVERWORLD, END, Similarity.IDENTITY);
+            IrisMeshCamera stream = new IrisMeshCamera(List.of(geometry(0, -8, true)), OVERWORLD, END, EnvironmentState.Skybox.END, Similarity.IDENTITY);
             IrisPipelines.Preparation preparation = IrisPipelines.preparation(scene.options(views), scene.camera(), ignored -> List.of(stream));
             assertEquals(8, preparation.actual().size());
             assertEquals(12, preparation.paths().size());
@@ -183,12 +184,28 @@ public class IrisPipelinesPreloadTest extends MinecraftTestBase {
     }
 
     @Test
+    public void streamedChildPreparesItsDestinationProgramWhileKeepingItsNativeParentIdentity() {
+        try (Scene scene = new Scene()) {
+            PortalView arm = scene.arm(0);
+            IrisMeshCamera stream = new IrisMeshCamera(List.of(geometry(0, -4, true)), END, "minecraft:the_nether",
+                EnvironmentState.Skybox.NONE, Similarity.IDENTITY);
+            IrisPipelines.Preparation preparation = IrisPipelines.preparation(scene.options(List.of(arm)), scene.camera(),
+                ignored -> List.of(stream));
+            IrisViewPipelinePath nativeParent = new IrisViewPipelinePath(List.of(IrisViewPipelines.camera(arm)), END);
+            IrisViewPipelinePath streamedChild = stream.append(nativeParent.cameras(), "minecraft:the_nether");
+            assertEquals(List.of(nativeParent, streamedChild), preparation.actual());
+            assertEquals(END, nativeParent.dimension());
+            assertEquals("minecraft:the_nether", streamedChild.dimension());
+        }
+    }
+
+    @Test
     public void knownStreamedChildrenPrepareBeforeSpeculativeTravelWithExactParentPaths() {
         try (Scene scene = new Scene()) {
             List<PortalView> arms = List.of(scene.arm(0), scene.arm(3), scene.arm(6), scene.arm(9));
             Map<PortalView, IrisMeshCamera> streams = new HashMap<>();
             for (PortalView arm : arms) {
-                streams.put(arm, new IrisMeshCamera(List.of(geometry(0, -4, true)), OVERWORLD, END, Similarity.IDENTITY));
+                streams.put(arm, new IrisMeshCamera(List.of(geometry(0, -4, true)), OVERWORLD, END, EnvironmentState.Skybox.END, Similarity.IDENTITY));
             }
             IrisPipelines.Preparation combined = IrisPipelines.preparation(scene.options(arms), scene.camera(),
                 demand -> List.of(streams.get(demand.parent())));
@@ -236,7 +253,7 @@ public class IrisPipelinesPreloadTest extends MinecraftTestBase {
             PortalView ceiling = scene.sourceMirror("ceiling", horizontal(68, Face.D));
             PortalView child = scene.child("destination-child", 0);
             List<PortalView> views = List.of(arm, floor, ceiling, child);
-            IrisMeshCamera stream = new IrisMeshCamera(List.of(geometry(0, -8, true)), OVERWORLD, END, Similarity.IDENTITY);
+            IrisMeshCamera stream = new IrisMeshCamera(List.of(geometry(0, -8, true)), OVERWORLD, END, EnvironmentState.Skybox.END, Similarity.IDENTITY);
             IrisPipelines.Preparation preparation = IrisPipelines.preparation(scene.options(views), scene.camera(),
                 demand -> demand.parent() == arm ? List.of(stream) : List.of());
             assertEquals(9, preparation.paths().size());
@@ -434,7 +451,7 @@ public class IrisPipelinesPreloadTest extends MinecraftTestBase {
             for (int index = 0; index < 20; index++) {
                 arms.add(scene.arm(index * 2));
             }
-            IrisMeshCamera stream = new IrisMeshCamera(List.of(geometry(0, -4, true)), OVERWORLD, END, Similarity.IDENTITY);
+            IrisMeshCamera stream = new IrisMeshCamera(List.of(geometry(0, -4, true)), OVERWORLD, END, EnvironmentState.Skybox.END, Similarity.IDENTITY);
             IrisPipelines.Preparation preparation = IrisPipelines.preparation(scene.options(arms), scene.camera(), ignored -> List.of(stream));
             assertEquals(12, preparation.actual().size());
             for (int index = 0; index < 6; index++) {
@@ -450,7 +467,7 @@ public class IrisPipelinesPreloadTest extends MinecraftTestBase {
     public void twelveSelectedPathsStayStableWhenUnopenedCandidatesChange() {
         try (Scene scene = new Scene()) {
             List<PortalView> arms = List.of(scene.arm(0), scene.arm(2), scene.arm(4), scene.arm(6), scene.arm(8), scene.arm(10));
-            IrisMeshCamera stream = new IrisMeshCamera(List.of(geometry(0, -4, true)), OVERWORLD, END, Similarity.IDENTITY);
+            IrisMeshCamera stream = new IrisMeshCamera(List.of(geometry(0, -4, true)), OVERWORLD, END, EnvironmentState.Skybox.END, Similarity.IDENTITY);
             List<IrisViewPipelinePath> selected = IrisPipelines.preparation(scene.options(arms), scene.camera(), ignored -> List.of(stream)).actual();
             assertEquals(12, selected.size());
             assertEquals(12, new HashSet<>(selected).size());

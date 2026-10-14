@@ -9,12 +9,15 @@ import art.arcane.wormholes.modded.client.render.iris.IrisViewPipelines;
 import art.arcane.wormholes.portal.AmbientParticleStyle;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.portal.ProjectionMode;
+import art.arcane.wormholes.modded.MinecraftDyedItems;
 import com.google.gson.GsonBuilder;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestSingleplayerContext;
 import net.irisshaders.iris.Iris;
 import net.irisshaders.iris.pipeline.IrisRenderingPipeline;
+import net.irisshaders.iris.shaderpack.DimensionId;
+import net.irisshaders.iris.shaderpack.ShaderPack;
 import net.minecraft.client.CameraType;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
@@ -57,11 +60,11 @@ public final class ShaderStreamHistoryClientGameTest implements FabricClientGame
         ClientViewTestConfig.enableSeamless(false);
         List<IrisMeshHistoryTap.Sample> owned = new ArrayList<>();
         try (TestSingleplayerContext world = context.worldBuilder().adjustSettings(settings -> settings.setAllowCommands(true)).create()) {
-            world.getConnection().waitForChunksDownload();
+            FabricConnection.of(world).waitForChunksDownload();
             context.waitFor(client -> WormholesClient.instance() != null && WormholesClient.instance().session().active(), TIMEOUT_TICKS);
             Options options = context.computeOnClient(client -> new Options(client.options.getCameraType(), client.options.fov().get(),
                 client.options.bobView().get(), WormholesClient.instance().config().clientRecursion));
-            ServerPlayer player = world.getServer().computeOnServer(server -> world.getConnection().getServerPlayer());
+            ServerPlayer player = world.getServer().computeOnServer(server -> FabricConnection.of(world).getServerPlayer());
             Scene scene = world.getServer().computeOnServer(server -> build(server, player));
             try {
                 context.runOnClient(client -> {
@@ -77,7 +80,7 @@ public final class ShaderStreamHistoryClientGameTest implements FabricClientGame
                 world.getServer().runOnServer(server -> place(player, POSITION));
                 context.waitFor(client -> client.player != null && client.player.position().distanceTo(POSITION) < 0.05D, TIMEOUT_TICKS);
                 context.getInput().lookAt(180.0F, 0.0F);
-                world.getConnection().waitForChunksRender();
+                FabricConnection.of(world).waitForChunksRender();
                 context.runOnClient(client -> {
                     IrisHistoryTap.start();
                     IrisMeshHistoryTap.start();
@@ -124,7 +127,15 @@ public final class ShaderStreamHistoryClientGameTest implements FabricClientGame
                 assertTrue(System.nanoTime() - closed < 55_000_000_000L, "Brief close/reopen exceeded the retained-history window");
                 stable(original, reopened, "brief close/reopen");
                 context.takeScreenshot("shader-stream-history-reopened");
-                owned.addAll(context.computeOnClient(client -> IrisMeshHistoryTap.owned()));
+                owned.addAll(context.computeOnClient(client -> {
+                    List<IrisMeshHistoryTap.Sample> histories = IrisMeshHistoryTap.owned();
+                    for (IrisMeshHistoryTap.Sample history : histories) {
+                        if (history.identity() != null) {
+                            netherPrograms(history);
+                        }
+                    }
+                    return histories;
+                }));
                 assertTrue(owned.size() >= 3, "No owned GPU histories were retained for world-close proof");
             } finally {
                 context.runOnClient(client -> {
@@ -151,7 +162,7 @@ public final class ShaderStreamHistoryClientGameTest implements FabricClientGame
             }
             persist(client, "world-close", owned);
             System.out.println("WORMHOLES_IRIS_STREAM_HISTORY_PASS owned=" + owned.size()
-                + " textures-deleted=true pipeline-cache=0 proof=GPU-history-isolation image-correctness=unverified");
+                + " textures-deleted=true pipeline-cache=0 destination-programs=true proof=GPU-history-isolation image-correctness=unverified");
         });
     }
 
@@ -168,11 +179,15 @@ public final class ShaderStreamHistoryClientGameTest implements FabricClientGame
         assertTrue(main.frame() == parent.frame() && main.frame() == first.frame() && main.frame() == second.frame(),
             "Both streamed children, their native mirror parent and the main view must render in the same frame");
         same(originalMain, main, "main camera");
+        ShaderPack pack = Iris.getCurrentPack().orElseThrow();
+        assertTrue(main.programs() == pack.getProgramSet(DimensionId.OVERWORLD)
+            && parent.programs() == main.programs(), "The main camera and native mirror lost the Overworld program set");
         assertTrue(first.parent() == parent.pipeline() && second.parent() == parent.pipeline()
             && first.parentDepth() == 1 && second.parentDepth() == 1, "Both actual streamed draws must be enclosed by the native mirror pipeline");
         assertTrue(first.draws() > 0 && second.draws() > 0 && !first.identity().equals(second.identity())
             && first.camera().distanceTo(second.camera()) > 2.0D, "Two real streamed mesh draws must use distinct physical cameras");
         for (IrisMeshHistoryTap.Sample child : List.of(first, second)) {
+            netherPrograms(child);
             assertTrue(child.identity().traversal().size() == 2
                 && child.identity().traversal().getFirst().mirror()
                 && child.identity().source().equals(Level.OVERWORLD.identifier().toString())
@@ -195,6 +210,14 @@ public final class ShaderStreamHistoryClientGameTest implements FabricClientGame
         System.out.println("WORMHOLES_IRIS_STREAM_HISTORY_PHASE " + phase + " frame=" + main.frame()
             + " parent-restorations=" + IrisMeshHistoryTap.restored());
         return new Views(main, parent, first, second);
+    }
+
+    private static void netherPrograms(IrisMeshHistoryTap.Sample sample) {
+        ShaderPack pack = Iris.getCurrentPack().orElseThrow();
+        assertTrue(pack.getProgramSet(DimensionId.NETHER) != pack.getProgramSet(DimensionId.OVERWORLD),
+            "The acceptance pack must provide different Nether and Overworld program sets");
+        assertTrue(sample.programs() == pack.getProgramSet(DimensionId.NETHER),
+            "A finalized streamed Nether camera compiled the enclosing world's shader programs");
     }
 
     private static void await(ClientGameTestContext context, int afterFrame) {
@@ -290,12 +313,12 @@ public final class ShaderStreamHistoryClientGameTest implements FabricClientGame
         server.getCommands().performPrefixedCommand(server.createCommandSourceStack(), "time set noon");
         server.getCommands().performPrefixedCommand(server.createCommandSourceStack(), "weather clear");
         fill(source, new BlockPos(32, 69, 12), 28, 14, 34, Blocks.AIR.defaultBlockState());
-        fill(source, new BlockPos(32, 69, 12), 28, 1, 34, Blocks.CONCRETE.pick(DyeColor.WHITE).defaultBlockState());
+        fill(source, new BlockPos(32, 69, 12), 28, 1, 34, MinecraftDyedItems.concreteBlock(DyeColor.WHITE).defaultBlockState());
         for (BlockPos origin : List.of(FIRST_DESTINATION, SECOND_DESTINATION)) {
             fill(destination, origin.offset(-8, -2, -12), 20, 12, 28, Blocks.AIR.defaultBlockState());
-            fill(destination, origin.offset(-8, -2, -12), 20, 1, 28, Blocks.CONCRETE.pick(DyeColor.WHITE).defaultBlockState());
+            fill(destination, origin.offset(-8, -2, -12), 20, 1, 28, MinecraftDyedItems.concreteBlock(DyeColor.WHITE).defaultBlockState());
             fill(destination, origin.offset(-4, 0, -5), 12, 7, 1,
-                Blocks.CONCRETE.pick(origin.equals(FIRST_DESTINATION) ? DyeColor.YELLOW : DyeColor.CYAN).defaultBlockState());
+                MinecraftDyedItems.concreteBlock(origin.equals(FIRST_DESTINATION) ? DyeColor.YELLOW : DyeColor.CYAN).defaultBlockState());
             fill(destination, origin.offset(-4, 6, -4), 12, 1, 1, Blocks.SEA_LANTERN.defaultBlockState());
         }
         WormholesModRuntime runtime = runtime(server);
@@ -361,7 +384,8 @@ public final class ShaderStreamHistoryClientGameTest implements FabricClientGame
             cameras.add(new CameraEvidence(System.identityHashCode(sample.pipeline()), sample.mainTexture(), sample.altTexture(),
                 GL11C.glIsTexture(sample.mainTexture()), GL11C.glIsTexture(sample.altTexture()), sample.camera().toString(),
                 sample.matrix().toString(), sample.frame(), sample.renders(), sample.draws(), String.valueOf(sample.identity()),
-                String.valueOf(sample.parentOrigin()), sample.parentDepth(), System.identityHashCode(sample.parent())));
+                String.valueOf(sample.parentOrigin()), sample.parentDepth(), System.identityHashCode(sample.parent()),
+                System.identityHashCode(sample.programs())));
         }
         Path path = client.gameDirectory.toPath().resolve("screenshots/shader-stream-history/" + phase + ".json");
         List<StreamEvidence> streams = new ArrayList<>();
@@ -372,7 +396,7 @@ public final class ShaderStreamHistoryClientGameTest implements FabricClientGame
         try {
             Files.createDirectories(path.getParent());
             Files.writeString(path, new GsonBuilder().setPrettyPrinting().create().toJson(new Evidence(phase, PACK,
-                "actual GPU history isolation; whole composed shader image correctness unverified", IrisMeshHistoryTap.restored(), cameras,
+                "actual GPU history isolation and destination program sets; whole composed shader image correctness unverified", IrisMeshHistoryTap.restored(), cameras,
                 WormholesClient.instance().session().caps(), List.copyOf(streams), IrisViewPipelines.cameraSnapshots())));
         } catch (IOException failure) {
             throw new AssertionError("Could not retain streamed shader GPU history evidence", failure);
@@ -397,7 +421,7 @@ public final class ShaderStreamHistoryClientGameTest implements FabricClientGame
 
     private record CameraEvidence(int pipeline, int mainTexture, int altTexture, boolean mainLive, boolean altLive,
                                   String camera, String modelview, int frame, int renders, int draws, String traversal,
-                                  String parentOrigin, int parentDepth, int parentPipeline) {
+                                  String parentOrigin, int parentDepth, int parentPipeline, int programSet) {
     }
 
     private record StreamEvidence(int key, String geometry, String environment) {

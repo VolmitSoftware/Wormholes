@@ -14,8 +14,8 @@ public final class VerticalCameraLoopAcceptanceClientGameTest implements FabricC
             boolean gravityFlip = singleplayer.getServer().computeOnServer(server -> runtime(server).configuration().settings().getTransit()
                 .gravityFlipEnabled);
             try {
-                VerticalCameraLoopClientGameTest.run(new FabricSeamlessClient(context, singleplayer.getConnection()),
-                    new FabricSeamlessServer(singleplayer.getServer(), singleplayer.getConnection()), "vertical-camera-loop-singleplayer",
+                VerticalCameraLoopClientGameTest.run(new FabricSeamlessClient(context, FabricConnection.of(singleplayer)),
+                    new FabricSeamlessServer(singleplayer.getServer(), FabricConnection.of(singleplayer)), "vertical-camera-loop-singleplayer",
                     enabled -> singleplayer.getServer().runOnServer(server -> runtime(server).configuration().settings().getTransit()
                         .gravityFlipEnabled = enabled));
             } finally {

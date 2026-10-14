@@ -18,6 +18,7 @@
       "art.arcane.wormholes.clientgametest.RecursivePortalEntitiesClientGameTest",
       "art.arcane.wormholes.clientgametest.MirrorWaterClientGameTest",
       "art.arcane.wormholes.clientgametest.ApertureShapeClientGameTest",
+      "art.arcane.wormholes.clientgametest.PortalStencilResizeClientGameTest",
       "art.arcane.wormholes.clientgametest.DimensionalDoorClientGameTest",
       "art.arcane.wormholes.clientgametest.SeamlessFallLoopClientGameTest",
       "art.arcane.wormholes.clientgametest.VerticalCameraLoopAcceptanceClientGameTest",
@@ -36,6 +37,7 @@
       "art.arcane.wormholes.clientgametest.ClientViewMirrorClientGameTest",
       "art.arcane.wormholes.clientgametest.SeamlessSameDimensionClientGameTest",
       "art.arcane.wormholes.clientgametest.SeamlessCrossDimensionClientGameTest",
+      "art.arcane.wormholes.clientgametest.SeamlessHeldChunkClientGameTest",
       "art.arcane.wormholes.clientgametest.CrossingCompositionClientGameTest",
       "art.arcane.wormholes.clientgametest.ArrivalTerrainClientGameTest",
       "art.arcane.wormholes.clientgametest.NetherCrossingCompositionClientGameTest",
@@ -49,6 +51,9 @@
     "wormholes-vanilla-preparation-gametest": [
       "art.arcane.wormholes.clientgametest.VanillaPipelinePreparationClientGameTest"
     ],
+    "wormholes-crossbench-gametest": [
+      "art.arcane.wormholes.clientgametest.CrossingBenchClientGameTest"
+    ],
     "wormholes-dh-gametest": [
       "art.arcane.wormholes.clientgametest.DistantHorizonsClientGameTest"
     ],
@@ -56,7 +61,9 @@
       "art.arcane.wormholes.clientgametest.ShaderOcclusionClientGameTest",
       "art.arcane.wormholes.clientgametest.ShaderHistoryClientGameTest",
       "art.arcane.wormholes.clientgametest.ShaderStreamHistoryClientGameTest",
-      "art.arcane.wormholes.clientgametest.ShaderPipelineReuseClientGameTest"
+      "art.arcane.wormholes.clientgametest.ShaderPipelineReuseClientGameTest",
+      "art.arcane.wormholes.clientgametest.ShaderFailureCleanupClientGameTest",
+      "art.arcane.wormholes.clientgametest.ShaderPreloadStateClientGameTest"
     ]
   },
   "mixins": [

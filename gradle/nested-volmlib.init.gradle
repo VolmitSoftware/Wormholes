@@ -1,0 +1,16 @@
+Gradle rootBuild = gradle
+while (rootBuild.parent != null) {
+    rootBuild = rootBuild.parent
+}
+String nestedVolmLibBuildDirectory = rootBuild.startParameter.projectProperties['nestedVolmLibBuildDirectory']
+
+if (nestedVolmLibBuildDirectory != null) {
+    gradle.rootProject { Project root ->
+        if (root.name == 'VolmLib') {
+            root.allprojects { Project candidate ->
+                String relativePath = candidate.path == ':' ? 'root' : candidate.path.substring(1).replace(':', '/')
+                candidate.layout.buildDirectory.set(new File(nestedVolmLibBuildDirectory, relativePath))
+            }
+        }
+    }
+}

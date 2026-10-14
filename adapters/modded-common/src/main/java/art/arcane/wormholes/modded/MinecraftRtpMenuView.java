@@ -3,7 +3,7 @@ package art.arcane.wormholes.modded;
 import art.arcane.wormholes.portal.rtp.RtpPortalEditor;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
-import net.minecraft.world.item.Items;
+import net.minecraft.world.item.DyeColor;
 
 import java.util.Locale;
 import java.util.Objects;
@@ -19,7 +19,7 @@ public final class MinecraftRtpMenuView implements RtpPortalEditor.View {
     public void configure(String title) {
         window.setTitle(title);
         window.setViewportHeight(6);
-        window.setDecorator(Items.STAINED_GLASS_PANE.black());
+        window.setDecorator(MinecraftDyedItems.pane(DyeColor.BLACK));
     }
 
     @Override

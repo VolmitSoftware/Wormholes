@@ -9,6 +9,7 @@ import art.arcane.wormholes.portal.AmbientParticleStyle;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.portal.ProjectionMode;
 import art.arcane.wormholes.transit.OrientationPolicy;
+import art.arcane.wormholes.modded.MinecraftDyedItems;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestSingleplayerContext;
@@ -42,15 +43,15 @@ public final class ArrivalTerrainClientGameTest implements FabricClientGameTest 
 
     @Override
     public void runTest(ClientGameTestContext context) {
-        boolean hidden = context.computeOnClient(minecraft -> minecraft.gui.hud.isHidden());
+        boolean hidden = context.computeOnClient(minecraft -> ClientGui.hudHidden(minecraft));
         ClientViewTestConfig.enableSeamless(true);
         try (TestSingleplayerContext world = context.worldBuilder().adjustSettings(settings -> settings.setAllowCommands(true)).create()) {
-            FabricSeamlessClient client = new FabricSeamlessClient(context, world.getConnection());
+            FabricSeamlessClient client = new FabricSeamlessClient(context, FabricConnection.of(world));
             SeamlessScenario.join(client);
             SeamlessScenario.assertSeamlessNegotiated(client);
-            Scene scene = world.getServer().computeOnServer(server -> build(server, world.getConnection().getServerPlayer()));
+            Scene scene = world.getServer().computeOnServer(server -> build(server, FabricConnection.of(world).getServerPlayer()));
             world.getServer().runOnServer(server -> {
-                ServerPlayer player = world.getConnection().getServerPlayer();
+                ServerPlayer player = FabricConnection.of(world).getServerPlayer();
                 player.setGameMode(GameType.SURVIVAL);
                 player.teleportTo(server.overworld(), START.x, START.y, START.z, Set.of(), 180.0F, 0.0F, false);
             });
@@ -65,10 +66,10 @@ public final class ArrivalTerrainClientGameTest implements FabricClientGameTest 
                 minecraft.options.fovEffectScale().set(0.0D);
                 minecraft.options.framerateLimit().set(20);
                 minecraft.player.setSprinting(false);
-                if (!minecraft.gui.hud.isHidden()) {
-                    minecraft.gui.hud.toggle();
+                if (!ClientGui.hudHidden(minecraft)) {
+                    ClientGui.toggleHud(minecraft);
                 }
-                minecraft.gui.toastManager().clear();
+                ClientGui.clearToasts(minecraft);
             });
             client.lookAt(180.0F, 0.0F);
             client.waitFor(minecraft -> roomReceived(minecraft.level), PREPARE_TIMEOUT);
@@ -104,8 +105,8 @@ public final class ArrivalTerrainClientGameTest implements FabricClientGameTest 
             context.getInput().releaseKey(options -> options.keyUp);
             context.runOnClient(minecraft -> ArrivalTerrainTap.stop());
             context.runOnClient(minecraft -> {
-                if (minecraft.gui.hud.isHidden() != hidden) {
-                    minecraft.gui.hud.toggle();
+                if (ClientGui.hudHidden(minecraft) != hidden) {
+                    ClientGui.toggleHud(minecraft);
                 }
             });
             context.restoreDefaultGameOptions();
@@ -180,7 +181,7 @@ public final class ArrivalTerrainClientGameTest implements FabricClientGameTest 
                     int axis = x == -15 || x == 17 ? 0 : z == -19 || z == 19 ? 2 : 1;
                     int column = axis == 0 ? z : x;
                     int row = axis == 1 ? z : y;
-                    BlockState state = y == 78 ? Blocks.CONCRETE.pick(DyeColor.WHITE).defaultBlockState()
+                    BlockState state = y == 78 ? MinecraftDyedItems.concreteBlock(DyeColor.WHITE).defaultBlockState()
                         : y == 69 || x == -15 || x == 17 || z == -19 || z == 19
                         ? color(ArrivalTerrainTap.tile(world, column, row)) : interior(x, y, z);
                     level.setBlockAndUpdate(new BlockPos(x, y, z), state);
@@ -196,10 +197,10 @@ public final class ArrivalTerrainClientGameTest implements FabricClientGameTest 
 
     private static BlockState color(int color) {
         return switch (color) {
-            case 0 -> Blocks.CONCRETE.pick(DyeColor.RED).defaultBlockState();
-            case 1 -> Blocks.CONCRETE.pick(DyeColor.LIME).defaultBlockState();
-            case 2 -> Blocks.CONCRETE.pick(DyeColor.BLUE).defaultBlockState();
-            default -> Blocks.CONCRETE.pick(DyeColor.WHITE).defaultBlockState();
+            case 0 -> MinecraftDyedItems.concreteBlock(DyeColor.RED).defaultBlockState();
+            case 1 -> MinecraftDyedItems.concreteBlock(DyeColor.LIME).defaultBlockState();
+            case 2 -> MinecraftDyedItems.concreteBlock(DyeColor.BLUE).defaultBlockState();
+            default -> MinecraftDyedItems.concreteBlock(DyeColor.WHITE).defaultBlockState();
         };
     }
 
@@ -217,7 +218,7 @@ public final class ArrivalTerrainClientGameTest implements FabricClientGameTest 
                     int column = axis == 0 ? z : x;
                     int row = axis == 1 ? z : y;
                     BlockState expected = frame ? Blocks.OBSIDIAN.defaultBlockState()
-                        : y == 78 ? Blocks.CONCRETE.pick(DyeColor.WHITE).defaultBlockState()
+                        : y == 78 ? MinecraftDyedItems.concreteBlock(DyeColor.WHITE).defaultBlockState()
                         : y == 69 || x == -15 || x == 17 || z == -19 || z == 19
                         ? color(ArrivalTerrainTap.tile(world, column, row)) : interior(x, y, z);
                     if (level.getBlockState(new BlockPos(x, y, z)) != expected) {

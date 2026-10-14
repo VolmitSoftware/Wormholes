@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded.client;
 
+import art.arcane.wormholes.modded.MinecraftTestAccess;
 import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.render.ProjectedEntityIdentity;
 import art.arcane.wormholes.modded.mixin.SeamlessEntityAccess;
@@ -34,7 +35,7 @@ public class ProjectedEntityGuardTest extends MinecraftTestBase {
 
     @Test
     public void unassignedEntitiesKeepVanillaSelectionAndPushTargets() {
-        Entity unassigned = entity(Entity.INVALID_ENTITY_ID, new AABB(0, 0, 0, 1, 1, 1));
+        Entity unassigned = entity(MinecraftTestAccess.unassignedEntityId(), new AABB(0, 0, 0, 1, 1, 1));
         doThrow(new IllegalStateException("Tried to access entity ID before ID assignment")).when(unassigned).getId();
         List<Entity> targets = List.of(unassigned);
         assertFalse(ProjectedEntityGuard.visualCopy(unassigned));

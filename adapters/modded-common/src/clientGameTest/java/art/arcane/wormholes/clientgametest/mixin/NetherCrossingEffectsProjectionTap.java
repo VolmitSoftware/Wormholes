@@ -4,6 +4,7 @@ import art.arcane.wormholes.clientgametest.NetherCrossingEffectsTap;
 import art.arcane.wormholes.modded.client.ClientSeamlessTravel;
 import art.arcane.wormholes.modded.client.render.stencil.PortalView;
 import art.arcane.wormholes.network.client.TravelMessage;
+import art.arcane.wormholes.modded.client.ClientRenderAccess;
 import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import net.minecraft.client.Minecraft;
@@ -30,7 +31,7 @@ public abstract class NetherCrossingEffectsProjectionTap {
 
     @ModifyArg(method = "renderLevel", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/ProjectionMatrixBuffer;getBuffer(Lorg/joml/Matrix4f;)Lcom/mojang/renderpearl/api/buffers/GpuBufferSlice;"), index = 0, require = 1, allow = 1)
     private Matrix4f wormholesTest$finalEffectsProjection(Matrix4f projection) {
-        LevelRenderState state = Minecraft.getInstance().gameRenderer.gameRenderState().levelRenderState;
+        LevelRenderState state = ClientRenderAccess.gameState(Minecraft.getInstance()).levelRenderState;
         NetherCrossingEffectsTap.projection(projection, new NetherCrossingEffectsTap.Effects(state.playerRenderState.portalEffectIntensity,
             state.playerRenderState.nauseaEffectIntensity, state.playerRenderState.spinningEffectAngle, state.worldPartialTicks, "extracted-26.3"));
         return projection;

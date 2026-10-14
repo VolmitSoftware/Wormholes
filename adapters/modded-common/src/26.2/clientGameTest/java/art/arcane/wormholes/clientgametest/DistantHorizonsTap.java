@@ -22,6 +22,7 @@ import art.arcane.wormholes.modded.client.render.iris.IrisClipTransformation;
 import art.arcane.wormholes.modded.client.render.stencil.PortalLayer;
 import art.arcane.wormholes.modded.mixin.client.DhPortalClientApiAccess;
 import art.arcane.wormholes.modded.mixin.client.DhPortalBlazeTemporalAccess;
+import art.arcane.wormholes.modded.client.ClientRenderAccess;
 import com.seibel.distanthorizons.common.render.blaze.wrappers.texture.BlazeTextureWrapper;
 import com.seibel.distanthorizons.core.util.math.DhVec3d;
 import com.google.gson.GsonBuilder;
@@ -43,6 +44,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.Vec3;
+import org.joml.Matrix4d;
 import org.joml.Matrix4f;
 import org.joml.Vector4d;
 import org.joml.Vector4f;
@@ -82,6 +84,7 @@ import javax.imageio.ImageIO;
 import org.lwjgl.system.MemoryUtil;
 
 public final class DistantHorizonsTap {
+    private static final double INVERSE_TOLERANCE = 0.00001D;
     private static final ArrayDeque<Scope> LAYERS = new ArrayDeque<>();
     private static final Map<Key, Sample> SAMPLES = new HashMap<>();
     private static final ArrayDeque<Pending> QUERIES = new ArrayDeque<>();
@@ -153,7 +156,7 @@ public final class DistantHorizonsTap {
         StringBuilder values = new StringBuilder();
         Minecraft minecraft = Minecraft.getInstance();
         values.append("frame=").append(SystemTimeUniforms.COUNTER.getAsInt()).append(" level=").append(minecraft.level.dimension().identifier())
-            .append(" bossFog=").append(minecraft.gui.hud.getBossOverlay().shouldCreateWorldFog()).append('\n');
+            .append(" bossFog=").append(ClientGui.bossFog(minecraft)).append('\n');
         for (int program = 1; program <= 4096; program++) {
             if (!GL20C.glIsProgram(program) || GL20C.glGetProgrami(program, GL20C.GL_LINK_STATUS) == 0) {
                 continue;
@@ -259,7 +262,7 @@ public final class DistantHorizonsTap {
                     fail("DH virtual main-camera draw selected the player's world instead of the camera's world");
                 }
                 Vec3 actual = new Vec3(params.exactCameraPosition.x, params.exactCameraPosition.y, params.exactCameraPosition.z);
-                if (actual.distanceTo(minecraft.gameRenderer.mainCamera().position()) > 0.001D) {
+                if (actual.distanceTo(ClientRenderAccess.mainCamera(minecraft).position()) > 0.001D) {
                     fail("DH virtual main-camera position differs from the active Minecraft camera");
                 }
             }
@@ -359,12 +362,12 @@ public final class DistantHorizonsTap {
     }
 
     public static void terrainImage() {
-        copyInputImage(Minecraft.getInstance().gameRenderer.mainRenderTarget().getColorTextureView(), "sodium-child-opaque");
+        copyInputImage(ClientRenderAccess.mainTarget(Minecraft.getInstance()).getColorTextureView(), "sodium-child-opaque");
     }
 
     public static int beginCopy(GpuTextureView input, GpuTextureView destination) {
         PortalLayer layer = layer();
-        if (!enabled || shaders || destination.texture() != Minecraft.getInstance().gameRenderer.mainRenderTarget().getColorTexture()) {
+        if (!enabled || shaders || destination.texture() != ClientRenderAccess.mainTarget(Minecraft.getInstance()).getColorTexture()) {
             return 0;
         }
         if (layer == null) {
@@ -736,14 +739,14 @@ public final class DistantHorizonsTap {
                     colorMask |= 1 << index;
                 }
             }
-            readCopyPixels(1000, Minecraft.getInstance().gameRenderer.mainRenderTarget().height - 481, 1, 1, GL11C.GL_RGBA, color);
-            readCopyPixels(1000, Minecraft.getInstance().gameRenderer.mainRenderTarget().height - 481, 1, 1, GL11C.GL_STENCIL_INDEX, stencil);
+            readCopyPixels(1000, ClientRenderAccess.mainTarget(Minecraft.getInstance()).height - 481, 1, 1, GL11C.GL_RGBA, color);
+            readCopyPixels(1000, ClientRenderAccess.mainTarget(Minecraft.getInstance()).height - 481, 1, 1, GL11C.GL_STENCIL_INDEX, stencil);
             return new CopyState(GL11C.glIsEnabled(GL11C.GL_STENCIL_TEST), GL11C.glGetInteger(GL11C.GL_STENCIL_FUNC),
                 GL11C.glGetInteger(GL11C.GL_STENCIL_REF), GL11C.glGetInteger(GL11C.GL_STENCIL_VALUE_MASK),
                 GL11C.glGetInteger(GL30C.GL_DRAW_FRAMEBUFFER_BINDING), GL30C.glGetFramebufferAttachmentParameteri(
                     GL30C.GL_DRAW_FRAMEBUFFER, GL30C.GL_STENCIL_ATTACHMENT, GL30C.GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME),
                 clipDistances(), stencil.get(0) & 0xFF, color.getInt(0), inputTexture,
-                ((GlTexture) Minecraft.getInstance().gameRenderer.mainRenderTarget().getColorTexture()).glId(),
+                ((GlTexture) ClientRenderAccess.mainTarget(Minecraft.getInstance()).getColorTexture()).glId(),
                 program, unit, texture, colorMask);
         }
     }
@@ -770,7 +773,7 @@ public final class DistantHorizonsTap {
     private static void copyImage(String name) {
         Minecraft minecraft = Minecraft.getInstance();
         copyImage(name, GlStateManager.getFrameBuffer(GL30C.GL_DRAW_FRAMEBUFFER),
-            minecraft.gameRenderer.mainRenderTarget().width, minecraft.gameRenderer.mainRenderTarget().height);
+            ClientRenderAccess.mainTarget(minecraft).width, ClientRenderAccess.mainTarget(minecraft).height);
     }
 
     private static void copyImage(String name, int framebuffer, int width, int height) {
@@ -1110,18 +1113,26 @@ public final class DistantHorizonsTap {
 
     private static void verifyInverseCoordinates(RenderParams params) {
         Matrix4f full = matrix(params.dhProjectionMatrix).mul(matrix(params.dhModelViewMatrix));
-        Matrix4f inverse = matrix(params.dhInverseMvmProjectionMatrix);
-        if (!full.equals(matrix(params.dhMvmProjMatrix), 0.0001F)) {
+        Matrix4f combined = matrix(params.dhMvmProjMatrix);
+        if (!full.equals(combined, 0.0001F)) {
             fail("DH combined projection/modelview differs from its full LOD MVP");
         }
-        for (int index = 0; index < 3; index++) {
-            Vector4f expected = new Vector4f(17.0F * (index - 1), 3.0F * index, -129.0F - 257.0F * index, 1.0F);
-            Vector4f actual = inverse.transform(full.transform(new Vector4f(expected)));
-            if (!actual.isFinite() || Math.abs(actual.w) < 0.00001F
-                || !close(actual.div(actual.w), expected)) {
-                fail("DH inverse full projection/modelview does not recover camera-relative LOD coordinates");
+        Matrix4d residual = new Matrix4d(matrix(params.dhInverseMvmProjectionMatrix)).mul(new Matrix4d(combined));
+        double scale = (residual.m00() + residual.m11() + residual.m22() + residual.m33()) / 4.0D;
+        if (!residual.isFinite() || Math.abs(scale) < 0.00001D || !identity(residual, scale)) {
+            fail("DH inverse full projection/modelview is not the inverse of its LOD MVP");
+        }
+    }
+
+    private static boolean identity(Matrix4d residual, double scale) {
+        for (int column = 0; column < 4; column++) {
+            for (int row = 0; row < 4; row++) {
+                if (Math.abs(residual.get(column, row) / scale - (column == row ? 1.0D : 0.0D)) > INVERSE_TOLERANCE) {
+                    return false;
+                }
             }
         }
+        return true;
     }
 
     private static int clipDistances() {

@@ -9,8 +9,8 @@ public final class SeamlessFallLoopClientGameTest implements FabricClientGameTes
     public void runTest(ClientGameTestContext context) {
         ClientViewTestConfig.enableSeamless(true);
         try (TestSingleplayerContext singleplayer = context.worldBuilder().create()) {
-            SeamlessFallLoop.run(new FabricSeamlessClient(context, singleplayer.getConnection()),
-                new FabricSeamlessServer(singleplayer.getServer(), singleplayer.getConnection()), "fall-loop-three-crossings-singleplayer");
+            SeamlessFallLoop.run(new FabricSeamlessClient(context, FabricConnection.of(singleplayer)),
+                new FabricSeamlessServer(singleplayer.getServer(), FabricConnection.of(singleplayer)), "fall-loop-three-crossings-singleplayer");
         }
     }
 }

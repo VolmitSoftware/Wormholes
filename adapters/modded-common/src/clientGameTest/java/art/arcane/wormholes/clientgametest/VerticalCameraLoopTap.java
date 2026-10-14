@@ -2,6 +2,7 @@ package art.arcane.wormholes.clientgametest;
 
 import art.arcane.wormholes.modded.client.WormholesClient;
 import art.arcane.wormholes.network.client.TravelMessage;
+import art.arcane.wormholes.modded.client.ClientRenderAccess;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Screenshot;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -60,7 +61,7 @@ public final class VerticalCameraLoopTap {
         RENDERED.add(new Rendered(TravelTap.frameIndex(), partial, pose(minecraft, minecraft.player), minecraft.player.getViewVector(partial)));
         if (RENDERED.size() == 1 || capturedCrossings < CROSSINGS.size()) {
             String name = "vertical-camera-" + label + "-crossing-" + CROSSINGS.size() + ".png";
-            Screenshot.grab(minecraft.gameDirectory, name, minecraft.gameRenderer.mainRenderTarget(), 1,
+            Screenshot.grab(minecraft.gameDirectory, name, ClientRenderAccess.mainTarget(minecraft), 1,
                 message -> LOGGER.info("Vertical camera frame sample: {}", message.getString()));
             capturedCrossings = CROSSINGS.size();
         }

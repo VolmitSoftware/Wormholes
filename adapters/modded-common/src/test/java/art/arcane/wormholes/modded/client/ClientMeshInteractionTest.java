@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded.client;
 
+import art.arcane.wormholes.modded.MinecraftTestAccess;
 import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.modded.mixin.SeamlessEntityAccess;
 import art.arcane.optics.stream.ViewStreamMessage;
@@ -285,7 +286,7 @@ public class ClientMeshInteractionTest extends MinecraftTestBase {
         when(entity.getId()).thenReturn(id);
         when(((SeamlessEntityAccess) entity).wormholesEntityId()).thenReturn(id);
         when(entity.isPickable()).thenReturn(true);
-        when(entity.canBePickedFromInside()).thenReturn(true);
+        MinecraftTestAccess.pickableFromInside(entity);
         when(entity.getBoundingBox()).thenReturn(bounds);
         when(entity.getRootVehicle()).thenReturn(entity);
         return entity;

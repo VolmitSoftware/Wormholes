@@ -32,6 +32,7 @@ public final class SeamlessQaCommand {
             .then(Commands.literal("remove").then(Commands.argument(ARGUMENT, StringArgumentType.greedyString()).executes(SeamlessQaCommand::remove)))
             .then(Commands.literal("light").then(Commands.argument(ARGUMENT, StringArgumentType.greedyString()).executes(SeamlessQaCommand::light)))
             .then(Commands.literal("fallloop").executes(SeamlessQaCommand::fallLoop))
+            .then(Commands.literal("stencilresize").executes(SeamlessQaCommand::stencilResize))
             .then(Commands.literal("startfallloop").executes(SeamlessQaCommand::startFallLoop))
             .then(Commands.literal("releasefallers").then(Commands.argument(ARGUMENT, StringArgumentType.greedyString())
                 .executes(SeamlessQaCommand::releaseFallers)))
@@ -39,7 +40,8 @@ public final class SeamlessQaCommand {
             .then(Commands.literal("lit").then(Commands.argument(ARGUMENT, StringArgumentType.greedyString()).executes(SeamlessQaCommand::lit)))
             .then(Commands.literal("loaded").then(Commands.argument(ARGUMENT, StringArgumentType.greedyString()).executes(SeamlessQaCommand::loaded)))
             .then(Commands.literal("approachfrom").then(Commands.argument(ARGUMENT, StringArgumentType.greedyString())
-                .executes(SeamlessQaCommand::approachFrom))));
+                .executes(SeamlessQaCommand::approachFrom)))
+            .then(Commands.literal("position").executes(SeamlessQaCommand::position)));
     }
 
     private static int route(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
@@ -125,6 +127,16 @@ public final class SeamlessQaCommand {
         return 1;
     }
 
+    private static int stencilResize(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        ServerPlayer player = context.getSource().getPlayerOrException();
+        try {
+            reply(player, "stencilresize " + RouteCodec.ids(PortalStencilResize.build(context.getSource().getServer(), player)));
+        } catch (RuntimeException | AssertionError failure) {
+            fail(player, "stencilresize", failure);
+        }
+        return 1;
+    }
+
     private static int centers(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
         ServerPlayer player = context.getSource().getPlayerOrException();
         try {
@@ -174,6 +186,13 @@ public final class SeamlessQaCommand {
         } catch (RuntimeException | AssertionError failure) {
             fail(player, "approachfrom", failure);
         }
+        return 1;
+    }
+
+    private static int position(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        ServerPlayer player = context.getSource().getPlayerOrException();
+        Vec3 position = player.position();
+        reply(player, "position " + position.x + "," + position.y + "," + position.z);
         return 1;
     }
 

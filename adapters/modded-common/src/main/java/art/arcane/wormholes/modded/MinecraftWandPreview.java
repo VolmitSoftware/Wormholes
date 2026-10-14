@@ -11,9 +11,7 @@ import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.entity.Display;
-import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.item.DyeColor;
-import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.storage.TagValueInput;
 import net.minecraft.world.phys.Vec3;
@@ -48,18 +46,18 @@ final class MinecraftWandPreview {
             new Vector3f(box[3], box[4], box[5]), new Quaternionf(),
             new Vector3f(box[0], box[1], box[2]), new Quaternionf()));
         data.store("block_state", BlockState.CODEC,
-            Blocks.STAINED_GLASS.pick(!complete || valid ? DyeColor.LIGHT_BLUE : DyeColor.RED).defaultBlockState());
+            MinecraftDyedItems.glassBlock(!complete || valid ? DyeColor.LIGHT_BLUE : DyeColor.RED).defaultBlockState());
         CompoundTag brightness = new CompoundTag();
         brightness.putInt("block", 15);
         brightness.putInt("sky", 15);
         data.put("brightness", brightness);
         data.putFloat("view_range", 4.0f);
-        Display.BlockDisplay display = new Display.BlockDisplay(EntityTypes.BLOCK_DISPLAY, player.level());
+        Display.BlockDisplay display = new Display.BlockDisplay(MinecraftEntityTypes.BLOCK_DISPLAY, player.level());
         display.load(TagValueInput.create(ProblemReporter.DISCARDING, player.level().registryAccess(), data));
         display.setPos(min[0], min[1], min[2]);
         entityId = display.getId();
         player.connection.send(new ClientboundAddEntityPacket(entityId, display.getUUID(),
-            min[0], min[1], min[2], 0, 0, EntityTypes.BLOCK_DISPLAY, 0, Vec3.ZERO, 0));
+            min[0], min[1], min[2], 0, 0, MinecraftEntityTypes.BLOCK_DISPLAY, 0, Vec3.ZERO, 0));
         List<SynchedEntityData.DataValue<?>> values = display.getEntityData().getNonDefaultValues();
         if (values != null && !values.isEmpty()) {
             player.connection.send(new ClientboundSetEntityDataPacket(entityId, values));

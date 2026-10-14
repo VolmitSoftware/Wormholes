@@ -21,6 +21,7 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.item.DyeColor;
 
 import java.util.HashMap;
 import java.util.Iterator;
@@ -258,7 +259,7 @@ public final class MinecraftPortalMenus implements AutoCloseable {
     MinecraftWindow uiCreatePortalMenu(ServerPlayer viewer, MinecraftPortal portal) {
         MinecraftWindow window = window(viewer, portal);
         window.setViewportHeight(4);
-        window.setDecorator(Items.STAINED_GLASS_PANE.gray());
+        window.setDecorator(MinecraftDyedItems.pane(DyeColor.GRAY));
         PortalWindow open = new PortalWindow(portal.getId(), window);
         window.onClosed(closed -> openMenus.remove(viewer.getUUID(), open));
         rebuildPortalMenuElements(window, viewer, portal);
@@ -291,7 +292,7 @@ public final class MinecraftPortalMenus implements AutoCloseable {
         }
         MinecraftWindow window = window(viewer, portal);
         window.setViewportHeight(3);
-        window.setDecorator(Items.STAINED_GLASS_PANE.gray());
+        window.setDecorator(MinecraftDyedItems.pane(DyeColor.GRAY));
         window.onClosed(closed -> runEntity(viewer, () -> uiOpenPortalMenu(viewer, portal)));
         window.setElement(0, 0, modePlacardElement(viewer, portal));
         window.setElement(-4, 1, modeOption(PortalType.PORTAL, viewer, window, portal));
@@ -313,7 +314,7 @@ public final class MinecraftPortalMenus implements AutoCloseable {
     void uiOpenGatewayPairMenu(ServerPlayer viewer, MinecraftPortal portal) {
         MinecraftWindow window = window(viewer, portal);
         window.setViewportHeight(3);
-        window.setDecorator(Items.STAINED_GLASS_PANE.black());
+        window.setDecorator(MinecraftDyedItems.pane(DyeColor.BLACK));
         window.setElement(0, 0, gatewayPairPlacardElement(viewer, portal));
         window.setElement(-2, 1, exportPortalElement(window, viewer, portal));
         MinecraftElement chooseDestination = MinecraftPortalText.localizedElement(viewer, "choose-gateway-destination",
@@ -473,7 +474,7 @@ public final class MinecraftPortalMenus implements AutoCloseable {
     private void uiOpenOrientationMenu(ServerPlayer viewer, MinecraftPortal portal) {
         MinecraftWindow window = window(viewer, portal);
         window.setViewportHeight(3);
-        window.setDecorator(Items.STAINED_GLASS_PANE.blue());
+        window.setDecorator(MinecraftDyedItems.pane(DyeColor.BLUE));
         window.setElement(0, 0, MinecraftPortalText.localizedElement(viewer, "orientation-placard",
             WormholesMessages.PORTAL_MENU_ORIENTATION_PLACARD, orientationArguments(viewer, portal), Items.COMPASS));
         window.setElement(-3, 1, directionElement(window, viewer, portal));

@@ -2,6 +2,7 @@ package art.arcane.wormholes.modded.client.render;
 
 import art.arcane.optics.aperture.AperturePolygon;
 import art.arcane.optics.shape.PlaneShape;
+import art.arcane.wormholes.modded.client.render.stencil.PortalLayerMath;
 import net.minecraft.client.renderer.culling.Frustum;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
 import org.joml.Matrix4dc;
@@ -19,8 +20,7 @@ record PortalViewport(int x, int y, int width, int height) {
         double minY = height;
         double maxX = 0;
         double maxY = 0;
-        AperturePolygon.ClipDepth depth = zeroToOne ? AperturePolygon.ClipDepth.ZERO_TO_ONE
-            : AperturePolygon.ClipDepth.NEGATIVE_ONE_TO_ONE;
+        AperturePolygon.ClipDepth depth = PortalLayerMath.coverageDepth(matrix, zeroToOne);
         for (AperturePolygon.Rectangle rectangle : covered(aperture)) {
             for (AperturePolygon.ClipVertex vertex : aperture.project(rectangle, matrix, depth)) {
                 double screenX = (vertex.x() / vertex.w() + 1) * width * 0.5;

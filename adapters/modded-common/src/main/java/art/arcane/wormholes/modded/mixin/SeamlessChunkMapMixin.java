@@ -2,9 +2,14 @@ package art.arcane.wormholes.modded.mixin;
 
 import art.arcane.wormholes.modded.WormholesModRuntime;
 import art.arcane.wormholes.modded.seamless.HeldChunkSender;
+import art.arcane.wormholes.modded.seamless.HeldChunks;
+import art.arcane.wormholes.modded.seamless.UnsentChunkChanges;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
+import com.llamalad7.mixinextras.sugar.Local;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
+import net.minecraft.network.protocol.game.ClientboundLevelChunkWithLightPacket;
+import net.minecraft.server.level.ChunkHolder;
 import net.minecraft.server.level.ChunkMap;
 import net.minecraft.server.level.ChunkTrackingView;
 import net.minecraft.server.level.ServerLevel;
@@ -49,9 +54,14 @@ public abstract class SeamlessChunkMapMixin {
 
     @WrapOperation(method = "onChunkReadyToSend", at = @At(value = "INVOKE",
         target = "Lnet/minecraft/server/level/ChunkMap;markChunkPendingToSend(Lnet/minecraft/server/level/ServerPlayer;Lnet/minecraft/world/level/chunk/LevelChunk;)V"))
-    private void wormholesSkipHeldChunks(ServerPlayer player, LevelChunk chunk, Operation<Void> original) {
-        if (!((HeldChunkSender) player.connection.chunkSender).wormholesHeldChunks().remove(chunk.getPos().pack())) {
+    private void wormholesSkipHeldChunks(ServerPlayer player, LevelChunk chunk, Operation<Void> original, @Local(argsOnly = true) ChunkHolder holder) {
+        UnsentChunkChanges changes = (UnsentChunkChanges) holder;
+        HeldChunks.Ready ready = ((HeldChunkSender) player.connection.chunkSender).wormholesHeldChunks().ready(chunk.getPos().pack(),
+            changes.wormholesUnsentChange(), changes.wormholesUnsentChangeAt());
+        if (ready == HeldChunks.Ready.SEND) {
             original.call(player, chunk);
+        } else if (ready == HeldChunks.Ready.REFRESH) {
+            player.connection.send(new ClientboundLevelChunkWithLightPacket(chunk, level.getLightEngine(), null, null));
         }
     }
 

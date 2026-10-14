@@ -7,7 +7,10 @@ import java.io.DataInputStream;
 import java.io.IOException;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
+import java.util.List;
 import java.util.UUID;
+
+import art.arcane.optics.entity.EntitySnapshot;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -21,6 +24,20 @@ class WireCodecTest {
     private static WireMessage roundTrip(WireMessage message) throws IOException {
         byte[] frame = WireCodec.encodeFrame(message);
         return WireCodec.readFrame(new DataInputStream(new ByteArrayInputStream(frame)));
+    }
+
+    @Test
+    void viewEntitiesPreserveWorldBorderPositionsAndPresence() throws IOException {
+        EntitySnapshot entity = EntitySnapshot.full(new UUID(1L, 2L), "minecraft:pig", 30_000_000.0D, 64.125D, -30_000_000.0D,
+            0.9D, 0.0D, 0.0D, 1.0D, 0.0F, 0.0F, 0.0D, 0.0D, 0.0D, true, "", "", "", null, null,
+            EntitySnapshot.EMPTY, EntitySnapshot.EMPTY, 1);
+        WireMessage.ViewEntities original = new WireMessage.ViewEntities(new UUID(3L, 4L), List.of(entity), List.of(entity.id()));
+        WireMessage.ViewEntities decoded = assertInstanceOf(WireMessage.ViewEntities.class, roundTrip(original));
+        assertEquals(original.portalId(), decoded.portalId());
+        assertEquals(original.presentIds(), decoded.presentIds());
+        assertEquals(entity.x(), decoded.entities().getFirst().x());
+        assertEquals(entity.y(), decoded.entities().getFirst().y());
+        assertEquals(entity.z(), decoded.entities().getFirst().z());
     }
 
     @Test

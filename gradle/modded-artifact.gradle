@@ -27,13 +27,14 @@ abstract class VerifyModdedArtifact extends DefaultTask {
                                      'client.PortalLevelRendererAccess', 'client.PortalGameRendererAccess',
                                      'client.PortalLevelExtractorAccess', 'client.PortalLevelExtractorMixin',
                                      'client.VanillaTerrainExtractorMixin', 'client.VanillaTerrainRendererAccess',
-                                     'client.VanillaTerrainRendererMixin',
+                                     'client.VanillaTerrainRendererMixin', 'client.VanillaTerrainUploadMixin',
                                      'client.PortalClipShaderMixin', 'client.PortalClipProjectionMixin',
                                      'client.PortalStencilPipelinesMixin', 'client.PortalClipIncludeMixin',
                                      'client.PortalFeaturePipelineMixin', 'client.PortalDrawPassMixin',
                                      'client.PortalStencilLayerTargetMixin',
                                      'client.GravityRenderStateMixin', 'client.GravityEntityRendererMixin',
-                                     'client.GravityLivingRendererMixin', 'client.GravityAvatarRendererMixin'] as Set
+                                     'client.GravityLivingRendererMixin', 'client.GravityAvatarRendererMixin',
+                                     'client.PortalBufferSourceAccess', 'client.PortalOutlineBufferAccess'] as Set
 
     @InputFile
     @PathSensitive(PathSensitivity.NONE)

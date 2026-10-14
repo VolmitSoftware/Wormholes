@@ -32,7 +32,6 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.entity.Display;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.DoorBlock;
 import net.minecraft.world.level.block.NetherPortalBlock;
@@ -277,12 +276,12 @@ final class MinecraftDoorPresentation implements AutoCloseable {
             data.putFloat("width", 0.9375F);
             data.putFloat("height", 1.875F);
             data.putInt("interpolation_duration", DoorPortalAnimation.FRAME_PERIOD_TICKS);
-            Display.BlockDisplay display = new Display.BlockDisplay(EntityTypes.BLOCK_DISPLAY, door.level());
+            Display.BlockDisplay display = new Display.BlockDisplay(MinecraftEntityTypes.BLOCK_DISPLAY, door.level());
             display.load(TagValueInput.create(ProblemReporter.DISCARDING, door.level().registryAccess(), data));
             DoorwayPlane plane = door.plane();
             display.setPos(plane.blockX() + 0.5, plane.blockY(), plane.blockZ() + 0.5);
             player.connection.send(new ClientboundAddEntityPacket(display.getId(), display.getUUID(), display.getX(), display.getY(), display.getZ(),
-                0, 0, EntityTypes.BLOCK_DISPLAY, 0, Vec3.ZERO, 0));
+                0, 0, MinecraftEntityTypes.BLOCK_DISPLAY, 0, Vec3.ZERO, 0));
             List<SynchedEntityData.DataValue<?>> values = display.getEntityData().getNonDefaultValues();
             if (values != null && !values.isEmpty()) {
                 player.connection.send(new ClientboundSetEntityDataPacket(display.getId(), values));

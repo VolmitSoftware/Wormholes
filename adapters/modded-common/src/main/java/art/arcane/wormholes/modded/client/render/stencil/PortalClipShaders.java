@@ -1,10 +1,9 @@
 package art.arcane.wormholes.modded.client.render.stencil;
 
+import art.arcane.wormholes.modded.client.ClientRenderAccess;
 import art.arcane.wormholes.modded.client.render.dh.DhBlazeClipTransformation;
 import art.arcane.wormholes.modded.client.render.sodium.SodiumClipShaders;
-import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.logging.LogUtils;
-import com.mojang.renderpearl.api.device.GpuDevice;
 import com.mojang.renderpearl.api.pipeline.ShaderType;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.resources.Resource;
@@ -46,8 +45,7 @@ public final class PortalClipShaders {
     }
 
     public static boolean openGl() {
-        GpuDevice device = RenderSystem.tryGetDevice();
-        return device != null && OPEN_GL.equals(device.getDeviceInfo().backendName());
+        return OPEN_GL.equals(ClientRenderAccess.backendName());
     }
 
     public static String include(Identifier location, String contents) {

@@ -6,6 +6,7 @@ import art.arcane.wormholes.modded.MinecraftPortal;
 import art.arcane.wormholes.modded.client.WormholesClient;
 import art.arcane.wormholes.modded.mixin.client.ParticleEngineAccess;
 import art.arcane.wormholes.portal.AmbientParticleStyle;
+import art.arcane.wormholes.modded.MinecraftDyedItems;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestSingleplayerContext;
@@ -37,17 +38,17 @@ public final class NetherCrossingEffectsClientGameTest implements FabricClientGa
 
     @Override
     public void runTest(ClientGameTestContext context) {
-        boolean hidden = context.computeOnClient(minecraft -> minecraft.gui.hud.isHidden());
+        boolean hidden = context.computeOnClient(minecraft -> ClientGui.hudHidden(minecraft));
         assertTrue(context.computeOnClient(minecraft -> NativeTestWindow.hiddenAndUnfocused(minecraft)
             && NativeTestWindow.mouseReleased(minecraft) && Boolean.parseBoolean(System.getProperty("automator.hidden", "true"))),
             "Nether camera-effects fixture requires a client hidden before window creation");
         ClientViewTestConfig.enableSeamless(true);
         try (TestSingleplayerContext world = context.worldBuilder().adjustSettings(settings -> settings.setAllowCommands(true)).create()) {
-            FabricSeamlessClient client = new FabricSeamlessClient(context, world.getConnection());
+            FabricSeamlessClient client = new FabricSeamlessClient(context, FabricConnection.of(world));
             SeamlessScenario.join(client);
             SeamlessScenario.assertSeamlessNegotiated(client);
             world.getServer().runOnServer(server -> {
-                ServerPlayer player = world.getConnection().getServerPlayer();
+                ServerPlayer player = FabricConnection.of(world).getServerPlayer();
                 player.setGameMode(GameType.SURVIVAL);
                 SeamlessWalkThrough.light(server, player, new SeamlessWalkThrough.NetherFrameFixture(SOURCE, 3));
             });
@@ -76,10 +77,10 @@ public final class NetherCrossingEffectsClientGameTest implements FabricClientGa
                     vector(source.getFrame().getRight()), List.copyOf(markers), List.copyOf(occluders));
             });
             client.runOnClient(minecraft -> {
-                if (!minecraft.gui.hud.isHidden()) {
-                    minecraft.gui.hud.toggle();
+                if (!ClientGui.hudHidden(minecraft)) {
+                    ClientGui.toggleHud(minecraft);
                 }
-                minecraft.gui.toastManager().clear();
+                ClientGui.clearToasts(minecraft);
                 minecraft.options.setCameraType(CameraType.FIRST_PERSON);
                 minecraft.options.fov().set(70);
                 minecraft.options.bobView().set(true);
@@ -93,8 +94,8 @@ public final class NetherCrossingEffectsClientGameTest implements FabricClientGa
             context.getInput().releaseKey(options -> options.keyUp);
             context.runOnClient(minecraft -> NetherCrossingEffectsTap.close());
             context.runOnClient(minecraft -> {
-                if (minecraft.gui.hud.isHidden() != hidden) {
-                    minecraft.gui.hud.toggle();
+                if (ClientGui.hudHidden(minecraft) != hidden) {
+                    ClientGui.toggleHud(minecraft);
                 }
             });
             context.restoreDefaultGameOptions();
@@ -111,7 +112,7 @@ public final class NetherCrossingEffectsClientGameTest implements FabricClientGa
         float yaw = yaw(direction);
         float leadYaw = yaw(scene.normal().scale(-side));
         world.getServer().runOnServer(server -> {
-            ServerPlayer player = world.getConnection().getServerPlayer();
+            ServerPlayer player = FabricConnection.of(world).getServerPlayer();
             player.teleportTo(server.overworld(), start.x, start.y, start.z, Set.of(), leadYaw, 0.0F, false);
         });
         client.waitFor(minecraft -> minecraft.player != null && minecraft.player.position().distanceTo(start) < 0.05D, TIMEOUT_TICKS);
@@ -262,9 +263,9 @@ public final class NetherCrossingEffectsClientGameTest implements FabricClientGa
 
     private static BlockState color(int color) {
         return switch (color) {
-            case 0 -> Blocks.CONCRETE.pick(DyeColor.RED).defaultBlockState();
-            case 1 -> Blocks.CONCRETE.pick(DyeColor.BLUE).defaultBlockState();
-            default -> Blocks.CONCRETE.pick(DyeColor.LIME).defaultBlockState();
+            case 0 -> MinecraftDyedItems.concreteBlock(DyeColor.RED).defaultBlockState();
+            case 1 -> MinecraftDyedItems.concreteBlock(DyeColor.BLUE).defaultBlockState();
+            default -> MinecraftDyedItems.concreteBlock(DyeColor.LIME).defaultBlockState();
         };
     }
 

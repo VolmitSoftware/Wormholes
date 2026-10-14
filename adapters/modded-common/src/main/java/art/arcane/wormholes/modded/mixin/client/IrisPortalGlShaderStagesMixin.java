@@ -3,6 +3,7 @@ package art.arcane.wormholes.modded.mixin.client;
 import art.arcane.wormholes.modded.client.render.iris.IrisShaderStages;
 import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import net.irisshaders.iris.gl.shader.GlShader;
 import net.irisshaders.iris.gl.shader.ShaderType;
 import org.spongepowered.asm.mixin.Mixin;
@@ -24,5 +25,10 @@ public abstract class IrisPortalGlShaderStagesMixin {
         if (IrisShaderStages.release(((GlShader) (Object) this).getHandle())) {
             callback.cancel();
         }
+    }
+
+    @WrapOperation(method = "createShader", at = @At(value = "INVOKE", target = "Lcom/mojang/renderpearl/backend/opengl/GlStateManager;glCreateShader(I)I"))
+    private static int wormholes$allocatedStage(int type, Operation<Integer> original) {
+        return IrisShaderStages.createdShader(original.call(type));
     }
 }

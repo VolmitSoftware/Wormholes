@@ -26,7 +26,6 @@ import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.entity.Display;
-import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.storage.TagValueInput;
 import net.minecraft.world.phys.Vec3;
@@ -210,14 +209,14 @@ public final class MinecraftPortalEffects implements AutoCloseable {
             brightness.putInt("block", 15);
             brightness.putInt("sky", 15);
             data.put("brightness", brightness);
-            Display.BlockDisplay display = new Display.BlockDisplay(EntityTypes.BLOCK_DISPLAY, level);
+            Display.BlockDisplay display = new Display.BlockDisplay(MinecraftEntityTypes.BLOCK_DISPLAY, level);
             display.load(TagValueInput.create(ProblemReporter.DISCARDING, level.registryAccess(), data));
             display.setPos(anchor.x(), anchor.y(), anchor.z());
             List<ServerPlayer> viewers = new ArrayList<>();
             for (ServerPlayer player : level.players()) {
                 if (player.distanceToSqr(anchor.x(), anchor.y(), anchor.z()) <= 6400 && !player.hasDisconnected()) {
                     viewers.add(player);
-                    player.connection.send(new ClientboundAddEntityPacket(display.getId(), display.getUUID(), anchor.x(), anchor.y(), anchor.z(), 0, 0, EntityTypes.BLOCK_DISPLAY, 0, Vec3.ZERO, 0));
+                    player.connection.send(new ClientboundAddEntityPacket(display.getId(), display.getUUID(), anchor.x(), anchor.y(), anchor.z(), 0, 0, MinecraftEntityTypes.BLOCK_DISPLAY, 0, Vec3.ZERO, 0));
                 }
             }
             DisplayHandle handle = new DisplayHandle(display, List.copyOf(viewers));

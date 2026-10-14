@@ -10,9 +10,9 @@ public final class NestedHorizontalPortalAcceptanceClientGameTest implements Fab
     public void runTest(ClientGameTestContext context) {
         ClientViewTestConfig.enableSeamless(true);
         try (TestSingleplayerContext singleplayer = context.worldBuilder().adjustSettings(settings -> settings.setAllowCommands(true)).create()) {
-            FabricSeamlessClient client = new FabricSeamlessClient(context, singleplayer.getConnection());
+            FabricSeamlessClient client = new FabricSeamlessClient(context, FabricConnection.of(singleplayer));
             SeamlessScenario.join(client);
-            ServerPlayer player = singleplayer.getServer().computeOnServer(server -> singleplayer.getConnection().getServerPlayer());
+            ServerPlayer player = singleplayer.getServer().computeOnServer(server -> FabricConnection.of(singleplayer).getServerPlayer());
             NestedHorizontalPortalClientGameTest.Scene scene = singleplayer.getServer()
                 .computeOnServer(server -> NestedHorizontalPortalClientGameTest.build(server, player));
             try {

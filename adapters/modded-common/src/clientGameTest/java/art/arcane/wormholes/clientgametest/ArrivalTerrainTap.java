@@ -4,6 +4,7 @@ import art.arcane.wormholes.modded.client.WormholesClient;
 import art.arcane.wormholes.modded.client.render.PortalShaderScope;
 import art.arcane.wormholes.modded.client.render.stencil.PortalStencilRenderer;
 import art.arcane.wormholes.network.client.TravelMessage;
+import art.arcane.wormholes.modded.client.ClientRenderAccess;
 import com.google.gson.GsonBuilder;
 import com.mojang.blaze3d.platform.NativeImage;
 import net.irisshaders.iris.Iris;
@@ -141,7 +142,7 @@ public final class ArrivalTerrainTap {
             return;
         }
         Minecraft minecraft = Minecraft.getInstance();
-        CameraRenderState camera = minecraft.gameRenderer.gameRenderState().levelRenderState.cameraRenderState;
+        CameraRenderState camera = ClientRenderAccess.gameState(minecraft).levelRenderState.cameraRenderState;
         pose = new Pose(frame, minecraft.level.dimension().identifier().toString(), System.identityHashCode(minecraft.level),
             System.identityHashCode(minecraft.player), minecraft.player.level().dimension().identifier().toString(),
             System.identityHashCode(minecraft.player.level()), new Point(camera.pos.x, camera.pos.y, camera.pos.z),
@@ -193,9 +194,9 @@ public final class ArrivalTerrainTap {
             || WormholesClient.instance().session().resets() != sessionResets
             || WormholesClient.instance().session().protocolFailures() != protocolFailures
             || !NativeTestWindow.hiddenAndUnfocused(minecraft) || !NativeTestWindow.mouseReleased(minecraft)
-            || minecraft.gameRenderer.mainRenderTarget().width != WIDTH || minecraft.gameRenderer.mainRenderTarget().height != HEIGHT
+            || ClientRenderAccess.mainTarget(minecraft).width != WIDTH || ClientRenderAccess.mainTarget(minecraft).height != HEIGHT
             || PortalShaderScope.shaders() != shaders || shaders && !shaderPack.equals(Iris.getCurrentPackName())
-            || !minecraft.gui.hud.isHidden()
+            || !ClientGui.hudHidden(minecraft)
             || minecraft.options.bobView().get() || minecraft.options.ambientOcclusion().get() || minecraft.options.fovEffectScale().get() != 0.0D
             || minecraft.options.fov().get() != 70) {
             fail(new AssertionError("Missing connected hidden 1920x1080 arrival main frame or final camera matrices: " + frame));
@@ -341,7 +342,7 @@ public final class ArrivalTerrainTap {
         if (crossing == null) {
             sourceIssued++;
         }
-        Screenshot.takeScreenshot(minecraft.gameRenderer.mainRenderTarget(), image -> {
+        Screenshot.takeScreenshot(ClientRenderAccess.mainTarget(minecraft), image -> {
             synchronized (ArrivalTerrainTap.class) {
                 if (worker == null || !worker.isAlive() || !QUEUE.offer(new Work(index, rendered, arrival, crossing, image))) {
                     image.close();

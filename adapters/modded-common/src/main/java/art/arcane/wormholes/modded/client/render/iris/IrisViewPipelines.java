@@ -145,14 +145,15 @@ public final class IrisViewPipelines {
         if (!(selected instanceof IrisRenderingPipeline)) {
             throw new IllegalStateException("No Iris shader pipeline is selected for the streamed camera");
         }
+        ShaderPack pack = Iris.getCurrentPack().orElseThrow(() -> new IllegalStateException("No shader pack is available for the streamed camera"));
+        String dimension = text(IrisPipelines.resolve(camera, pack));
         Scope enclosing = SCOPES.peek();
         if (enclosing != null && enclosing.path != null && enclosing.pipeline.rendering() == selected) {
-            return camera.append(enclosing.path.cameras(), enclosing.path.dimension());
+            return camera.append(enclosing.path.cameras(), dimension);
         }
-        for (Map.Entry<NamespacedId, WorldRenderingPipeline> entry :
-            ((IrisPortalPipelineAccess) Iris.getPipelineManager()).wormholes$pipelines().entrySet()) {
-            if (entry.getValue() == selected) {
-                return camera.append(List.of(), text(entry.getKey()));
+        for (WorldRenderingPipeline pipeline : ((IrisPortalPipelineAccess) Iris.getPipelineManager()).wormholes$pipelines().values()) {
+            if (pipeline == selected) {
+                return camera.append(List.of(), dimension);
             }
         }
         throw new IllegalStateException("The enclosing Iris camera has no selected shader dimension");

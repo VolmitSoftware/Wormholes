@@ -174,8 +174,8 @@ describe('ClientView golden vectors', () => {
 
   it('decodes the handshake fields', () => {
     const offer = decodeVector(vector('offer'))
-    assert.deepEqual(offer, { type: 'OFFER', wire: 8, mcDataVersion: 4325, serverCaps: ALL_CAPS, maxFrameBytes: 524288, zeroCopyNonce: 0x1122334455667788n })
-    assert.deepEqual(decodeVector(vector('hello')), { type: 'HELLO', wire: 8, mcDataVersion: 4325, clientCaps: HELLO_CAPS, maxFrameBytes: 524288, plateMemoryMb: 256, zeroCopyNonceEcho: 0x1122334455667788n, brandTag: 'fabric' })
+    assert.deepEqual(offer, { type: 'OFFER', wire: 9, mcDataVersion: 4325, serverCaps: ALL_CAPS, maxFrameBytes: 524288, zeroCopyNonce: 0x1122334455667788n })
+    assert.deepEqual(decodeVector(vector('hello')), { type: 'HELLO', wire: 9, mcDataVersion: 4325, clientCaps: HELLO_CAPS, maxFrameBytes: 524288, plateMemoryMb: 256, zeroCopyNonceEcho: 0x1122334455667788n, brandTag: 'fabric' })
     assert.deepEqual(decodeVector(vector('accept')), { type: 'ACCEPT', sessionId: 42, caps: HELLO_CAPS, tickRate: 20, maxFrameBytes: 524288, hashSalt: 0x0f1e2d3c4b5a6978n, ackWindowFrames: 8 })
     assert.deepEqual(decodeVector(vector('decline')), { type: 'DECLINE', reason: 'DATA_VERSION_MISMATCH' })
     assert.deepEqual(capabilityNames(HELLO_CAPS), ['PLATES', 'BRICK_CACHE', 'DEST_LIGHT', 'ENTITY_FRAMES', 'VIEW_STATS'])
@@ -440,7 +440,7 @@ describe('ClientView golden vectors', () => {
   })
 
   it('uses the current native channel and round-trips bounded door collision targets', () => {
-    assert.equal(CHANNEL, 'wormholes:v10')
+    assert.equal(CHANNEL, 'wormholes:v11')
     const base = decodeVector(vector('travel_begin'))
     for (const doorCollision of [null, { x: 48, y: 70, z: 20, open: true },
       { x: -30_000_000, y: -20_000_000, z: 30_000_000, open: false }]) {

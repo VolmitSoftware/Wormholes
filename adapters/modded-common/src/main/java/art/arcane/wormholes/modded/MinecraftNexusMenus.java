@@ -18,6 +18,7 @@ import art.arcane.wormholes.portal.PortalStateCodec;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.DyeColor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -147,7 +148,7 @@ public final class MinecraftNexusMenus {
             this.viewer = viewer;
             window = new MinecraftWindow(runtime, viewer)
                 .setTitle(MinecraftPortalText.router(runtime, portal, true))
-                .setDecorator(Items.STAINED_GLASS_PANE.cyan());
+                .setDecorator(MinecraftDyedItems.pane(DyeColor.CYAN));
             window.setViewportHeight(4);
         }
 
@@ -404,7 +405,7 @@ public final class MinecraftNexusMenus {
             this.viewer = viewer;
             window = new MinecraftWindow(runtime, viewer)
                 .setTitle(MinecraftPortalText.router(runtime, portal, true))
-                .setDecorator(Items.STAINED_GLASS_PANE.cyan());
+                .setDecorator(MinecraftDyedItems.pane(DyeColor.CYAN));
             window.setViewportHeight(6);
         }
 

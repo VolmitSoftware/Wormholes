@@ -125,6 +125,16 @@ public final class RemoteRoutes implements AutoCloseable {
             BiomeManager.obfuscateSeed(level.getSeed()), level.isDebug(), level.isFlat(), level.getSeaLevel(), level.getMinY(), level.getHeight()));
     }
 
+    public static HandOverColumn handOverColumn(boolean present, boolean current, boolean sendable) {
+        if (!present) {
+            return sendable ? HandOverColumn.SEND : HandOverColumn.NONE;
+        }
+        if (current) {
+            return sendable ? HandOverColumn.NONE : HandOverColumn.HOLD;
+        }
+        return sendable ? HandOverColumn.REFRESH : HandOverColumn.HOLD_STALE;
+    }
+
     public static TravelMessage.RemoteLevelOpen openReturn(ServerLevel origin, MinecraftPortal back, int handle, int radius) {
         TravelMessage.TravelWorld world = travelWorld(origin).orElse(null);
         if (world == null) {
@@ -230,6 +240,21 @@ public final class RemoteRoutes implements AutoCloseable {
             hits.add(route);
         }
         return hits == null ? List.of() : hits;
+    }
+
+    public void lightChanged(ServerLevel level, int chunkX, int chunkZ) {
+        List<RemoteRoute> routes = resident.get(level);
+        if (routes == null || routes.isEmpty()) {
+            return;
+        }
+        long key = ChunkPos.pack(chunkX, chunkZ);
+        boolean ticking = ticking(level, key);
+        for (int index = 0; index < routes.size(); index++) {
+            RemoteRoute route = routes.get(index);
+            if (route.opened()) {
+                route.stream().lightChanged(key, ticking);
+            }
+        }
     }
 
     public void broadcast(ResourceKey<Level> dimension, Packet<? super ClientGamePacketListener> packet) {
@@ -353,13 +378,13 @@ public final class RemoteRoutes implements AutoCloseable {
         SeamlessMove.Events events = runtime.seamlessEvents();
         RemoteRoute forward = handOver.forward();
         if (forward != null && forward.resident()) {
-            RouteWindow delivered = forward.window().withRadius(Math.max(1, forward.stream().deliveredRadius()));
-            MinecraftChunkLeasePlatform.holdHandover(forward.level(), delivered.centerX(), delivered.centerZ(), delivered.radius());
-            ChunkTrackingView view = delivered.view();
+            RouteWindow window = forward.window();
+            MinecraftChunkLeasePlatform.holdHandover(forward.level(), window.centerX(), window.centerZ(), window.radius());
+            ChunkTrackingView view = window.view();
             player.setChunkTrackingView(view);
-            hold(player, forward.level(), view);
+            handOverColumns(player, forward, view);
             leaveDeparted(player, handOver, forward.level(), view, events);
-            watchDelivered(player, handOver, forward.level(), view, events);
+            watchDelivered(player, handOver, forward, view, events);
         }
         List<RemoteTrackedEntityAccess> departed = trackedBy(handOver.origin(), player);
         if (forward != null) {
@@ -729,15 +754,26 @@ public final class RemoteRoutes implements AutoCloseable {
         route.paired().clear();
     }
 
-    private static void hold(ServerPlayer player, ServerLevel level, ChunkTrackingView view) {
-        LongSet held = ((HeldChunkSender) player.connection.chunkSender).wormholesHeldChunks();
+    private static void handOverColumns(ServerPlayer player, RemoteRoute forward, ChunkTrackingView view) {
+        HeldChunks held = ((HeldChunkSender) player.connection.chunkSender).wormholesHeldChunks();
         held.clear();
-        view.forEach(position -> {
-            long key = position.pack();
-            if (level.getChunkSource().chunkMap.getChunkToSend(key) == null) {
-                held.add(key);
-            }
-        });
+        long now = System.nanoTime();
+        view.forEach(position -> deliverColumn(player, forward, held, position.pack(), now));
+    }
+
+    private static void deliverColumn(ServerPlayer player, RemoteRoute forward, HeldChunks held, long key, long now) {
+        ServerLevel level = forward.level();
+        LevelChunk ready = level.getChunkSource().chunkMap.getChunkToSend(key);
+        HandOverColumn column = handOverColumn(forward.stream().present(key), forward.stream().delivered(key), ready != null);
+        if (column == HandOverColumn.SEND) {
+            player.connection.chunkSender.markChunkPendingToSend(ready);
+        } else if (column == HandOverColumn.REFRESH) {
+            player.connection.send(new ClientboundLevelChunkWithLightPacket(ready, level.getLightEngine(), null, null));
+        } else if (column == HandOverColumn.HOLD) {
+            held.hold(key, now);
+        } else if (column == HandOverColumn.HOLD_STALE) {
+            held.holdStale(key, now);
+        }
     }
 
     private List<RemoteTrackedEntityAccess> trackedBy(ServerLevel level, ServerPlayer player) {
@@ -785,10 +821,11 @@ public final class RemoteRoutes implements AutoCloseable {
         });
     }
 
-    private static void watchDelivered(ServerPlayer player, HandOver handOver, ServerLevel level, ChunkTrackingView view, SeamlessMove.Events events) {
+    private static void watchDelivered(ServerPlayer player, HandOver handOver, RemoteRoute forward, ChunkTrackingView view, SeamlessMove.Events events) {
+        ServerLevel level = forward.level();
         boolean levelChanged = level != handOver.origin();
         view.forEach(position -> {
-            if (!levelChanged && handOver.departedView().contains(position.x(), position.z())) {
+            if (!forward.stream().present(position.pack()) || !levelChanged && handOver.departedView().contains(position.x(), position.z())) {
                 return;
             }
             LevelChunk chunk = level.getChunkSource().getChunkNow(position.x(), position.z());
@@ -869,6 +906,14 @@ public final class RemoteRoutes implements AutoCloseable {
                 arrivals.remove(route.level());
             }
         }
+    }
+
+    public enum HandOverColumn {
+        NONE,
+        SEND,
+        REFRESH,
+        HOLD,
+        HOLD_STALE
     }
 
     public record Candidate(MinecraftPortal source, MinecraftPortal destination, ServerLevel level, double distance,

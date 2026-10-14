@@ -20,7 +20,6 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.decoration.ArmorStand;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Blocks;
@@ -225,7 +224,7 @@ public final class WormholesGameTests {
 
     public static void portalRuntime(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
-        ServerPlayer actor = (ServerPlayer) helper.makeMockServerPlayer(GameType.CREATIVE);
+        ServerPlayer actor = MinecraftGameTestAccess.mockServerPlayer(helper, GameType.CREATIVE);
         MinecraftPortal source = RUNTIME.portals().create(actor.getUUID(), level, cells(helper, 2), PortalType.PORTAL, new Vec3(0, 0, -1));
         MinecraftPortal destination = RUNTIME.portals().create(actor.getUUID(), level, cells(helper, 14), PortalType.PORTAL, new Vec3(0, 0, -1));
         helper.assertTrue(RUNTIME.portals().link(actor, source.getId(), destination.getId()), "Portal link rejected owner");
@@ -251,7 +250,7 @@ public final class WormholesGameTests {
             });
         helper.assertTrue(captured.equals(List.of(sampled)), "Projection packet changed world coordinates");
         helper.assertTrue(level.getBlockState(sampled).is(Blocks.GOLD_BLOCK), "Projection packet mutated the real world");
-        ArmorStand traveler = helper.spawn(EntityTypes.ARMOR_STAND, new Vec3(3, 2, 3.5));
+        ArmorStand traveler = helper.spawn(MinecraftEntityTypes.ARMOR_STAND, new Vec3(3, 2, 3.5));
         traveler.setNoGravity(true);
         helper.runAfterDelay(4, () -> {
             Vec3 start = Vec3.atBottomCenterOf(helper.absolutePos(new BlockPos(3, 2, 3)));

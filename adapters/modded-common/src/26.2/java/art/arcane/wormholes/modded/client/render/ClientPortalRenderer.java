@@ -21,6 +21,7 @@ import art.arcane.optics.frame.Similarity;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.shape.ShapeMesh;
 import art.arcane.wormholes.portal.ApertureKind;
+import art.arcane.wormholes.modded.client.ClientRenderAccess;
 import com.mojang.blaze3d.ProjectionType;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.pipeline.TextureTarget;
@@ -34,7 +35,6 @@ import com.mojang.blaze3d.buffers.GpuBuffer;
 import com.mojang.blaze3d.buffers.GpuBufferSlice;
 import com.mojang.blaze3d.systems.RenderPass;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
-import com.mojang.blaze3d.PrimitiveTopology;
 import com.mojang.blaze3d.textures.GpuSampler;
 import com.mojang.blaze3d.textures.AddressMode;
 import com.mojang.blaze3d.textures.FilterMode;
@@ -93,7 +93,7 @@ import java.util.function.BooleanSupplier;
 
 public final class ClientPortalRenderer {
     private static final Logger LOGGER = LogUtils.getLogger();
-    private static final BooleanSupplier CLIP_DEPTH = () -> RenderSystem.getDevice().getDeviceInfo().isZZeroToOne();
+    private static final BooleanSupplier CLIP_DEPTH = () -> ClientRenderAccess.zeroToOneDepth();
     private static final long MAX_GPU_BYTES = 128L * 1024L * 1024L;
     static final long RETRY_NANOS = 5_000_000_000L;
     private static final long BUILD_DISPATCH_NANOS = 2_000_000L;
@@ -503,7 +503,7 @@ public final class ClientPortalRenderer {
         }
         RenderSystem.setShaderFog(fog);
         shadedMaterials = shadedMaterials();
-        RenderTarget main = minecraft.gameRenderer.mainRenderTarget();
+        RenderTarget main = ClientRenderAccess.mainTarget(minecraft);
         frameWidth = main.width;
         frameHeight = main.height;
         RenderDimensions dimensions = new RenderDimensions(main.width, main.height, 0);
@@ -522,13 +522,14 @@ public final class ClientPortalRenderer {
                 && shadedMaterials == null) {
                 if (portalLayer == null) {
                     portalLayer = targets.layer(main.width, main.height);
-                    try (RenderPass clear = RenderSystem.getDevice().createCommandEncoder().createRenderPass(() -> "Wormholes portal layer clear",
-                        portalLayer.getColorTextureView(), Optional.of(new Vector4f(0.0f)), portalLayer.getDepthTextureView(), OptionalDouble.of(0.0))) {
+                    try (RenderPass clear = PortalPasses.cleared("Wormholes portal layer clear", portalLayer.getColorTextureView(),
+                        portalLayer.getDepthTextureView())) {
                     }
                 }
                 visible.add(portal);
-                try (RenderPass pass = RenderSystem.getDevice().createCommandEncoder().createRenderPass(() -> "Wormholes aperture layer",
-                    portalLayer.getColorTextureView(), Optional.empty(), portalLayer.getDepthTextureView(), OptionalDouble.empty())) {
+                prepareComposite(portal);
+                try (RenderPass pass = PortalPasses.open("Wormholes aperture layer", portalLayer.getColorTextureView(),
+                    portalLayer.getDepthTextureView())) {
                     composite(portal, null, pass);
                 }
             }
@@ -639,7 +640,7 @@ public final class ClientPortalRenderer {
             drawingShaded = false;
             shaded.clear();
             buildDemand.clear();
-            RenderTarget main = Minecraft.getInstance().gameRenderer.mainRenderTarget();
+            RenderTarget main = ClientRenderAccess.mainTarget(Minecraft.getInstance());
             RenderDimensions dimensions = new RenderDimensions(main.width, main.height, depth);
             renderNestedContent(parentKey, dimensions);
             dispatchBuilds();
@@ -660,7 +661,7 @@ public final class ClientPortalRenderer {
     }
 
     private void renderNestedContent(int parentKey, RenderDimensions dimensions) {
-        RenderTarget main = Minecraft.getInstance().gameRenderer.mainRenderTarget();
+        RenderTarget main = ClientRenderAccess.mainTarget(Minecraft.getInstance());
         GpuBufferSlice outerProjection = RenderSystem.getProjectionMatrixBuffer();
         ProjectionType outerType = RenderSystem.getProjectionType();
         for (Portal portal : portals.values()) {
@@ -674,8 +675,8 @@ public final class ClientPortalRenderer {
             if (rendered && shadedMaterials == null) {
                 PortalStencil.restore(dimensions.depth());
                 RenderSystem.setProjectionMatrix(outerProjection, outerType);
-                try (RenderPass pass = RenderSystem.getDevice().createCommandEncoder().createRenderPass(() -> "Wormholes nested apertures",
-                    main.getColorTextureView(), Optional.empty(), main.getDepthTextureView(), OptionalDouble.empty())) {
+                prepareComposite(portal);
+                try (RenderPass pass = PortalPasses.open("Wormholes nested apertures", main.getColorTextureView(), main.getDepthTextureView())) {
                     composite(portal, null, pass);
                 }
             }
@@ -786,9 +787,8 @@ public final class ClientPortalRenderer {
         if (PortalShaderScope.shadowPass() || PortalShaderScope.shaders() || !frameCurrent()) {
             return;
         }
-        RenderTarget main = Minecraft.getInstance().gameRenderer.mainRenderTarget();
-        try (RenderPass pass = RenderSystem.getDevice().createCommandEncoder().createRenderPass(() -> "Wormholes apertures",
-            main.getColorTextureView(), Optional.empty(), main.getDepthTextureView(), OptionalDouble.empty())) {
+        RenderTarget main = ClientRenderAccess.mainTarget(Minecraft.getInstance());
+        try (RenderPass pass = PortalPasses.open("Wormholes apertures", main.getColorTextureView(), main.getDepthTextureView())) {
             compositeLayer(pass);
         }
     }
@@ -800,10 +800,9 @@ public final class ClientPortalRenderer {
         if (!frameCurrent() || layerMesh == null || visible.isEmpty() || portalLayer == null) {
             return;
         }
-        RenderTarget main = Minecraft.getInstance().gameRenderer.mainRenderTarget();
+        RenderTarget main = ClientRenderAccess.mainTarget(Minecraft.getInstance());
         try (PortalFramebufferScope framebuffer = PortalFramebufferScope.capture();
-             RenderPass pass = RenderSystem.getDevice().createCommandEncoder().createRenderPass(() -> "Wormholes shader apertures",
-                 main.getColorTextureView(), Optional.empty(), main.getDepthTextureView(), OptionalDouble.empty())) {
+             RenderPass pass = PortalPasses.open("Wormholes shader apertures", main.getColorTextureView(), main.getDepthTextureView())) {
             compositeLayer(pass);
         }
     }
@@ -966,6 +965,16 @@ public final class ClientPortalRenderer {
         return result;
     }
 
+    private void prepareComposite(Portal portal) {
+        if (portal.target == null || portal.apertureMesh == null) {
+            return;
+        }
+        camera = portal.camera;
+        portal.compositeTransform = portal.affine == null
+            ? transform(portal.scene.geometry().originX(), portal.scene.geometry().originY(), portal.scene.geometry().originZ())
+            : PortalPasses.transform(affineApertureView(portal));
+    }
+
     private void composite(Portal portal, Portal parent, RenderPass pass) {
         if (portal.target == null || portal.apertureMesh == null) {
             return;
@@ -974,9 +983,7 @@ public final class ClientPortalRenderer {
         boolean shaped = portal.affine != null || portal.aperture.hasShape();
         pass.setPipeline(shaped ? pipelines.compositeShape() : pipelines.composite());
         RenderSystem.bindDefaultUniforms(pass);
-        GpuBufferSlice transform = portal.affine == null
-            ? transform(portal.scene.geometry().originX(), portal.scene.geometry().originY(), portal.scene.geometry().originZ())
-            : RenderSystem.getDynamicUniforms().writeTransform(affineApertureView(portal));
+        GpuBufferSlice transform = portal.compositeTransform;
         pass.setUniform("DynamicTransforms", transform);
         GpuBuffer clip = portal.compositeUniform;
         if (parent != null) {
@@ -1486,12 +1493,14 @@ public final class ClientPortalRenderer {
             frame.sky(() -> portal.environment.renderSky(portal.scene.fullWorld() ? targets.travelSky(portal.key) : targets.sky(dimensions.depth())));
             frame.content(camera.viewRotationMatrix);
             features.prepare(portal.scene, camera, portal.cullFrustum);
+            writeTerrainTransforms(portal, true);
             try (RenderPass pass = shadedPass()) {
                 drawShadedTerrain(portal, frame, ChunkSectionLayer.SOLID, pass, reflected);
                 drawShadedTerrain(portal, frame, ChunkSectionLayer.CUTOUT, pass, reflected);
             }
             features.executeSolid();
             frame.translucents();
+            writeTerrainTransforms(portal, true);
             try (RenderPass pass = shadedPass()) {
                 drawShadedTerrain(portal, frame, ChunkSectionLayer.TRANSLUCENT, pass, reflected);
             }
@@ -1526,9 +1535,6 @@ public final class ClientPortalRenderer {
                 if (mesh == null) {
                     continue;
                 }
-                if (section.transform == null) {
-                    section.transform = RenderSystem.getDynamicUniforms().writeTransform(shaderTerrainTransform(camera, section.key));
-                }
                 pass.setUniform("DynamicTransforms", section.transform);
                 mesh.draw(pass);
                 terrainDraws++;
@@ -1541,9 +1547,8 @@ public final class ClientPortalRenderer {
     }
 
     private static RenderPass shadedPass() {
-        RenderTarget main = Minecraft.getInstance().gameRenderer.mainRenderTarget();
-        return RenderSystem.getDevice().createCommandEncoder().createRenderPass(() -> "Wormholes shaded destination", main.getColorTextureView(),
-            Optional.empty(), main.getDepthTextureView(), OptionalDouble.empty());
+        RenderTarget main = ClientRenderAccess.mainTarget(Minecraft.getInstance());
+        return PortalPasses.open("Wormholes shaded destination", main.getColorTextureView(), main.getDepthTextureView());
     }
 
     private Matrix4f apertureView(Portal portal) {
@@ -1650,7 +1655,7 @@ public final class ClientPortalRenderer {
             return new Matrix4f(frameProjection);
         }
         return PortalProjection.clip(frameProjection, camera.viewRotationMatrix, cameraPlane(portal),
-            RenderSystem.getDevice().getDeviceInfo().isZZeroToOne());
+            ClientRenderAccess.zeroToOneDepth());
     }
 
     private Vector4f cameraPlane(Portal portal) {
@@ -1664,6 +1669,7 @@ public final class ClientPortalRenderer {
     }
 
     private void drawDestinationSolid(Portal portal, PortalFeatureRenderer features) {
+        writeTerrainTransforms(portal, false);
         try (RenderPass pass = destinationPass(portal, Optional.empty())) {
             drawTerrain(portal, ChunkSectionLayer.SOLID, pass);
             drawTerrain(portal, ChunkSectionLayer.CUTOUT, pass);
@@ -1682,6 +1688,7 @@ public final class ClientPortalRenderer {
             for (Portal child : portals.values()) {
                 if (child.scene.geometry().parentPortalKey() == portal.key && renderTree(child, childSpace, childViewport(portal, dimensions),
                     childDimensions(dimensions))) {
+                    prepareComposite(child);
                     try (RenderPass pass = destinationPass(portal, Optional.empty())) {
                         composite(child, portal, pass);
                     }
@@ -1695,6 +1702,7 @@ public final class ClientPortalRenderer {
     }
 
     private void drawDestinationTranslucent(Portal portal, PortalFeatureRenderer features) {
+        writeTerrainTransforms(portal, false);
         try (RenderPass pass = destinationPass(portal, Optional.empty())) {
             drawTerrain(portal, ChunkSectionLayer.TRANSLUCENT, pass);
         }
@@ -1705,11 +1713,7 @@ public final class ClientPortalRenderer {
     }
 
     private RenderPass destinationPass(Portal portal, Optional<Vector4fc> clear) {
-        PortalViewport viewport = portal.viewport;
-        return RenderSystem.getDevice().createCommandEncoder().createRenderPass(() -> "Wormholes destination",
-            portal.target.getColorTextureView(), clear, portal.target.getDepthTextureView(),
-            clear.isPresent() ? OptionalDouble.of(0.0) : OptionalDouble.empty(),
-            new RenderPass.RenderArea(viewport.x(), viewport.y(), viewport.width(), viewport.height()));
+        return PortalPasses.area("Wormholes destination", portal.target, clear, portal.viewport);
     }
 
     private void drawTerrain(Portal portal, ChunkSectionLayer layer, RenderPass pass) {
@@ -1730,15 +1734,20 @@ public final class ClientPortalRenderer {
                     side * (float) (plane.offset() + plane.x() * (SectionPos.x(section.key) << 4)
                         + plane.y() * (SectionPos.y(section.key) << 4) + plane.z() * (SectionPos.z(section.key) << 4))), portal.viewport);
             }
-            if (section.transform == null) {
-                section.transform = RenderSystem.getDynamicUniforms().writeTransform(terrainTransform(camera, section.key));
-            }
             pass.setUniform("DynamicTransforms", section.transform);
             pass.setUniform("Portal", section.clip);
             mesh.draw(pass);
             terrainDraws++;
             frameTerrainDraws++;
             portal.lastDrawFrame = preparedFrame;
+        }
+    }
+
+    private void writeTerrainTransforms(Portal portal, boolean shader) {
+        for (Section section : portal.drawSections) {
+            if (section.transform == null && !section.layers.isEmpty()) {
+                section.transform = PortalPasses.transform(shader ? shaderTerrainTransform(camera, section.key) : terrainTransform(camera, section.key));
+            }
         }
     }
 
@@ -1750,7 +1759,7 @@ public final class ClientPortalRenderer {
 
     private static PortalGpuMesh fullscreenMesh() {
         try (ByteBufferBuilder allocation = new ByteBufferBuilder(128)) {
-            BufferBuilder builder = new BufferBuilder(allocation, PrimitiveTopology.QUADS, DefaultVertexFormat.POSITION);
+            BufferBuilder builder = PortalPasses.quads(allocation, DefaultVertexFormat.POSITION);
             builder.addVertex(-1, -1, 0);
             builder.addVertex(1, -1, 0);
             builder.addVertex(1, 1, 0);
@@ -1857,7 +1866,7 @@ public final class ClientPortalRenderer {
 
     private GpuBufferSlice transform(int x, int y, int z) {
         Matrix4f modelView = new Matrix4f(camera.viewRotationMatrix).translate((float) (x - camera.pos.x), (float) (y - camera.pos.y), (float) (z - camera.pos.z));
-        return RenderSystem.getDynamicUniforms().writeTransform(modelView);
+        return PortalPasses.transform(modelView);
     }
 
     static DynamicUniforms.Transform terrainTransform(CameraRenderState camera, long sectionKey) {
@@ -1883,7 +1892,7 @@ public final class ClientPortalRenderer {
         try {
             data.putFloat(plane.x).putFloat(plane.y).putFloat(plane.z).putFloat(plane.w);
             data.putFloat(viewport.width()).putFloat(viewport.height()).putFloat(viewport.x()).putFloat(viewport.y());
-            boolean zeroToOne = RenderSystem.getDevice().getDeviceInfo().isZZeroToOne();
+            boolean zeroToOne = ClientRenderAccess.zeroToOneDepth();
             data.putFloat(zeroToOne ? 1.0f : 0.5f).putFloat(zeroToOne ? 0.0f : 0.5f).putFloat(0.0f).putFloat(0.0f).flip();
             return RenderSystem.getDevice().createBuffer(() -> "Portal parameters", GpuBuffer.USAGE_UNIFORM, data);
         } finally {
@@ -2212,6 +2221,7 @@ public final class ClientPortalRenderer {
         private EnvironmentState.Color featherColor;
         private float featherWidth;
         private GpuBuffer compositeUniform;
+        private GpuBufferSlice compositeTransform;
 
         private Portal(int key, PortalScene scene) {
             this.key = key;

@@ -6,7 +6,6 @@ import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -47,7 +46,6 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.PositionMoveRotation;
@@ -58,7 +56,6 @@ import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.scores.PlayerTeam;
 import net.minecraft.world.scores.Scoreboard;
 import net.minecraft.world.scores.Team;
-import net.minecraft.world.scores.TeamColor;
 
 import art.arcane.optics.entity.EntityOutput;
 import art.arcane.optics.entity.EntityProfile;
@@ -286,12 +283,12 @@ public final class MinecraftEntityPackets implements EntityOutput<ServerPlayer, 
 
     @Override
     public boolean isItemFrame(EntityType<?> type) {
-        return type == EntityTypes.ITEM_FRAME || type == EntityTypes.GLOW_ITEM_FRAME;
+        return type == MinecraftEntityTypes.ITEM_FRAME || type == MinecraftEntityTypes.GLOW_ITEM_FRAME;
     }
 
     @Override
     public boolean isHanging(EntityType<?> type) {
-        return isItemFrame(type) || type == EntityTypes.PAINTING;
+        return isItemFrame(type) || type == MinecraftEntityTypes.PAINTING;
     }
 
     @Override
@@ -379,7 +376,7 @@ public final class MinecraftEntityPackets implements EntityOutput<ServerPlayer, 
         Vec3 position = labelPosition(label);
         if (initial) {
             send(observer, new ClientboundAddEntityPacket(state.labelFakeId(), state.labelFakeUuid(),
-                position.x, position.y, position.z, 0, 0, EntityTypes.TEXT_DISPLAY, 0, Vec3.ZERO, 0));
+                position.x, position.y, position.z, 0, 0, MinecraftEntityTypes.TEXT_DISPLAY, 0, Vec3.ZERO, 0));
             send(observer, new ClientboundSetEntityDataPacket(state.labelFakeId(), labelMetadata(state.playerLabelText())));
             state.rememberLabelPosition(position.x, position.y, position.z);
             return;
@@ -442,7 +439,7 @@ public final class MinecraftEntityPackets implements EntityOutput<ServerPlayer, 
         PlayerTeam team = teams.addPlayerTeam(name);
         team.setNameTagVisibility(Team.Visibility.NEVER);
         team.setCollisionRule(Team.CollisionRule.NEVER);
-        team.setColor(Optional.of(TeamColor.WHITE));
+        MinecraftTeamColors.white(team);
         return team;
     }
 

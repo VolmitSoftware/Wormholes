@@ -1,0 +1,117 @@
+/*
+ * View-bobbing damping near portals is derived from Immersive Portals' MixinGameRenderer
+ * (https://github.com/iPortalTeam/ImmersivePortalsMod), Copyright 2020 qouteall, licensed under the Apache License, Version 2.0.
+ * Modified for Wormholes.
+ */
+package art.arcane.wormholes.modded.mixin.client;
+
+import art.arcane.wormholes.modded.client.ClientCrossingView;
+import art.arcane.wormholes.modded.client.WormholesClient;
+import art.arcane.wormholes.modded.client.ClientRenderAccess;
+import art.arcane.wormholes.modded.client.render.stencil.PortalBackends;
+import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
+import net.minecraft.client.Camera;
+import net.minecraft.client.DeltaTracker;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.GameRenderer;
+import net.minecraft.client.renderer.LevelRenderer;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Unique;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.ModifyArg;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+
+@Mixin(GameRenderer.class)
+public abstract class CrossingCameraMixin {
+    @Unique private static final String BOB_VIEW =
+        "Lnet/minecraft/client/renderer/GameRenderer;bobView(Lnet/minecraft/client/renderer/state/level/CameraRenderState;Lcom/mojang/blaze3d/vertex/PoseStack;)V";
+    @Unique private static final String BOB_TRANSLATE = "Lcom/mojang/blaze3d/vertex/PoseStack;translate(FFF)V";
+    @Unique private boolean wormholes$levelBob;
+
+    @Inject(method = "update", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/Camera;update(Lnet/minecraft/client/DeltaTracker;)V",
+        shift = At.Shift.AFTER))
+    private void wormholes$crossing(DeltaTracker tracker, boolean renderLevel, CallbackInfo callback) {
+        WormholesClient client = WormholesClient.instance();
+        if (client != null) {
+            client.seamlessTravel().frame(ClientRenderAccess.mainCamera(Minecraft.getInstance()), tracker);
+        }
+        wormholes$terrainFog(tracker);
+    }
+
+    @Unique
+    private void wormholes$terrainFog(DeltaTracker tracker) {
+        Minecraft minecraft = Minecraft.getInstance();
+        if (!PortalBackends.sodium() || minecraft.level == null) {
+            return;
+        }
+        GameRenderer renderer = (GameRenderer) (Object) this;
+        ((PortalGameRendererAccess) renderer).wormholes$fogRenderer().setupFog(ClientRenderAccess.mainCamera(minecraft),
+            minecraft.options.getEffectiveRenderDistance(), tracker, renderer.getBossOverlayWorldDarkening(tracker.getGameTimeDeltaPartialTick(false)),
+            minecraft.level);
+    }
+
+    @WrapOperation(method = "update", at = @At(value = "INVOKE",
+        target = "Lnet/minecraft/client/renderer/LevelRenderer;update(Lnet/minecraft/client/Camera;)V"))
+    private void wormholes$crossingUpdate(LevelRenderer renderer, Camera camera, Operation<Void> original) {
+        WormholesClient client = WormholesClient.instance();
+        if (client == null) {
+            original.call(renderer, camera);
+            return;
+        }
+        client.seamlessTravel().view().within(() -> original.call(Minecraft.getInstance().levelRenderer, camera));
+    }
+
+    @WrapMethod(method = "extract")
+    private void wormholes$crossingExtract(DeltaTracker tracker, boolean renderLevel, Operation<Void> original) {
+        WormholesClient client = WormholesClient.instance();
+        if (client == null) {
+            original.call(tracker, renderLevel);
+            return;
+        }
+        client.seamlessTravel().view().within(() -> original.call(tracker, renderLevel));
+    }
+
+    @WrapMethod(method = "render")
+    private void wormholes$crossingRender(DeltaTracker tracker, boolean renderLevel, Operation<Void> original) {
+        WormholesClient client = WormholesClient.instance();
+        if (client == null) {
+            original.call(tracker, renderLevel);
+            return;
+        }
+        ClientCrossingView view = client.seamlessTravel().view();
+        try {
+            view.within(() -> original.call(tracker, renderLevel));
+        } finally {
+            view.finish(ClientRenderAccess.mainCamera(Minecraft.getInstance()));
+        }
+    }
+
+    @Inject(method = "renderLevel", at = @At(value = "INVOKE", target = BOB_VIEW))
+    private void wormholes$beginLevelBob(CallbackInfo callback) {
+        wormholes$levelBob = true;
+    }
+
+    @Inject(method = "renderLevel", at = @At(value = "INVOKE", target = BOB_VIEW, shift = At.Shift.AFTER))
+    private void wormholes$endLevelBob(CallbackInfo callback) {
+        wormholes$levelBob = false;
+    }
+
+    @ModifyArg(method = "bobView", at = @At(value = "INVOKE", target = BOB_TRANSLATE), index = 0)
+    private float wormholes$dampBobX(float x) {
+        return x * wormholes$bobFactor();
+    }
+
+    @ModifyArg(method = "bobView", at = @At(value = "INVOKE", target = BOB_TRANSLATE), index = 1)
+    private float wormholes$dampBobY(float y) {
+        return y * wormholes$bobFactor();
+    }
+
+    @Unique
+    private float wormholes$bobFactor() {
+        WormholesClient client = WormholesClient.instance();
+        return !wormholes$levelBob || client == null ? 1.0F : (float) client.seamlessTravel().view().bobFactor();
+    }
+}

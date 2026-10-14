@@ -21,6 +21,7 @@ import art.arcane.optics.frame.Similarity;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.shape.ShapeMesh;
 import art.arcane.wormholes.portal.ApertureKind;
+import art.arcane.wormholes.modded.client.ClientRenderAccess;
 import com.mojang.blaze3d.ProjectionType;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.pipeline.PipelineCache;
@@ -94,7 +95,7 @@ import java.util.function.BooleanSupplier;
 
 public final class ClientPortalRenderer {
     private static final Logger LOGGER = LogUtils.getLogger();
-    private static final BooleanSupplier CLIP_DEPTH = () -> RenderSystem.getDevice().getDeviceInfo().isZZeroToOne();
+    private static final BooleanSupplier CLIP_DEPTH = () -> ClientRenderAccess.zeroToOneDepth();
     private static final long MAX_GPU_BYTES = 128L * 1024L * 1024L;
     static final long RETRY_NANOS = 5_000_000_000L;
     private static final long BUILD_DISPATCH_NANOS = 2_000_000L;
@@ -504,7 +505,7 @@ public final class ClientPortalRenderer {
         }
         RenderSystem.setShaderFog(fog);
         shadedMaterials = shadedMaterials();
-        RenderTarget main = minecraft.gameRenderer.mainRenderTarget();
+        RenderTarget main = ClientRenderAccess.mainTarget(minecraft);
         frameWidth = main.width;
         frameHeight = main.height;
         RenderDimensions dimensions = new RenderDimensions(main.width, main.height, 0);
@@ -640,7 +641,7 @@ public final class ClientPortalRenderer {
             drawingShaded = false;
             shaded.clear();
             buildDemand.clear();
-            RenderTarget main = Minecraft.getInstance().gameRenderer.mainRenderTarget();
+            RenderTarget main = ClientRenderAccess.mainTarget(Minecraft.getInstance());
             RenderDimensions dimensions = new RenderDimensions(main.width, main.height, depth);
             renderNestedContent(parentKey, dimensions);
             dispatchBuilds();
@@ -661,7 +662,7 @@ public final class ClientPortalRenderer {
     }
 
     private void renderNestedContent(int parentKey, RenderDimensions dimensions) {
-        RenderTarget main = Minecraft.getInstance().gameRenderer.mainRenderTarget();
+        RenderTarget main = ClientRenderAccess.mainTarget(Minecraft.getInstance());
         GpuBufferSlice outerProjection = RenderSystem.getProjectionMatrixBuffer();
         ProjectionType outerType = RenderSystem.getProjectionType();
         for (Portal portal : portals.values()) {
@@ -797,7 +798,7 @@ public final class ClientPortalRenderer {
         if (!frameCurrent() || layerMesh == null || visible.isEmpty() || portalLayer == null) {
             return;
         }
-        RenderTarget main = Minecraft.getInstance().gameRenderer.mainRenderTarget();
+        RenderTarget main = ClientRenderAccess.mainTarget(Minecraft.getInstance());
         try (PortalFramebufferScope framebuffer = PortalFramebufferScope.capture();
              RenderPass pass = RenderSystem.getDevice().createCommandEncoder().createRenderPass(() -> "Wormholes shader apertures",
                  main.getColorTextureView(), Optional.empty(), main.getDepthTextureView(), OptionalDouble.empty())) {
@@ -1549,7 +1550,7 @@ public final class ClientPortalRenderer {
     }
 
     private static RenderPass shadedPass() {
-        RenderTarget main = Minecraft.getInstance().gameRenderer.mainRenderTarget();
+        RenderTarget main = ClientRenderAccess.mainTarget(Minecraft.getInstance());
         return RenderSystem.getDevice().createCommandEncoder().createRenderPass(() -> "Wormholes shaded destination", main.getColorTextureView(),
             Optional.empty(), main.getDepthTextureView(), OptionalDouble.empty());
     }
@@ -1656,7 +1657,7 @@ public final class ClientPortalRenderer {
             return new Matrix4f(frameProjection);
         }
         return PortalProjection.clip(frameProjection, camera.viewRotationMatrix, cameraPlane(portal),
-            RenderSystem.getDevice().getDeviceInfo().isZZeroToOne());
+            ClientRenderAccess.zeroToOneDepth());
     }
 
     private Vector4f cameraPlane(Portal portal) {
@@ -1885,7 +1886,7 @@ public final class ClientPortalRenderer {
         try {
             data.putFloat(plane.x).putFloat(plane.y).putFloat(plane.z).putFloat(plane.w);
             data.putFloat(viewport.width()).putFloat(viewport.height()).putFloat(viewport.x()).putFloat(viewport.y());
-            boolean zeroToOne = RenderSystem.getDevice().getDeviceInfo().isZZeroToOne();
+            boolean zeroToOne = ClientRenderAccess.zeroToOneDepth();
             data.putFloat(zeroToOne ? 1.0f : 0.5f).putFloat(zeroToOne ? 0.0f : 0.5f).putFloat(0.0f).putFloat(0.0f).flip();
             return RenderSystem.getDevice().createBuffer(() -> "Portal parameters", GpuBuffer.USAGE_UNIFORM, data);
         } finally {

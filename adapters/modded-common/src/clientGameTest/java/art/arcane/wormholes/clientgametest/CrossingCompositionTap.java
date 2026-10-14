@@ -1,5 +1,6 @@
 package art.arcane.wormholes.clientgametest;
 
+import art.arcane.wormholes.modded.client.ClientRenderAccess;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Screenshot;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -36,7 +37,7 @@ final class CrossingCompositionTap {
         if (source == null || minecraft.level == null || minecraft.player == null) {
             return;
         }
-        Vec3 eye = minecraft.gameRenderer.mainCamera().position();
+        Vec3 eye = ClientRenderAccess.mainCamera(minecraft).position();
         arrived |= minecraft.level != source || Math.abs(eye.z - planeZ) > 10.0D;
         if (arrived && arrivalFrames++ >= 8 || !arrived && Math.abs(eye.z - planeZ) > 0.35D) {
             return;
@@ -45,7 +46,7 @@ final class CrossingCompositionTap {
         String name = label;
         boolean destination = arrived;
         Screenshot.grab(minecraft.gameDirectory, "composition-" + name + "-" + index + ".png",
-            minecraft.gameRenderer.mainRenderTarget(), 1, message -> System.out.println("WORMHOLES_CROSSING_IMAGE " + message.getString()));
+            ClientRenderAccess.mainTarget(minecraft), 1, message -> System.out.println("WORMHOLES_CROSSING_IMAGE " + message.getString()));
         FramebufferProbe.capture(minecraft, image -> sampled(name, index, destination, image));
     }
 

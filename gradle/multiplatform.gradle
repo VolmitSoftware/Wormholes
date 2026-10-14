@@ -3,10 +3,131 @@ import org.gradle.api.artifacts.Configuration
 import org.gradle.api.attributes.Category
 import org.gradle.api.attributes.LibraryElements
 import org.gradle.api.attributes.Usage
+import org.gradle.api.file.DirectoryProperty
+import org.gradle.api.logging.Logger
+import org.gradle.api.logging.Logging
+import org.gradle.api.provider.ListProperty
+import org.gradle.api.provider.MapProperty
+import org.gradle.api.provider.Property
 import org.gradle.api.tasks.ClasspathNormalizer
+import org.gradle.api.tasks.Input
+import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.PathSensitivity
+import org.gradle.api.tasks.TaskAction
 import org.gradle.jvm.toolchain.JavaLanguageVersion
 import org.gradle.jvm.toolchain.JavaLauncher
+import org.gradle.process.ExecOperations
+import org.gradle.process.ExecSpec
+import org.gradle.workers.WorkAction
+import org.gradle.workers.WorkParameters
+import org.gradle.workers.WorkerExecutor
+
+import javax.inject.Inject
+
+abstract class NestedGradleBuild extends DefaultTask {
+    @Internal
+    abstract Property<String> getLabel()
+
+    @Internal
+    abstract DirectoryProperty getProjectDirectory()
+
+    @Input
+    abstract ListProperty<String> getCommandLine()
+
+    @Internal
+    abstract MapProperty<String, String> getEnvironment()
+
+    @Inject
+    abstract WorkerExecutor getWorkerExecutor()
+
+    @TaskAction
+    void build() {
+        Property<String> label = getLabel()
+        DirectoryProperty projectDirectory = getProjectDirectory()
+        ListProperty<String> commandLine = getCommandLine()
+        MapProperty<String, String> environment = getEnvironment()
+        getWorkerExecutor().noIsolation().submit(NestedGradleBuildAction) { NestedGradleBuildParameters parameters ->
+            parameters.getLabel().set(label)
+            parameters.getProjectDirectory().set(projectDirectory)
+            parameters.getCommandLine().set(commandLine)
+            parameters.getEnvironment().set(environment)
+        }
+    }
+}
+
+interface NestedGradleBuildParameters extends WorkParameters {
+    Property<String> getLabel()
+
+    DirectoryProperty getProjectDirectory()
+
+    ListProperty<String> getCommandLine()
+
+    MapProperty<String, String> getEnvironment()
+}
+
+abstract class NestedGradleBuildAction implements WorkAction<NestedGradleBuildParameters> {
+    @Inject
+    abstract ExecOperations getExecOperations()
+
+    @Override
+    void execute() {
+        NestedGradleBuildParameters parameters = getParameters()
+        PrefixedLineOutput output = new PrefixedLineOutput(Logging.getLogger(NestedGradleBuildAction), "[${parameters.getLabel().get()}] ")
+        try {
+            getExecOperations().exec { ExecSpec spec ->
+                spec.workingDir(parameters.getProjectDirectory().get().asFile)
+                spec.commandLine(parameters.getCommandLine().get())
+                spec.environment(parameters.getEnvironment().get())
+                spec.setStandardOutput(output)
+                spec.setErrorOutput(output)
+            }
+        } finally {
+            output.close()
+        }
+    }
+}
+
+final class PrefixedLineOutput extends OutputStream {
+    private static final int NEWLINE = 10
+    private static final int CARRIAGE_RETURN = 13
+
+    private final Logger logger
+    private final String prefix
+    private final ByteArrayOutputStream line = new ByteArrayOutputStream(256)
+
+    PrefixedLineOutput(Logger logger, String prefix) {
+        this.logger = logger
+        this.prefix = prefix
+    }
+
+    @Override
+    synchronized void write(int value) {
+        if (value == NEWLINE) {
+            emit()
+        } else if (value != CARRIAGE_RETURN) {
+            line.write(value)
+        }
+    }
+
+    @Override
+    synchronized void write(byte[] bytes, int offset, int length) {
+        for (int index = offset; index < offset + length; index++) {
+            write((int) bytes[index])
+        }
+    }
+
+    @Override
+    synchronized void close() {
+        if (line.size() > 0) {
+            emit()
+        }
+    }
+
+    private void emit() {
+        logger.quiet(prefix + line.toString('UTF-8'))
+        line.reset()
+    }
+}
 
 String minecraftVersion = providers.gradleProperty('minecraftVersion').get()
 Properties buildDefaults = new Properties()
@@ -15,8 +136,6 @@ File targetManifest = file("gradle/minecraft-versions/${minecraftVersion}.json")
 if (!targetManifest.isFile()) {
     throw new GradleException("Unsupported Minecraft target ${minecraftVersion}")
 }
-Map<String, Object> minecraftTarget = (Map<String, Object>) new JsonSlurper().parse(targetManifest)
-String adapterBuildDirectory = minecraftVersion == buildDefaults.getProperty('minecraftVersion') ? 'build' : "build/${minecraftVersion}"
 String bukkitRange = providers.gradleProperty('bukkitMinecraftRange').get()
 String wrapper = System.getProperty('os.name').toLowerCase(Locale.ROOT).contains('windows') ? 'gradlew.bat' : 'gradlew'
 File outputDirectory = providers.gradleProperty('pluginOutDirectory')
@@ -62,12 +181,12 @@ Closure<Void> configureModdedInputs = { Task task, String targetVersion, List<St
         file('gradlew'), file('gradlew.bat'), file('LICENSE.md'), file('THIRD-PARTY-NOTICES.md'))
         .withPropertyName('buildDefinition').withPathSensitivity(PathSensitivity.RELATIVE)
     List<String> sourceRoots = ['adapters/modded-common'] + targetLoaders.collect { String loader -> "adapters/${loader}".toString() }
-    if (targetLoaders.contains('neoforge') && !targetLoaders.contains('forge')) {
-        sourceRoots.add('adapters/forge')
-    }
+    Map<String, Object> overlayTarget = (Map<String, Object>) new JsonSlurper().parse(file("gradle/minecraft-versions/${targetVersion}.json"))
+    List<String> overlays = (List<String>) (overlayTarget['overlays'] ?: [targetVersion])
     for (String sourceRoot : sourceRoots) {
         task.inputs.files(fileTree("${sourceRoot}/src") {
-            include('main/**', 'test/**', 'gameTest/**', 'clientGameTest/**', 'clientGameTestDriver/**', "${targetVersion}/**")
+            include('main/**', 'test/**', 'gameTest/**', 'clientGameTest/**', 'clientGameTestDriver/**')
+            include(overlays.collect { String overlay -> "${overlay}/**".toString() })
         }).withPropertyName(sourceRoot.replace('/', '_')).withPathSensitivity(PathSensitivity.RELATIVE)
         task.inputs.files(file("${sourceRoot}/build.gradle"), file("${sourceRoot}/settings.gradle"), file("${sourceRoot}/gradle.properties"))
             .withPropertyName(sourceRoot.replace('/', '_') + '_build').withPathSensitivity(PathSensitivity.RELATIVE)
@@ -108,57 +227,82 @@ tasks.register('buildBukkit', Copy) {
 
 Map<String, String> loaders = [fabric: 'Fabric', forge: 'Forge', neoforge: 'NeoForge']
 Map<String, String> versionKeys = [fabric: 'fabricLoaderVersion', forge: 'forgeVersion', neoforge: 'neoForgeVersion']
-loaders.each { String loader, String display ->
-    String versionKey = versionKeys[loader]
-    String loaderVersion = providers.gradleProperty(versionKey).getOrElse(((Map<String, String>) minecraftTarget['loaders'])[loader])
-    String displayVersion = loaderVersion.startsWith("${minecraftVersion}-")
-        ? loaderVersion.substring(minecraftVersion.length() + 1)
-        : loaderVersion
-    if (loader == 'neoforge') {
-        displayVersion = displayVersion.replaceFirst(/-beta$/, '')
-    }
-    String artifactName = "Wormholes v${project.version} [${display}] ${minecraftVersion}+${displayVersion}.jar"
-    moddedArtifacts[display] = file("adapters/${loader}/${adapterBuildDirectory}/libs/${artifactName}")
-    TaskProvider<Exec> jarTask = tasks.register("${loader}Jar", Exec) {
-        group = 'build'
-        workingDir(file("adapters/${loader}"))
-        commandLine(file(wrapper).absolutePath, ':build', ':core:build', '--console=plain',
-            "-PwormholesVersion=${project.version}", "-PminecraftVersion=${minecraftVersion}",
-            "-P${versionKey}=${loaderVersion}", "-PuseLocalVolmLib=${useLocalVolmLib}")
-        args(nestedBuildArguments)
-        args('--project-cache-dir', file("adapters/${loader}/.gradle/targets/${minecraftVersion}").absolutePath)
-        if (localVolmLibCheckout != null) {
-            environment('ORG_GRADLE_PROJECT_localVolmLibDirectory', localVolmLibCheckout.absolutePath)
+List<String> minecraftVersions = fileTree('gradle/minecraft-versions') {
+    include('*.json')
+}.files.collect { File manifest -> manifest.name.substring(0, manifest.name.length() - 5) }.sort()
+Project adapters = project(':adapters')
+File nestedVolmLibInitScript = file('gradle/nested-volmlib.init.gradle')
+String wormholesVersion = project.version.toString()
+Map<String, TaskProvider<NestedGradleBuild>> loaderChains = [:]
+List<TaskProvider<NestedGradleBuild>> moddedBuilds = []
+List<TaskProvider<Task>> versionBuilds = []
+([minecraftVersion] + (minecraftVersions - minecraftVersion)).each { String targetVersion ->
+    Map<String, Object> target = (Map<String, Object>) new JsonSlurper().parse(file("gradle/minecraft-versions/${targetVersion}.json"))
+    boolean selected = targetVersion == minecraftVersion
+    String suffix = selected ? '' : targetVersion.replace('.', '_')
+    String targetBuildDirectory = targetVersion == buildDefaults.getProperty('minecraftVersion') ? 'build' : "build/${targetVersion}"
+    List<TaskProvider<Copy>> exports = []
+    loaders.each { String loader, String display ->
+        String versionKey = versionKeys[loader]
+        String manifestLoaderVersion = ((Map<String, String>) target['loaders'])[loader]
+        String loaderVersion = selected ? providers.gradleProperty(versionKey).getOrElse(manifestLoaderVersion) : manifestLoaderVersion
+        String displayVersion = loaderVersion.startsWith("${targetVersion}-")
+            ? loaderVersion.substring(targetVersion.length() + 1)
+            : loaderVersion
+        if (loader == 'neoforge') {
+            displayVersion = displayVersion.replaceFirst(/-beta$/, '')
         }
-        configureModdedInputs(delegate as Task, minecraftVersion, [loader])
-        inputs.property('loaderVersion', loaderVersion)
-        outputs.file(file("adapters/${loader}/${adapterBuildDirectory}/libs/${artifactName}"))
+        File artifact = file("adapters/${loader}/${targetBuildDirectory}/libs/Wormholes v${wormholesVersion} [${display}] ${targetVersion}+${displayVersion}.jar")
+        if (selected) {
+            moddedArtifacts[display] = artifact
+        }
+        TaskProvider<NestedGradleBuild> jarTask = adapters.tasks.register("${loader}Jar${suffix}", NestedGradleBuild) {
+            group = 'build'
+            description = "Builds and checks the ${display} ${targetVersion} jar in its own Gradle build."
+            label.set("${display} ${targetVersion}".toString())
+            projectDirectory.set(file("adapters/${loader}"))
+            List<Object> arguments = [file(wrapper).absolutePath, ':build', ':core:build', '--console=plain',
+                "-PwormholesVersion=${wormholesVersion}", "-PminecraftVersion=${targetVersion}",
+                "-P${versionKey}=${loaderVersion}", "-PuseLocalVolmLib=${useLocalVolmLib}",
+                "-PnestedVolmLibBuildDirectory=${file("adapters/${loader}/${targetBuildDirectory}/volmlib").absolutePath}",
+                '--init-script', nestedVolmLibInitScript.absolutePath] +
+                nestedBuildArguments +
+                ['--project-cache-dir', file("adapters/${loader}/.gradle/targets/${targetVersion}").absolutePath]
+            commandLine.set(arguments.collect { Object argument -> argument.toString() })
+            inputs.file(nestedVolmLibInitScript).withPropertyName('nestedVolmLibInitScript').withPathSensitivity(PathSensitivity.NONE)
+            if (localVolmLibCheckout != null) {
+                environment.put('ORG_GRADLE_PROJECT_localVolmLibDirectory', localVolmLibCheckout.absolutePath)
+            }
+            configureModdedInputs(delegate as Task, targetVersion, [loader])
+            inputs.property('loaderVersion', loaderVersion)
+            outputs.file(artifact)
+        }
+        TaskProvider<NestedGradleBuild> predecessor = loaderChains[loader]
+        if (predecessor != null) {
+            jarTask.configure { mustRunAfter(predecessor) }
+        }
+        loaderChains[loader] = jarTask
+        moddedBuilds.add(jarTask)
+        TaskProvider<Task> verifyTask = tasks.register("verify${display}${suffix}Artifact") {
+            group = 'verification'
+            dependsOn(jarTask)
+            inputs.files(jarTask.map { Task task -> task.outputs.files })
+        }
+        exports.add(tasks.register("build${display == 'NeoForge' ? 'Neoforge' : display}${suffix}", Copy) {
+            group = 'distribution'
+            dependsOn(verifyTask)
+            from(jarTask.map { Task task -> task.outputs.files })
+            into(outputDirectory)
+            doFirst {
+                delete(fileTree(outputDirectory) { include("Wormholes v* [${display}] ${targetVersion}+*.jar") })
+            }
+        })
     }
-    TaskProvider<Task> verifyTask = tasks.register("verify${display}Artifact") {
-        group = 'verification'
-        dependsOn(jarTask)
-        inputs.files(jarTask.map { Task task -> task.outputs.files })
-    }
-
-    tasks.register("build${display == 'NeoForge' ? 'Neoforge' : display}", Copy) {
+    versionBuilds.add(tasks.register("buildModded${targetVersion.replace('.', '_')}ToOut") {
         group = 'distribution'
-        dependsOn(verifyTask)
-        from(jarTask.map { Task task -> task.outputs.files })
-        into(outputDirectory)
-        doFirst {
-            delete(fileTree(outputDirectory) { include("Wormholes v* [${display}] ${minecraftVersion}+*.jar") })
-        }
-    }
-}
-
-tasks.named('fabricJar').configure {
-    mustRunAfter('buildBukkit', ':core:build')
-}
-tasks.named('forgeJar').configure {
-    mustRunAfter('fabricJar')
-}
-tasks.named('neoforgeJar').configure {
-    mustRunAfter('forgeJar')
+        description = "Builds verified ${targetVersion} mod jars into the distribution directory."
+        dependsOn(exports)
+    })
 }
 
 tasks.register('buildAllToOut') {
@@ -200,60 +344,15 @@ tasks.register('buildAll') {
     }
 }
 
-List<String> minecraftVersions = fileTree('gradle/minecraft-versions') {
-    include('*.json')
-}.files.collect { File manifest -> manifest.name.substring(0, manifest.name.length() - 5) }.sort()
-TaskProvider<Task> previousVersionBuild = null
-List<TaskProvider<Task>> versionBuilds = []
-minecraftVersions.each { String targetVersion ->
-    String taskName = "buildModded${targetVersion.replace('.', '_')}ToOut"
-    TaskProvider<Task> versionBuild
-    if (targetVersion == minecraftVersion) {
-        versionBuild = tasks.register(taskName) {
-            group = 'distribution'
-            description = "Builds verified ${targetVersion} mod jars into the distribution directory."
-            dependsOn('buildFabric', 'buildForge', 'buildNeoforge')
-        }
-    } else {
-        Map<String, Object> target = (Map<String, Object>) new JsonSlurper().parse(file("gradle/minecraft-versions/${targetVersion}.json"))
-        versionBuild = tasks.register(taskName, Exec) {
-            group = 'distribution'
-            description = "Builds verified ${targetVersion} mod jars into the distribution directory."
-            mustRunAfter('buildBukkit', ':build', ':core:build', 'fabricJar', 'forgeJar', 'neoforgeJar')
-            workingDir(rootDir)
-            commandLine(file(wrapper).absolutePath, 'buildFabric', 'buildForge', 'buildNeoforge', '--console=plain',
-                "-PwormholesVersion=${project.version}", "-PminecraftVersion=${targetVersion}",
-                "-PpluginOutDirectory=${outputDirectory.absolutePath}", "-PuseLocalVolmLib=${useLocalVolmLib}")
-            args(nestedBuildArguments)
-            args('--project-cache-dir', file(".gradle/modded-targets/${targetVersion}").absolutePath)
-            if (localVolmLibCheckout != null) {
-                environment('ORG_GRADLE_PROJECT_localVolmLibDirectory', localVolmLibCheckout.absolutePath)
-            }
-            configureModdedInputs(delegate as Task, targetVersion, loaders.keySet().toList())
-            loaders.each { String loader, String display ->
-                String loaderVersion = ((Map<String, String>) target['loaders'])[loader]
-                String displayVersion = loaderVersion.startsWith("${targetVersion}-")
-                    ? loaderVersion.substring(targetVersion.length() + 1) : loaderVersion
-                if (loader == 'neoforge') {
-                    displayVersion = displayVersion.replaceFirst(/-beta$/, '')
-                }
-                String artifactName = "Wormholes v${project.version} [${display}] ${targetVersion}+${displayVersion}.jar"
-                String targetBuildDirectory = targetVersion == buildDefaults.getProperty('minecraftVersion') ? 'build' : "build/${targetVersion}"
-                args("-P${versionKeys[loader]}=${loaderVersion}")
-                inputs.property(versionKeys[loader], loaderVersion)
-                outputs.files(new File(outputDirectory, artifactName), file("adapters/${loader}/${targetBuildDirectory}/libs/${artifactName}"))
-            }
-        }
-    }
-    if (previousVersionBuild != null) {
-        TaskProvider<Task> predecessor = previousVersionBuild
-        versionBuild.configure { mustRunAfter(predecessor) }
-    }
-    previousVersionBuild = versionBuild
-    versionBuilds.add(versionBuild)
-}
 tasks.register('buildModdedVersionsToOut') {
     group = 'distribution'
     description = 'Builds every supported Minecraft mod target without deploying jars.'
     dependsOn(versionBuilds)
+}
+
+tasks.register('checkAll') {
+    group = 'verification'
+    description = 'Runs every Bukkit, core, Optics, and proxy check plus every Fabric, Forge, and NeoForge build for every supported Minecraft version.'
+    dependsOn(['check'] + (subprojects - adapters).collect { Project candidate -> "${candidate.path}:check".toString() })
+    dependsOn(moddedBuilds)
 }

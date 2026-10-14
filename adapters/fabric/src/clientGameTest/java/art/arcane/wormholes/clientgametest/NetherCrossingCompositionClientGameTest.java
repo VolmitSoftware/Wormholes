@@ -4,11 +4,13 @@ import art.arcane.optics.math.Face;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.MinecraftPortal;
 import art.arcane.wormholes.modded.client.WormholesClient;
+import art.arcane.wormholes.modded.MinecraftDyedItems;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestSingleplayerContext;
 import net.minecraft.client.CameraType;
 import net.minecraft.core.BlockPos;
+import net.minecraft.server.level.ParticleStatus;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.DyeColor;
@@ -29,18 +31,19 @@ import static art.arcane.wormholes.clientgametest.SeamlessScenario.assertTrue;
 
 public final class NetherCrossingCompositionClientGameTest implements FabricClientGameTest {
     private static final int TIMEOUT_TICKS = 600;
+    private static final int PARTICLE_DRAIN_TICKS = 60;
     private static final BlockPos SOURCE = SeamlessWalkThrough.NETHER_FRAME;
 
     @Override
     public void runTest(ClientGameTestContext context) {
-        boolean hidden = context.computeOnClient(minecraft -> minecraft.gui.hud.isHidden());
+        boolean hidden = context.computeOnClient(minecraft -> ClientGui.hudHidden(minecraft));
         ClientViewTestConfig.enableSeamless(true);
         try (TestSingleplayerContext world = context.worldBuilder().adjustSettings(settings -> settings.setAllowCommands(true)).create()) {
-            FabricSeamlessClient client = new FabricSeamlessClient(context, world.getConnection());
+            FabricSeamlessClient client = new FabricSeamlessClient(context, FabricConnection.of(world));
             SeamlessScenario.join(client);
             SeamlessScenario.assertSeamlessNegotiated(client);
             world.getServer().runOnServer(server -> {
-                ServerPlayer player = world.getConnection().getServerPlayer();
+                ServerPlayer player = FabricConnection.of(world).getServerPlayer();
                 player.setGameMode(GameType.SURVIVAL);
                 SeamlessWalkThrough.light(server, player, new SeamlessWalkThrough.NetherFrameFixture(SOURCE, 3));
             });
@@ -60,25 +63,27 @@ public final class NetherCrossingCompositionClientGameTest implements FabricClie
                     vector(source.getFrame().getRight()), List.copyOf(markers));
             });
             client.runOnClient(minecraft -> {
-                if (!minecraft.gui.hud.isHidden()) {
-                    minecraft.gui.hud.toggle();
+                if (!ClientGui.hudHidden(minecraft)) {
+                    ClientGui.toggleHud(minecraft);
                 }
-                minecraft.gui.toastManager().clear();
+                ClientGui.clearToasts(minecraft);
                 minecraft.options.setCameraType(CameraType.FIRST_PERSON);
                 minecraft.options.fov().set(70);
                 minecraft.options.bobView().set(false);
                 minecraft.options.fovEffectScale().set(0.0D);
                 minecraft.options.framerateLimit().set(120);
+                minecraft.options.particles().set(ParticleStatus.MINIMAL);
                 minecraft.player.setSprinting(false);
             });
+            client.waitTicks(PARTICLE_DRAIN_TICKS);
             roundTrip(client, world, scene, 0.0D, 6.5D, "center");
             roundTrip(client, world, scene, 75.0D, 0.30D, "75-immediate-reverse");
         } finally {
             context.getInput().releaseKey(options -> options.keyUp);
             context.runOnClient(minecraft -> NetherCrossingCompositionTap.close());
             context.runOnClient(minecraft -> {
-                if (minecraft.gui.hud.isHidden() != hidden) {
-                    minecraft.gui.hud.toggle();
+                if (ClientGui.hudHidden(minecraft) != hidden) {
+                    ClientGui.toggleHud(minecraft);
                 }
             });
             context.restoreDefaultGameOptions();
@@ -94,7 +99,7 @@ public final class NetherCrossingCompositionClientGameTest implements FabricClie
             .add(scene.normal().scale(side * gap)).add(scene.right().scale(-gap * Math.tan(Math.toRadians(angle))));
         float yaw = yaw(direction);
         world.getServer().runOnServer(server -> {
-            ServerPlayer player = world.getConnection().getServerPlayer();
+            ServerPlayer player = FabricConnection.of(world).getServerPlayer();
             player.teleportTo(server.overworld(), start.x, start.y, start.z, Set.of(), yaw, 0.0F, false);
         });
         client.waitFor(minecraft -> minecraft.player != null && minecraft.player.position().distanceTo(start) < 0.05D, TIMEOUT_TICKS);
@@ -151,10 +156,10 @@ public final class NetherCrossingCompositionClientGameTest implements FabricClie
         BlockPos center = BlockPos.containing(origin.x, floor, origin.z);
         for (int x = -12; x <= 12; x++) {
             for (int z = -12; z <= 12; z++) {
-                for (int y = 0; y <= 7; y++) {
+                for (int y = 0; y <= 8; y++) {
                     BlockPos cell = center.offset(x, y, z);
                     if (!level.getBlockState(cell).is(Blocks.OBSIDIAN)) {
-                        level.setBlockAndUpdate(cell, y == 0 ? Blocks.SEA_LANTERN.defaultBlockState() : Blocks.AIR.defaultBlockState());
+                        level.setBlockAndUpdate(cell, roomBlock(destination, x, y, z));
                     }
                 }
             }
@@ -171,7 +176,7 @@ public final class NetherCrossingCompositionClientGameTest implements FabricClie
                 for (int row = 0; row < 4; row++) {
                     Vec3 position = origin.add(normal.scale(side * depth)).add(right.scale(lateral));
                     BlockPos cell = BlockPos.containing(position.x, floor + 1 + row, position.z);
-                    BlockState state = row % 2 == 0 ? color(color) : Blocks.CONCRETE.pick(DyeColor.WHITE).defaultBlockState();
+                    BlockState state = row % 2 == 0 ? color(color) : MinecraftDyedItems.concreteBlock(DyeColor.WHITE).defaultBlockState();
                     level.setBlockAndUpdate(cell, state);
                     if (row % 2 == 0) {
                         markers.add(new NetherCrossingCompositionTap.Marker(portal.getWorldKey(), cell.getX(), cell.getY(), cell.getZ(), color));
@@ -181,11 +186,21 @@ public final class NetherCrossingCompositionClientGameTest implements FabricClie
         }
     }
 
+    private static BlockState roomBlock(boolean destination, int x, int y, int z) {
+        if (y == 0) {
+            return Blocks.SEA_LANTERN.defaultBlockState();
+        }
+        if (destination && (y == 8 || Math.abs(x) == 12 || Math.abs(z) == 12)) {
+            return MinecraftDyedItems.concreteBlock(DyeColor.WHITE).defaultBlockState();
+        }
+        return Blocks.AIR.defaultBlockState();
+    }
+
     private static BlockState color(int color) {
         return switch (color) {
-            case 0 -> Blocks.CONCRETE.pick(DyeColor.RED).defaultBlockState();
-            case 1 -> Blocks.CONCRETE.pick(DyeColor.BLUE).defaultBlockState();
-            default -> Blocks.CONCRETE.pick(DyeColor.LIME).defaultBlockState();
+            case 0 -> MinecraftDyedItems.concreteBlock(DyeColor.RED).defaultBlockState();
+            case 1 -> MinecraftDyedItems.concreteBlock(DyeColor.BLUE).defaultBlockState();
+            default -> MinecraftDyedItems.concreteBlock(DyeColor.LIME).defaultBlockState();
         };
     }
 

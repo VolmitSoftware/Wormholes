@@ -14,6 +14,8 @@ import art.arcane.wormholes.modded.client.render.stencil.PortalView;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.portal.ProjectionMode;
 import art.arcane.wormholes.transit.OrientationPolicy;
+import art.arcane.wormholes.modded.MinecraftDyedItems;
+import art.arcane.wormholes.modded.client.ClientRenderAccess;
 import com.seibel.distanthorizons.common.wrappers.chunk.ChunkWrapper;
 import com.seibel.distanthorizons.common.render.blaze.wrappers.texture.BlazeTextureWrapper;
 import com.seibel.distanthorizons.common.wrappers.world.ClientLevelWrapper;
@@ -148,7 +150,7 @@ final class NativeDistantHorizonsAcceptance {
         context.runOnClient(minecraft -> ClientMeshLightingAssertions.verify(minecraft.level));
         System.out.println("WORMHOLES_CLIENT_LIGHTING_SCOPE_PASS");
         Options options = context.computeOnClient(minecraft -> new Options(minecraft.options.getCameraType(),
-            minecraft.gui.hud.isHidden(), minecraft.options.renderDistance().get(),
+            ClientGui.hudHidden(minecraft), minecraft.options.renderDistance().get(),
             WormholesClient.instance().config().clientRecursion, Config.Client.Advanced.Graphics.Quality.lodChunkRenderDistanceRadius.get()));
         MinecraftServer server = Objects.requireNonNull(context.computeOnClient(Minecraft::getSingleplayerServer), "DH acceptance needs an owned integrated server");
         UUID playerId = context.computeOnClient(minecraft -> minecraft.player.getUUID());
@@ -162,8 +164,8 @@ final class NativeDistantHorizonsAcceptance {
                 minecraft.options.renderDistance().set(4);
                 WormholesClient.instance().config().clientRecursion = true;
                 Config.Client.Advanced.Graphics.Quality.lodChunkRenderDistanceRadius.set(64);
-                if (!minecraft.gui.hud.isHidden()) {
-                    minecraft.gui.hud.toggle();
+                if (!ClientGui.hudHidden(minecraft)) {
+                    ClientGui.toggleHud(minecraft);
                 }
             });
             runOnServer(server, minecraftServer -> {
@@ -293,8 +295,8 @@ final class NativeDistantHorizonsAcceptance {
                 minecraft.options.renderDistance().set(options.renderDistance());
                 Config.Client.Advanced.Graphics.Quality.lodChunkRenderDistanceRadius.set(options.lodDistance());
                 WormholesClient.instance().config().clientRecursion = options.recursion();
-                if (minecraft.gui.hud.isHidden() != options.hidden()) {
-                    minecraft.gui.hud.toggle();
+                if (ClientGui.hudHidden(minecraft) != options.hidden()) {
+                    ClientGui.toggleHud(minecraft);
                 }
             });
             runOnServer(server, minecraftServer -> {
@@ -449,11 +451,11 @@ final class NativeDistantHorizonsAcceptance {
         for (int side : new int[]{-1, 1}) {
             BlockPos landmark = center.offset(-24, -1, side * 256);
             fill(level, landmark.offset(0, 0, -24), 96, 1, 48, Blocks.STONE.defaultBlockState());
-            fill(level, landmark.offset(0, 1, -4), 96, 40, 8, Blocks.CONCRETE.pick(color).defaultBlockState());
+            fill(level, landmark.offset(0, 1, -4), 96, 40, 8, MinecraftDyedItems.concreteBlock(color).defaultBlockState());
             if (color == DyeColor.MAGENTA) {
                 BlockPos background = center.offset(150, -1, side * 256);
                 fill(level, background.offset(0, 0, -24), 96, 1, 48, Blocks.STONE.defaultBlockState());
-                fill(level, background.offset(0, 1, -4), 96, 40, 8, Blocks.CONCRETE.pick(color).defaultBlockState());
+                fill(level, background.offset(0, 1, -4), 96, 40, 8, MinecraftDyedItems.concreteBlock(color).defaultBlockState());
             }
         }
     }
@@ -478,7 +480,7 @@ final class NativeDistantHorizonsAcceptance {
         teleport(context, server, player, dimension, position, 180.0F);
         context.waitForChunksDownload();
         context.waitForChunksRender();
-        BlockState expected = Blocks.CONCRETE.pick(dimension.equals(Level.OVERWORLD) ? DyeColor.MAGENTA : DyeColor.CYAN).defaultBlockState();
+        BlockState expected = MinecraftDyedItems.concreteBlock(dimension.equals(Level.OVERWORLD) ? DyeColor.MAGENTA : DyeColor.CYAN).defaultBlockState();
         CompletableFuture<?> lighting = computeOnServer(server, minecraftServer -> {
             ServerLevel level = Objects.requireNonNull(minecraftServer.getLevel(dimension));
             List<CompletableFuture<?>> tasks = new ArrayList<>();
@@ -743,7 +745,7 @@ final class NativeDistantHorizonsAcceptance {
                 assertTrue(DistantHorizonsTap.failure() == null, DistantHorizonsTap.failure());
                 assertTrue(minecraft.level.dimension().equals(Level.OVERWORLD) && minecraft.player.level() == minecraft.level
                     && minecraft.player.position().distanceTo(new Vec3(1.5D, 70.0D, 26.5D)) < 0.1D
-                    && minecraft.gameRenderer.mainCamera().position().distanceTo(minecraft.player.getEyePosition()) < 0.1D,
+                    && ClientRenderAccess.mainCamera(minecraft).position().distanceTo(minecraft.player.getEyePosition()) < 0.1D,
                     "DH source reference has the wrong physical player or client level");
             });
             BufferedImage reference = DhComposedImageAssertions.read(screenshot(context, "dh-source-floor-reference"));
@@ -1095,7 +1097,7 @@ final class NativeDistantHorizonsAcceptance {
             context.runOnClient(minecraft -> {
                 DistantHorizonsTap.checkpoint("timeout-" + label);
                 System.err.println("DH timeout client level=" + minecraft.level.dimension() + " player=" + minecraft.player.position()
-                    + " camera=" + minecraft.gameRenderer.mainCamera().position() + " yaw=" + minecraft.player.getYRot());
+                    + " camera=" + ClientRenderAccess.mainCamera(minecraft).position() + " yaw=" + minecraft.player.getYRot());
             });
             screenshot(context, "dh-timeout-" + label);
             throw failure;
@@ -1133,7 +1135,7 @@ final class NativeDistantHorizonsAcceptance {
     private static void assertHidden(Minecraft client) {
         assertTrue(Boolean.getBoolean("automator.hidden") && NativeTestWindow.hiddenAndUnfocused(client), "DH acceptance requires a hidden, unfocused native GPU client");
         assertTrue(NativeTestWindow.mouseReleased(client), "DH acceptance grabbed the desktop mouse");
-        assertTrue(client.gameRenderer.mainRenderTarget().width == 1920 && client.gameRenderer.mainRenderTarget().height == 1080,
+        assertTrue(ClientRenderAccess.mainTarget(client).width == 1920 && ClientRenderAccess.mainTarget(client).height == 1080,
             "DH acceptance requires a native 1920x1080 GPU framebuffer");
     }
 
@@ -1152,7 +1154,7 @@ final class NativeDistantHorizonsAcceptance {
         CompletableFuture<Path> captured = new CompletableFuture<>();
         context.runOnClient(minecraft -> {
             assertHidden(minecraft);
-            Screenshot.takeScreenshot(minecraft.gameRenderer.mainRenderTarget(), framebuffer -> {
+            Screenshot.takeScreenshot(ClientRenderAccess.mainTarget(minecraft), framebuffer -> {
                 try (framebuffer) {
                     Files.createDirectories(image.getParent());
                     framebuffer.writeToFile(image);

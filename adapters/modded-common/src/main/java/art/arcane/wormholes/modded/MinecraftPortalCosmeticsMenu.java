@@ -56,7 +56,7 @@ final class MinecraftPortalCosmeticsMenu {
     private void uiOpenBlackoutColorMenu(ServerPlayer viewer, MinecraftPortal portal) {
         MinecraftWindow window = menus.window(viewer, portal);
         window.setViewportHeight(4);
-        window.setDecorator(Items.STAINED_GLASS_PANE.black());
+        window.setDecorator(MinecraftDyedItems.pane(DyeColor.BLACK));
         refreshBlackoutColorOptions(window, viewer, portal);
         window.setElement(0, 3, menus.settings().backToSettingsMenuElement(window, viewer, portal));
         window.open();
@@ -91,7 +91,7 @@ final class MinecraftPortalCosmeticsMenu {
     }
 
     private static Item blackoutColorMaterial(BlackoutColor color) {
-        return Items.CONCRETE.pick(DyeColor.valueOf(color.name()));
+        return MinecraftDyedItems.concrete(DyeColor.valueOf(color.name()));
     }
 
     MinecraftElement ambientParticlesElement(MinecraftWindow window, ServerPlayer viewer, MinecraftPortal portal) {
@@ -129,7 +129,7 @@ final class MinecraftPortalCosmeticsMenu {
     private void uiOpenAmbientColorMenu(ServerPlayer viewer, MinecraftPortal portal) {
         MinecraftWindow window = menus.window(viewer, portal);
         window.setViewportHeight(5);
-        window.setDecorator(Items.STAINED_GLASS_PANE.black());
+        window.setDecorator(MinecraftDyedItems.pane(DyeColor.BLACK));
         refreshAmbientColorMenu(window, viewer, portal);
         window.setElement(0, 4, menus.settings().backToSettingsMenuElement(window, viewer, portal));
         window.open();
@@ -184,7 +184,7 @@ final class MinecraftPortalCosmeticsMenu {
         int rgb = dyeRgb(color);
         MinecraftElement element = MinecraftPortalText.localizedElement(viewer, "ambient-color-" + color.name().toLowerCase(Locale.ROOT),
             WormholesMessages.PORTAL_MENU_AMBIENT_COLOR_OPTION, MinecraftPortalText.arguments("color", dyeDisplayName(color)),
-            Items.WOOL.pick(color));
+            MinecraftDyedItems.wool(color));
         element.setEnchanted(nearestDye(portal.getAmbientColor()) == color);
         element.onLeftClick(clicked -> {
             menus.update(viewer, portal, target -> target.setAmbientColor(rgb));
@@ -290,7 +290,7 @@ final class MinecraftPortalCosmeticsMenu {
     private void uiOpenSurfaceSkinMenu(ServerPlayer viewer, MinecraftPortal portal) {
         MinecraftWindow window = menus.window(viewer, portal);
         window.setViewportHeight(3);
-        window.setDecorator(Items.STAINED_GLASS_PANE.cyan());
+        window.setDecorator(MinecraftDyedItems.pane(DyeColor.CYAN));
         refreshSurfaceSkinMenu(window, viewer, portal);
         window.setElement(0, 2, menus.settings().backToSettingsMenuElement(window, viewer, portal));
         window.open();
@@ -412,9 +412,9 @@ final class MinecraftPortalCosmeticsMenu {
 
         Item material() {
             return switch (this) {
-                case RED -> Items.DYE.red();
-                case GREEN -> Items.DYE.green();
-                case BLUE -> Items.DYE.blue();
+                case RED -> MinecraftDyedItems.dye(DyeColor.RED);
+                case GREEN -> MinecraftDyedItems.dye(DyeColor.GREEN);
+                case BLUE -> MinecraftDyedItems.dye(DyeColor.BLUE);
             };
         }
 

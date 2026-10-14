@@ -1,6 +1,5 @@
 package art.arcane.wormholes.clientgametest;
 
-import net.fabricmc.fabric.api.client.gametest.v1.context.TestServerConnection;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestServerContext;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
@@ -10,12 +9,13 @@ import net.minecraft.world.phys.Vec3;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.UUID;
 
 final class FabricSeamlessServer implements SeamlessServer {
     private final TestServerContext server;
-    private final TestServerConnection connection;
+    private final FabricConnection connection;
 
-    FabricSeamlessServer(TestServerContext server, TestServerConnection connection) {
+    FabricSeamlessServer(TestServerContext server, FabricConnection connection) {
         this.server = server;
         this.connection = connection;
     }
@@ -72,6 +72,25 @@ final class FabricSeamlessServer implements SeamlessServer {
     @Override
     public void removeFallLoop(SeamlessFallLoop.Loop loop) {
         server.runOnServer(minecraftServer -> SeamlessFallLoop.remove(minecraftServer, connection.getServerPlayer(), loop));
+    }
+
+    @Override
+    public List<UUID> buildStencilResize() {
+        return server.computeOnServer(minecraftServer -> PortalStencilResize.build(minecraftServer, connection.getServerPlayer()));
+    }
+
+    @Override
+    public void removePortals(List<UUID> portals) {
+        server.runOnServer(minecraftServer -> {
+            for (UUID portal : portals) {
+                SeamlessScenario.removePortal(connection.getServerPlayer(), minecraftServer, portal);
+            }
+        });
+    }
+
+    @Override
+    public Vec3 playerPosition() {
+        return server.computeOnServer(minecraftServer -> connection.getServerPlayer().position());
     }
 
     @Override

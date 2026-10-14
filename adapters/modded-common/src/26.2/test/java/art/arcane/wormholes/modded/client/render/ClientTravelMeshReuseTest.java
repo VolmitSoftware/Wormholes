@@ -191,7 +191,7 @@ public class ClientTravelMeshReuseTest extends MinecraftTestBase {
             assertEquals(2048, fixture.retained().size());
             int frames = 0;
             while (fixture.sections().isEmpty() && frames++ < 4096) {
-                set(fixture.renderer, "buildBudgetNanos", inspected.get() == 2047 ? 10_000_000L : 100_000L);
+                set(fixture.renderer, "buildBudgetNanos", inspected.get() == 2047 ? 60_000_000_000L : 100_000L);
                 fixture.restore();
             }
             assertSame(matched, fixture.sections().get(0L));
@@ -212,7 +212,7 @@ public class ClientTravelMeshReuseTest extends MinecraftTestBase {
             LinkedHashMap<Object, Object> cached = spy(new LinkedHashMap<>(fixture.retained()));
             set(fixture.renderer, "retainedMeshes", cached);
             set(fixture.portal, "restoreSequence", (long) field(matched, "retainedSequence") - 1L);
-            set(fixture.renderer, "buildBudgetNanos", 10_000_000L);
+            set(fixture.renderer, "buildBudgetNanos", 60_000_000_000L);
             fixture.restore();
             assertSame(matched, fixture.sections().get(0L));
             verify(cached, never()).entrySet();

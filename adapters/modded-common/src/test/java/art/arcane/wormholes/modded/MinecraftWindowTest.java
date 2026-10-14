@@ -15,6 +15,7 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.ItemLore;
+import net.minecraft.world.item.DyeColor;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -47,7 +48,7 @@ public class MinecraftWindowTest {
     @BeforeClass
     public static void bootstrap() {
         MinecraftPortalToolsTest.bootstrap();
-        for (Item item : List.of(Items.BOOK, Items.ENDER_EYE, Items.GUNPOWDER, Items.LEVER, Items.STAINED_GLASS_PANE.gray(),
+        for (Item item : List.of(Items.BOOK, Items.ENDER_EYE, Items.GUNPOWDER, Items.LEVER, MinecraftDyedItems.pane(DyeColor.GRAY),
             Items.PAPER, Items.DIRT, Items.COMPASS)) {
             item.builtInRegistryHolder().bindComponents(DataComponents.COMMON_ITEM_COMPONENTS);
         }
@@ -78,7 +79,7 @@ public class MinecraftWindowTest {
         MinecraftWindow window = new MinecraftWindow(runtime, player);
         window.setTitle("\u00A70\u00A7lHome");
         window.setViewportHeight(4);
-        window.setDecorator(Items.STAINED_GLASS_PANE.gray());
+        window.setDecorator(MinecraftDyedItems.pane(DyeColor.GRAY));
         window.setElement(0, 0, new MinecraftElement("placard").setMaterial(Items.BOOK));
         window.setElement(-2, 1, new MinecraftElement("destination").setMaterial(Items.ENDER_EYE).setCount(3));
         window.setElement(4, 3, new MinecraftElement("corner").setMaterial(Items.GUNPOWDER));
@@ -94,7 +95,7 @@ public class MinecraftWindowTest {
         assertTrue(menu.item(35).is(Items.GUNPOWDER));
         assertTrue(menu.item(26).is(Items.LEVER));
         ItemStack pane = menu.item(0);
-        assertTrue(pane.is(Items.STAINED_GLASS_PANE.gray()));
+        assertTrue(pane.is(MinecraftDyedItems.pane(DyeColor.GRAY)));
         assertEquals(" ", pane.get(DataComponents.CUSTOM_NAME).getString());
     }
 

@@ -4,6 +4,7 @@ import art.arcane.volmlib.util.localization.MessageArgs;
 import art.arcane.wormholes.localization.WormholesMessages;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.DyeColor;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -43,7 +44,7 @@ final class MinecraftPortalExtensionsMenu {
         int rows = Math.max(1, Math.min(MAX_ROWS, (visible.size() + COLUMNS - 1) / COLUMNS));
         MinecraftWindow window = menus.window(viewer, portal);
         window.setViewportHeight(rows + 2);
-        window.setDecorator(Items.STAINED_GLASS_PANE.cyan());
+        window.setDecorator(MinecraftDyedItems.pane(DyeColor.CYAN));
         window.setElement(0, 0, MinecraftPortalText.localizedElement(viewer, "extensions-placard", WormholesMessages.PORTAL_MENU_EXTENSIONS,
             MessageArgs.empty(), Items.COMPARATOR));
         for (int index = 0; index < visible.size() && index < COLUMNS * MAX_ROWS; index++) {

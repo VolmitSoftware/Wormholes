@@ -26,13 +26,14 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EntitySpawnReason;
-import net.minecraft.world.entity.EntityTypes;
+import art.arcane.wormholes.modded.MinecraftEntityTypes;
 import net.minecraft.world.entity.decoration.ArmorStand;
 import net.minecraft.world.entity.decoration.ItemFrame;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.ObserverBlock;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.chunk.status.ChunkStatus;
 import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -64,6 +65,8 @@ final class SeamlessScenario {
     private static final int VIEW_SETTLE_TICKS = 100;
     private static final double TURN_PIXELS = 40.0D;
     private static final int MAX_LOGGED_HANDLE = 8;
+    private static final int STREAMED_TICKS = 300;
+    private static final int ARRIVAL_COLUMN_RADIUS = 2;
 
     private SeamlessScenario() {
     }
@@ -80,7 +83,7 @@ final class SeamlessScenario {
         fill(destinationLevel, destinationMin.offset(-6, 0, -12), 15, 6, 22, Blocks.AIR.defaultBlockState());
         fill(destinationLevel, destinationMin.offset(-6, -1, -12), 15, 1, 22, Blocks.STONE.defaultBlockState());
         BlockPos standPosition = destinationMin.offset(4, 0, -3);
-        ArmorStand stand = EntityTypes.ARMOR_STAND.create(destinationLevel, EntitySpawnReason.COMMAND);
+        ArmorStand stand = MinecraftEntityTypes.ARMOR_STAND.create(destinationLevel, EntitySpawnReason.COMMAND);
         assertTrue(stand != null, "armour stand could not be created");
         stand.snapTo(standPosition.getX() + 0.5D, standPosition.getY(), standPosition.getZ() + 0.5D, 0.0F, 0.0F);
         stand.setNoGravity(true);
@@ -210,15 +213,11 @@ final class SeamlessScenario {
     }
 
     static void assertSeamlessTravel(SeamlessClient client, Route route, Crossing crossing, int returnViewTicks) {
-        boolean present = client.computeOnClient(minecraft -> minecraft.level.getEntity(route.stand()) != null
-            && minecraft.level.getEntity(route.frame()) != null);
-        if (!present) {
-            throw new AssertionError(crossing.label() + ": destination entities were not resident on the first tick after the crossing; "
-                + client.computeOnClient(minecraft -> arrivalState(minecraft, route, crossing)));
-        }
-        assertSeamless(client, crossing, route.outbound(), route.destinationMin(), returnViewTicks);
-        assertTrue(!TravelTap.addedAny(route.stand(), route.frame()),
-            crossing.label() + ": destination entities were added again after the crossing");
+        assertDestinationTravel(client, route, crossing, returnViewTicks, false);
+    }
+
+    static void assertStreamedTravel(SeamlessClient client, Route route, Crossing crossing, int returnViewTicks) {
+        assertDestinationTravel(client, route, crossing, returnViewTicks, true);
     }
 
     static void assertSeamlessReturn(SeamlessClient client, Route route, Crossing crossing, int returnViewTicks) {
@@ -234,6 +233,77 @@ final class SeamlessScenario {
         if (!condition) {
             throw new AssertionError(message);
         }
+    }
+
+    private static void assertDestinationTravel(SeamlessClient client, Route route, Crossing crossing, int returnViewTicks, boolean streamed) {
+        List<UUID> entities = List.of(route.stand(), route.frame());
+        assertTrue(TravelTap.crossingRecorded(), crossing.label() + ": the crossing frame was not recorded");
+        List<UUID> delivered = new ArrayList<>(entities.size());
+        for (UUID entity : entities) {
+            if (TravelTap.deliveredBeforeCrossing(entity)) {
+                delivered.add(entity);
+            }
+        }
+        if (!streamed && delivered.size() < entities.size()) {
+            throw new AssertionError(crossing.label() + ": destination entities were not delivered before the crossing; "
+                + client.computeOnClient(minecraft -> arrivalState(minecraft, route, crossing)));
+        }
+        if (!client.computeOnClient(minecraft -> resident(minecraft, delivered))) {
+            throw new AssertionError(crossing.label() + ": destination entities delivered before the crossing were not resident on the first tick after it; "
+                + client.computeOnClient(minecraft -> arrivalState(minecraft, route, crossing)));
+        }
+        LOGGER.info("[{}] {} of {} destination entities were delivered before the crossing", crossing.label(), delivered.size(), entities.size());
+        assertSeamless(client, crossing, route.outbound(), route.destinationMin(), returnViewTicks);
+        assertArrivalColumns(client, crossing, route.destinationMin());
+        for (UUID entity : entities) {
+            assertTrue(!TravelTap.removedFromResident(entity),
+                crossing.label() + ": destination entity " + entity + " was removed from its resident level before the crossing");
+        }
+        for (UUID entity : delivered) {
+            assertTrue(!TravelTap.addedAgain(entity), crossing.label() + ": destination entity " + entity + " was added again after the crossing");
+        }
+        if (delivered.size() < entities.size()) {
+            int streamedTicks = ticksUntil(client, minecraft -> resident(minecraft, entities), STREAMED_TICKS,
+                crossing.label() + ": destination entities streamed after the crossing did not arrive");
+            LOGGER.info("[{}] remaining destination entities arrived {} ticks after the crossing settled", crossing.label(), streamedTicks);
+        }
+    }
+
+    private static void assertArrivalColumns(SeamlessClient client, Crossing crossing, BlockPos arrival) {
+        for (int tick = 0; tick <= STREAMED_TICKS; tick++) {
+            String missing = client.computeOnClient(minecraft -> missingColumns(minecraft, arrival));
+            if (missing.isEmpty()) {
+                LOGGER.info("[{}] every column around the arrival portal was on the client {} ticks after the crossing settled", crossing.label(), tick);
+                return;
+            }
+            if (tick == STREAMED_TICKS) {
+                throw new AssertionError(crossing.label() + ": the arrival level never received columns" + missing + " around the arrival portal");
+            }
+            client.waitTicks(1);
+        }
+    }
+
+    private static String missingColumns(Minecraft minecraft, BlockPos arrival) {
+        StringBuilder missing = new StringBuilder();
+        int centerX = arrival.getX() >> 4;
+        int centerZ = arrival.getZ() >> 4;
+        for (int x = centerX - ARRIVAL_COLUMN_RADIUS; x <= centerX + ARRIVAL_COLUMN_RADIUS; x++) {
+            for (int z = centerZ - ARRIVAL_COLUMN_RADIUS; z <= centerZ + ARRIVAL_COLUMN_RADIUS; z++) {
+                if (minecraft.level.getChunkSource().getChunk(x, z, ChunkStatus.FULL, false) == null) {
+                    missing.append(' ').append(x).append(',').append(z);
+                }
+            }
+        }
+        return missing.toString();
+    }
+
+    private static boolean resident(Minecraft minecraft, List<UUID> entities) {
+        for (UUID entity : entities) {
+            if (minecraft.level.getEntity(entity) == null) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private static void assertSeamless(SeamlessClient client, Crossing crossing, Leg leg, BlockPos returnPortal, int returnViewTicks) {
@@ -258,7 +328,7 @@ final class SeamlessScenario {
         assertPoseContinuity(leg, crossing);
     }
 
-    private static boolean returnViewReady(Minecraft minecraft, ClientLevel destination, BlockPos origin) {
+    static boolean returnViewReady(Minecraft minecraft, ClientLevel destination, BlockPos origin) {
         Vec3d opening = new Vec3d(origin.getX() + 0.5D, origin.getY() + 0.5D, origin.getZ() + 0.5D);
         for (PortalView view : WormholesClient.instance().portalViews().current()) {
             if (view.source() != minecraft.level || view.destination() != destination || !view.surface().area().contains(opening)) {
@@ -384,7 +454,8 @@ final class SeamlessScenario {
         ClientSeamlessTravel travel = WormholesClient.instance().seamlessTravel();
         StringBuilder state = new StringBuilder();
         state.append("level ").append(minecraft.level.dimension().identifier()).append(minecraft.level == crossing.source() ? " (crossing source)" : " (swapped)")
-            .append(", player ").append(minecraft.player.position()).append(", pending ").append(travel.pending());
+            .append(", player ").append(minecraft.player.position()).append(", pending ").append(travel.pending())
+            .append(", stand ").append(entityState(minecraft, route.stand())).append(", frame ").append(entityState(minecraft, route.frame()));
         for (int handle = 1; handle <= MAX_LOGGED_HANDLE; handle++) {
             if (travel.residents().has(handle)) {
                 ClientLevel level = travel.residents().level(handle);
@@ -393,7 +464,14 @@ final class SeamlessScenario {
                     .append(" frame ").append(level.getEntity(route.frame()) != null);
             }
         }
-        return state.append(", ").append(TravelTap.events()).append(", re-added ").append(TravelTap.addedAny(route.stand(), route.frame())).toString();
+        return state.append(", ").append(TravelTap.events()).toString();
+    }
+
+    private static String entityState(Minecraft minecraft, UUID entity) {
+        return (minecraft.level.getEntity(entity) != null ? "resident" : "absent")
+            + (TravelTap.deliveredBeforeCrossing(entity) ? " delivered" : " undelivered")
+            + (TravelTap.removedFromResident(entity) ? " removed" : "")
+            + (TravelTap.addedAgain(entity) ? " re-added" : "");
     }
 
     private static void assertSamePlayer(SeamlessClient client, Crossing crossing) {

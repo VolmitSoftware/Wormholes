@@ -346,8 +346,6 @@ public class ClientCrossingViewTest extends MinecraftTestBase {
             when(camera.yRot()).thenAnswer(invocation -> yaw);
             when(camera.xRot()).thenAnswer(invocation -> pitch);
             when(camera.rotation()).thenReturn(rotation);
-            when(pose.wormholes$up()).thenReturn(up);
-            when(pose.wormholes$left()).thenReturn(left);
             doAnswer(invocation -> {
                 yaw = invocation.getArgument(0);
                 pitch = invocation.getArgument(1);

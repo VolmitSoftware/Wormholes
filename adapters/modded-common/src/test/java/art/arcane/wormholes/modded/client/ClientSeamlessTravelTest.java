@@ -166,7 +166,7 @@ public class ClientSeamlessTravelTest extends MinecraftTestBase {
             crossing.travel.receive(SeamlessTravelFixtures.accept(0.0D, 0.0F));
             verify(crossing.scope.minecraft, never()).setLevel(any());
             assertSame(crossing.nether, crossing.scope.minecraft.level);
-            verify(crossing.scope.minecraft.levelExtractor, never()).setLevel(any());
+            NativeExtractorFixtures.untouched(crossing.scope.minecraft);
             crossing.scope.worlds.verify(() -> ClientWorldLoader.changeLevel(same(crossing.nether), any()));
             verify(crossing.scope.minecraft.particleEngine, never()).setLevel(any());
             verify((ParticleEngineAccess) crossing.scope.minecraft.particleEngine).wormholes$level(crossing.nether);

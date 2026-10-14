@@ -4,6 +4,7 @@ import art.arcane.optics.animation.Easing;
 import art.arcane.optics.math.Angles;
 import art.arcane.wormholes.modded.mixin.client.CameraPoseAccess;
 import net.minecraft.client.Camera;
+import org.joml.Matrix4f;
 import org.joml.Quaternionf;
 
 public final class ClientCameraRoll {
@@ -59,16 +60,14 @@ public final class ClientCameraRoll {
             return;
         }
         rotate(camera, degrees);
+        CameraPoseAccess access = (CameraPoseAccess) camera;
+        access.wormholes$cullFrustum(camera.getViewRotationMatrix(new Matrix4f()), access.wormholes$cullingProjection(), camera.position());
     }
 
     static void rotate(Camera camera, float degrees) {
         if (degrees == 0.0F) {
             return;
         }
-        Quaternionf rotation = camera.rotation();
-        rotation.rotateZ((float) Math.toRadians(degrees));
-        CameraPoseAccess access = (CameraPoseAccess) camera;
-        access.wormholes$up().set(0.0F, 1.0F, 0.0F).rotate(rotation);
-        access.wormholes$left().set(-1.0F, 0.0F, 0.0F).rotate(rotation);
+        ((GravityCameraAccess) camera).wormholes$orientation(new Quaternionf(camera.rotation()).rotateZ((float) Math.toRadians(degrees)));
     }
 }

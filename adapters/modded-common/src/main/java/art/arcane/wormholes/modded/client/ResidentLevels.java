@@ -1,6 +1,7 @@
 package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.modded.client.world.ClientWorldLoader;
+import art.arcane.wormholes.modded.client.world.PreparedLevels;
 import art.arcane.wormholes.modded.mixin.client.PreparedPacketAccess;
 import art.arcane.wormholes.modded.seamless.RoutedPackets;
 import art.arcane.wormholes.network.client.TravelMessage;
@@ -58,7 +59,7 @@ public final class ResidentLevels {
         }
         ResidentLevel resident = reusable(open);
         if (resident == null) {
-            resident = new ResidentLevel(ResidentLevel.create(open.world(), open.environment(), open.center()), open.world());
+            resident = new ResidentLevel(PreparedLevels.create(open.world(), open.environment(), open.center()), open.world());
             levels.add(resident);
             ClientWorldLoader.worldRenderer(resident.level());
         }

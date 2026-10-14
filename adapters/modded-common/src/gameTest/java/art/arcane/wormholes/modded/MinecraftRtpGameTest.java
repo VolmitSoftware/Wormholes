@@ -29,6 +29,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.portal.TeleportTransition;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.item.DyeColor;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
@@ -296,7 +297,7 @@ public final class MinecraftRtpGameTest {
 
     private void assertEditorWindow(ServerPlayer viewer) {
         MinecraftSubsystemMenuProbe.assertWindow(helper, viewer, MinecraftSubsystemMenuProbe.text(viewer, WormholesMessages.PORTAL_RTP_EDITOR_TITLE,
-            MinecraftPortalText.arguments("portal", editorPortal.getName())), 6, Items.STAINED_GLASS_PANE.black(),
+            MinecraftPortalText.arguments("portal", editorPortal.getName())), 6, MinecraftDyedItems.pane(DyeColor.BLACK),
             MinecraftSubsystemMenuProbe.slot(-4, 4), "RTP editor");
     }
 

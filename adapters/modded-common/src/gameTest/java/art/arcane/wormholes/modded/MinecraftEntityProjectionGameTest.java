@@ -27,7 +27,6 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.EntitySpawnReason;
-import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.decoration.ArmorStand;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
@@ -95,8 +94,8 @@ public final class MinecraftEntityProjectionGameTest {
         Vec3 display = new Vec3(origin.x() - normal.x() * 3.0D, origin.y() - 0.5D, origin.z() - normal.z() * 3.0D);
         double[] transformed = new double[3];
         OpticTransform.between(source.getFrame(), origin, destination.getFrame(), target).pointInto(display.x, display.y, display.z, transformed);
-        remote = EntityTypes.ARMOR_STAND.create(level, EntitySpawnReason.COMMAND);
-        local = EntityTypes.ARMOR_STAND.create(level, EntitySpawnReason.COMMAND);
+        remote = MinecraftEntityTypes.ARMOR_STAND.create(level, EntitySpawnReason.COMMAND);
+        local = MinecraftEntityTypes.ARMOR_STAND.create(level, EntitySpawnReason.COMMAND);
         helper.assertTrue(remote != null && local != null, "Entity projection fixtures were not created");
         remote.setPos(transformed[0], transformed[1], transformed[2]);
         remote.setNoGravity(true);
@@ -115,7 +114,7 @@ public final class MinecraftEntityProjectionGameTest {
         renderer.apply(view);
         options.channel().runPendingTasks();
         for (Object packet : options.channel().outboundMessages()) {
-            if (packet instanceof ClientboundAddEntityPacket spawn && spawn.getType() == EntityTypes.ARMOR_STAND && ProjectedEntityIdentity.isEntityId(spawn.getId())) {
+            if (packet instanceof ClientboundAddEntityPacket spawn && spawn.getType() == MinecraftEntityTypes.ARMOR_STAND && ProjectedEntityIdentity.isEntityId(spawn.getId())) {
                 fakeId = spawn.getId();
                 helper.assertTrue(Math.abs(spawn.getX() - display.x) < 0.01D && Math.abs(spawn.getZ() - display.z) < 0.01D,
                     "Projected entity spawn did not use portal coordinates");

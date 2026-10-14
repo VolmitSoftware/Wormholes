@@ -6,6 +6,7 @@ import art.arcane.wormholes.modded.client.WormholesClient;
 import art.arcane.wormholes.modded.client.render.iris.IrisViewPipelines;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.portal.ProjectionMode;
+import art.arcane.wormholes.modded.MinecraftDyedItems;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestSingleplayerContext;
@@ -42,14 +43,14 @@ public final class ShaderHistoryClientGameTest implements FabricClientGameTest {
         ClientViewTestConfig.enable();
         IrisHistoryTap.Sample[] closedViews = new IrisHistoryTap.Sample[2];
         try (TestSingleplayerContext singleplayer = context.worldBuilder().create()) {
-            singleplayer.getConnection().waitForChunksDownload();
+            FabricConnection.of(singleplayer).waitForChunksDownload();
             context.waitFor(client -> WormholesClient.instance() != null && WormholesClient.instance().session().active(), TIMEOUT_TICKS);
             context.runOnClient(client -> {
                 assertTrue(Iris.isPackInUseQuick() && Iris.getPipelineManager().getPipelineNullable() instanceof IrisRenderingPipeline,
                     "shader history acceptance requires an active Iris shader pipeline");
                 System.out.println("Shader history acceptance pack: " + Iris.getCurrentPackName());
             });
-            ServerPlayer player = singleplayer.getServer().computeOnServer(server -> singleplayer.getConnection().getServerPlayer());
+            ServerPlayer player = singleplayer.getServer().computeOnServer(server -> FabricConnection.of(singleplayer).getServerPlayer());
             UUID[] mirrors = singleplayer.getServer().computeOnServer(server -> build(server, player));
             try {
                 singleplayer.getServer().runOnServer(server -> {
@@ -61,7 +62,7 @@ public final class ShaderHistoryClientGameTest implements FabricClientGameTest {
                 });
                 context.waitFor(client -> client.player.position().distanceTo(POSITION) < 0.05D, TIMEOUT_TICKS);
                 context.getInput().lookAt(180.0F, 0.0F);
-                singleplayer.getConnection().waitForChunksRender();
+                FabricConnection.of(singleplayer).waitForChunksRender();
                 context.runOnClient(client -> IrisHistoryTap.start());
                 context.waitFor(client -> IrisHistoryTap.failure() != null
                     || IrisHistoryTap.main() != null && IrisHistoryTap.main().renders() >= MIN_RENDERED_FRAMES,
@@ -147,14 +148,14 @@ public final class ShaderHistoryClientGameTest implements FabricClientGameTest {
         server.getCommands().performPrefixedCommand(server.createCommandSourceStack(), "time set noon");
         server.getCommands().performPrefixedCommand(server.createCommandSourceStack(), "weather clear");
         fill(level, new BlockPos(34, 69, -16), 24, 8, 52, Blocks.AIR.defaultBlockState());
-        fill(level, new BlockPos(34, 69, -16), 24, 1, 52, Blocks.CONCRETE.pick(DyeColor.WHITE).defaultBlockState());
+        fill(level, new BlockPos(34, 69, -16), 24, 1, 52, MinecraftDyedItems.concreteBlock(DyeColor.WHITE).defaultBlockState());
         WormholesModRuntime runtime = runtime(server);
         UUID[] mirrors = new UUID[2];
         BlockPos[] origins = {FIRST, SECOND};
         for (int index = 0; index < origins.length; index++) {
             BlockPos origin = origins[index];
             fill(level, origin.offset(-1, 0, -1), 5, 4, 1,
-                Blocks.CONCRETE.pick(index == 0 ? DyeColor.YELLOW : DyeColor.BLUE).defaultBlockState());
+                MinecraftDyedItems.concreteBlock(index == 0 ? DyeColor.YELLOW : DyeColor.BLUE).defaultBlockState());
             MinecraftPortal mirror = runtime.portals().create(player.getUUID(), level, cells(origin), PortalType.PORTAL, new Vec3(0, 0, -1));
             mirror.setMirrorMode(true);
             mirror.setProjectionMode(ProjectionMode.OFF);

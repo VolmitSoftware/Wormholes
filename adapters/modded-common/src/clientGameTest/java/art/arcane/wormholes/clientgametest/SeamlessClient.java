@@ -29,6 +29,8 @@ interface SeamlessClient {
 
     void moveCursor(double deltaX, double deltaY);
 
+    void resizeWindow(int width, int height);
+
     void restoreDefaultGameOptions();
 
     TickStepper lockstep();

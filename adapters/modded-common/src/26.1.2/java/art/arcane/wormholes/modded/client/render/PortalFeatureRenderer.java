@@ -1,0 +1,253 @@
+package art.arcane.wormholes.modded.client.render;
+
+import art.arcane.optics.stream.EnvironmentState;
+import art.arcane.optics.frame.OpticTransform;
+import art.arcane.wormholes.modded.client.ClientRenderAccess;
+import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.vertex.MeshData;
+import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.pipeline.RenderPipeline;
+import net.irisshaders.iris.pipeline.IrisPipelines;
+import net.minecraft.client.Minecraft;
+import com.mojang.blaze3d.vertex.VertexFormat;
+import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.RenderBuffers;
+import net.minecraft.client.renderer.SubmitNodeStorage;
+import net.minecraft.client.renderer.blockentity.BlockEntityRenderDispatcher;
+import net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState;
+import net.minecraft.client.renderer.entity.EntityRenderDispatcher;
+import net.minecraft.client.renderer.entity.state.EntityRenderState;
+import net.minecraft.client.renderer.feature.FeatureRenderDispatcher;
+import net.minecraft.client.renderer.state.level.CameraRenderState;
+import net.minecraft.client.renderer.culling.Frustum;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.phys.Vec3;
+import org.joml.Matrix4f;
+import org.joml.Matrix4fStack;
+
+import java.nio.ByteBuffer;
+import java.util.List;
+import java.util.IdentityHashMap;
+import java.util.Map;
+import java.util.function.Predicate;
+
+public final class PortalFeatureRenderer implements AutoCloseable {
+    private static final ThreadLocal<MultiBufferSource.BufferSource> REFLECTED_BUFFER = new ThreadLocal<>();
+    private static final Map<RenderPipeline, RenderPipeline> REFLECTED_PIPELINES = new IdentityHashMap<>();
+
+    private final SubmitNodeStorage submits = new SubmitNodeStorage();
+    private RenderBuffers buffers;
+    private FeatureRenderDispatcher dispatcher;
+    private final Matrix4f view = new Matrix4f();
+    private boolean prepared;
+    private boolean reflected;
+
+    public void prepare(PortalScene scene, CameraRenderState camera, Frustum frustum) {
+        prepare(scene, camera, true, true, frustum);
+    }
+
+    public void prepare(PortalScene scene, CameraRenderState camera, boolean entities, boolean blockEntities) {
+        prepare(scene, camera, entities, blockEntities, camera.cullFrustum);
+    }
+
+    private void prepare(PortalScene scene, CameraRenderState camera, boolean entities, boolean blockEntities, Frustum frustum) {
+        closeFrame();
+        if (scene.entities().isEmpty() && scene.blockEntities().isEmpty()) {
+            return;
+        }
+        Minecraft minecraft = Minecraft.getInstance();
+        if (dispatcher == null) {
+            buffers = new RenderBuffers(0);
+            dispatcher = PortalRenderBuffers.dispatcher(minecraft, submits, buffers, ClientRenderAccess.gameState(minecraft));
+        }
+        submit(scene, camera, minecraft, entities, blockEntities, frustum);
+        view.set(camera.viewRotationMatrix);
+        reflected = reflected(camera, scene.environment() == null ? null : scene.environment().transform());
+        prepared = true;
+    }
+
+    public static void correctWinding(MultiBufferSource.BufferSource buffer, MeshData mesh) {
+        if (mesh == null || REFLECTED_BUFFER.get() != buffer) {
+            return;
+        }
+        VertexFormat.Mode topology = mesh.drawState().mode();
+        int count = mesh.drawState().vertexCount();
+        int stride = mesh.drawState().format().getVertexSize();
+        ByteBuffer vertices = mesh.vertexBuffer();
+        if (topology == VertexFormat.Mode.QUADS || topology == VertexFormat.Mode.TRIANGLES) {
+            int primitive = topology == VertexFormat.Mode.QUADS ? 4 : 3;
+            for (int vertex = 0; vertex + primitive <= count; vertex += primitive) {
+                swapVertices(vertices, (vertex + 1) * stride, (vertex + primitive - 1) * stride, stride);
+            }
+        } else if (topology == VertexFormat.Mode.TRIANGLE_FAN) {
+            for (int first = 1, last = count - 1; first < last; first++, last--) {
+                swapVertices(vertices, first * stride, last * stride, stride);
+            }
+        }
+    }
+
+    public static RenderPipeline reflectedPipeline(RenderPipeline source) {
+        if (REFLECTED_BUFFER.get() == null || !source.isCull()) {
+            return source;
+        }
+        RenderPipeline reflected = REFLECTED_PIPELINES.computeIfAbsent(source, ReflectedPipeline::new);
+        if (PortalShaderScope.shaders()) {
+            IrisPipelines.copyPipeline(source, reflected);
+        }
+        return reflected;
+    }
+
+    static boolean reflected(CameraRenderState camera, OpticTransform transform) {
+        return (camera.viewRotationMatrix.determinant3x3() < 0.0F) != (transform != null && transform.reflects());
+    }
+
+    static void blockPose(PoseStack pose, BlockPos position, Vec3 eye, OpticTransform transform, Matrix4f rotation) {
+        positionPose(pose, position.getX(), position.getY(), position.getZ(), eye, transform, rotation);
+    }
+
+    static void entityPose(PoseStack pose, EntityRenderState state, Vec3 eye, OpticTransform transform, Matrix4f rotation) {
+        positionPose(pose, state.x, state.y, state.z, eye, transform, rotation);
+    }
+
+    public void executeSolid() {
+        if (!prepared) {
+            return;
+        }
+        Matrix4fStack modelView = RenderSystem.getModelViewStack();
+        modelView.pushMatrix();
+        modelView.set(view);
+        try (WindingScope scope = new WindingScope(buffers.bufferSource(), reflected)) {
+            dispatcher.renderSolidFeatures();
+            buffers.bufferSource().endBatch();
+        } finally {
+            modelView.popMatrix();
+        }
+    }
+
+    public void executeTranslucent() {
+        if (!prepared) {
+            return;
+        }
+        Matrix4fStack modelView = RenderSystem.getModelViewStack();
+        modelView.pushMatrix();
+        modelView.set(view);
+        try (WindingScope scope = new WindingScope(buffers.bufferSource(), reflected)) {
+            dispatcher.renderTranslucentFeatures();
+            buffers.bufferSource().endBatch();
+            buffers.crumblingBufferSource().endBatch();
+            dispatcher.renderTranslucentParticles();
+            buffers.bufferSource().endBatch();
+        } finally {
+            modelView.popMatrix();
+        }
+    }
+
+    public void closeFrame() {
+        if (dispatcher != null) {
+            dispatcher.clearSubmitNodes();
+        }
+        prepared = false;
+    }
+
+    public void endFrame() {
+        closeFrame();
+        if (dispatcher != null) {
+            dispatcher.endFrame();
+        }
+    }
+
+    @Override
+    public void close() {
+        closeFrame();
+        if (dispatcher != null) {
+            dispatcher.close();
+            dispatcher = null;
+        }
+        if (buffers != null) {
+            PortalRenderBuffers.close(buffers);
+            buffers = null;
+        }
+    }
+
+    private static void swapVertices(ByteBuffer vertices, int first, int second, int stride) {
+        for (int offset = 0; offset < stride; offset++) {
+            byte value = vertices.get(first + offset);
+            vertices.put(first + offset, vertices.get(second + offset));
+            vertices.put(second + offset, value);
+        }
+    }
+
+    private void submit(PortalScene scene, CameraRenderState camera, Minecraft minecraft, boolean includeEntities, boolean includeBlockEntities, Frustum frustum) {
+        PoseStack pose = new PoseStack();
+        Vec3 eye = camera.pos;
+        EnvironmentState environment = scene.environment();
+        OpticTransform transform = environment == null ? null : environment.transform();
+        Matrix4f rotation = transform == null ? null : PortalProjection.rotation(transform);
+        CameraRenderState featureCamera = environment == null ? camera : ClientPortalRenderer.transformedCamera(camera,
+            PortalProjection.destinationToSource(environment.transform()), camera.projectionMatrix);
+        EntityRenderDispatcher entities = minecraft.getEntityRenderDispatcher();
+        Predicate<EntityRenderState> visible = scene.entityVisibility(camera, frustum);
+        for (EntityRenderState state : includeEntities ? scene.entities() : List.<EntityRenderState>of()) {
+            if (!visible.test(state)) {
+                continue;
+            }
+            if (environment == null) {
+                entities.submit(state, camera, state.x - eye.x, state.y - eye.y, state.z - eye.z, pose, submits);
+            } else {
+                pose.pushPose();
+                entityPose(pose, state, eye, transform, rotation);
+                entities.submit(state, featureCamera, 0, 0, 0, pose, submits);
+                pose.popPose();
+            }
+        }
+        BlockEntityRenderDispatcher blocks = minecraft.getBlockEntityRenderDispatcher();
+        for (BlockEntityRenderState state : includeBlockEntities ? scene.blockEntities() : List.<BlockEntityRenderState>of()) {
+            BlockPos position = state.blockPos;
+            pose.pushPose();
+            if (transform != null) {
+                blockPose(pose, position, eye, transform, rotation);
+            } else {
+                pose.translate(position.getX() - eye.x, position.getY() - eye.y, position.getZ() - eye.z);
+            }
+            blocks.submit(state, pose, submits, featureCamera);
+            pose.popPose();
+        }
+    }
+
+    private static void positionPose(PoseStack pose, double x, double y, double z, Vec3 eye, OpticTransform transform, Matrix4f rotation) {
+        pose.translate(x * transform.permutation().x().x() + y * transform.permutation().y().x() + z * transform.permutation().z().x() + transform.translationX() - eye.x,
+            x * transform.permutation().x().y() + y * transform.permutation().y().y() + z * transform.permutation().z().y() + transform.translationY() - eye.y,
+            x * transform.permutation().x().z() + y * transform.permutation().y().z() + z * transform.permutation().z().z() + transform.translationZ() - eye.z);
+        pose.mulPose(rotation);
+    }
+
+    private static final class ReflectedPipeline extends RenderPipeline {
+        private ReflectedPipeline(RenderPipeline source) {
+            super(source.getLocation().withSuffix("_wormholes_reflected"), source.getVertexShader(), source.getFragmentShader(),
+                source.getShaderDefines(), source.getSamplers(), source.getUniforms(), source.getColorTargetState(), source.getDepthStencilState(),
+                source.getPolygonMode(), false, source.getVertexFormat(), source.getVertexFormatMode(), source.getSortKey());
+        }
+    }
+
+    static final class WindingScope implements AutoCloseable {
+        private final MultiBufferSource.BufferSource previous;
+
+        WindingScope(MultiBufferSource.BufferSource buffer, boolean reflected) {
+            previous = REFLECTED_BUFFER.get();
+            if (reflected) {
+                REFLECTED_BUFFER.set(buffer);
+            } else {
+                REFLECTED_BUFFER.remove();
+            }
+        }
+
+        @Override
+        public void close() {
+            if (previous == null) {
+                REFLECTED_BUFFER.remove();
+            } else {
+                REFLECTED_BUFFER.set(previous);
+            }
+        }
+    }
+}

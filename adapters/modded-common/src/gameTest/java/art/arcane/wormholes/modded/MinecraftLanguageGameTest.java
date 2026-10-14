@@ -32,6 +32,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.ItemLore;
 import net.minecraft.world.item.component.TooltipDisplay;
+import net.minecraft.world.item.DyeColor;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
@@ -157,7 +158,7 @@ public final class MinecraftLanguageGameTest {
             }
             for (int slot = locales.size(); slot < MinecraftLanguageEditor.SIZE; slot++) {
                 if (slot != MinecraftLanguageEditor.BACK && slot != MinecraftLanguageEditor.CLOSE) {
-                    assertItem(slot, Items.STAINED_GLASS_PANE.black(), " ", List.of());
+                    assertItem(slot, MinecraftDyedItems.pane(DyeColor.BLACK), " ", List.of());
                 }
             }
             click(locales.indexOf("en_US"), 0, ContainerInput.PICKUP);
@@ -173,8 +174,8 @@ public final class MinecraftLanguageGameTest {
             if (groups.size() > MinecraftLanguageEditor.CATEGORY_PAGE_SIZE) {
                 assertItem(MinecraftLanguageEditor.NEXT, Items.ARROW, "Next page", List.of());
             }
-            assertItem(MinecraftLanguageEditor.PREVIOUS, Items.STAINED_GLASS_PANE.black(), " ", List.of());
-            assertItem(slots.getFirst() - 1, Items.STAINED_GLASS_PANE.black(), " ", List.of());
+            assertItem(MinecraftLanguageEditor.PREVIOUS, MinecraftDyedItems.pane(DyeColor.BLACK), " ", List.of());
+            assertItem(slots.getFirst() - 1, MinecraftDyedItems.pane(DyeColor.BLACK), " ", List.of());
             click(slots.getFirst(), 1, ContainerInput.PICKUP);
         }).thenIdle(CLICK_TICKS).thenExecute(() -> {
             String group = MinecraftLanguageEditor.groups(document()).getFirst();
@@ -337,7 +338,7 @@ public final class MinecraftLanguageGameTest {
         assertItem(MinecraftLanguageEditor.BACK, Items.ARROW, "Back", List.of());
         assertItem(MinecraftLanguageEditor.CLOSE, Items.BARRIER, "Close", List.of());
         ItemStack filler = menu.getSlot(46).getItem();
-        helper.assertTrue(filler.is(Items.STAINED_GLASS_PANE.black()) && name(filler).equals(" "), "Language editor filler differs");
+        helper.assertTrue(filler.is(MinecraftDyedItems.pane(DyeColor.BLACK)) && name(filler).equals(" "), "Language editor filler differs");
         TooltipDisplay display = filler.get(DataComponents.TOOLTIP_DISPLAY);
         helper.assertTrue(display != null && !display.shows(DataComponents.ATTRIBUTE_MODIFIERS), "Language editor items do not hide attributes");
     }

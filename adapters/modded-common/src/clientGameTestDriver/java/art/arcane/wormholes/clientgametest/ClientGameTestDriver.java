@@ -25,6 +25,7 @@ public final class ClientGameTestDriver {
     private static final String ENABLED = "wormholes.clientgametest";
     private static final String SERVER = "wormholes.clientgametest.server";
     private static final String FILTER = "wormholes.clientgametest.filter";
+    private static final String REPEAT = "wormholes.clientgametest.repeat";
     private static final int RENDER_DISTANCE = 5;
     private static final int FRAMERATE_LIMIT = 120;
     private static final int WALK_TRIPS = 2;
@@ -39,7 +40,7 @@ public final class ClientGameTestDriver {
             current.ticked();
             return;
         }
-        if (!Boolean.getBoolean(ENABLED) || minecraft.gui.overlay() != null || minecraft.gui.screen() == null || minecraft.level != null) {
+        if (!Boolean.getBoolean(ENABLED) || ClientGui.overlay(minecraft) != null || ClientGui.screen(minecraft) == null || minecraft.level != null) {
             return;
         }
         DriverClient started = new DriverClient(minecraft);
@@ -70,23 +71,14 @@ public final class ClientGameTestDriver {
             client.runOnClient(ignored -> auditMixins());
             String address = System.getProperty(SERVER, "").trim();
             String filter = System.getProperty(FILTER, "").trim();
+            int repeat = Math.max(1, Integer.getInteger(REPEAT, 1));
             DriverWorlds worlds = new DriverWorlds(client);
             for (Pass pass : passes(client, address)) {
                 if (!pass.label().contains(filter)) {
                     continue;
                 }
-                if (pass.label().equals("dh-acceptance-singleplayer")) {
-                    LOGGER.info("[{}] starting", pass.label());
-                    pass.body().accept(pass.label());
-                    passed.add(pass.label());
-                    LOGGER.info("[{}] passed", pass.label());
-                    continue;
-                }
-                if (address.isEmpty()) {
-                    ClientViewTestConfig.enableSeamless(true);
-                    worlds.singleplayer(() -> pass(client, passed, pass));
-                } else {
-                    worlds.dedicated(address, () -> pass(client, passed, pass));
+                for (int attempt = 1; attempt <= repeat; attempt++) {
+                    runPass(client, worlds, address, passed, pass);
                 }
             }
             LOGGER.info("WORMHOLES_CLIENT_GAME_TEST_PASS {}", passed);
@@ -97,11 +89,34 @@ public final class ClientGameTestDriver {
         }
     }
 
+    private static void runPass(DriverClient client, DriverWorlds worlds, String address, List<String> passed, Pass pass) {
+        if (pass.label().equals("dh-acceptance-singleplayer")) {
+            LOGGER.info("[{}] starting", pass.label());
+            pass.body().accept(pass.label());
+            passed.add(pass.label());
+            LOGGER.info("[{}] passed", pass.label());
+            return;
+        }
+        if (address.isEmpty()) {
+            ClientViewTestConfig.enableSeamless(true);
+            worlds.singleplayer(() -> pass(client, passed, pass));
+        } else {
+            worlds.dedicated(address, () -> pass(client, passed, pass));
+        }
+    }
+
     private static List<Pass> passes(DriverClient client, String address) {
         CommandSeamlessServer server = new CommandSeamlessServer(client);
         if (address.isEmpty()) {
             if (Boolean.getBoolean("wormholes.test.dhAcceptance")) {
                 return List.of(new Pass("dh-acceptance-singleplayer", label -> NativeDistantHorizonsAcceptance.run(client, label)));
+            }
+            if (Boolean.getBoolean(CrossingBench.ENABLED)) {
+                List<Pass> bench = new ArrayList<>();
+                for (String route : CrossingBench.routes()) {
+                    bench.add(new Pass("crossing-bench-" + route + "-singleplayer", label -> CrossingBench.run(client, server, label, route)));
+                }
+                return bench;
             }
             return List.of(
                 new Pass("same-dimension-singleplayer", label -> SeamlessSameDimension.seamless(client, server, label)),
@@ -109,7 +124,10 @@ public final class ClientGameTestDriver {
                 new Pass("cross-dimension-stress-singleplayer", label -> SeamlessCrossDimension.stress(client, server, label)),
                 new Pass("walk-nether-portal-singleplayer", label -> SeamlessWalkThrough.netherPortal(client, server, label, WALK_TRIPS)),
                 new Pass("walk-frame-portal-singleplayer", label -> SeamlessWalkThrough.framePortal(client, server, label, WALK_TRIPS)),
-                new Pass("fall-loop-singleplayer", label -> SeamlessFallLoop.run(client, server, label)));
+                new Pass("fall-loop-singleplayer", label -> SeamlessFallLoop.run(client, server, label)),
+                new Pass("held-chunk-singleplayer", label -> SeamlessHeldChunk.run(client, server, label)),
+                new Pass("portal-clip-singleplayer", label -> NativePortalClipAcceptance.run(client, label)),
+                new Pass("stencil-resize-singleplayer", label -> PortalStencilResize.run(client, server, label)));
         }
         return List.of(
             new Pass("same-dimension-dedicated", label -> SeamlessSameDimension.seamless(client, server, label)),
@@ -143,7 +161,7 @@ public final class ClientGameTestDriver {
         options.chunkSectionFadeInTime().set(0.0D);
         options.narrator().set(NarratorStatus.OFF);
         options.getSoundSourceOptionInstance(SoundSource.MUSIC).set(0.0D);
-        minecraft.gui.setScreen(new TitleScreen());
+        ClientGui.setScreen(minecraft, new TitleScreen());
     }
 
     private static void auditMixins() {

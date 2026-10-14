@@ -18,6 +18,7 @@ import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.item.DyeColor;
 import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Field;
@@ -80,7 +81,7 @@ public final class MinecraftAtlasMenuGameTest {
                 helper.assertTrue(name(GUIDE_SLOT).equals(firstLine(AtlasMessages.MENU_GUIDE, MinecraftPortalText.arguments("portal", first.getName()))),
                     "Atlas guide control does not name the guided portal");
                 click(GUIDE_SLOT, 0, ContainerInput.PICKUP);
-                return await("guide-clear", () -> item(GUIDE_SLOT).is(Items.STAINED_GLASS_PANE.blue())
+                return await("guide-clear", () -> item(GUIDE_SLOT).is(MinecraftDyedItems.pane(DyeColor.BLUE))
                     && received(text(AtlasMessages.GUIDE_CLEARED, MessageArgs.empty())));
             }).thenCompose(ignored -> {
                 click(FAVORITES_SLOT, 0, ContainerInput.PICKUP);
@@ -124,7 +125,7 @@ public final class MinecraftAtlasMenuGameTest {
             helper.assertTrue(!item(slot).has(DataComponents.ENCHANTMENT_GLINT_OVERRIDE), "Unpinned atlas row glows");
         }
         for (int slot : List.of(PREVIOUS_SLOT, 50, GUIDE_SLOT, 52, NEXT_SLOT)) {
-            helper.assertTrue(item(slot).is(Items.STAINED_GLASS_PANE.blue()), "Atlas control slot " + slot + " is not a blue pane");
+            helper.assertTrue(item(slot).is(MinecraftDyedItems.pane(DyeColor.BLUE)), "Atlas control slot " + slot + " is not a blue pane");
         }
         helper.assertTrue(item(SORT_SLOT).is(Items.COMPARATOR) && name(SORT_SLOT).equals(sortName(WormholesMessages.PORTAL_MENU_DESTINATION_SORT_SMART)),
             "Atlas sort control differs");
@@ -251,7 +252,7 @@ public final class MinecraftAtlasMenuGameTest {
         state.append("] shown=[");
         for (int slot = 0; slot < 54; slot++) {
             ItemStack item = item(slot);
-            if (!item.isEmpty() && !item.is(Items.STAINED_GLASS_PANE.blue())) {
+            if (!item.isEmpty() && !item.is(MinecraftDyedItems.pane(DyeColor.BLUE))) {
                 state.append(slot).append(':').append(name(slot)).append('(').append(item.getItem()).append(item.has(DataComponents.ENCHANTMENT_GLINT_OVERRIDE) ? ",glint" : "").append("); ");
             }
         }
