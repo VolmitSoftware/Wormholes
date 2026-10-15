@@ -1,5 +1,7 @@
 package art.arcane.wormholes.modded.mixin.client;
 
+import art.arcane.wormholes.modded.client.render.PortalShaderScope;
+import art.arcane.wormholes.modded.client.render.sodium.ShadowSectionChanges;
 import art.arcane.wormholes.modded.client.render.sodium.SodiumArrivalPreparation;
 import art.arcane.wormholes.modded.client.render.sodium.SodiumPortalSections;
 import net.caffeinemc.mods.sodium.client.render.chunk.RenderSection;
@@ -37,6 +39,7 @@ public abstract class SodiumPortalSectionsMixin implements SodiumPortalSections 
     @Shadow private boolean needsGraphUpdate;
     @Unique private RemovableMultiForest wormholes$arrivalSections = new RemovableMultiForest(0.0F);
     @Unique private final SodiumArrivalPreparation wormholes$arrivalPreparation = new SodiumArrivalPreparation();
+    @Unique private final ShadowSectionChanges wormholes$shadowSectionChanges = new ShadowSectionChanges();
     @Unique private long wormholes$terrainRevision;
 
     @Shadow
@@ -140,6 +143,7 @@ public abstract class SodiumPortalSectionsMixin implements SodiumPortalSections 
         if (section != null) {
             wormholes$arrivalSections.add(section);
             wormholes$terrainRevision++;
+            wormholes$shadowSectionChanges.sectionChanged(PortalShaderScope.shadowPass());
         }
     }
 
@@ -147,6 +151,14 @@ public abstract class SodiumPortalSectionsMixin implements SodiumPortalSections 
     private void wormholes$forgetArrivalSection(int x, int y, int z, CallbackInfo callback) {
         wormholes$arrivalSections.remove(x, y, z);
         wormholes$terrainRevision++;
+        wormholes$shadowSectionChanges.sectionChanged(PortalShaderScope.shadowPass());
+    }
+
+    @Inject(method = "prepareRenderTrees", at = @At("HEAD"))
+    private void wormholes$keepShadowSectionChanges(CallbackInfo callback) {
+        if (wormholes$shadowSectionChanges.claimForGraph(PortalShaderScope.shadowPass())) {
+            needsGraphUpdate = true;
+        }
     }
 
     @Inject(method = {"scheduleRebuild", "scheduleSort"}, at = @At("HEAD"))

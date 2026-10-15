@@ -119,7 +119,8 @@ def init_script(run: Path, resources: Path, bridge: Path, sodium: Path | None, t
         systemProperties.put('automator.port', '0')
         systemProperties.put('automator.token', TOKEN)
         systemProperties.put('automator.output', new File(runRoot, 'automator').absolutePath)
-        systemProperties.put('wormholes.test.dhShaders', DH_SHADERS)
+        systemProperties.put('wormholes.test.dhShaders', SHADER_PACK)
+        systemProperties.put('wormholes.test.shaderPackRequested', SHADER_PACK)
         systemProperties.put('wormholes.test.fabricPhasedShutdown', 'true')
         systemProperties.put('wormholes.clientgametest.baseline', BASELINE)
         JVM_ARGUMENTS
@@ -131,7 +132,7 @@ def init_script(run: Path, resources: Path, bridge: Path, sodium: Path | None, t
         eulaFile.set(new File(runRoot, 'eula.txt'))
     }
 }
-""".replace("RUN_ROOT", groovy(str(run))).replace("TEST_RESOURCES", groovy(str(resources))).replace("DEPENDENCIES", dependencies).replace("TOKEN", groovy(token)).replace("DH_SHADERS", groovy(str(shader).lower())).replace("OVERLAY_CONFIGURATION", overlay).replace("JVM_ARGUMENTS", arguments).replace("BASELINE", groovy(str(baseline is not None).lower()))
+""".replace("RUN_ROOT", groovy(str(run))).replace("TEST_RESOURCES", groovy(str(resources))).replace("DEPENDENCIES", dependencies).replace("TOKEN", groovy(token)).replace("SHADER_PACK", groovy(str(shader).lower())).replace("OVERLAY_CONFIGURATION", overlay).replace("JVM_ARGUMENTS", arguments).replace("BASELINE", groovy(str(baseline is not None).lower()))
 
 
 def dh_jar(path: Path, game_version: str) -> dict:
@@ -254,6 +255,8 @@ def execute(args: argparse.Namespace) -> int:
         raise ValueError("The shader suite requires --shader-pack with an actual shader pack")
     if shader is not None and (not shader.exists() or args.renderer != "sodium"):
         raise ValueError("--shader-pack requires an existing pack and --renderer sodium")
+    if args.iris and (shader is not None or args.renderer != "sodium"):
+        raise ValueError("--iris installs Iris without a shader pack and requires --renderer sodium")
     if distant_horizons is not None and shader is not None:
         supported_dh_pack(shader)
     bridge_root = ROOT / "build/client-automator"
@@ -266,7 +269,7 @@ def execute(args: argparse.Namespace) -> int:
     if args.renderer == "sodium":
         sodium = cached_mod("sodium", args.minecraft_version)
     iris: Path | None = None
-    if shader is not None:
+    if shader is not None or args.iris:
         iris = cached_mod("iris", args.minecraft_version)
     run_id = str(uuid.uuid4())
     evidence = ROOT / ".qa/native-client" / run_id
@@ -293,6 +296,10 @@ def execute(args: argparse.Namespace) -> int:
             config = run / "config"
             config.mkdir()
             (config / "iris.properties").write_text("enableShaders=true\nshaderPack=" + shader.name + "\n")
+        elif args.iris:
+            config = run / "config"
+            config.mkdir()
+            (config / "iris.properties").write_text("enableShaders=false\n")
         resources = evidence / "resources"
         resources.mkdir()
         metadata = json.loads((FABRIC / "src/clientGameTest/resources/fabric.mod.json").read_text())
@@ -398,7 +405,7 @@ def execute(args: argparse.Namespace) -> int:
                 shutil.copytree(recordings, evidence / 'native-demo', dirs_exist_ok=True)
             (evidence / "hidden-states.json").write_text(json.dumps(states, indent=2) + "\n")
             (evidence / "result.json").write_text(json.dumps({"passed": success, "tests": tests, "minecraftVersion": args.minecraft_version, "renderer": args.renderer,
-                "shaderPack": shader.name if shader is not None else None,
+                "shaderPack": shader.name if shader is not None else None, "iris": iris is not None,
                 "distantHorizons": {"path": str(distant_horizons), "version": dh_metadata["version"]} if dh_metadata is not None else None,
                 "failure": failure}, indent=2) + "\n")
         finally:
@@ -416,6 +423,7 @@ def main() -> int:
     parser.add_argument("--minecraft-version", choices=supported_versions(), default="26.3")
     parser.add_argument("--renderer", choices=["vanilla", "sodium"], default="sodium")
     parser.add_argument("--shader-pack", type=Path)
+    parser.add_argument("--iris", action="store_true")
     parser.add_argument("--distant-horizons", type=Path)
     parser.add_argument("--iris-baseline-source", type=Path)
     parser.add_argument("--jvm-arg", action="append", default=[])

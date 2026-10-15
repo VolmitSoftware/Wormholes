@@ -3,15 +3,12 @@ package art.arcane.wormholes.clientgametest;
 import art.arcane.wormholes.door.DoorForm;
 import art.arcane.wormholes.door.DoorItemIdentity;
 import art.arcane.wormholes.modded.MinecraftDoorItems;
-import art.arcane.wormholes.modded.client.WormholesClient;
 import art.arcane.wormholes.modded.client.render.iris.IrisViewPipelines;
-import art.arcane.wormholes.modded.client.render.stencil.PortalView;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestSingleplayerContext;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.CameraType;
-import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ParticleStatus;
@@ -24,7 +21,6 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.DoorBlock;
-import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
@@ -115,7 +111,7 @@ public final class PortalViewHitchClientGameTest implements FabricClientGameTest
         Vec3 front = new Vec3(NETHER.getX() + 1.0D, NETHER.getY(), NETHER.getZ() + 0.5D + ORBIT_BLOCKS);
         world.getServer().runOnServer(server -> {
             ServerPlayer player = FabricConnection.of(world).getServerPlayer();
-            buildNetherFrame(server.overworld(), NETHER);
+            PortalViewFixture.netherFrame(server.overworld(), NETHER);
             player.teleportTo(server.overworld(), front.x, front.y, front.z, Set.of(), 180.0F, 0.0F, false);
             player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.FLINT_AND_STEEL));
         });
@@ -150,7 +146,7 @@ public final class PortalViewHitchClientGameTest implements FabricClientGameTest
             client.waitTicks(HOLD_TICKS);
         });
         record(client, "nether-cross", reports, () -> {
-            cross(client);
+            PortalViewFixture.cross(client);
             client.waitTicks(CROSS_SETTLE_TICKS);
             float reverse = client.computeOnClient(minecraft -> minecraft.player.getYRot() + 180.0F);
             client.lookAt(reverse, 0.0F);
@@ -158,19 +154,9 @@ public final class PortalViewHitchClientGameTest implements FabricClientGameTest
         });
         context.takeScreenshot("hitch-nether-return");
         record(client, "nether-return", reports, () -> {
-            cross(client);
+            PortalViewFixture.cross(client);
             client.waitTicks(CROSS_SETTLE_TICKS);
         });
-    }
-
-    private static void cross(FabricSeamlessClient client) {
-        int departure = client.computeOnClient(minecraft -> System.identityHashCode(minecraft.player.level()));
-        client.holdForward();
-        try {
-            client.waitFor(minecraft -> System.identityHashCode(minecraft.player.level()) != departure, TIMEOUT_TICKS);
-        } finally {
-            client.releaseForward();
-        }
     }
 
     private static void orbit(FabricSeamlessClient client, Vec3 center, double radius, double from, double to) {
@@ -283,7 +269,7 @@ public final class PortalViewHitchClientGameTest implements FabricClientGameTest
 
     private static void awaitView(FabricSeamlessClient client, String destination, String scenario) {
         int waited = 0;
-        while (!client.computeOnClient(minecraft -> drawsView(minecraft, destination))) {
+        while (!client.computeOnClient(minecraft -> PortalViewFixture.drawsView(minecraft, destination))) {
             if (waited++ >= TIMEOUT_TICKS) {
                 LOGGER.warn("WORMHOLES_FRAME_HITCH scenario={} view into {} never appeared", scenario, destination);
                 return;
@@ -291,20 +277,6 @@ public final class PortalViewHitchClientGameTest implements FabricClientGameTest
             client.waitTicks(1);
         }
         LOGGER.info("WORMHOLES_FRAME_HITCH scenario={} view into {} appeared after {} ticks", scenario, destination, waited);
-    }
-
-    private static boolean drawsView(Minecraft minecraft, String destination) {
-        WormholesClient wormholes = WormholesClient.instance();
-        if (wormholes == null || minecraft.level == null) {
-            return false;
-        }
-        for (PortalView view : wormholes.portalViews().current()) {
-            if (view.source() == minecraft.level && view.kind() == PortalView.Kind.ARM
-                && view.destination().dimension().identifier().toString().equals(destination)) {
-                return true;
-            }
-        }
-        return false;
     }
 
     private static List<ItemStack> tagged(ServerPlayer player) {
@@ -318,32 +290,9 @@ public final class PortalViewHitchClientGameTest implements FabricClientGameTest
         return items;
     }
 
-    private static void buildNetherFrame(ServerLevel level, BlockPos min) {
-        fill(level, min.offset(-8, -1, -8), 18, 1, 18, Blocks.STONE.defaultBlockState());
-        fill(level, min.offset(-8, 0, -8), 18, 8, 18, Blocks.AIR.defaultBlockState());
-        for (int x = -1; x <= 2; x++) {
-            level.setBlockAndUpdate(min.offset(x, -1, 0), Blocks.OBSIDIAN.defaultBlockState());
-            level.setBlockAndUpdate(min.offset(x, 3, 0), Blocks.OBSIDIAN.defaultBlockState());
-        }
-        for (int y = 0; y < 3; y++) {
-            level.setBlockAndUpdate(min.offset(-1, y, 0), Blocks.OBSIDIAN.defaultBlockState());
-            level.setBlockAndUpdate(min.offset(2, y, 0), Blocks.OBSIDIAN.defaultBlockState());
-        }
-    }
-
     private static void foundation(ServerLevel level, BlockPos door) {
-        fill(level, door.offset(-6, -1, -8), 13, 1, 17, Blocks.STONE.defaultBlockState());
-        fill(level, door.offset(-6, 0, -8), 13, 5, 17, Blocks.AIR.defaultBlockState());
-    }
-
-    private static void fill(ServerLevel level, BlockPos origin, int width, int height, int depth, BlockState state) {
-        for (int x = 0; x < width; x++) {
-            for (int y = 0; y < height; y++) {
-                for (int z = 0; z < depth; z++) {
-                    level.setBlockAndUpdate(origin.offset(x, y, z), state);
-                }
-            }
-        }
+        PortalViewFixture.fill(level, door.offset(-6, -1, -8), 13, 1, 17, Blocks.STONE.defaultBlockState());
+        PortalViewFixture.fill(level, door.offset(-6, 0, -8), 13, 5, 17, Blocks.AIR.defaultBlockState());
     }
 
     private static final class IrisLoans {

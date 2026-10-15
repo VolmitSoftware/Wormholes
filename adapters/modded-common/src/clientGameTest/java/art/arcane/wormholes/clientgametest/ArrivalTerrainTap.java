@@ -640,7 +640,7 @@ public final class ArrivalTerrainTap {
             coverage && errors <= MAX_ERRORS && minimumContrast >= 24.0D && localFailures <= MAX_ERRORS);
     }
 
-    private static int palette(int argb) {
+    static int palette(int argb) {
         int red = argb >> 16 & 255;
         int green = argb >> 8 & 255;
         int blue = argb & 255;

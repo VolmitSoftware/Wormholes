@@ -64,7 +64,8 @@
       "art.arcane.wormholes.clientgametest.ShaderPipelineReuseClientGameTest",
       "art.arcane.wormholes.clientgametest.ShaderFailureCleanupClientGameTest",
       "art.arcane.wormholes.clientgametest.ShaderPreloadStateClientGameTest",
-      "art.arcane.wormholes.clientgametest.PortalViewHitchClientGameTest"
+      "art.arcane.wormholes.clientgametest.PortalViewHitchClientGameTest",
+      "art.arcane.wormholes.clientgametest.NetherReturnTerrainClientGameTest"
     ]
   },
   "mixins": [

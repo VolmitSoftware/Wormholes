@@ -51,6 +51,7 @@
     "NetherCrossingEffectsProjectionTap",
     "ArrivalTerrainProjectionTap",
     "ArrivalTerrainProjectionTap$Crossings",
+    "NetherReturnTerrainFrameTap",
     "NetherCrossingEffectsProjectionTap$Layers",
     "NetherCrossingEffectsProjectionTap$Crossings",
     "TravelRenderPhaseMixin",
