@@ -220,12 +220,30 @@ public class IrisViewPipelineCacheTest {
             (source, target) -> target.equals("future"));
         assertFalse(cache.adoptNext(pending, 2, actual, adoption));
         assertEquals(List.of("future", "actual"), new ArrayList<>(pending));
-        assertTrue(cache.prepareNext(pending, 2, actual, actual));
+        assertTrue(cache.prepareNext(pending, 2, actual, actual, key -> true));
         assertEquals(Set.of("future"), pending);
         assertTrue(cache.adoptNext(pending, 2, actual, adoption));
         assertTrue(pending.isEmpty());
         assertEquals(2L, cache.statistics().creations());
         assertEquals(1L, cache.statistics().adoptions());
+        cache.close();
+    }
+
+    @Test
+    public void ineligibleCandidatesStayPendingWhileTheNextEligibleCameraPrepares() {
+        IrisViewPipelineCache<String, AtomicInteger> cache = new IrisViewPipelineCache<>(
+            new IrisViewPipelineCache.Options<>(12, key -> new AtomicInteger(), value -> {}, System::nanoTime));
+        Set<String> pending = new LinkedHashSet<>(List.of("root", "child", "future"));
+        Set<String> actual = Set.of("root", "child");
+        assertTrue(cache.prepareNext(pending, 1, actual, actual, key -> !key.equals("root")));
+        assertTrue(cache.contains("child"));
+        assertEquals(List.of("root", "future"), new ArrayList<>(pending));
+        assertTrue(cache.prepareNext(pending, 2, actual, actual, key -> false));
+        assertEquals(List.of("root", "future"), new ArrayList<>(pending));
+        assertEquals(1L, cache.statistics().creations());
+        assertTrue(cache.prepareNext(pending, 3, actual, actual, key -> true));
+        assertTrue(cache.contains("root"));
+        assertEquals(List.of("future"), new ArrayList<>(pending));
         cache.close();
     }
 
@@ -252,14 +270,14 @@ public class IrisViewPipelineCacheTest {
         for (int frame = 2; frame < 20; frame++) {
             Set<String> pending = new LinkedHashSet<>(List.of("turn-candidate-" + frame));
             cache.plan(actual, Map.of(), Set.of());
-            assertFalse(cache.prepareNext(pending, frame, actual, actual));
+            assertFalse(cache.prepareNext(pending, frame, actual, actual, key -> true));
             assertEquals(12L, cache.statistics().creations());
             assertEquals(0L, cache.statistics().evictions());
         }
         actual.add("required-camera");
         Set<String> pending = new LinkedHashSet<>(List.of("candidate-first", "required-camera"));
         cache.plan(actual, Map.of(), Set.of());
-        assertTrue(cache.prepareNext(pending, 20, actual, actual));
+        assertTrue(cache.prepareNext(pending, 20, actual, actual, key -> true));
         assertEquals(Set.of("candidate-first"), pending);
         assertEquals(1, released.size());
         for (AtomicInteger history : histories) {
@@ -392,13 +410,13 @@ public class IrisViewPipelineCacheTest {
         Set<String> pending = new LinkedHashSet<>(List.of("future", "actual"));
         Set<String> planned = Set.of("retained", "future", "actual");
         clock.set(200);
-        assertTrue(cache.prepareNext(pending, 2, planned, Set.of("retained", "actual")));
+        assertTrue(cache.prepareNext(pending, 2, planned, Set.of("retained", "actual"), key -> true));
         assertEquals(List.of("future"), new ArrayList<>(pending));
         assertTrue(cache.contains("actual"));
         assertTrue(cache.contains("retained"));
-        assertFalse(cache.prepareNext(pending, 2, planned, Set.of("retained", "actual")));
+        assertFalse(cache.prepareNext(pending, 2, planned, Set.of("retained", "actual"), key -> true));
         cache.expire(101);
-        assertTrue(cache.prepareNext(pending, 3, Set.of("actual", "future"), Set.of("actual")));
+        assertTrue(cache.prepareNext(pending, 3, Set.of("actual", "future"), Set.of("actual"), key -> true));
         assertTrue(pending.isEmpty());
         assertEquals(Set.of("actual", "future"), cache.keys());
         cache.close();
@@ -653,13 +671,13 @@ public class IrisViewPipelineCacheTest {
         cache.enter("active", 1);
         Set<String> pending = new LinkedHashSet<>(List.of("blocked", "active"));
         Set<String> planned = Set.of("blocked", "active");
-        assertFalse(cache.prepareNext(pending, 1, planned, planned));
+        assertFalse(cache.prepareNext(pending, 1, planned, planned, key -> true));
         assertEquals(List.of("active", "blocked"), new ArrayList<>(pending));
-        assertTrue(cache.prepareNext(pending, 1, planned, planned));
+        assertTrue(cache.prepareNext(pending, 1, planned, planned, key -> true));
         assertEquals(Set.of("blocked"), pending);
-        assertFalse(cache.prepareNext(pending, 1, planned, planned));
+        assertFalse(cache.prepareNext(pending, 1, planned, planned, key -> true));
         cache.exit("active");
-        assertTrue(cache.prepareNext(pending, 2, Set.of("blocked"), Set.of("blocked")));
+        assertTrue(cache.prepareNext(pending, 2, Set.of("blocked"), Set.of("blocked"), key -> true));
         assertTrue(pending.isEmpty());
         assertTrue(cache.contains("blocked"));
         assertEquals(List.of("active"), released);

@@ -120,6 +120,8 @@
     "client.IrisPortalGlShaderStagesMixin",
     "client.IrisPortalProgramStageScopeMixin",
     "client.IrisPortalProgramAllocationMixin",
+    "client.IrisPortalProgramBuilderAccess",
+    "client.IrisPortalProgramReserveMixin",
     "client.IrisPortalSettingsAccess",
     "client.IrisPortalTerrainLightingMixin",
     "client.MeshBlockModelLighterMixin",

@@ -85,6 +85,27 @@ public class IrisDimensionLoansTest {
     }
 
     @Test
+    public void availabilityPredictsEveryClaimWithoutTakingTheLoan() {
+        IrisDimensionLoans loans = new IrisDimensionLoans();
+        IrisViewPipelinePath first = path("first", NETHER);
+        IrisViewPipelinePath second = path("second", NETHER);
+        Set<IrisViewPipelinePath> actual = Set.of(first, second);
+        loans.plan(List.of(first, second), dimension -> true, path -> false);
+        for (int repeat = 0; repeat < 3; repeat++) {
+            assertFalse(loans.available(second, 7, actual::contains));
+            assertTrue(loans.available(first, 7, actual::contains));
+        }
+        assertEquals(0L, loans.loans());
+        assertTrue(loans.claim(first, 7, actual::contains));
+        assertTrue(loans.available(first, 7, actual::contains));
+        assertFalse(loans.available(second, 7, actual::contains));
+        assertTrue(loans.available(path("pocket", POCKETS), 7, actual::contains));
+        assertEquals(1L, loans.loans());
+        assertFalse(loans.available(second, 8, actual::contains));
+        assertTrue(loans.available(second, 8, path -> false));
+    }
+
+    @Test
     public void unplannedDrawClaimsAnIdleLoanAndKeepsItForLaterFrames() {
         IrisDimensionLoans loans = new IrisDimensionLoans();
         IrisViewPipelinePath crossing = path("crossing", OVERWORLD);

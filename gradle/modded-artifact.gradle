@@ -34,7 +34,8 @@ abstract class VerifyModdedArtifact extends DefaultTask {
                                      'client.PortalStencilLayerTargetMixin',
                                      'client.GravityRenderStateMixin', 'client.GravityEntityRendererMixin',
                                      'client.GravityLivingRendererMixin', 'client.GravityAvatarRendererMixin',
-                                     'client.PortalBufferSourceAccess', 'client.PortalOutlineBufferAccess'] as Set
+                                     'client.PortalBufferSourceAccess', 'client.PortalOutlineBufferAccess',
+                                     'client.IrisPortalProgramReserveMixin'] as Set
 
     @InputFile
     @PathSensitive(PathSensitivity.NONE)

@@ -69,6 +69,7 @@ public final class PortalStencilRenderer {
     private int pipelineGeneration = -1;
     private Vec3 homeEye = Vec3.ZERO;
     private int preparedViews;
+    private long skippedViews;
 
     private PortalStencilRenderer() {
         for (int depth = 0; depth <= MAX_DEPTH; depth++) {
@@ -119,7 +120,16 @@ public final class PortalStencilRenderer {
     }
 
     public String debugLine() {
-        return "stencil=" + (active ? deferredFrame ? "deferred" : "on" : "off") + " views=" + claimed.size() + " backends=" + PortalBackends.describe();
+        return "stencil=" + (active ? deferredFrame ? "deferred" : "on" : "off") + " views=" + claimed.size() + " skipped=" + skippedViews
+            + " backends=" + PortalBackends.describe();
+    }
+
+    public long skippedViews() {
+        return skippedViews;
+    }
+
+    public void skipView() {
+        skippedViews++;
     }
 
     public boolean claims(ApertureDescriptor geometry) {
@@ -492,6 +502,10 @@ public final class PortalStencilRenderer {
     private void renderDeferredView(PortalView view, CameraRenderState camera, int outer, RenderTarget main, int subdivisions) {
         PortalGpuMesh mesh = view.mesh(subdivisions);
         if (mesh == null) {
+            return;
+        }
+        if (!PortalBackends.pipeline().prepareView(view)) {
+            skipView();
             return;
         }
         boolean shaped = view.shaped();

@@ -35,6 +35,10 @@ public interface PipelineBackend {
     default void prepareViews(CameraRenderState camera, Matrix4fc projection) {
     }
 
+    default boolean prepareView(PortalView view) {
+        return true;
+    }
+
     default void closeView(PortalView view) {
     }
 }

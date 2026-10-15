@@ -75,6 +75,9 @@ public final class IrisPipelines {
             return false;
         }
         if (Iris.getCurrentPack().isPresent()) {
+            if (!IrisProgramReserves.fill()) {
+                return false;
+            }
             IrisMeshFrame.warm();
         }
         return true;
@@ -150,12 +153,19 @@ public final class IrisPipelines {
             }
         }
         List<IrisViewPipelinePath> actual = List.copyOf(plan.paths);
-        List<FutureCamera> future = new ArrayList<>(roots.size() * 3);
+        Set<IrisViewPipelinePath> physical = new HashSet<>(plan.paths);
+        List<FutureCamera> future = new ArrayList<>(roots.size());
         for (PortalView view : roots) {
+            if (!PortalViews.approaching(view, camera.eye())) {
+                continue;
+            }
             for (PortalView travel : PortalViews.futureTravelViews(view)) {
-                IrisViewPipelinePath.Camera identity = IrisViewPipelines.camera(travel);
+                IrisViewPipelinePath path = plan.path(List.of(IrisViewPipelines.camera(travel)), travel.destination());
+                if (!physical.add(path)) {
+                    continue;
+                }
                 PreparationCamera render = travel.destination() == view.source() ? past(camera, view) : through(camera, travel);
-                future.add(new FutureCamera(travel, view, render, plan.path(List.of(identity), travel.destination())));
+                future.add(new FutureCamera(travel, view, render, path));
             }
         }
         future.sort(Comparator.comparing((FutureCamera arrival) -> !options.prepared().test(arrival.path()))
@@ -380,7 +390,7 @@ public final class IrisPipelines {
         return resolve(level.identifier(), skybox, pack);
     }
 
-    private static NamespacedId resolve(ClientLevel level, ShaderPack pack) {
+    static NamespacedId resolve(ClientLevel level, ShaderPack pack) {
         return resolve(level.dimension().identifier(), level.dimensionType().skybox(), pack);
     }
 

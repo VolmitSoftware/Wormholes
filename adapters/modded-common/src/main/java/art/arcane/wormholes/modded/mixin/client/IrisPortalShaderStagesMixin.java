@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded.mixin.client;
 
+import art.arcane.wormholes.modded.client.render.iris.IrisProgramReserves;
 import art.arcane.wormholes.modded.client.render.iris.IrisShaderStages;
 import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
@@ -20,6 +21,10 @@ public abstract class IrisPortalShaderStagesMixin {
     private static PartialShader wormholes$linkedStages(String name, String vertex, String geometry, String tessControl,
                                                         String tessEval, String fragment, VertexFormat format, boolean extended,
                                                         Operation<PartialShader> original) {
+        int reserved = IrisProgramReserves.shader(name, vertex, geometry, tessControl, tessEval, fragment, format, extended);
+        if (reserved > 0) {
+            return new PartialShader(reserved, -1, -1, -1, -1, -1);
+        }
         try (IrisShaderStages.Scope stages = IrisShaderStages.open()) {
             PartialShader shader = original.call(name, vertex, geometry, tessControl, tessEval, fragment, format, extended);
             if (GL20C.glGetProgrami(shader.program(), GL20C.GL_LINK_STATUS) != GL20C.GL_TRUE) {

@@ -1,5 +1,6 @@
 package art.arcane.wormholes.clientgametest;
 
+import art.arcane.wormholes.modded.client.render.iris.IrisProgramReserves;
 import art.arcane.wormholes.modded.client.render.stencil.PortalStencilRenderer;
 import net.irisshaders.iris.pipeline.IrisRenderingPipeline;
 
@@ -19,6 +20,11 @@ public final class IrisPipelineCostTap {
     private static long drawLinks;
     private static long linkNanos;
     private static long drawLinkNanos;
+    private static long served;
+    private static long constructionLinks;
+    private static boolean constructing;
+    private static long constructingLinks;
+    private static long constructingHanded;
 
     private IrisPipelineCostTap() {
     }
@@ -34,6 +40,9 @@ public final class IrisPipelineCostTap {
         drawLinks = 0L;
         linkNanos = 0L;
         drawLinkNanos = 0L;
+        served = 0L;
+        constructionLinks = 0L;
+        constructing = false;
         enabled = true;
     }
 
@@ -47,10 +56,25 @@ public final class IrisPipelineCostTap {
         return renderer.nested() && renderer.camera() != null;
     }
 
+    public static void constructionStarted() {
+        FrameHitchTap.constructionStarted();
+        constructing = true;
+        constructingLinks = 0L;
+        constructingHanded = IrisProgramReserves.diagnostics().handed();
+    }
+
     public static void created(long nanos, boolean draw) {
         FrameHitchTap.pipelineCreated(nanos);
+        boolean measured = constructing;
+        constructing = false;
         if (!enabled) {
             return;
+        }
+        if (measured) {
+            constructionLinks += constructingLinks;
+            if (constructingLinks == 0L && IrisProgramReserves.diagnostics().handed() > constructingHanded) {
+                served++;
+            }
         }
         creations++;
         constructionNanos += nanos;
@@ -62,6 +86,9 @@ public final class IrisPipelineCostTap {
 
     public static void linked(long nanos, boolean draw) {
         FrameHitchTap.programLinked(nanos);
+        if (constructing) {
+            constructingLinks++;
+        }
         if (!enabled) {
             return;
         }
@@ -106,32 +133,35 @@ public final class IrisPipelineCostTap {
     public static Counts snapshot() {
         return new Counts(creations, drawCreations, creations - drawCreations, constructionNanos, drawConstructionNanos,
             constructionNanos - drawConstructionNanos, destructions, links, drawLinks, links - drawLinks, linkNanos,
-            drawLinkNanos, linkNanos - drawLinkNanos);
+            drawLinkNanos, linkNanos - drawLinkNanos, served, constructionLinks);
     }
 
     public static Counts log(String phase, Counts before) {
         Counts delta = snapshot().minus(before);
         System.out.printf(Locale.ROOT,
             "Iris pipeline cost phase=%s creations=%d draw=%d preparation=%d constructionMs=%.3f drawMs=%.3f preparationMs=%.3f"
-                + " links=%d drawLinks=%d preparationLinks=%d linkMs=%.3f drawLinkMs=%.3f preparationLinkMs=%.3f destructions=%d%n",
+                + " links=%d drawLinks=%d preparationLinks=%d linkMs=%.3f drawLinkMs=%.3f preparationLinkMs=%.3f destructions=%d"
+                + " served=%d constructionLinks=%d%n",
             phase, delta.creations(), delta.drawCreations(), delta.preparationCreations(), delta.constructionNanos() / 1_000_000.0D,
             delta.drawConstructionNanos() / 1_000_000.0D, delta.preparationConstructionNanos() / 1_000_000.0D,
             delta.links(), delta.drawLinks(), delta.preparationLinks(), delta.linkNanos() / 1_000_000.0D,
-            delta.drawLinkNanos() / 1_000_000.0D, delta.preparationLinkNanos() / 1_000_000.0D, delta.destructions());
+            delta.drawLinkNanos() / 1_000_000.0D, delta.preparationLinkNanos() / 1_000_000.0D, delta.destructions(), delta.served(),
+            delta.constructionLinks());
         return delta;
     }
 
     public record Counts(long creations, long drawCreations, long preparationCreations, long constructionNanos,
                          long drawConstructionNanos, long preparationConstructionNanos, long destructions,
                          long links, long drawLinks, long preparationLinks, long linkNanos, long drawLinkNanos,
-                         long preparationLinkNanos) {
+                         long preparationLinkNanos, long served, long constructionLinks) {
         public Counts minus(Counts before) {
             return new Counts(creations - before.creations, drawCreations - before.drawCreations,
                 preparationCreations - before.preparationCreations, constructionNanos - before.constructionNanos,
                 drawConstructionNanos - before.drawConstructionNanos, preparationConstructionNanos - before.preparationConstructionNanos,
                 destructions - before.destructions, links - before.links, drawLinks - before.drawLinks,
                 preparationLinks - before.preparationLinks, linkNanos - before.linkNanos,
-                drawLinkNanos - before.drawLinkNanos, preparationLinkNanos - before.preparationLinkNanos);
+                drawLinkNanos - before.drawLinkNanos, preparationLinkNanos - before.preparationLinkNanos, served - before.served,
+                constructionLinks - before.constructionLinks);
         }
     }
 

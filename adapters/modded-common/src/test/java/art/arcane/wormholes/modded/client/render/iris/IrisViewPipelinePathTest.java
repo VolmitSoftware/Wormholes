@@ -83,6 +83,97 @@ public class IrisViewPipelinePathTest extends MinecraftTestBase {
     }
 
     @Test
+    public void preparationAdmissionBuildsEveryVisibleRootBeforeNestedChildrenByDepth() {
+        IrisViewPipelinePath.Camera first = camera("first-root");
+        IrisViewPipelinePath.Camera second = camera("second-root");
+        IrisViewPipelinePath firstRoot = new IrisViewPipelinePath(List.of(first), OVERWORLD);
+        IrisViewPipelinePath firstChild = new IrisViewPipelinePath(List.of(first, camera("first-child")), OVERWORLD);
+        IrisViewPipelinePath firstGrandchild = new IrisViewPipelinePath(List.of(first, camera("first-child"), camera("first-grandchild")),
+            OVERWORLD);
+        IrisViewPipelinePath secondRoot = new IrisViewPipelinePath(List.of(second), OVERWORLD);
+        IrisViewPipelinePath secondChild = new IrisViewPipelinePath(List.of(second, camera("second-child")), OVERWORLD);
+        IrisViewPipelinePath streamedRoot = new IrisViewPipelinePath(List.of(new IrisViewPipelinePath.Camera("STREAMED", "mesh",
+            OVERWORLD, OVERWORLD, Similarity.IDENTITY)), OVERWORLD);
+        IrisViewPipelinePath travel = new IrisViewPipelinePath(List.of(new IrisViewPipelinePath.Camera("RETURN", "travel",
+            OVERWORLD, OVERWORLD, Similarity.IDENTITY)), OVERWORLD);
+        IrisViewPipelinePath source = new IrisViewPipelinePath(List.of(camera("source")), OVERWORLD);
+        Set<IrisViewPipelinePath> actual = new LinkedHashSet<>(List.of(firstRoot, firstChild, firstGrandchild, secondRoot, secondChild));
+        Set<IrisViewPipelinePath> planned = new LinkedHashSet<>(List.of(source, travel));
+        Set<IrisViewPipelinePath> admitted = IrisViewPipelines.preparationAdmission(actual, Set.of(streamedRoot), planned,
+            new LinkedHashSet<>(List.of(source, travel)));
+        assertEquals(List.of(firstRoot, secondRoot, streamedRoot, firstChild, secondChild, firstGrandchild, travel, source),
+            new ArrayList<>(admitted));
+    }
+
+    @Test
+    public void travelCamerasCollapseIntoTheTwoPhysicalCamerasTheyRenderFrom() throws Exception {
+        for (boolean sameDimension : List.of(true, false)) {
+            try (PortalViewsCrossingGraphTest.CrossingGraph graph = new PortalViewsCrossingGraphTest.CrossingGraph(Similarity.of(
+                OpticTransform.translation(0.0D, 0.0D, 200.0D), 1.0D), sameDimension)) {
+                PortalView departure = graph.views.current().getFirst();
+                assertEquals(PortalView.Kind.ARM, departure.kind());
+                List<PortalView> future = PortalViews.futureTravelViews(departure);
+                IrisViewPipelinePath.Camera approach = IrisViewPipelines.camera(departure);
+                IrisViewPipelinePath.Camera behind = IrisViewPipelines.camera(future.get(2));
+                assertEquals(approach, IrisViewPipelines.camera(future.get(0)));
+                assertEquals(behind, IrisViewPipelines.camera(future.get(1)));
+                assertNotEquals(approach, behind);
+                assertEquals("ARM", approach.kind());
+                assertEquals("RETURN", behind.kind());
+                graph.views.frame(graph.home, graph.eye, List.of(graph.forward), true, true, graph.arrivalPortals(),
+                    new PortalViews.Crossing(graph.forward.token(), graph.destination, departure.surface(), graph.toward));
+                PortalView crossing = graph.views.current().getLast();
+                assertEquals(PortalView.Kind.CROSSING, crossing.kind());
+                assertEquals(behind, IrisViewPipelines.camera(crossing));
+                graph.crossOut();
+                graph.arrive(false, false);
+                PortalView returning = graph.views.current().getFirst();
+                assertEquals(PortalView.Kind.RETURN, returning.kind());
+                assertEquals(behind, IrisViewPipelines.camera(returning));
+                IrisViewPipelinePath crossed = new IrisViewPipelinePath(List.of(behind), OVERWORLD);
+                assertEquals(crossed, IrisViewPipelines.continuedTraversalPath(crossed, graph.views));
+                assertFalse(IrisViewPipelines.awaitingTraversal(crossed, graph.views));
+                graph.views.frame(graph.destination, graph.arrivalEye(), List.of(), true, true, List.of(),
+                    new PortalViews.Crossing(returning.key(), graph.home, returning.surface(), returning.toDestination()));
+                PortalView back = null;
+                for (PortalView view : graph.views.current()) {
+                    if (view.kind() == PortalView.Kind.CROSSING) {
+                        back = view;
+                    }
+                }
+                assertEquals(approach, IrisViewPipelines.camera(back));
+            }
+        }
+    }
+
+    @Test
+    public void armedReturnHandsEachPhysicalCameraHistoryToTheMatchingReverseCamera() throws Exception {
+        try (PortalViewsCrossingGraphTest.CrossingGraph graph = new PortalViewsCrossingGraphTest.CrossingGraph(Similarity.of(
+            OpticTransform.translation(0.0D, 0.0D, 200.0D), 1.0D), true)) {
+            PortalView departure = graph.views.current().getFirst();
+            IrisViewPipelinePath.Camera approach = IrisViewPipelines.camera(departure);
+            IrisViewPipelinePath.Camera behind = IrisViewPipelines.camera(PortalViews.futureTravelViews(departure).get(2));
+            graph.crossOut();
+            graph.arrive(true, true);
+            PortalView armed = graph.views.current().getFirst();
+            assertEquals(PortalView.Kind.ARM, armed.kind());
+            List<PortalViews.CameraContinuation> continuations = graph.views.takeCameraContinuations();
+            assertEquals(4, continuations.size());
+            Map<IrisViewPipelinePath.Camera, IrisViewPipelinePath.Camera> replacements = new HashMap<>();
+            for (PortalViews.CameraContinuation continuation : continuations) {
+                IrisViewPipelinePath.Camera next = IrisViewPipelines.camera(continuation.next());
+                IrisViewPipelinePath.Camera previous = replacements.putIfAbsent(IrisViewPipelines.camera(continuation.previous()), next);
+                assertTrue(previous == null || previous.equals(next));
+            }
+            assertEquals(2, replacements.size());
+            assertEquals(IrisViewPipelines.camera(armed), replacements.get(behind));
+            assertEquals(IrisViewPipelines.camera(PortalViews.futureTravelViews(armed).get(2)), replacements.get(approach));
+            assertEquals(new IrisViewPipelinePath(List.of(IrisViewPipelines.camera(armed)), OVERWORLD),
+                IrisViewPipelines.continuedPath(new IrisViewPipelinePath(List.of(behind), OVERWORLD), replacements));
+        }
+    }
+
+    @Test
     public void retiredPreparationClaimsStopRenewingAndExpireWithoutDoubleRelease() {
         AtomicLong clock = new AtomicLong(1L);
         List<AtomicInteger> released = new ArrayList<>();
@@ -502,7 +593,7 @@ public class IrisViewPipelinePathTest extends MinecraftTestBase {
             assertHistories(cache, targets, sources, histories, frame);
             Set<IrisViewPipelinePath> speculative = new LinkedHashSet<>();
             speculative.add(new IrisViewPipelinePath(List.of(camera("turn-candidate-" + trip)), OVERWORLD));
-            assertFalse(cache.prepareNext(speculative, frame, Set.copyOf(targets), Set.copyOf(targets)));
+            assertFalse(cache.prepareNext(speculative, frame, Set.copyOf(targets), Set.copyOf(targets), key -> true));
             Map<IrisViewPipelinePath, IrisViewPipelinePath> inward = new HashMap<>();
             for (IrisViewPipelinePath target : targets) {
                 inward.put(target, IrisViewPipelines.continuedTraversalPath(target, inbound));
@@ -740,7 +831,7 @@ public class IrisViewPipelinePathTest extends MinecraftTestBase {
         when(source.dimension()).thenReturn(Level.OVERWORLD);
         when(destination.dimension()).thenReturn(Level.END);
         PortalSurface surface = PortalSurface.of(mirrorGeometry(0));
-        List<IrisViewPipelinePath> paths = new ArrayList<>();
+        Set<IrisViewPipelinePath> physical = new LinkedHashSet<>();
         for (String key : List.of("coincident-a", "coincident-b")) {
             PortalView arm = mock(PortalView.class);
             when(arm.kind()).thenReturn(PortalView.Kind.ARM);
@@ -751,12 +842,17 @@ public class IrisViewPipelinePathTest extends MinecraftTestBase {
             when(arm.surface()).thenReturn(surface);
             when(arm.toDestination()).thenReturn(Similarity.IDENTITY);
             when(arm.recursion()).thenReturn(2);
-            paths.add(new IrisViewPipelinePath(List.of(IrisViewPipelines.camera(arm)), "minecraft:the_end"));
+            Set<IrisViewPipelinePath> cameras = new LinkedHashSet<>();
+            cameras.add(new IrisViewPipelinePath(List.of(IrisViewPipelines.camera(arm)), "minecraft:the_end"));
             for (PortalView future : PortalViews.futureTravelViews(arm)) {
-                paths.add(new IrisViewPipelinePath(List.of(IrisViewPipelines.camera(future)),
+                cameras.add(new IrisViewPipelinePath(List.of(IrisViewPipelines.camera(future)),
                     future.destination().dimension().identifier().toString()));
             }
+            assertEquals(2, cameras.size());
+            physical.addAll(cameras);
         }
+        List<IrisViewPipelinePath> paths = new ArrayList<>(physical);
+        assertEquals(4, paths.size());
         AtomicInteger created = new AtomicInteger();
         IrisViewPipelineCache<IrisViewPipelinePath, AtomicInteger> cache = new IrisViewPipelineCache<>(
             new IrisViewPipelineCache.Options<>(12, key -> new AtomicInteger(created.incrementAndGet()), value -> {}, System::nanoTime));
@@ -778,7 +874,7 @@ public class IrisViewPipelinePathTest extends MinecraftTestBase {
             assertEquals(100 + index, histories.get(index).get());
             cache.exit(paths.get(index));
         }
-        assertEquals(8, created.get());
+        assertEquals(4, created.get());
         cache.close();
     }
 

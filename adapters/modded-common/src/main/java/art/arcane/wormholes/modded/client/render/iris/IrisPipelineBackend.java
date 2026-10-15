@@ -52,7 +52,12 @@ public final class IrisPipelineBackend implements PipelineBackend {
             return;
         }
         IrisPipelines.requestViews(camera, projection);
-        IrisViewPipelines.preparePlannedViews();
+        IrisViewPipelines.preparationStep();
+    }
+
+    @Override
+    public boolean prepareView(PortalView view) {
+        return !deferred() || IrisViewPipelines.prepareView(view);
     }
 
     @Override

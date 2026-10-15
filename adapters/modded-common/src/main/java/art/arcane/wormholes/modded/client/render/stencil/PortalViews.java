@@ -254,6 +254,20 @@ public final class PortalViews {
         return key;
     }
 
+    public static PhysicalCamera physicalCamera(PortalView view) {
+        if (view.kind() != PortalView.Kind.CROSSING || !(view.key() instanceof CrossingKey crossing)) {
+            return new PhysicalCamera(view.kind(), view.historyKey());
+        }
+        if (crossing.entered() instanceof ReturnKey returning) {
+            return new PhysicalCamera(PortalView.Kind.ARM, returning.crossed());
+        }
+        return new PhysicalCamera(PortalView.Kind.RETURN, new ReturnKey(crossing.entered()));
+    }
+
+    public static boolean approaching(PortalView view, Vec3d eye) {
+        return view.surface().servesEye(eye) && view.surface().distance(eye) <= RETURN_VIEW_BLOCKS;
+    }
+
     public static List<PortalView> futureTravelViews(PortalView approached) {
         if (approached.source() == approached.destination()
             || approached.kind() != PortalView.Kind.ARM && approached.kind() != PortalView.Kind.RETURN) {
@@ -902,6 +916,9 @@ public final class PortalViews {
     }
 
     public record CameraContinuation(PortalView previous, PortalView next) {
+    }
+
+    public record PhysicalCamera(PortalView.Kind kind, Object key) {
     }
 
     public record TraversalContinuation(List<PortalView> previous, List<PortalView> next) {

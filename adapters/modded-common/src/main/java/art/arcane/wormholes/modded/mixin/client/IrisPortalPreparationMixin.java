@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded.mixin.client;
 
+import art.arcane.wormholes.modded.client.render.iris.IrisProgramReserves;
 import art.arcane.wormholes.modded.client.render.iris.IrisViewPipelines;
 import art.arcane.wormholes.modded.client.render.iris.IrisShaderStages;
 import net.minecraft.client.Minecraft;
@@ -13,12 +14,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class IrisPortalPreparationMixin {
     @Inject(method = "close", at = @At("HEAD"))
     private void wormholes$releaseCompiledStages(CallbackInfo callback) {
+        IrisProgramReserves.clear();
         IrisShaderStages.clear();
-    }
-
-    @Inject(method = "tick", at = @At("TAIL"))
-    private void wormholes$preparePortalPipelines(CallbackInfo callback) {
-        IrisViewPipelines.preparationStep();
     }
 
     @Inject(method = "clearClientLevel", at = @At("HEAD"))

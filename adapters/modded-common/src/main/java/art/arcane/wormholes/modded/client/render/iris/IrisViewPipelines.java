@@ -54,6 +54,7 @@ public final class IrisViewPipelines {
     private static final Map<IrisViewPipelinePath, PortalView> PREPARATION_ANCHORS = new LinkedHashMap<>();
     private static final Set<IrisViewPipelinePath> LENDABLE = new LinkedHashSet<>();
     private static final IrisDimensionLoans LOANS = new IrisDimensionLoans();
+    private static final IrisConstructionBudget BUDGET = new IrisConstructionBudget(IrisProgramReserves::admits);
     private static PortalViews continuingViews;
     private static long continuityEpoch;
     private static long epoch;
@@ -66,6 +67,8 @@ public final class IrisViewPipelines {
     private static long drawCreations;
     private static long failedCreations;
     private static int capacityMisses;
+    private static boolean meshWaiting;
+    private static boolean meshDemand;
     private static final IrisViewPipelineCache<IrisViewPipelinePath, Pipeline> CACHE = new IrisViewPipelineCache<>(
         new IrisViewPipelineCache.Options<>(MAX_VIEWS, IrisViewPipelines::create, IrisViewPipelines::destroy, System::nanoTime));
 
@@ -82,13 +85,25 @@ public final class IrisViewPipelines {
         return CACHE.contains(path);
     }
 
+    static boolean prepareView(PortalView view) {
+        RenderSystem.assertOnRenderThread();
+        ShaderPack pack = Iris.getCurrentPack().orElse(null);
+        if (pack == null) {
+            return true;
+        }
+        List<IrisViewPipelinePath.Camera> cameras = enteredCameras();
+        cameras.add(camera(view));
+        IrisViewPipelinePath path = new IrisViewPipelinePath(cameras, text(IrisPipelines.resolve(view.destination(), pack)));
+        return CACHE.retain(path) || FAILED.contains(path) || borrowable(path) || construct(path);
+    }
+
     public static void beginMeshPreparation() {
         RenderSystem.assertOnRenderThread();
         MESH_PLANNED.clear();
         planCache();
     }
 
-    public static void prepareMesh(IrisMeshCamera camera) {
+    public static boolean prepareMesh(IrisMeshCamera camera) {
         RenderSystem.assertOnRenderThread();
         IrisViewPipelinePath path = meshPath(camera);
         if (MESH_PLANNED.size() < MAX_VIEWS) {
@@ -96,10 +111,28 @@ public final class IrisViewPipelines {
         }
         planCache();
         if (CACHE.retain(path)) {
-            return;
+            return true;
         }
         if (FAILED.contains(path)) {
             throw new IllegalStateException("The Iris portal pipeline failed to compile for " + path);
+        }
+        if (SCOPES.isEmpty()) {
+            applyContinuations(new ArrayList<>(ACTUAL));
+        }
+        if (CACHE.retain(path) || construct(path)) {
+            return true;
+        }
+        meshWaiting = true;
+        return false;
+    }
+
+    private static boolean construct(IrisViewPipelinePath path) {
+        int frame = SystemTimeUniforms.COUNTER.getAsInt();
+        if (CACHE.adopt(path, frame, preparationAdoption())) {
+            return true;
+        }
+        if (!BUDGET.available(frame, path.dimension())) {
+            return false;
         }
         IrisCapturedState captured = IrisCapturedState.capture();
         IrisWorldSettings settings = IrisWorldSettings.capture();
@@ -107,20 +140,34 @@ public final class IrisViewPipelines {
         long started = System.nanoTime();
         try (PortalTextureScope textures = new PortalTextureScope();
              PortalFramebufferScope framebuffer = PortalFramebufferScope.capture()) {
-            int frame = SystemTimeUniforms.COUNTER.getAsInt();
-            if (SCOPES.isEmpty()) {
-                applyContinuations(new ArrayList<>(ACTUAL));
-                if (CACHE.adopt(path, frame, preparationAdoption())) {
-                    return;
-                }
-            }
-            CACHE.prepare(path, frame, actualCameras(), IrisViewPipelineCache.Preparation.ACTUAL);
+            return CACHE.prepare(path, frame, actualCameras(), IrisViewPipelineCache.Preparation.ACTUAL);
         } finally {
             captured.restore();
             settings.apply();
             restoreSelection(selected);
             preparationNanos += System.nanoTime() - started;
         }
+    }
+
+    private static boolean borrowable(IrisViewPipelinePath path) {
+        IrisRenderingPipeline rendering = lender(path.dimension(), Iris.getPipelineManager().getPipelineNullable());
+        return rendering != null && !occupied(rendering)
+            && LOANS.available(path, SystemTimeUniforms.COUNTER.getAsInt(), ACTUAL::contains);
+    }
+
+    private static List<IrisViewPipelinePath.Camera> enteredCameras() {
+        List<IrisViewPipelinePath.Camera> cameras = new ArrayList<>(SCOPES.size() + 1);
+        Iterator<Scope> iterator = SCOPES.descendingIterator();
+        while (iterator.hasNext()) {
+            Scope entered = iterator.next();
+            if (entered.view == null) {
+                cameras.clear();
+                cameras.addAll(entered.path.cameras());
+            } else {
+                cameras.add(camera(entered.view));
+            }
+        }
+        return cameras;
     }
 
     static Scope openMesh(IrisMeshCamera camera) {
@@ -179,6 +226,10 @@ public final class IrisViewPipelines {
 
     static Set<IrisViewPipelinePath> preparationAdmission(Set<IrisViewPipelinePath> actual, Set<IrisViewPipelinePath> mesh,
                                                          Set<IrisViewPipelinePath> planned, Set<IrisViewPipelinePath> anchors) {
+        List<IrisViewPipelinePath> visible = new ArrayList<>(actual.size() + mesh.size());
+        visible.addAll(actual);
+        visible.addAll(mesh);
+        visible.sort(Comparator.comparingInt(path -> path.cameras().size()));
         Set<IrisViewPipelinePath> travel = new LinkedHashSet<>();
         Set<IrisViewPipelinePath> source = new LinkedHashSet<>();
         for (IrisViewPipelinePath path : planned) {
@@ -194,7 +245,7 @@ public final class IrisViewPipelines {
         }
         Set<IrisViewPipelinePath> carried = new LinkedHashSet<>(anchors);
         carried.removeAll(planned);
-        return IrisCameraAdmission.plan(MAX_VIEWS, List.of(actual, mesh, travel, carried, source, planned));
+        return IrisCameraAdmission.plan(MAX_VIEWS, List.of(new LinkedHashSet<>(visible), travel, carried, source, planned));
     }
 
     private static void planCache() {
@@ -269,18 +320,7 @@ public final class IrisViewPipelines {
             return null;
         }
         if (scope.path == null) {
-            List<IrisViewPipelinePath.Camera> cameras = new ArrayList<>(SCOPES.size());
-            Iterator<Scope> iterator = SCOPES.descendingIterator();
-            while (iterator.hasNext()) {
-                Scope entered = iterator.next();
-                if (entered.view == null) {
-                    cameras.clear();
-                    cameras.addAll(entered.path.cameras());
-                } else {
-                    cameras.add(camera(entered.view));
-                }
-            }
-            scope.enter(new IrisViewPipelinePath(cameras, text(dimension)));
+            scope.enter(new IrisViewPipelinePath(enteredCameras(), text(dimension)));
         } else if (!scope.path.dimension().equals(text(dimension))) {
             throw new IllegalStateException("A portal pipeline changed dimension while rendering");
         }
@@ -300,6 +340,8 @@ public final class IrisViewPipelines {
                 MAX_VIEWS, unavailableTravelPaths);
         }
         capacityMisses = unavailableTravelPaths;
+        meshDemand = meshWaiting;
+        meshWaiting = false;
         PLANNED.clear();
         ACTUAL.clear();
         MESH_PLANNED.clear();
@@ -321,15 +363,12 @@ public final class IrisViewPipelines {
         LENDABLE.addAll(lendable);
         WorldRenderingPipeline main = Iris.getPipelineManager().getPipelineNullable();
         LOANS.plan(ACTUAL, dimension -> lender(dimension, main) != null, IrisViewPipelines::owned);
-        Set<IrisViewPipelinePath> admitted = plannedCameras();
-        for (IrisViewPipelinePath path : admitted) {
-            if (CACHE.retain(path) || FAILED.contains(path) || LOANS.holds(path) || LENDABLE.contains(path)) {
-                PENDING.remove(path);
-            } else {
+        PENDING.clear();
+        for (IrisViewPipelinePath path : plannedCameras()) {
+            if (!CACHE.retain(path) && !FAILED.contains(path) && !LOANS.holds(path) && !LENDABLE.contains(path)) {
                 PENDING.add(path);
             }
         }
-        PENDING.retainAll(admitted);
         planCache();
     }
 
@@ -569,16 +608,7 @@ public final class IrisViewPipelines {
         return cameras;
     }
 
-    static void preparePlannedViews() {
-        int attempts = PENDING.size();
-        for (int attempt = 0; attempt < attempts; attempt++) {
-            if (preparationStep()) {
-                return;
-            }
-        }
-    }
-
-    public static boolean preparationStep() {
+    static void preparationStep() {
         RenderSystem.assertOnRenderThread();
         if (!SCOPES.isEmpty()) {
             throw new IllegalStateException("Portal pipelines must be prepared outside portal rendering");
@@ -586,34 +616,46 @@ public final class IrisViewPipelines {
         if (!Iris.isPackInUseQuick()) {
             PENDING.clear();
             PREPARATION_ANCHORS.clear();
-            return true;
+            return;
         }
         PENDING.retainAll(plannedCameras());
         expire();
         applyContinuations(new ArrayList<>(ACTUAL));
-        Iterator<IrisViewPipelinePath> iterator = PENDING.iterator();
-        if (!iterator.hasNext()) {
-            return true;
+        if (PENDING.isEmpty()) {
+            return;
         }
-        IrisViewPipelinePath path = iterator.next();
+        Set<IrisViewPipelinePath> actual = actualCameras();
+        int frame = SystemTimeUniforms.COUNTER.getAsInt();
+        if (CACHE.adoptNext(PENDING, frame, actual, preparationAdoption())) {
+            return;
+        }
+        Predicate<IrisViewPipelinePath> eligible = candidate -> BUDGET.available(frame, candidate.dimension())
+            && (!meshDemand || actual.contains(candidate));
+        if (!anyPending(eligible)) {
+            return;
+        }
         long started = System.nanoTime();
         IrisCapturedState captured = IrisCapturedState.capture();
         try (PortalTextureScope textures = new PortalTextureScope();
              PortalFramebufferScope framebuffer = PortalFramebufferScope.capture()) {
-            Set<IrisViewPipelinePath> actual = actualCameras();
-            int frame = SystemTimeUniforms.COUNTER.getAsInt();
-            if (!CACHE.adoptNext(PENDING, frame, actual, preparationAdoption())) {
-                CACHE.prepareNext(PENDING, frame, actual, actual);
-            }
+            CACHE.prepareNext(PENDING, frame, actual, actual, eligible);
         } catch (RuntimeException failure) {
-            LOGGER.error("Unable to prepare the Iris portal pipeline for {}", path, failure);
+            LOGGER.error("Unable to prepare an Iris portal pipeline", failure);
         } finally {
             captured.restore();
             ProgramUniforms.clearActiveUniforms();
             ProgramSamplers.clearActiveSamplers();
             preparationNanos += System.nanoTime() - started;
         }
-        return PENDING.isEmpty();
+    }
+
+    private static boolean anyPending(Predicate<IrisViewPipelinePath> eligible) {
+        for (IrisViewPipelinePath path : PENDING) {
+            if (eligible.test(path)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public static Diagnostics diagnostics() {
@@ -741,6 +783,9 @@ public final class IrisViewPipelines {
         PREPARATION_ANCHORS.clear();
         LENDABLE.clear();
         LOANS.clear();
+        BUDGET.clear();
+        meshWaiting = false;
+        meshDemand = false;
         continuingViews = null;
         continuityEpoch = 0L;
         capacityMisses = 0;
@@ -791,7 +836,8 @@ public final class IrisViewPipelines {
     }
 
     static IrisViewPipelinePath.Camera camera(PortalView view) {
-        return new IrisViewPipelinePath.Camera(view.kind().name(), view.historyKey(), view.source().dimension().identifier().toString(),
+        PortalViews.PhysicalCamera physical = PortalViews.physicalCamera(view);
+        return new IrisViewPipelinePath.Camera(physical.kind().name(), physical.key(), view.source().dimension().identifier().toString(),
             view.destination().dimension().identifier().toString(), view.toDestination());
     }
 
@@ -801,10 +847,12 @@ public final class IrisViewPipelines {
 
     private static Pipeline create(IrisViewPipelinePath path) {
         ShaderPack pack = Iris.getCurrentPack().orElseThrow(() -> new IllegalStateException("No shader pack is available for a portal view"));
+        BUDGET.spend(SystemTimeUniforms.COUNTER.getAsInt());
         IrisWorldSettings previous = IrisWorldSettings.capture();
         long started = System.nanoTime();
-        try {
+        try (IrisProgramReserves.Recording programs = IrisProgramReserves.consume(path.dimension())) {
             IrisRenderingPipeline rendering = new IrisRenderingPipeline(pack.getProgramSet(new NamespacedId(path.dimension())));
+            programs.complete();
             ((IrisPortalRenderingAccess) rendering).wormholes$initializedBlockIds(previous.blocks() != null);
             return new Pipeline(rendering, IrisWorldSettings.capture());
         } catch (RuntimeException | Error failure) {
@@ -904,7 +952,8 @@ public final class IrisViewPipelines {
             if (view != null && !CACHE.contains(path) && borrow(path)) {
                 return;
             }
-            boolean missing = !CACHE.contains(path);
+            int frame = SystemTimeUniforms.COUNTER.getAsInt();
+            boolean missing = !CACHE.contains(path) && !CACHE.adopt(path, frame, preparationAdoption());
             if (missing && FAILED.contains(path)) {
                 throw new IllegalStateException("The Iris portal pipeline failed to compile for " + path);
             }
@@ -912,7 +961,7 @@ public final class IrisViewPipelines {
             if (missing) {
                 drawMisses++;
             }
-            pipeline = CACHE.enter(path, SystemTimeUniforms.COUNTER.getAsInt());
+            pipeline = CACHE.enter(path, frame);
             this.path = path;
             if (missing) {
                 drawCreations++;

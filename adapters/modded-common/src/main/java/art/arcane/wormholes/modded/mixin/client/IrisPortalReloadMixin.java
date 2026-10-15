@@ -1,6 +1,11 @@
 package art.arcane.wormholes.modded.mixin.client;
 
 import art.arcane.wormholes.modded.client.render.iris.IrisPipelines;
+import art.arcane.wormholes.modded.client.render.iris.IrisProgramReserves;
+import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import net.irisshaders.iris.pipeline.WorldRenderingPipeline;
+import net.irisshaders.iris.shaderpack.materialmap.NamespacedId;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Pseudo;
 import org.spongepowered.asm.mixin.injection.At;
@@ -13,5 +18,12 @@ public abstract class IrisPortalReloadMixin {
     @Inject(method = "reload", at = @At("RETURN"))
     private static void wormholes$prepareDimensionPipelines(CallbackInfo callback) {
         IrisPipelines.createAll();
+    }
+
+    @WrapMethod(method = "createPipeline")
+    private static WorldRenderingPipeline wormholes$recordPrograms(NamespacedId dimension, Operation<WorldRenderingPipeline> original) {
+        try (IrisProgramReserves.Recording recording = IrisProgramReserves.record(dimension)) {
+            return recording.completed(original.call(dimension));
+        }
     }
 }

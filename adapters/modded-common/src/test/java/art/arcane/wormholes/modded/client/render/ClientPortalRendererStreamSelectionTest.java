@@ -19,6 +19,7 @@ import org.junit.Test;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import static org.junit.Assert.assertEquals;
@@ -33,6 +34,8 @@ public class ClientPortalRendererStreamSelectionTest extends MinecraftTestBase {
             scene.renderer.replaceScene(17, scene.portal(geometry(0, 0, 0, Face.S)));
             scene.renderer.replaceScene(18, scene.portal(geometry(0, -4, 17, Face.S)));
             scene.renderer.replaceScene(19, scene.portal(geometry(0, -8, 18, Face.S)));
+            scene.streamed(18);
+            scene.streamed(19);
             List<IrisMeshCamera> selected = scene.selected(Set.of());
             assertEquals(2, selected.size());
             assertEquals(2, selected.getFirst().traversal().size());
@@ -42,6 +45,9 @@ public class ClientPortalRendererStreamSelectionTest extends MinecraftTestBase {
                 scene.renderer.replaceScene(20, scene.portal(geometry(100 + index, -4, 17, Face.S)));
                 scene.renderer.replaceScene(21, scene.portal(geometry(0, -4, 17, Face.N)));
                 scene.renderer.replaceScene(22, scene.portal(geometry(0, 2, 17, Face.S)));
+                scene.streamed(20);
+                scene.streamed(21);
+                scene.streamed(22);
                 assertEquals(selected, scene.selected(Set.of()));
             }
         }
@@ -53,6 +59,7 @@ public class ClientPortalRendererStreamSelectionTest extends MinecraftTestBase {
             scene.renderer.replaceScene(17, scene.portal(geometry(0, 0, 0, Face.S)));
             PortalScene child = scene.portal(geometry(0, -4, 17, Face.S));
             scene.renderer.replaceScene(18, child);
+            scene.streamed(18);
             assertEquals(1, scene.selected(Set.of()).size());
             assertTrue(scene.selected(Set.of(18)).isEmpty());
             when(child.sourceExpired()).thenReturn(true);
@@ -67,6 +74,20 @@ public class ClientPortalRendererStreamSelectionTest extends MinecraftTestBase {
             pipelines.setAccessible(true);
             pipelines.set(scene.renderer, null);
             assertTrue(scene.selected(Set.of()).isEmpty());
+        }
+    }
+
+    @Test
+    public void streamedChildrenWithoutReceivedGeometryPrepareNoShaderCamera() throws ReflectiveOperationException {
+        try (Scene scene = new Scene()) {
+            scene.renderer.replaceScene(17, scene.portal(geometry(0, 0, 0, Face.S)));
+            scene.renderer.replaceScene(18, scene.portal(geometry(0, -4, 17, Face.S)));
+            scene.renderer.replaceScene(19, scene.portal(geometry(0, -8, 18, Face.S)));
+            assertTrue(scene.selected(Set.of()).isEmpty());
+            scene.streamed(19);
+            assertTrue(scene.selected(Set.of()).isEmpty());
+            scene.streamed(18);
+            assertEquals(2, scene.selected(Set.of()).size());
         }
     }
 
@@ -113,6 +134,18 @@ public class ClientPortalRendererStreamSelectionTest extends MinecraftTestBase {
                 new Matrix4f().setPerspective((float) Math.toRadians(90.0D), 1.0F, 200.0F, 0.05F, false), null,
                 PortalViewSelection.Window.FULL, PortalSurface.of(geometry(0, 0, 0, Face.S)).through(Similarity.IDENTITY), false);
             return new ClientPortalRenderer.StreamSelection(camera, 1920, 1080);
+        }
+
+        @SuppressWarnings("unchecked")
+        private void streamed(int portalKey) throws ReflectiveOperationException {
+            Field portals = ClientPortalRenderer.class.getDeclaredField("portals");
+            portals.setAccessible(true);
+            Object portal = ((Map<Integer, Object>) portals.get(renderer)).get(portalKey);
+            Field sections = portal.getClass().getDeclaredField("sections");
+            sections.setAccessible(true);
+            Constructor<?> section = Class.forName(ClientPortalRenderer.class.getName() + "$Section").getDeclaredConstructor(long.class, long.class);
+            section.setAccessible(true);
+            ((Map<Long, Object>) sections.get(portal)).put(0L, section.newInstance(0L, 1L));
         }
 
         private List<IrisMeshCamera> selected(Set<Integer> nativeChildren) {

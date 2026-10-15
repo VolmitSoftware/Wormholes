@@ -572,7 +572,7 @@ public final class ClientPortalRenderer {
         }
         for (Portal portal : portals.values()) {
             if (portal.scene.geometry().parentPortalKey() != parent || !portal.active || !sourceCurrent(portal.scene, frameLevel)
-                || portal.scene.environment() == null) {
+                || portal.scene.environment() == null || !streamedGeometry(portal)) {
                 continue;
             }
             StreamDemand demand = selectPortal(portal, rootCamera, toRoot, frameProjection, parentViewport, dimensions,
@@ -737,10 +737,13 @@ public final class ClientPortalRenderer {
     }
 
     private void renderShadedTree(Portal portal, RenderDimensions dimensions) {
-        if (!PortalStencilRenderer.instance().canDrawShadedView()) {
+        if (!PortalStencilRenderer.instance().canDrawShadedView() || !streamedGeometry(portal)) {
             return;
         }
-        IrisViewPipelines.prepareMesh(meshCamera(portal));
+        if (!IrisViewPipelines.prepareMesh(meshCamera(portal))) {
+            PortalStencilRenderer.instance().skipView();
+            return;
+        }
         PortalShaderCamera shaderCamera = new PortalShaderCamera(portal.scene.environment(), portal.contentCamera);
         PortalStencilRenderer stencil = PortalStencilRenderer.instance();
         stencil.shadedView(portal.apertureMesh, portal.affine != null || portal.aperture.hasShape(), apertureView(portal), shaderCamera,
@@ -782,6 +785,10 @@ public final class ClientPortalRenderer {
 
     static int branchCeiling(int inherited, int depth, int requested) {
         return Math.min(inherited, depth + Math.max(1, requested));
+    }
+
+    private static boolean streamedGeometry(Portal portal) {
+        return !portal.sections.isEmpty();
     }
 
     public void composite(RenderPass pass) {
@@ -1332,7 +1339,7 @@ public final class ClientPortalRenderer {
         prepareDestination(portal, dimensions);
         maintain(portal);
         if (shadedMaterials != null) {
-            if (!drawingShaded) {
+            if (!drawingShaded && streamedGeometry(portal)) {
                 shaded.add(portal);
             }
             return true;
@@ -1400,7 +1407,7 @@ public final class ClientPortalRenderer {
         BooleanSupplier clipDepth = selection.camera()::zeroToOne;
         for (Portal portal : portals.values()) {
             if (!streamedChild(portal.scene.geometry(), parentKey, depth, ceiling, nativeChildren.contains(portal.key))
-                || !portal.active || !sourceCurrent(portal.scene, home) || portal.scene.environment() == null) {
+                || !portal.active || !sourceCurrent(portal.scene, home) || portal.scene.environment() == null || !streamedGeometry(portal)) {
                 continue;
             }
             portal.updateAffine();

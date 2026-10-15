@@ -192,7 +192,7 @@ final class IrisViewPipelineCache<K, V> implements AutoCloseable {
     }
 
     boolean adoptNext(Set<K> pending, int frame, Set<K> actual, Adoption<K> adoption) {
-        K key = nextPreparation(pending, actual);
+        K key = nextPreparation(pending, actual, candidate -> true);
         if (key == null || !adopt(key, frame, adoption)) {
             return false;
         }
@@ -218,8 +218,8 @@ final class IrisViewPipelineCache<K, V> implements AutoCloseable {
         return true;
     }
 
-    boolean prepareNext(Set<K> pending, int frame, Set<K> planned, Set<K> actual) {
-        K key = nextPreparation(pending, actual);
+    boolean prepareNext(Set<K> pending, int frame, Set<K> planned, Set<K> actual, Predicate<K> eligible) {
+        K key = nextPreparation(pending, actual, eligible);
         if (key == null) {
             return true;
         }
@@ -317,18 +317,20 @@ final class IrisViewPipelineCache<K, V> implements AutoCloseable {
         return entry;
     }
 
-    private K nextPreparation(Set<K> pending, Set<K> actual) {
-        Iterator<K> iterator = pending.iterator();
-        if (!iterator.hasNext()) {
-            return null;
-        }
-        K key = iterator.next();
+    private K nextPreparation(Set<K> pending, Set<K> actual, Predicate<K> eligible) {
+        K first = null;
         for (K candidate : pending) {
+            if (!eligible.test(candidate)) {
+                continue;
+            }
             if (actual.contains(candidate) && !deferred.contains(candidate)) {
                 return candidate;
             }
+            if (first == null) {
+                first = candidate;
+            }
         }
-        return key;
+        return first;
     }
 
     private void makeRoom(int frame) {

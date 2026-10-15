@@ -1,5 +1,6 @@
 package art.arcane.wormholes.clientgametest.mixin;
 
+import art.arcane.wormholes.clientgametest.FrameHitchTap;
 import art.arcane.wormholes.clientgametest.IrisPipelineCostTap;
 import com.mojang.blaze3d.opengl.GlStateManager;
 import net.irisshaders.iris.pipeline.IrisRenderingPipeline;
@@ -22,6 +23,7 @@ public abstract class IrisPipelineCostMixin {
 
     @Inject(method = "<init>", at = @At(value = "CTOR_HEAD", args = "enforce=POST_DELEGATE", unsafe = true))
     private void wormholesTest$constructionBegin(CallbackInfo callback) {
+        IrisPipelineCostTap.constructionStarted();
         wormholesTest$constructionStarted = System.nanoTime();
         wormholesTest$constructionDraw = IrisPipelineCostTap.drawing();
     }
@@ -45,6 +47,7 @@ public abstract class IrisPipelineCostMixin {
     public abstract static class PortalPath {
         @Inject(method = "create", at = @At("HEAD"))
         private static void wormholesTest$constructionPath(@Coerce Object path, CallbackInfoReturnable<?> callback) {
+            FrameHitchTap.portalPath(path);
             if (Boolean.getBoolean("wormholes.test.dhShaders")) {
                 System.out.println("Iris portal construction path=" + path);
             }

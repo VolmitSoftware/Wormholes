@@ -45,7 +45,7 @@ public class IrisPipelinesPreloadTest extends MinecraftTestBase {
     private static final Vec3d EYE = new Vec3d(1.0D, 65.0D, 4.0D);
 
     @Test
-    public void offscreenSourceOwnersFollowNineRequiredPathsWithoutBecomingActualOrTravelRoots() {
+    public void offscreenSourceOwnersFollowFiveRequiredPathsWithoutBecomingActualOrTravelRoots() {
         try (Scene scene = new Scene()) {
             PortalView first = scene.arm(0);
             PortalView second = scene.arm(3);
@@ -58,19 +58,18 @@ public class IrisPipelinesPreloadTest extends MinecraftTestBase {
                 .when(scene.frustum).isVisible(any());
             IrisPipelines.Preparation preparation = scene.preparation(List.of(first, second, visible, hiddenB, hiddenA));
             assertEquals(3, preparation.actual().size());
-            assertEquals(11, preparation.paths().size());
-            assertEquals(8, preparation.anchors().size());
+            assertEquals(7, preparation.paths().size());
+            assertEquals(4, preparation.anchors().size());
             assertEquals(preparation.actual(), preparation.paths().subList(0, 3));
-            assertTrue(preparation.paths().subList(3, 9).stream().allMatch(path -> path.cameras().getFirst().kind().equals("CROSSING")
-                || path.cameras().getFirst().kind().equals("RETURN")));
+            assertTrue(preparation.paths().subList(3, 5).stream().allMatch(path -> path.cameras().getFirst().kind().equals("RETURN")));
             IrisViewPipelinePath pathA = nativePreparation(List.of(hiddenA), OVERWORLD).path();
             IrisViewPipelinePath pathB = nativePreparation(List.of(hiddenB), OVERWORLD).path();
-            assertEquals(List.of(pathA, pathB), preparation.paths().subList(9, 11));
+            assertEquals(List.of(pathA, pathB), preparation.paths().subList(5, 7));
             assertFalse(preparation.actual().contains(pathA));
             assertFalse(preparation.actual().contains(pathB));
             assertTrue(preparation.paths().stream().allMatch(path -> path.cameras().size() == 1));
             scene.prepared.add(pathB);
-            assertEquals(List.of(pathB, pathA), scene.preparation(List.of(hiddenA, visible, second, hiddenB, first)).paths().subList(9, 11));
+            assertEquals(List.of(pathB, pathA), scene.preparation(List.of(hiddenA, visible, second, hiddenB, first)).paths().subList(5, 7));
         }
     }
 
@@ -85,26 +84,47 @@ public class IrisPipelinesPreloadTest extends MinecraftTestBase {
             assertEquals(unavailable.paths(), preparation.paths());
             assertEquals(1, preparation.actual().size());
             List<IrisViewPipelinePath> travel = preparation.paths().subList(1, preparation.paths().size());
-            assertEquals(3, travel.size());
+            assertEquals(List.of(new IrisViewPipelinePath(List.of(IrisViewPipelines.camera(future(arm, PortalView.Kind.RETURN, true))),
+                OVERWORLD)), travel);
             assertEquals(Set.copyOf(travel), preparation.lendable());
             assertFalse(preparation.lendable().contains(preparation.actual().getFirst()));
-            assertTrue(travel.stream().anyMatch(path -> path.dimension().equals(END)));
-            assertTrue(travel.stream().anyMatch(path -> path.dimension().equals(OVERWORLD)));
         }
     }
 
     @Test
-    public void sameDimensionTravelCamerasStillPrepareTheirOwnPipelines() {
+    public void sameDimensionResidentDoorPlansItsArmAndOneReverseCameraOnApproach() {
         try (Scene scene = new Scene()) {
-            when(scene.destination.dimension()).thenReturn(Level.OVERWORLD);
-            DimensionType overworld = mock(DimensionType.class);
-            when(overworld.skybox()).thenReturn(DimensionType.Skybox.OVERWORLD);
-            when(scene.destination.dimensionType()).thenReturn(overworld);
+            scene.sameDimension();
             scene.lenders.addAll(Set.of(OVERWORLD, END));
-            IrisPipelines.Preparation preparation = scene.preparation(List.of(scene.arm(0)));
-            assertEquals(4, preparation.paths().size());
-            assertTrue(preparation.paths().stream().allMatch(path -> path.dimension().equals(OVERWORLD)));
+            PortalView arm = scene.arm(0);
+            IrisPipelines.Preparation preparation = scene.preparation(List.of(arm));
+            IrisViewPipelinePath approach = new IrisViewPipelinePath(List.of(IrisViewPipelines.camera(arm)), OVERWORLD);
+            IrisViewPipelinePath behind = new IrisViewPipelinePath(List.of(IrisViewPipelines.camera(future(arm, PortalView.Kind.RETURN, true))),
+                OVERWORLD);
+            assertEquals(List.of(approach, behind), preparation.paths());
+            assertEquals(List.of(approach), preparation.actual());
+            assertEquals(Map.of(behind, arm), preparation.anchors());
             assertTrue(preparation.lendable().isEmpty());
+            assertEquals(0, preparation.capacityMisses());
+        }
+    }
+
+    @Test
+    public void reverseTravelCameraWaitsUntilThePlayerApproachesTheDoor() {
+        try (Scene scene = new Scene()) {
+            scene.sameDimension();
+            PortalView arm = scene.arm(0);
+            IrisViewPipelinePath approach = new IrisViewPipelinePath(List.of(IrisViewPipelines.camera(arm)), OVERWORLD);
+            scene.eye = new Vec3d(1.0D, 65.0D, 20.0D);
+            IrisPipelines.Preparation distant = scene.preparation(List.of(arm));
+            assertEquals(List.of(approach), distant.paths());
+            assertTrue(distant.anchors().isEmpty());
+            assertEquals(0, distant.capacityMisses());
+            scene.eye = new Vec3d(1.0D, 65.0D, 15.0D);
+            IrisPipelines.Preparation approaching = scene.preparation(List.of(arm));
+            assertEquals(2, approaching.paths().size());
+            assertEquals(approach, approaching.paths().getFirst());
+            assertEquals("RETURN", approaching.paths().getLast().cameras().getFirst().kind());
         }
     }
 
@@ -151,18 +171,18 @@ public class IrisPipelinesPreloadTest extends MinecraftTestBase {
             IrisPipelines.Preparation preparation = IrisPipelines.preparation(scene.options(views), scene.camera(), ignored -> List.of(stream));
             assertEquals(8, preparation.actual().size());
             assertEquals(12, preparation.paths().size());
-            assertEquals(8, preparation.capacityMisses());
+            assertEquals(0, preparation.capacityMisses());
             assertFalse(preparation.paths().stream().anyMatch(path -> path.cameras().getFirst().key().equals("hidden")));
         }
     }
 
     @Test
-    public void visibleResidentApproachPreparesBothCrossingRootsAndTheHiddenReturnRoot() {
+    public void visibleResidentApproachPreparesTheArmAndItsHiddenReturnCamera() {
         try (Scene scene = new Scene()) {
             PortalView arm = scene.arm(0);
             assertFalse(arm.exit().servesEye(arm.toDestination().point(EYE)));
             List<IrisViewPipelinePath> paths = scene.paths(List.of(arm));
-            assertEquals(4, paths.size());
+            assertEquals(2, paths.size());
             assertTrue(paths.contains(new IrisViewPipelinePath(List.of(IrisViewPipelines.camera(arm)), END)));
             assertTrue(paths.contains(new IrisViewPipelinePath(
                 List.of(IrisViewPipelines.camera(future(arm, PortalView.Kind.CROSSING, false))), END)));
@@ -196,14 +216,17 @@ public class IrisPipelinesPreloadTest extends MinecraftTestBase {
             assertEquals(12, paths.size());
             assertEquals(12, paths.stream().distinct().count());
             assertTrue(paths.stream().allMatch(path -> path.cameras().getFirst().kind().equals(PortalView.Kind.ARM.name())));
-            assertEquals(60, scene.preparation(views).capacityMisses());
+            assertEquals(9, scene.preparation(views).capacityMisses());
         }
     }
 
     @Test
     public void boundedFuturePlanKeepsAnAlreadyPreparedArrivalAheadOfNewSpeculation() {
         try (Scene scene = new Scene()) {
-            List<PortalView> arms = List.of(scene.arm(0), scene.arm(3), scene.arm(6), scene.arm(9));
+            List<PortalView> arms = new ArrayList<>(8);
+            for (int index = 0; index < 8; index++) {
+                arms.add(scene.arm(index * 2));
+            }
             PortalView returning = future(arms.getLast(), PortalView.Kind.RETURN, true);
             IrisViewPipelinePath retained = new IrisViewPipelinePath(List.of(IrisViewPipelines.camera(returning)), OVERWORLD);
             scene.prepared.add(retained);
@@ -251,7 +274,7 @@ public class IrisPipelinesPreloadTest extends MinecraftTestBase {
                 assertTrue(combined.actual().contains(path));
                 assertEquals(END, path.dimension());
             }
-            assertEquals(8, combined.capacityMisses());
+            assertEquals(0, combined.capacityMisses());
         }
     }
 
@@ -280,7 +303,7 @@ public class IrisPipelinesPreloadTest extends MinecraftTestBase {
     }
 
     @Test
-    public void repeatedNinePathPlansExcludeAllFourSourceFloorAndCeilingForecasts() {
+    public void repeatedSixPathPlansExcludeAllFourSourceFloorAndCeilingForecasts() {
         try (Scene scene = new Scene()) {
             PortalView arm = scene.arm(0);
             PortalView floor = scene.sourceMirror("floor", horizontal(64, Face.U));
@@ -290,7 +313,7 @@ public class IrisPipelinesPreloadTest extends MinecraftTestBase {
             IrisMeshCamera stream = new IrisMeshCamera(List.of(geometry(0, -8, true)), OVERWORLD, END, EnvironmentState.Skybox.END, Similarity.IDENTITY);
             IrisPipelines.Preparation preparation = IrisPipelines.preparation(scene.options(views), scene.camera(),
                 demand -> demand.parent() == arm ? List.of(stream) : List.of());
-            assertEquals(9, preparation.paths().size());
+            assertEquals(6, preparation.paths().size());
             assertEquals(5, preparation.actual().size());
             assertEquals(preparation.actual(), preparation.paths().subList(0, preparation.actual().size()));
             for (PortalView mirror : List.of(floor, ceiling)) {
@@ -576,6 +599,7 @@ public class IrisPipelinesPreloadTest extends MinecraftTestBase {
         private final Set<IrisViewPipelinePath> prepared = new HashSet<>();
         private final Set<String> lenders = new HashSet<>();
         private int depth = 2;
+        private Vec3d eye = EYE;
 
         private Scene() {
             when(source.dimension()).thenReturn(Level.OVERWORLD);
@@ -591,6 +615,13 @@ public class IrisPipelinesPreloadTest extends MinecraftTestBase {
             worlds.when(ClientWorldLoader::mainLevel).thenReturn(source);
             LevelRenderer renderer = mock(LevelRenderer.class);
             worlds.when(() -> ClientWorldLoader.residentRenderer(destination)).thenReturn(renderer);
+        }
+
+        private void sameDimension() {
+            when(destination.dimension()).thenReturn(Level.OVERWORLD);
+            DimensionType overworld = mock(DimensionType.class);
+            when(overworld.skybox()).thenReturn(DimensionType.Skybox.OVERWORLD);
+            when(destination.dimensionType()).thenReturn(overworld);
         }
 
         private PortalView arm(int x) {
@@ -644,12 +675,12 @@ public class IrisPipelinesPreloadTest extends MinecraftTestBase {
         }
 
         private IrisPipelines.PreparationCamera camera() {
-            return new IrisPipelines.PreparationCamera(EYE, null, null, frustum, PortalViewSelection.Window.FULL, null, false);
+            return new IrisPipelines.PreparationCamera(eye, null, null, frustum, PortalViewSelection.Window.FULL, null, false);
         }
 
         private IrisPipelines.PreparationOptions options(List<PortalView> views) {
             return new IrisPipelines.PreparationOptions(views,
-                view -> children.getOrDefault(view, List.of()), prepared::contains, source, EYE, 8, pack, depth, lenders::contains);
+                view -> children.getOrDefault(view, List.of()), prepared::contains, source, eye, 8, pack, depth, lenders::contains);
         }
 
         @Override

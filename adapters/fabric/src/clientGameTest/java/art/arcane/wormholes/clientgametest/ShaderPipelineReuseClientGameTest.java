@@ -89,9 +89,13 @@ public final class ShaderPipelineReuseClientGameTest implements FabricClientGame
                 Views original = context.computeOnClient(client -> views(main, "first-open"));
                 context.runOnClient(client -> {
                     IrisPipelineCostTap.Counts delta = IrisPipelineCostTap.log("first-open", firstCost);
-                    assertTrue(delta.creations() >= 2L && delta.links() > 0L && delta.constructionNanos() > 0L,
-                        "independent constructor/link taps did not observe both real portal pipelines");
-                    if (!BASELINE) {
+                    assertTrue(delta.creations() >= 2L && delta.constructionNanos() > 0L,
+                        "independent constructor taps did not observe both real portal pipelines");
+                    if (BASELINE) {
+                        assertTrue(delta.links() > 0L, "independent link taps did not observe the baseline portal pipelines linking");
+                    } else {
+                        assertTrue(delta.served() == delta.creations() && delta.constructionLinks() == 0L,
+                            "first portal pipelines linked programs instead of taking reserved programs");
                         assertTrue(delta.drawCreations() == 0L, "first portal pipelines were constructed inside portal draw");
                     }
                 });
@@ -189,8 +193,12 @@ public final class ShaderPipelineReuseClientGameTest implements FabricClientGame
             assertTrue(next.firstView() != previous.firstView() && next.secondView() != previous.secondView(),
                 "expiry reopen did not create new views for the same physical mirrors");
             IrisPipelineCostTap.Counts delta = IrisPipelineCostTap.log("reopen-after-expiry", reopenCost);
-            assertTrue(delta.creations() >= 2L && delta.links() > 0L, "expiry reopen did not construct and link fresh portal pipelines");
-            if (!BASELINE) {
+            assertTrue(delta.creations() >= 2L, "expiry reopen did not construct fresh portal pipelines");
+            if (BASELINE) {
+                assertTrue(delta.links() > 0L, "expiry reopen did not link fresh baseline portal pipelines");
+            } else {
+                assertTrue(delta.served() == delta.creations() && delta.constructionLinks() == 0L,
+                    "expiry reopen linked programs instead of taking reserved programs");
                 assertTrue(delta.drawCreations() == 0L, "expiry reopen constructed pipelines inside portal draw");
             }
             return next;

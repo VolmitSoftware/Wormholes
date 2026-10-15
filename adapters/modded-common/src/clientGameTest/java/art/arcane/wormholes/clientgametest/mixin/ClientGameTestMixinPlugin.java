@@ -33,7 +33,7 @@ public final class ClientGameTestMixinPlugin implements IMixinConfigPlugin {
         if (mixinClassName.endsWith(".IrisFullscreenScopeTap") || mixinClassName.endsWith(".IrisHistoryPipelineTap")
             || mixinClassName.endsWith(".IrisHistoryLayerTap")
             || mixinClassName.contains(".IrisMeshHistory")
-            || mixinClassName.contains(".IrisPipelineCostMixin")) {
+            || mixinClassName.contains(".IrisPipelineCostMixin") || mixinClassName.contains(".IrisConstructionPhaseTap")) {
             return getClass().getClassLoader().getResource("net/irisshaders/iris/Iris.class") != null;
         }
         return true;

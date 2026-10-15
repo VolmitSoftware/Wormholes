@@ -45,18 +45,26 @@ final class IrisDimensionLoans {
             framed = true;
         }
         String dimension = path.dimension();
-        IrisViewPipelinePath user = drawn.get(dimension);
-        if (user != null) {
-            return user.equals(path);
+        if (drawn.containsKey(dimension)) {
+            return drawn.get(dimension).equals(path);
         }
-        IrisViewPipelinePath holder = holders.get(dimension);
-        if (holder != null && !holder.equals(path) && expected.test(holder)) {
+        if (!available(path, frame, expected)) {
             return false;
         }
         holders.put(dimension, path);
         drawn.put(dimension, path);
         loans++;
         return true;
+    }
+
+    boolean available(IrisViewPipelinePath path, int frame, Predicate<IrisViewPipelinePath> expected) {
+        String dimension = path.dimension();
+        IrisViewPipelinePath user = framed && frame == this.frame ? drawn.get(dimension) : null;
+        if (user != null) {
+            return user.equals(path);
+        }
+        IrisViewPipelinePath holder = holders.get(dimension);
+        return holder == null || holder.equals(path) || !expected.test(holder);
     }
 
     void forget(Predicate<IrisViewPipelinePath> stale) {
