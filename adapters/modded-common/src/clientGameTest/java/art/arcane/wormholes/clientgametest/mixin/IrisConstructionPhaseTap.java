@@ -1,8 +1,10 @@
 package art.arcane.wormholes.clientgametest.mixin;
 
 import art.arcane.wormholes.clientgametest.FrameHitchTap;
+import art.arcane.wormholes.clientgametest.IrisPipelineCostTap;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Pseudo;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -54,14 +56,19 @@ public abstract class IrisConstructionPhaseTap {
     @Pseudo
     @Mixin(targets = "net.caffeinemc.mods.sodium.client.gl.shader.GlProgram$Builder", remap = false)
     public abstract static class SodiumLink {
+        @Unique
+        private long wormholesHitch$linkStarted;
+
         @Inject(method = "link", at = @At("HEAD"), require = 0)
         private void wormholesHitch$started(CallbackInfoReturnable<?> callback) {
             FrameHitchTap.phaseStarted("sodiumLink");
+            wormholesHitch$linkStarted = System.nanoTime();
         }
 
         @Inject(method = "link", at = @At("RETURN"), require = 0)
         private void wormholesHitch$ended(CallbackInfoReturnable<?> callback) {
             FrameHitchTap.phaseEnded("sodiumLink");
+            IrisPipelineCostTap.linked(System.nanoTime() - wormholesHitch$linkStarted, IrisPipelineCostTap.drawing());
         }
     }
 

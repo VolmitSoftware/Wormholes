@@ -348,8 +348,67 @@ public class IrisProgramReserveTest {
             IrisProgramReserve.Inputs.shader("pass", "vertex", null, null, null, "fragment", null, false));
     }
 
+    @Test
+    public void sodiumInputsDistinguishEveryStageAndKind() {
+        assertEquals(sodium("terrain"), IrisProgramReserve.Inputs.sodium("terrain", new String("terrain vertex"), null, null, null, "fragment"));
+        assertNotEquals(sodium("terrain"), sodium("translucent"));
+        assertNotEquals(sodium("terrain"), IrisProgramReserve.Inputs.sodium("terrain", "terrain vertex", "geometry", null, null, "fragment"));
+        assertNotEquals(sodium("terrain"), IrisProgramReserve.Inputs.sodium("terrain", "terrain vertex", null, "control", null, "fragment"));
+        assertNotEquals(sodium("terrain"), IrisProgramReserve.Inputs.sodium("terrain", "terrain vertex", null, null, "evaluation", "fragment"));
+        assertNotEquals(sodium("terrain"), IrisProgramReserve.Inputs.sodium("terrain", "terrain vertex", null, null, null, "other fragment"));
+        assertNotEquals(sodium("terrain"), IrisProgramReserve.Inputs.shader("terrain", "terrain vertex", null, null, null, "fragment", null,
+            false));
+        assertNotEquals(sodium("terrain"), IrisProgramReserve.Inputs.program("terrain", "terrain vertex", null, "fragment", Set.of()));
+    }
+
+    @Test
+    public void recordedSodiumTerrainProgramsAreHandedWithTheirRecipe() {
+        List<IrisProgramReserve.Inputs> terrain = List.of(sodium("shadow"), sodium("shadow_cutout"), sodium("shadow_trans"), sodium("terrain"),
+            sodium("terrain_cutout"), sodium("translucent"));
+        List<IrisProgramReserve.Inputs> sequence = new ArrayList<>(List.of(TERRAIN, SKY, COMPOSITE));
+        sequence.addAll(terrain);
+        Rig rig = new Rig();
+        rig.record(HOME, false, sequence.toArray(new IrisProgramReserve.Inputs[0]));
+        rig.reserve.home(HOME);
+        rig.drain();
+        assertEquals(2 * sequence.size(), rig.linked.size());
+        assertTrue(rig.reserve.admits(HOME));
+        rig.reserve.begin(HOME, true);
+        rig.reserve.take(TERRAIN);
+        rig.reserve.take(SKY);
+        rig.reserve.take(COMPOSITE);
+        Set<Integer> handed = new HashSet<>();
+        for (IrisProgramReserve.Inputs inputs : terrain) {
+            int program = rig.reserve.take(inputs);
+            assertTrue("a recorded Sodium terrain program must be handed from the reserve", program > 0);
+            assertEquals(inputs, rig.linked.get(rig.programs.indexOf(program)));
+            handed.add(program);
+        }
+        rig.reserve.end(true);
+        assertEquals(terrain.size(), handed.size());
+        assertEquals(0L, rig.reserve.statistics().misses());
+        assertEquals(sequence.size(), rig.reserve.statistics().reserved());
+        Set<Integer> unusedTerrain = new HashSet<>();
+        for (int index = 0; index < rig.programs.size(); index++) {
+            if (terrain.contains(rig.linked.get(index)) && !handed.contains(rig.programs.get(index))) {
+                unusedTerrain.add(rig.programs.get(index));
+            }
+        }
+        assertEquals(terrain.size(), unusedTerrain.size());
+        rig.reserve.clear();
+        assertTrue("clear must delete every unused Sodium terrain spare", rig.deleted.containsAll(unusedTerrain));
+        for (int program : handed) {
+            assertFalse("a handed Sodium terrain program belongs to its pipeline", rig.deleted.contains(program));
+        }
+        assertEquals(sequence.size(), rig.deleted.size());
+    }
+
     private static IrisProgramReserve.Inputs shader(String name, String vertex) {
         return IrisProgramReserve.Inputs.shader(name, vertex, null, null, null, "fragment", FORMAT, false);
+    }
+
+    private static IrisProgramReserve.Inputs sodium(String name) {
+        return IrisProgramReserve.Inputs.sodium(name, name + " vertex", null, null, null, "fragment");
     }
 
     private static Rig filled() {

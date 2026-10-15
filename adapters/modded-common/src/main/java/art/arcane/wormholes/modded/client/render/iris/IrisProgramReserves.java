@@ -69,6 +69,10 @@ public final class IrisProgramReserves {
         return RESERVE.take(IrisProgramReserve.Inputs.compute(name, source, units));
     }
 
+    public static int sodium(String name, String vertex, String geometry, String tessControl, String tessEval, String fragment) {
+        return RESERVE.take(IrisProgramReserve.Inputs.sodium(name, vertex, geometry, tessControl, tessEval, fragment));
+    }
+
     static boolean admits(String dimension) {
         RenderSystem.assertOnRenderThread();
         return RESERVE.admits(dimension);

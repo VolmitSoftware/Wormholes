@@ -18,6 +18,7 @@ final class IrisProgramLinker {
             case PROGRAM -> program(ProgramBuilder.begin(inputs.name(), stages.vertex(), stages.geometry(), stages.fragment(),
                 ImmutableSet.copyOf(inputs.units())));
             case COMPUTE -> program(ProgramBuilder.beginCompute(inputs.name(), stages.compute(), ImmutableSet.copyOf(inputs.units())));
+            case SODIUM -> throw new IllegalStateException("Sodium terrain program " + inputs.name() + " is only reserved on Minecraft 26.1.2");
         };
     }
 

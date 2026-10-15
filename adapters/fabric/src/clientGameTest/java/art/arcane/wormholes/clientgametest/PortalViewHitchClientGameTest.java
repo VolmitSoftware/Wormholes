@@ -130,7 +130,7 @@ public final class PortalViewHitchClientGameTest implements FabricClientGameTest
 
     private static List<String> acceptance(Measured measured) {
         FrameHitchTap.Report report = measured.report();
-        List<String> failures = new ArrayList<>(5);
+        List<String> failures = new ArrayList<>(6);
         if (report.frameCreations() > 1) {
             failures.add(String.format(Locale.ROOT, "%s constructed %d Iris pipelines in one frame", report.scenario(), report.frameCreations()));
         }
@@ -140,6 +140,10 @@ public final class PortalViewHitchClientGameTest implements FabricClientGameTest
         }
         if (report.frameLinks() > 1) {
             failures.add(String.format(Locale.ROOT, "%s linked %d GL programs in one frame", report.scenario(), report.frameLinks()));
+        }
+        if (report.reservedSodiumLinks() > 0) {
+            failures.add(String.format(Locale.ROOT, "%s linked %d Sodium terrain programs while constructing reserved Iris pipelines",
+                report.scenario(), report.reservedSodiumLinks()));
         }
         if (LENDING.contains(report.scenario()) && report.creations() > 0) {
             failures.add(String.format(Locale.ROOT, "%s constructed %d Iris pipelines instead of borrowing idle dimension pipelines",

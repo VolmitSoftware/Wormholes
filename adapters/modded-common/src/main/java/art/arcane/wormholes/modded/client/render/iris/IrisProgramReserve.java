@@ -314,6 +314,10 @@ final class IrisProgramReserve {
         static Inputs compute(String name, String source, Set<Integer> units) {
             return new Inputs(Kind.COMPUTE, name, new Stages(null, null, null, null, null, source), null, false, units);
         }
+
+        static Inputs sodium(String name, String vertex, String geometry, String tessControl, String tessEval, String fragment) {
+            return new Inputs(Kind.SODIUM, name, new Stages(vertex, geometry, tessControl, tessEval, fragment, null), null, false, Set.of());
+        }
     }
 
     record Stages(String vertex, String geometry, String tessControl, String tessEval, String fragment, String compute) {
@@ -334,7 +338,8 @@ final class IrisProgramReserve {
     enum Kind {
         SHADER,
         PROGRAM,
-        COMPUTE
+        COMPUTE,
+        SODIUM
     }
 
     private static final class Recipe {

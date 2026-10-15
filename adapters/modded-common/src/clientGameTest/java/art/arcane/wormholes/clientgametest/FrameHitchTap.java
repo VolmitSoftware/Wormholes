@@ -274,6 +274,16 @@ public final class FrameHitchTap {
             return total;
         }
 
+        public int reservedSodiumLinks() {
+            int total = 0;
+            for (Build build : builds) {
+                if (build.reserved() > 0) {
+                    total += build.sodiumLinks();
+                }
+            }
+            return total;
+        }
+
         public int reserved() {
             int total = 0;
             for (Frame frame : frames) {

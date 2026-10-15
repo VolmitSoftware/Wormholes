@@ -25,6 +25,7 @@ import net.minecraft.world.level.gamerules.GameRules;
 import net.minecraft.world.phys.Vec3;
 import org.lwjgl.opengl.GL11C;
 
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
@@ -97,6 +98,7 @@ public final class ShaderPipelineReuseClientGameTest implements FabricClientGame
                         assertTrue(delta.served() == delta.creations() && delta.constructionLinks() == 0L,
                             "first portal pipelines linked programs instead of taking reserved programs");
                         assertTrue(delta.drawCreations() == 0L, "first portal pipelines were constructed inside portal draw");
+                        NativeSodiumPrograms.owned(main.pipeline(), List.of(original.first().pipeline(), original.second().pipeline()), "first-open");
                     }
                 });
                 motion(context, main, original, "first-motion");
@@ -158,6 +160,8 @@ public final class ShaderPipelineReuseClientGameTest implements FabricClientGame
     private static void expire(ClientGameTestContext context, TestSingleplayerContext singleplayer, UUID[] mirrors,
                                IrisHistoryTap.Sample main, Views previous) {
         IrisPipelineCostTap.Counts idleCost = context.computeOnClient(client -> IrisPipelineCostTap.snapshot());
+        List<Integer> expiring = context.computeOnClient(client -> BASELINE ? List.<Integer>of()
+            : NativeSodiumPrograms.owned(main.pipeline(), List.of(previous.first().pipeline(), previous.second().pipeline()), "before-expiry"));
         projection(singleplayer, mirrors, ProjectionMode.OFF);
         awaitClosed(context);
         resetHistory(context);
@@ -177,6 +181,7 @@ public final class ShaderPipelineReuseClientGameTest implements FabricClientGame
                 assertTrue(IrisPipelineCostTap.releasedIdleNanos(previous.first().pipeline()) >= MIN_RELEASE_IDLE_NANOS
                     && IrisPipelineCostTap.releasedIdleNanos(previous.second().pipeline()) >= MIN_RELEASE_IDLE_NANOS,
                     "portal pipelines were released before the real 60-second idle retention interval");
+                NativeSodiumPrograms.released(List.of(previous.first().pipeline(), previous.second().pipeline()), expiring, "idle-expiry-65s");
             }
             System.out.println("Iris pipeline expiry firstIdleMs="
                 + IrisPipelineCostTap.releasedIdleNanos(previous.first().pipeline()) / 1_000_000.0D + " secondIdleMs="
@@ -200,6 +205,7 @@ public final class ShaderPipelineReuseClientGameTest implements FabricClientGame
                 assertTrue(delta.served() == delta.creations() && delta.constructionLinks() == 0L,
                     "expiry reopen linked programs instead of taking reserved programs");
                 assertTrue(delta.drawCreations() == 0L, "expiry reopen constructed pipelines inside portal draw");
+                NativeSodiumPrograms.owned(main.pipeline(), List.of(next.first().pipeline(), next.second().pipeline()), "reopen-after-expiry");
             }
             return next;
         });
