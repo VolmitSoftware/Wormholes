@@ -2,6 +2,7 @@ package art.arcane.wormholes.util.common;
 
 import art.arcane.volmlib.util.plugin.ComponentLog;
 import art.arcane.volmlib.util.plugin.SplashScreenSupport;
+import org.bukkit.Bukkit;
 import art.arcane.wormholes.Wormholes;
 import net.md_5.bungee.api.ChatColor;
 
@@ -22,7 +23,7 @@ public final class SplashScreen {
         String status = success ? "READY" : "DEGRADED";
         String pluginVersion = plugin.getDescription().getVersion();
         String releaseTrain = SplashScreenSupport.releaseTrain(pluginVersion);
-        String serverVersion = SplashScreenSupport.serverVersionWithoutMcSuffix();
+        String serverVersion = SplashScreenSupport.serverVersionWithoutMcSuffix(Bukkit.getVersion());
         String startupDate = SplashScreenSupport.startupDate();
 
         String splash =
