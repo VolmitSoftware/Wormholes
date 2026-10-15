@@ -89,6 +89,41 @@ final class FabricSeamlessServer implements SeamlessServer {
     }
 
     @Override
+    public PortalPairScene.Pair buildPortalPair(PortalPairScene.Spec spec) {
+        return server.computeOnServer(minecraftServer -> PortalPairScene.build(connection.getServerPlayer(), minecraftServer, spec));
+    }
+
+    @Override
+    public void stance(PortalPairScene.Pair pair, PortalPairScene.Side side, PortalPairScene.Stance stance) {
+        server.runOnServer(minecraftServer -> PortalPairScene.stance(connection.getServerPlayer(), minecraftServer, pair, side, stance));
+    }
+
+    @Override
+    public void fall() {
+        server.runOnServer(minecraftServer -> PortalPairScene.fall(connection.getServerPlayer()));
+    }
+
+    @Override
+    public String playerDimension() {
+        return server.computeOnServer(minecraftServer -> PortalPairScene.dimension(connection.getServerPlayer()));
+    }
+
+    @Override
+    public boolean portalExists(UUID portal) {
+        return server.computeOnServer(minecraftServer -> PortalPairScene.exists(minecraftServer, portal));
+    }
+
+    @Override
+    public int playerGunpowder() {
+        return server.computeOnServer(minecraftServer -> PortalPairScene.gunpowder(connection.getServerPlayer().getInventory()));
+    }
+
+    @Override
+    public void removePortalPair(PortalPairScene.Pair pair) {
+        server.runOnServer(minecraftServer -> PortalPairScene.remove(connection.getServerPlayer(), minecraftServer, pair));
+    }
+
+    @Override
     public Vec3 playerPosition() {
         return server.computeOnServer(minecraftServer -> connection.getServerPlayer().position());
     }

@@ -102,6 +102,19 @@ public class ResidentLevelsOpenCloseTest extends MinecraftTestBase {
     }
 
     @Test
+    public void closeReportsTheLevelWhoseRouteEndedOnlyOnce() {
+        ClientLevel current = ResidentTestFixtures.level(ResidentTestFixtures.OVERWORLD);
+        try (Scope scope = new Scope(current)) {
+            ResidentLevels residents = scope.residents();
+            ClientLevel nether = residents.open(ResidentTestFixtures.open(3, ResidentTestFixtures.NETHER, 12, -4));
+            assertSame(nether, residents.close(new TravelMessage.RemoteLevelClose(3)));
+            assertNull(residents.close(new TravelMessage.RemoteLevelClose(3)));
+            assertNull(residents.close(new TravelMessage.RemoteLevelClose(4)));
+            assertTrue(residents.resident(nether));
+        }
+    }
+
+    @Test
     public void theLevelLeftByACrossingBecomesTheReturnRoutesResidentLevel() {
         ClientLevel current = ResidentTestFixtures.level(ResidentTestFixtures.OVERWORLD);
         try (Scope scope = new Scope(current)) {

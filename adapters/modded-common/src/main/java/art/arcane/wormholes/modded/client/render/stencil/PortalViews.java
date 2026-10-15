@@ -322,6 +322,16 @@ public final class PortalViews {
         }
     }
 
+    public void routeClosed(ClientLevel departed) {
+        if (returning == null || returning.destination() != departed) {
+            return;
+        }
+        current.remove(returning);
+        children.remove(returning.key());
+        closeReturn();
+        invalidateHistory();
+    }
+
     public void resetReturn(ClientLevel home) {
         closeReturn();
         continuations.clear();

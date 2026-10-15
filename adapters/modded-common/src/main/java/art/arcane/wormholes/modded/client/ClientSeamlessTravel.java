@@ -100,7 +100,7 @@ public final class ClientSeamlessTravel {
                 yield true;
             }
             case TravelMessage.RemoteLevelClose close -> {
-                residents.close(close);
+                routeClosed(residents.close(close));
                 yield true;
             }
             case TravelMessage.RoutedPacket packet -> {
@@ -538,6 +538,13 @@ public final class ClientSeamlessTravel {
             from.carry().restore(player);
         }
         ClientWorldLoader.forceFullSectionDiscovery();
+    }
+
+    private static void routeClosed(ClientLevel level) {
+        WormholesClient client = WormholesClient.instance();
+        if (level != null && client != null) {
+            client.portalViews().routeClosed(level);
+        }
     }
 
     private static void crossedView(TravelMessage.TravelBegin arm, ClientLevel source, ClientLevel target) {

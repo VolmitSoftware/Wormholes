@@ -127,7 +127,25 @@ public final class ClientGameTestDriver {
                 new Pass("fall-loop-singleplayer", label -> SeamlessFallLoop.run(client, server, label)),
                 new Pass("held-chunk-singleplayer", label -> SeamlessHeldChunk.run(client, server, label)),
                 new Pass("portal-clip-singleplayer", label -> NativePortalClipAcceptance.run(client, label)),
-                new Pass("stencil-resize-singleplayer", label -> PortalStencilResize.run(client, server, label)));
+                new Pass("stencil-resize-singleplayer", label -> PortalStencilResize.run(client, server, label)),
+                new Pass("end-return-vertical-from-end-singleplayer", label -> EndReturnPortal.run(client, server, label,
+                    PortalPairScene.Orientation.VERTICAL, PortalPairScene.Side.REMOTE)),
+                new Pass("end-return-vertical-from-overworld-singleplayer", label -> EndReturnPortal.run(client, server, label,
+                    PortalPairScene.Orientation.VERTICAL, PortalPairScene.Side.LOCAL)),
+                new Pass("end-return-floor-from-end-singleplayer", label -> EndReturnPortal.run(client, server, label,
+                    PortalPairScene.Orientation.FLOOR, PortalPairScene.Side.REMOTE)),
+                new Pass("end-return-floor-from-overworld-singleplayer", label -> EndReturnPortal.run(client, server, label,
+                    PortalPairScene.Orientation.FLOOR, PortalPairScene.Side.LOCAL)),
+                new Pass("portal-removal-same-dimension-singleplayer", label -> PortalRemovalProjection.finish(client, server,
+                    PortalRemovalProjection.viewer(client, server, label, Level.OVERWORLD, PortalPairScene.Side.LOCAL, PortalRemovalProjection.Method.MENU))),
+                new Pass("portal-removal-end-viewer-singleplayer", label -> PortalRemovalProjection.finish(client, server,
+                    PortalRemovalProjection.viewer(client, server, label, Level.END, PortalPairScene.Side.LOCAL, PortalRemovalProjection.Method.MENU))),
+                new Pass("portal-removal-end-partner-singleplayer", label -> PortalRemovalProjection.finish(client, server,
+                    PortalRemovalProjection.viewer(client, server, label, Level.END, PortalPairScene.Side.REMOTE, PortalRemovalProjection.Method.COMMAND))),
+                new Pass("portal-removal-after-end-crossing-singleplayer", label -> PortalRemovalProjection.finish(client, server,
+                    PortalRemovalProjection.afterCrossing(client, server, label, true))),
+                new Pass("portal-removal-one-way-after-end-crossing-singleplayer", label -> PortalRemovalProjection.finish(client, server,
+                    PortalRemovalProjection.afterCrossing(client, server, label, false))));
         }
         return List.of(
             new Pass("same-dimension-dedicated", label -> SeamlessSameDimension.seamless(client, server, label)),

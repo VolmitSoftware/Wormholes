@@ -184,6 +184,17 @@ public class ClientSeamlessTravelTest extends MinecraftTestBase {
     }
 
     @Test
+    public void aClosedRouteReleasesReturnViewsIntoItsLevelOnce() throws ReflectiveOperationException {
+        try (Crossing crossing = new Crossing(false)) {
+            assertTrue(crossing.travel.receive(new TravelMessage.RemoteLevelClose(3)));
+            verify(crossing.portalViews).routeClosed(crossing.nether);
+            assertTrue(crossing.travel.receive(new TravelMessage.RemoteLevelClose(3)));
+            assertTrue(crossing.travel.receive(new TravelMessage.RemoteLevelClose(9)));
+            verify(crossing.portalViews).routeClosed(any());
+        }
+    }
+
+    @Test
     public void anUnclaimedServerCrossingIntoAnUnknownLevelAsksForItToBeReopened() throws ReflectiveOperationException {
         try (Crossing crossing = new Crossing(false)) {
             crossing.residents.close(new TravelMessage.RemoteLevelClose(3));

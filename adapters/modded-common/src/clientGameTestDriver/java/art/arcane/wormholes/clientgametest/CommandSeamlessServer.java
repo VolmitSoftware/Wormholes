@@ -87,6 +87,41 @@ final class CommandSeamlessServer implements SeamlessServer {
     }
 
     @Override
+    public PortalPairScene.Pair buildPortalPair(PortalPairScene.Spec spec) {
+        return RouteCodec.pair(client.command("wormholesqa pair " + RouteCodec.pairSpec(spec), "pair", REPLY_TIMEOUT_TICKS));
+    }
+
+    @Override
+    public void stance(PortalPairScene.Pair pair, PortalPairScene.Side side, PortalPairScene.Stance stance) {
+        client.command("wormholesqa stance " + RouteCodec.pair(pair) + " " + side.name() + " " + stance.name(), "stance", REPLY_TIMEOUT_TICKS);
+    }
+
+    @Override
+    public void fall() {
+        client.command("wormholesqa fall", "fall", REPLY_TIMEOUT_TICKS);
+    }
+
+    @Override
+    public String playerDimension() {
+        return client.command("wormholesqa dimension", "dimension", REPLY_TIMEOUT_TICKS).trim();
+    }
+
+    @Override
+    public boolean portalExists(UUID portal) {
+        return Boolean.parseBoolean(client.command("wormholesqa exists " + portal, "exists", REPLY_TIMEOUT_TICKS).trim());
+    }
+
+    @Override
+    public int playerGunpowder() {
+        return Integer.parseInt(client.command("wormholesqa gunpowder", "gunpowder", REPLY_TIMEOUT_TICKS).trim());
+    }
+
+    @Override
+    public void removePortalPair(PortalPairScene.Pair pair) {
+        client.command("wormholesqa removepair " + RouteCodec.pair(pair), "pairremoved", REPLY_TIMEOUT_TICKS);
+    }
+
+    @Override
     public boolean chunkEverLoaded(ResourceKey<Level> level, int chunkX, int chunkZ) {
         return Boolean.parseBoolean(client.command("wormholesqa loaded " + RouteCodec.level(level) + " " + chunkX + " " + chunkZ, "loaded",
             REPLY_TIMEOUT_TICKS).trim());

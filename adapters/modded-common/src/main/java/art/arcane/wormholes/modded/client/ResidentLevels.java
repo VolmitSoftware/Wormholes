@@ -70,18 +70,19 @@ public final class ResidentLevels {
         return resident.level();
     }
 
-    public void close(TravelMessage.RemoteLevelClose close) {
+    public ClientLevel close(TravelMessage.RemoteLevelClose close) {
         ResidentLevel resident = handles.get(close.levelHandle());
         if (resident == null) {
-            return;
+            return null;
         }
         unbind(resident);
         if (resident.level() == activeLevel()) {
             levels.remove(resident);
-            return;
+            return resident.level();
         }
         ResidentLevel.discardEntities(resident.level());
         enforceBudget();
+        return resident.level();
     }
 
     public void route(TravelMessage.RoutedPacket fragment) {

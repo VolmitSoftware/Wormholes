@@ -890,6 +890,28 @@ public class PortalViewsTest extends MinecraftTestBase {
     }
 
     @Test
+    public void closedRouteToTheDepartedLevelEndsTheReturnViewImmediately() {
+        try (TravelScene travel = new TravelScene()) {
+            travel.arrive(List.of());
+            PortalView returning = travel.scene.views.current().getFirst();
+            assertEquals(PortalView.Kind.RETURN, returning.kind());
+            assertSame(travel.scene.home, returning.destination());
+            travel.scene.views.routeClosed(travel.destination);
+            assertSame(returning, travel.scene.views.follow(travel.destination));
+            travel.scene.views.frame(travel.destination, travel.toward.point(EYE), List.of(), false, true, List.of(), null);
+            assertSame(returning, travel.scene.views.current().getFirst());
+            long epoch = travel.scene.views.continuityEpoch();
+            travel.scene.views.routeClosed(travel.scene.home);
+            assertTrue(travel.scene.views.current().isEmpty());
+            assertNull(travel.scene.views.follow(travel.destination));
+            assertFalse(travel.scene.views.hasTraversalHistory());
+            assertTrue(travel.scene.views.continuityEpoch() > epoch);
+            travel.scene.views.frame(travel.destination, travel.toward.point(EYE), List.of(), false, true, List.of(), null);
+            assertTrue(travel.scene.views.current().isEmpty());
+        }
+    }
+
+    @Test
     public void latestCrossingOwnsReturnWithoutAnIntermediateRenderFrame() {
         try (TravelScene travel = new TravelScene()) {
             TravelMessage.TravelBegin reverse = travel.reverse(UUID.randomUUID(), reverseGeometry(false));

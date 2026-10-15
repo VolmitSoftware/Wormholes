@@ -41,7 +41,15 @@ public final class SeamlessQaCommand {
             .then(Commands.literal("loaded").then(Commands.argument(ARGUMENT, StringArgumentType.greedyString()).executes(SeamlessQaCommand::loaded)))
             .then(Commands.literal("approachfrom").then(Commands.argument(ARGUMENT, StringArgumentType.greedyString())
                 .executes(SeamlessQaCommand::approachFrom)))
-            .then(Commands.literal("position").executes(SeamlessQaCommand::position)));
+            .then(Commands.literal("position").executes(SeamlessQaCommand::position))
+            .then(Commands.literal("pair").then(Commands.argument(ARGUMENT, StringArgumentType.greedyString()).executes(SeamlessQaCommand::pair)))
+            .then(Commands.literal("stance").then(Commands.argument(ARGUMENT, StringArgumentType.greedyString()).executes(SeamlessQaCommand::stance)))
+            .then(Commands.literal("removepair").then(Commands.argument(ARGUMENT, StringArgumentType.greedyString())
+                .executes(SeamlessQaCommand::removePair)))
+            .then(Commands.literal("exists").then(Commands.argument(ARGUMENT, StringArgumentType.greedyString()).executes(SeamlessQaCommand::exists)))
+            .then(Commands.literal("fall").executes(SeamlessQaCommand::fall))
+            .then(Commands.literal("dimension").executes(SeamlessQaCommand::dimension))
+            .then(Commands.literal("gunpowder").executes(SeamlessQaCommand::gunpowder)));
     }
 
     private static int route(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
@@ -193,6 +201,72 @@ public final class SeamlessQaCommand {
         ServerPlayer player = context.getSource().getPlayerOrException();
         Vec3 position = player.position();
         reply(player, "position " + position.x + "," + position.y + "," + position.z);
+        return 1;
+    }
+
+    private static int pair(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        ServerPlayer player = context.getSource().getPlayerOrException();
+        try {
+            PortalPairScene.Pair pair = PortalPairScene.build(player, context.getSource().getServer(),
+                RouteCodec.pairSpec(StringArgumentType.getString(context, ARGUMENT)));
+            reply(player, "pair " + RouteCodec.pair(pair));
+        } catch (RuntimeException | AssertionError failure) {
+            fail(player, "pair", failure);
+        }
+        return 1;
+    }
+
+    private static int stance(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        ServerPlayer player = context.getSource().getPlayerOrException();
+        try {
+            String[] fields = StringArgumentType.getString(context, ARGUMENT).trim().split(" ");
+            PortalPairScene.stance(player, context.getSource().getServer(), RouteCodec.pair(fields[0]), PortalPairScene.Side.valueOf(fields[1]),
+                PortalPairScene.Stance.valueOf(fields[2]));
+            reply(player, "stance");
+        } catch (RuntimeException | AssertionError failure) {
+            fail(player, "stance", failure);
+        }
+        return 1;
+    }
+
+    private static int removePair(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        ServerPlayer player = context.getSource().getPlayerOrException();
+        try {
+            PortalPairScene.remove(player, context.getSource().getServer(), RouteCodec.pair(StringArgumentType.getString(context, ARGUMENT)));
+            reply(player, "pairremoved");
+        } catch (RuntimeException | AssertionError failure) {
+            fail(player, "removepair", failure);
+        }
+        return 1;
+    }
+
+    private static int exists(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        ServerPlayer player = context.getSource().getPlayerOrException();
+        try {
+            reply(player, "exists " + PortalPairScene.exists(context.getSource().getServer(),
+                UUID.fromString(StringArgumentType.getString(context, ARGUMENT).trim())));
+        } catch (RuntimeException | AssertionError failure) {
+            fail(player, "exists", failure);
+        }
+        return 1;
+    }
+
+    private static int fall(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        ServerPlayer player = context.getSource().getPlayerOrException();
+        PortalPairScene.fall(player);
+        reply(player, "fall");
+        return 1;
+    }
+
+    private static int dimension(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        ServerPlayer player = context.getSource().getPlayerOrException();
+        reply(player, "dimension " + PortalPairScene.dimension(player));
+        return 1;
+    }
+
+    private static int gunpowder(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        ServerPlayer player = context.getSource().getPlayerOrException();
+        reply(player, "gunpowder " + PortalPairScene.gunpowder(player.getInventory()));
         return 1;
     }
 

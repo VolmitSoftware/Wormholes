@@ -58,6 +58,32 @@ final class RouteCodec {
             position(fields[4]), leg(fields[5]), leg(fields[6]), UUID.fromString(fields[7]), UUID.fromString(fields[8]));
     }
 
+    static String pairSpec(PortalPairScene.Spec spec) {
+        return spec.orientation().name() + " " + level(spec.remote()) + " " + spec.start().name() + " " + spec.reciprocal();
+    }
+
+    static PortalPairScene.Spec pairSpec(String text) {
+        String[] fields = text.trim().split(" ");
+        if (fields.length != 4) {
+            throw new IllegalArgumentException("portal pair spec needs 4 fields: " + text);
+        }
+        return new PortalPairScene.Spec(PortalPairScene.Orientation.valueOf(fields[0]), level(fields[1]), PortalPairScene.Side.valueOf(fields[2]),
+            Boolean.parseBoolean(fields[3]));
+    }
+
+    static String pair(PortalPairScene.Pair pair) {
+        return String.join("|", pair.local().toString(), pair.remote().toString(), level(pair.remoteLevel()), pair.orientation().name());
+    }
+
+    static PortalPairScene.Pair pair(String text) {
+        String[] fields = text.trim().split(FIELDS);
+        if (fields.length != 4) {
+            throw new IllegalArgumentException("portal pair needs 4 fields: " + text);
+        }
+        return new PortalPairScene.Pair(UUID.fromString(fields[0]), UUID.fromString(fields[1]), level(fields[2]),
+            PortalPairScene.Orientation.valueOf(fields[3]));
+    }
+
     static String ids(List<UUID> ids) {
         List<String> values = new ArrayList<>(ids.size());
         for (UUID id : ids) {

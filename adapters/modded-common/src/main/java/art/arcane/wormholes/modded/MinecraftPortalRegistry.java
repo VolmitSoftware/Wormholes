@@ -275,6 +275,7 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
             }
         }
         runtime.effects().removed(removed);
+        runtime.remoteRoutes().portalRemoved(id);
         runtime.network().portalRemoved(id);
         runtime.nexus().removed(removed);
         runtime.atlas().forget(id);

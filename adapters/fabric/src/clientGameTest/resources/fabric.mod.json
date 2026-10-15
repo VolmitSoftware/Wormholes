@@ -25,7 +25,9 @@
       "art.arcane.wormholes.clientgametest.GravityPortalAcceptanceClientGameTest",
       "art.arcane.wormholes.clientgametest.NestedHorizontalPortalAcceptanceClientGameTest",
       "art.arcane.wormholes.clientgametest.ScaledPairClientGameTest",
-      "art.arcane.wormholes.clientgametest.AdjacentSourcePortalsClientGameTest"
+      "art.arcane.wormholes.clientgametest.AdjacentSourcePortalsClientGameTest",
+      "art.arcane.wormholes.clientgametest.EndReturnPortalClientGameTest",
+      "art.arcane.wormholes.clientgametest.PortalRemovalProjectionClientGameTest"
     ],
     "wormholes-gravity-movement-gametest": [
       "art.arcane.wormholes.clientgametest.GravityMovementAcceptanceClientGameTest"

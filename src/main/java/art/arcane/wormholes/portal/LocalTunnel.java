@@ -40,10 +40,13 @@ public class LocalTunnel extends Tunnel
 
 	private ILocalPortal findDestination()
 	{
-		if(portal instanceof ILocalPortal localPortal)
-		{
-			return localPortal;
-		}
+		ILocalPortal destination = portal instanceof ILocalPortal localPortal && !localPortal.isDestroyed()
+				? localPortal : registeredDestination();
+		return destination == null || destination.isDestroyed() ? null : destination;
+	}
+
+	private ILocalPortal registeredDestination()
+	{
 		if(pendingDestinationId == null || Wormholes.portalManager == null)
 		{
 			return null;

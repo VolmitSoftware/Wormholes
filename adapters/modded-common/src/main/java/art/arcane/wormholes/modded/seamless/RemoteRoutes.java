@@ -344,6 +344,20 @@ public final class RemoteRoutes implements AutoCloseable {
         }
     }
 
+    public void portalRemoved(UUID portal) {
+        runtime.requireServerThread();
+        for (PlayerRoutes state : players.values()) {
+            Iterator<RemoteRoute> iterator = state.routes.iterator();
+            while (iterator.hasNext()) {
+                RemoteRoute route = iterator.next();
+                if (route.sourceId().equals(portal) || route.destinationId().equals(portal)) {
+                    retire(state, route, true);
+                    iterator.remove();
+                }
+            }
+        }
+    }
+
     public void forget(UUID player, boolean notify) {
         PlayerRoutes state = players.remove(player);
         if (state == null) {

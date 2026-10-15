@@ -38,4 +38,18 @@ interface SeamlessServer {
     List<UUID> buildStencilResize();
 
     void removePortals(List<UUID> portals);
+
+    PortalPairScene.Pair buildPortalPair(PortalPairScene.Spec spec);
+
+    void stance(PortalPairScene.Pair pair, PortalPairScene.Side side, PortalPairScene.Stance stance);
+
+    void fall();
+
+    String playerDimension();
+
+    boolean portalExists(UUID portal);
+
+    int playerGunpowder();
+
+    void removePortalPair(PortalPairScene.Pair pair);
 }
