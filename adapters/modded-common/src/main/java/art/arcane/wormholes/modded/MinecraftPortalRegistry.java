@@ -7,6 +7,7 @@ import art.arcane.wormholes.modded.gravity.MinecraftGravity;
 import art.arcane.wormholes.modded.gravity.MinecraftGravityTransit;
 import art.arcane.wormholes.transit.TransitOrientation;
 import art.arcane.wormholes.localization.TransitMessages;
+import art.arcane.wormholes.localization.WormholesMessages;
 import art.arcane.optics.crossing.ScaleRule;
 import art.arcane.optics.frame.Similarity;
 import art.arcane.optics.math.Vec3d;
@@ -267,19 +268,39 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
             return false;
         }
         revision++;
-        UUID counterpart = removed.getCounterpartId();
-        if (counterpart != null) {
-            MinecraftPortal paired = portals.get(counterpart);
-            if (paired != null && id.equals(paired.getCounterpartId())) {
-                paired.setCounterpartId(null);
-                remove(counterpart);
-            }
-        }
+        MinecraftPortal counterpart = deletedCounterpart(removed);
         runtime.effects().removed(removed);
+        MinecraftPortalText.notifyNearby(runtime, removed, WormholesMessages.PORTAL_DELETED,
+            MinecraftPortalText.arguments("portal", removed.getName()), false);
         runtime.remoteRoutes().portalRemoved(id);
         runtime.network().portalRemoved(id);
+        deleteStored(id);
+        if (counterpart != null) {
+            remove(counterpart.getId());
+        }
         runtime.nexus().removed(removed);
         runtime.atlas().forget(id);
+        return true;
+    }
+
+    public int removeAll() {
+        runtime.requireServerThread();
+        List<MinecraftPortal> removed = List.copyOf(portals.values());
+        portals.clear();
+        revision++;
+        for (MinecraftPortal portal : removed) {
+            UUID id = portal.getId();
+            runtime.effects().retired(portal);
+            runtime.remoteRoutes().portalRemoved(id);
+            runtime.network().portalRemoved(id);
+            runtime.nexus().removed(portal);
+            runtime.atlas().forget(id);
+            deleteStored(id);
+        }
+        return removed.size();
+    }
+
+    private void deleteStored(UUID id) {
         storage.execute(() -> {
             try {
                 Files.deleteIfExists(PortalStateCodec.file(options.directory(), id));
@@ -287,7 +308,19 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
                 LOGGER.error("Could not delete Wormholes portal {}", id, exception);
             }
         });
-        return true;
+    }
+
+    private MinecraftPortal deletedCounterpart(MinecraftPortal removed) {
+        UUID explicit = removed.getCounterpartId();
+        UUID counterpartId = explicit != null ? explicit : "DIMENSIONAL".equals(removed.getTunnelType()) ? removed.getDestinationId() : null;
+        MinecraftPortal counterpart = counterpartId == null ? null : portals.get(counterpartId);
+        if (counterpart == null) {
+            return null;
+        }
+        UUID id = removed.getId();
+        boolean linksBack = id.equals(counterpart.getCounterpartId())
+            || "DIMENSIONAL".equals(counterpart.getTunnelType()) && id.equals(counterpart.getDestinationId());
+        return explicit != null || linksBack ? counterpart : null;
     }
 
     public void tick() {

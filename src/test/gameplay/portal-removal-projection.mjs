@@ -7,16 +7,32 @@ const REMOVED_MARK = 'diamond_block'
 const PARTNER_MARK = 'gold_block'
 const REMOVAL_DEADLINE_MS = 5000
 const PRESENCE_DEADLINE_MS = 30000
+const STORAGE_DEADLINE_MS = 15000
+const NOTICE_DEADLINE_MS = 5000
 const CASES = {
   'cross-world-outbound': { z: 400, partner: END, link: 'outbound' },
   'cross-world-pair': { z: 600, partner: END, link: 'pair' },
   'cross-world-inbound': { z: 800, partner: END, link: 'inbound' },
-  'same-world-pair': { z: 1000, partner: OVERWORLD, link: 'pair' }
+  'same-world-pair': { z: 1000, partner: OVERWORLD, link: 'pair' },
+  'cross-world-mutual': { z: 1200, partner: END, link: 'mutual' }
 }
+
+function expectedPartner(link, partner, removedId) {
+  const sameWorld = partner === OVERWORLD
+  const returnLink = { type: sameWorld ? 'LOCAL' : 'DIMENSIONAL', destination: removedId }
+  if (link === 'pair') return sameWorld ? { kept: true, tunnel: null } : { kept: false }
+  if (link === 'mutual') return sameWorld ? { kept: true, tunnel: returnLink } : { kept: false }
+  if (link === 'inbound') return { kept: true, tunnel: returnLink }
+  return { kept: true, tunnel: null }
+}
+
+const sameTunnel = (actual, expected) => expected === null
+  ? actual === null
+  : actual !== null && actual.type === expected.type && actual.destination === expected.destination
 
 export default {
   name: 'wormholes-portal-removal-projection',
-  description: 'Delete a projecting 3x3 portal from its menu and verify its projection, the partner view, relog, and chunk reload show nothing.',
+  description: 'Delete a projecting 3x3 portal from its menu and verify the deletion contract, notices, no refund, and that its projection, the partner view, relog, and chunk reload show nothing.',
   async run(context) {
     const portals = crossWorldPortals(context)
     const { p, bot } = portals
@@ -166,7 +182,28 @@ export default {
     }
 
     async function storedNames() {
-      return (await storedPortals(directory)).map(entry => ({ id: entry.id, name: entry.data.name, tunnel: entry.data.tunnel ?? null }))
+      return (await storedPortals(directory)).map(entry => ({ id: entry.id, name: entry.data.name, tunnel: entry.data.tunnel ?? null,
+        reciprocal: entry.data['nexus.reciprocal'] === true }))
+    }
+
+    function collectNotices(target) {
+      const notices = []
+      const listener = message => notices.push(message.toString())
+      target.on('actionBar', listener)
+      return { notices, stop: () => target.removeListener('actionBar', listener) }
+    }
+
+    async function expectNotice(collector, portalName, label) {
+      await context.waitUntil(() => collector.notices.some(notice => notice.includes(portalName) && notice.includes('Deleted')),
+        { label, timeoutMs: NOTICE_DEADLINE_MS })
+    }
+
+    function contractHolds(record, removedId, keptId, expected) {
+      const after = record.storedAfter
+      if (after.some(entry => entry.id === removedId)) return false
+      const survivor = after.find(entry => entry.id === keptId)
+      if (!expected.kept) return !survivor
+      return Boolean(survivor) && sameTunnel(survivor.tunnel, expected.tunnel) && !survivor.reciprocal
     }
 
     async function soft(record, label, action) {
@@ -209,6 +246,10 @@ export default {
         if (link === 'pair') record.pairing = await portals.linkAndReturn(removed, kept)
         if (link === 'outbound') await portals.link(removed, kept)
         if (link === 'inbound') await portals.link(kept, removed)
+        if (link === 'mutual') {
+          await portals.link(removed, kept)
+          await portals.link(kept, removed)
+        }
         record.storedBefore = await storedNames()
       })
       await context.step(`${name}: viewers observe the projections`, async () => {
@@ -227,13 +268,42 @@ export default {
           record.partnerStreamBefore = await expectPresent(checks[3], 'partner ClientView viewer receives the partner stream')
         }
       })
-      await context.step(`${name}: delete the projecting portal from its menu`, async () => {
-        const before = bot.inventory.items().map(item => `${item.name}x${item.count}`)
-        await portals.remove(removed)
-        await bot.look(0, 0, true)
-        record.inventory = { before, after: bot.inventory.items().map(item => `${item.name}x${item.count}`) }
-        record.storedAfter = await storedNames()
-      })
+      const removedEntry = record.storedBefore.find(entry => entry.name === removed.name)
+      const keptEntry = record.storedBefore.find(entry => entry.name === kept.name)
+      context.expect(removedEntry && keptEntry, 'Both portals are saved before deletion', record.storedBefore)
+      const expected = expectedPartner(link, partner, removedEntry.id)
+      record.expectedPartner = expected
+      const removerNotices = collectNotices(bot)
+      const partnerNotices = collectNotices(viewers.partner.bot)
+      try {
+        await context.step(`${name}: delete the projecting portal from its menu`, async () => {
+          const before = bot.inventory.items().map(item => `${item.name}x${item.count}`)
+          await portals.remove(removed)
+          await bot.look(0, 0, true)
+          record.inventory = { before, after: bot.inventory.items().map(item => `${item.name}x${item.count}`) }
+          record.storedAfter = await storedNames()
+        })
+        await soft(record, `${name}: deletion follows the Bukkit pair contract`, async () => {
+          try {
+            await context.waitUntil(async () => {
+              record.storedAfter = await storedNames()
+              return contractHolds(record, removedEntry.id, keptEntry.id, expected)
+            }, { label: `${name}: saved portals match the deletion contract`, timeoutMs: STORAGE_DEADLINE_MS, intervalMs: 250 })
+          } catch (error) {
+            error.details = { storedAfter: record.storedAfter, expected }
+            throw error
+          }
+          context.expect(record.inventory.before.join(',') === record.inventory.after.join(','), 'Deleting a portal refunds nothing', record.inventory)
+        })
+        await soft(record, `${name}: deletion notices reach nearby players`, async () => {
+          await expectNotice(removerNotices, removed.name, `${removed.name} Deleted notice for the remover`)
+          if (!expected.kept) await expectNotice(partnerNotices, kept.name, `${kept.name} Deleted notice for the partner viewer`)
+        })
+      } finally {
+        record.notices = { remover: removerNotices.notices, partner: partnerNotices.notices }
+        removerNotices.stop()
+        partnerNotices.stop()
+      }
       await soft(record, `${name}: every viewer loses the removed portal projection`, async () => {
         record.cleanupMs = await expectGone(checks, `${name}: every viewer loses the removed portal projection`, record)
       })

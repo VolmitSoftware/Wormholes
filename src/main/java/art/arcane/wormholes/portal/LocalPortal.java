@@ -526,12 +526,12 @@ public class LocalPortal extends Portal implements ILocalPortal, Listener, Porta
 	@Override
 	public void destroy()
 	{
-		boolean wasDestroyed = linking.isDestroyed();
-		linking.destroy();
-		if(!wasDestroyed && linking.isDestroyed())
+		if(!linking.destroy())
 		{
-			extensions.onPortalDestroyed();
+			return;
 		}
+		extensions.onPortalDestroyed();
+		linking.releaseTunnel();
 	}
 
 	public void retireForBulkDeletion()

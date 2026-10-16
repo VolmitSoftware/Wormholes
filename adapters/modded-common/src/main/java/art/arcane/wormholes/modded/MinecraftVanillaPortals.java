@@ -220,6 +220,7 @@ public final class MinecraftVanillaPortals implements AutoCloseable {
             return true;
         } catch (RuntimeException failure) {
             if (origin != null) {
+                origin.unlink();
                 origin.setCounterpartId(null);
                 runtime.portals().remove(origin.getId());
             }

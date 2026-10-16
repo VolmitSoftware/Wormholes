@@ -70,6 +70,11 @@ public final class MinecraftPortalEffects implements AutoCloseable {
         begin(portal, PortalAnimation.Mode.CLOSE, List.of());
     }
 
+    public void retired(MinecraftPortal portal) {
+        states.remove(portal.getId());
+        cancel(portal.getId());
+    }
+
     public void tick() {
         runtime.requireServerThread();
         Set<UUID> present = new HashSet<>();
@@ -126,11 +131,15 @@ public final class MinecraftPortalEffects implements AutoCloseable {
         return active != null && active.creation;
     }
 
-    private void begin(MinecraftPortal portal, PortalAnimation.Mode mode, List<PortalAnimation.Block> blocks) {
-        Active previous = animations.remove(portal.getId());
+    private void cancel(UUID id) {
+        Active previous = animations.remove(id);
         if (previous != null) {
             previous.animation.close();
         }
+    }
+
+    private void begin(MinecraftPortal portal, PortalAnimation.Mode mode, List<PortalAnimation.Block> blocks) {
+        cancel(portal.getId());
         ServerLevel level = runtime.portals().resolveLevel(portal);
         if (level == null) {
             return;

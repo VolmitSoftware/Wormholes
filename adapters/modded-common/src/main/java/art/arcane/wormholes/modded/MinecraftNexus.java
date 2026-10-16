@@ -288,7 +288,8 @@ public final class MinecraftNexus implements AutoCloseable {
     public void removed(MinecraftPortal portal) {
         if (Boolean.TRUE.equals(portal.setting("nexus.reciprocal"))) {
             MinecraftPortal counterpart = runtime.portals().get(portal.getDestinationId());
-            if (counterpart != null && portal.getId().equals(counterpart.getDestinationId())) {
+            if (counterpart != null && Boolean.TRUE.equals(counterpart.setting("nexus.reciprocal"))
+                && portal.getId().equals(counterpart.getDestinationId())) {
                 counterpart.unlink();
                 counterpart.setNexusValue("reciprocal", false);
                 runtime.portals().save(counterpart);

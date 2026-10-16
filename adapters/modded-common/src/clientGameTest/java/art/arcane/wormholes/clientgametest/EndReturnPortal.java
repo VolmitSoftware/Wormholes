@@ -23,7 +23,7 @@ final class EndReturnPortal {
                     PortalPairScene.Side start) {
         SeamlessScenario.join(client);
         SeamlessScenario.assertSeamlessNegotiated(client);
-        PortalPairScene.Pair pair = server.buildPortalPair(new PortalPairScene.Spec(orientation, Level.END, start, true));
+        PortalPairScene.Pair pair = server.buildPortalPair(new PortalPairScene.Spec(orientation, Level.END, start, PortalPairScene.Link.LINK_AND_RETURN));
         PortalPairScene.Side other = start == PortalPairScene.Side.LOCAL ? PortalPairScene.Side.REMOTE : PortalPairScene.Side.LOCAL;
         try {
             Leg outbound = cross(client, server, pair, start, other, label + " outbound", false);

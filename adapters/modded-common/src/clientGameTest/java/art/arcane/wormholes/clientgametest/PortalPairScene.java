@@ -3,6 +3,9 @@ package art.arcane.wormholes.clientgametest;
 import art.arcane.wormholes.modded.MinecraftPortal;
 import art.arcane.wormholes.modded.MinecraftPortalItems;
 import art.arcane.wormholes.modded.WormholesModRuntime;
+import art.arcane.wormholes.portal.PortalStateCodec;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceKey;
@@ -20,6 +23,11 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
@@ -35,6 +43,7 @@ final class PortalPairScene {
     private static final double DROP_HEIGHT = 3.0D;
     private static final int SHAFT_DEPTH = 6;
     private static final float BUILD_PITCH = 60.0F;
+    private static final TypeToken<Map<String, Object>> DOCUMENT = new TypeToken<>() { };
 
     private PortalPairScene() {
     }
@@ -55,7 +64,9 @@ final class PortalPairScene {
         MinecraftPortal source = Objects.requireNonNull(runtime.portals().get(second), "second portal");
         MinecraftPortal destination = Objects.requireNonNull(runtime.portals().get(first), "first portal");
         assertTrue(runtime.portals().link(player, source.getId(), destination.getId()), "destination link rejected");
-        if (spec.reciprocal()) {
+        if (spec.link() == Link.MUTUAL) {
+            assertTrue(runtime.portals().link(player, destination.getId(), source.getId()), "return link rejected");
+        } else if (spec.link() == Link.LINK_AND_RETURN) {
             runtime.nexus().pair(player, source, destination, true);
             assertTrue(second.equals(destination.getDestinationId()), "link and return did not create a reciprocal pair");
         }
@@ -94,6 +105,35 @@ final class PortalPairScene {
 
     static boolean exists(MinecraftServer server, UUID portal) {
         return runtime(server).portals().get(portal) != null;
+    }
+
+    static String name(MinecraftServer server, UUID portal) {
+        return Objects.requireNonNull(runtime(server).portals().get(portal), "portal " + portal).getName();
+    }
+
+    static Stored stored(MinecraftServer server, UUID portal) {
+        WormholesModRuntime runtime = runtime(server);
+        runtime.portals().flushWrites().join();
+        Path file = PortalStateCodec.file(runtime.stores().data().resolve("portals"), portal);
+        MinecraftPortal live = runtime.portals().get(portal);
+        Map<String, String> liveTunnel = live == null || live.getDestinationId() == null ? Map.of()
+            : Map.of("type", live.getTunnelType(), "destination", live.getDestinationId().toString());
+        boolean liveReciprocal = live != null && Boolean.TRUE.equals(live.setting("nexus.reciprocal"));
+        if (!Files.isRegularFile(file)) {
+            return new Stored(live != null, liveTunnel, liveReciprocal, false, Map.of(), false);
+        }
+        try {
+            Map<String, Object> document = new Gson().fromJson(Files.readString(file), DOCUMENT);
+            Map<String, String> tunnel = new LinkedHashMap<>();
+            if (document.get("tunnel") instanceof Map<?, ?> saved) {
+                for (Map.Entry<?, ?> entry : saved.entrySet()) {
+                    tunnel.put(String.valueOf(entry.getKey()), String.valueOf(entry.getValue()));
+                }
+            }
+            return new Stored(live != null, liveTunnel, liveReciprocal, true, Map.copyOf(tunnel), Boolean.TRUE.equals(document.get("nexus.reciprocal")));
+        } catch (IOException failure) {
+            throw new AssertionError("could not read the saved portal " + file, failure);
+        }
     }
 
     static int gunpowder(Inventory inventory) {
@@ -189,7 +229,24 @@ final class PortalPairScene {
         BEHIND
     }
 
-    record Spec(Orientation orientation, ResourceKey<Level> remote, Side start, boolean reciprocal) {
+    enum Link {
+        ONE_WAY,
+        MUTUAL,
+        LINK_AND_RETURN
+    }
+
+    record Spec(Orientation orientation, ResourceKey<Level> remote, Side start, Link link) {
+    }
+
+    record Stored(boolean registered, Map<String, String> liveTunnel, boolean liveReciprocal, boolean saved, Map<String, String> savedTunnel,
+                  boolean savedReciprocal) {
+        boolean absent() {
+            return !registered && !saved;
+        }
+
+        boolean keeps(Map<String, String> tunnel) {
+            return registered && saved && liveTunnel.equals(tunnel) && savedTunnel.equals(tunnel) && !liveReciprocal && !savedReciprocal;
+        }
     }
 
     record Pair(UUID local, UUID remote, ResourceKey<Level> remoteLevel, Orientation orientation) {

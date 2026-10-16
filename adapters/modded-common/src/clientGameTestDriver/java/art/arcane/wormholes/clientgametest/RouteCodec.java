@@ -59,7 +59,7 @@ final class RouteCodec {
     }
 
     static String pairSpec(PortalPairScene.Spec spec) {
-        return spec.orientation().name() + " " + level(spec.remote()) + " " + spec.start().name() + " " + spec.reciprocal();
+        return spec.orientation().name() + " " + level(spec.remote()) + " " + spec.start().name() + " " + spec.link().name();
     }
 
     static PortalPairScene.Spec pairSpec(String text) {
@@ -68,7 +68,7 @@ final class RouteCodec {
             throw new IllegalArgumentException("portal pair spec needs 4 fields: " + text);
         }
         return new PortalPairScene.Spec(PortalPairScene.Orientation.valueOf(fields[0]), level(fields[1]), PortalPairScene.Side.valueOf(fields[2]),
-            Boolean.parseBoolean(fields[3]));
+            PortalPairScene.Link.valueOf(fields[3]));
     }
 
     static String pair(PortalPairScene.Pair pair) {

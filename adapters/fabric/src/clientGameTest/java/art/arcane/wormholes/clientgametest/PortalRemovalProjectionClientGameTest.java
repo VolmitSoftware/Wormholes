@@ -22,15 +22,17 @@ public final class PortalRemovalProjectionClientGameTest implements FabricClient
         List<String> failures = new ArrayList<>();
         for (Variant variant : List.of(
             new Variant("portal-removal-same-dimension-menu", (client, server, label) -> PortalRemovalProjection.viewer(client, server, label,
-                Level.OVERWORLD, PortalPairScene.Side.LOCAL, PortalRemovalProjection.Method.MENU)),
+                Level.OVERWORLD, PortalPairScene.Side.LOCAL, PortalRemovalProjection.Method.MENU, PortalPairScene.Link.LINK_AND_RETURN)),
             new Variant("portal-removal-end-viewer-menu", (client, server, label) -> PortalRemovalProjection.viewer(client, server, label,
-                Level.END, PortalPairScene.Side.LOCAL, PortalRemovalProjection.Method.MENU)),
+                Level.END, PortalPairScene.Side.LOCAL, PortalRemovalProjection.Method.MENU, PortalPairScene.Link.LINK_AND_RETURN)),
+            new Variant("portal-removal-end-mutual-menu", (client, server, label) -> PortalRemovalProjection.viewer(client, server, label,
+                Level.END, PortalPairScene.Side.LOCAL, PortalRemovalProjection.Method.MENU, PortalPairScene.Link.MUTUAL)),
             new Variant("portal-removal-end-partner-command", (client, server, label) -> PortalRemovalProjection.viewer(client, server, label,
-                Level.END, PortalPairScene.Side.REMOTE, PortalRemovalProjection.Method.COMMAND)),
+                Level.END, PortalPairScene.Side.REMOTE, PortalRemovalProjection.Method.COMMAND, PortalPairScene.Link.LINK_AND_RETURN)),
             new Variant("portal-removal-after-end-crossing-menu", (client, server, label) -> PortalRemovalProjection.afterCrossing(client, server,
-                label, true)),
+                label, PortalPairScene.Link.LINK_AND_RETURN)),
             new Variant("portal-removal-one-way-after-end-crossing-menu", (client, server, label) -> PortalRemovalProjection.afterCrossing(client,
-                server, label, false)))) {
+                server, label, PortalPairScene.Link.ONE_WAY)))) {
             if (!variant.label().contains(filter)) {
                 continue;
             }

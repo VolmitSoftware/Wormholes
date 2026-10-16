@@ -58,6 +58,9 @@ final class MinecraftWindowMenu extends ChestMenu {
             return;
         }
         window.handleClick(this, slot, button, input);
+        if (viewer.containerMenu != this) {
+            viewer.containerMenu.broadcastFullState();
+        }
     }
 
     @Override

@@ -138,15 +138,21 @@ public final class ClientGameTestDriver {
                 new Pass("end-return-floor-from-overworld-singleplayer", label -> EndReturnPortal.run(client, server, label,
                     PortalPairScene.Orientation.FLOOR, PortalPairScene.Side.LOCAL)),
                 new Pass("portal-removal-same-dimension-singleplayer", label -> PortalRemovalProjection.finish(client, server,
-                    PortalRemovalProjection.viewer(client, server, label, Level.OVERWORLD, PortalPairScene.Side.LOCAL, PortalRemovalProjection.Method.MENU))),
+                    PortalRemovalProjection.viewer(client, server, label, Level.OVERWORLD, PortalPairScene.Side.LOCAL, PortalRemovalProjection.Method.MENU,
+                        PortalPairScene.Link.LINK_AND_RETURN))),
                 new Pass("portal-removal-end-viewer-singleplayer", label -> PortalRemovalProjection.finish(client, server,
-                    PortalRemovalProjection.viewer(client, server, label, Level.END, PortalPairScene.Side.LOCAL, PortalRemovalProjection.Method.MENU))),
+                    PortalRemovalProjection.viewer(client, server, label, Level.END, PortalPairScene.Side.LOCAL, PortalRemovalProjection.Method.MENU,
+                        PortalPairScene.Link.LINK_AND_RETURN))),
+                new Pass("portal-removal-end-mutual-singleplayer", label -> PortalRemovalProjection.finish(client, server,
+                    PortalRemovalProjection.viewer(client, server, label, Level.END, PortalPairScene.Side.LOCAL, PortalRemovalProjection.Method.MENU,
+                        PortalPairScene.Link.MUTUAL))),
                 new Pass("portal-removal-end-partner-singleplayer", label -> PortalRemovalProjection.finish(client, server,
-                    PortalRemovalProjection.viewer(client, server, label, Level.END, PortalPairScene.Side.REMOTE, PortalRemovalProjection.Method.COMMAND))),
+                    PortalRemovalProjection.viewer(client, server, label, Level.END, PortalPairScene.Side.REMOTE, PortalRemovalProjection.Method.COMMAND,
+                        PortalPairScene.Link.LINK_AND_RETURN))),
                 new Pass("portal-removal-after-end-crossing-singleplayer", label -> PortalRemovalProjection.finish(client, server,
-                    PortalRemovalProjection.afterCrossing(client, server, label, true))),
+                    PortalRemovalProjection.afterCrossing(client, server, label, PortalPairScene.Link.LINK_AND_RETURN))),
                 new Pass("portal-removal-one-way-after-end-crossing-singleplayer", label -> PortalRemovalProjection.finish(client, server,
-                    PortalRemovalProjection.afterCrossing(client, server, label, false))));
+                    PortalRemovalProjection.afterCrossing(client, server, label, PortalPairScene.Link.ONE_WAY))));
         }
         return List.of(
             new Pass("same-dimension-dedicated", label -> SeamlessSameDimension.seamless(client, server, label)),

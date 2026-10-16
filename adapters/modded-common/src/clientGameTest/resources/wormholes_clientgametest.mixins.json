@@ -9,6 +9,7 @@
     "TravelFrameTap",
     "TravelPacketTap",
     "ResidentRemovalTap",
+    "SystemNoticeTap",
     "TravelTickTap",
     "SeamlessMouseTurnTap",
     "SeamlessCrossingTap",

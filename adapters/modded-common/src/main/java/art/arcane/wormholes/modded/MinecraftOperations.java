@@ -180,13 +180,10 @@ public final class MinecraftOperations implements AutoCloseable {
     }
 
     private int deleteAll(CommandSourceStack source) {
-        List<MinecraftPortal> portals = runtime.portals().snapshot();
-        for (MinecraftPortal portal : portals) {
-            runtime.portals().remove(portal.getId());
-        }
+        int deleted = runtime.portals().removeAll();
         runtime.projections().flush();
-        source.sendSuccess(() -> Component.literal("Deleted " + portals.size() + " portals."), true);
-        return portals.size();
+        source.sendSuccess(() -> Component.literal("Deleted " + deleted + " portals."), true);
+        return deleted;
     }
 
     private int filteredList(CommandSourceStack source, int page, String text) {

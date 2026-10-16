@@ -3,6 +3,7 @@ package art.arcane.wormholes.nexus;
 import art.arcane.wormholes.hook.WormholesHooks;
 import art.arcane.wormholes.hook.WormholesRegistrar;
 import art.arcane.wormholes.nexus.ReciprocalLinks.PairResult;
+import art.arcane.wormholes.portal.ITunnel;
 import art.arcane.wormholes.portal.LocalPortal;
 import org.bukkit.World;
 import org.junit.jupiter.api.AfterEach;
@@ -17,6 +18,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ReciprocalLinksTest {
@@ -109,6 +111,58 @@ class ReciprocalLinksTest {
         links.onPortalDestroyed(first, first.extension(NexusPortalExtension.class));
 
         assertTrue(linker.unlinked.isEmpty());
+    }
+
+    @Test
+    void deletingOneEndOfASameWorldPairClearsTheReturnLinkOfTheOtherEnd() {
+        Map<UUID, LocalPortal> registered = new LinkedHashMap<>();
+        ReciprocalLinks tunnelLinks = new ReciprocalLinks(new TunnelLinker(registered));
+        WormholesHooks.install(new WormholesRegistrar().portalExtension(NexusPortalExtension.class,
+                extensionPortal -> new NexusPortalExtension(extensionPortal, tunnelLinks::onPortalDestroyed)));
+        LocalPortal deleted = NexusTestSupport.portal(world, "deleted");
+        LocalPortal survivor = NexusTestSupport.portal(world, "survivor", 40.0D, 0.0D);
+        registered.put(deleted.getId(), deleted);
+        registered.put(survivor.getId(), survivor);
+        assertEquals(PairResult.PAIRED, tunnelLinks.pair(deleted, survivor));
+        assertEquals(deleted.getId(), survivor.getTunnel().getDestinationId());
+
+        deleted.destroy();
+
+        assertTrue(deleted.isDestroyed());
+        assertFalse(survivor.isDestroyed());
+        assertNull(survivor.getTunnel());
+        assertFalse(survivor.extension(NexusPortalExtension.class).reciprocal());
+        assertFalse(survivor.toJSON().has("tunnel"));
+        assertFalse(survivor.toJSON().optBoolean("nexus.reciprocal", false));
+    }
+
+    private static final class TunnelLinker implements ReciprocalLinks.Linker {
+        private final Map<UUID, LocalPortal> portals;
+
+        private TunnelLinker(Map<UUID, LocalPortal> portals) {
+            this.portals = portals;
+        }
+
+        @Override
+        public LocalPortal portal(UUID portalId) {
+            return portals.get(portalId);
+        }
+
+        @Override
+        public UUID destinationOf(LocalPortal portal) {
+            ITunnel tunnel = portal.getTunnel();
+            return tunnel == null ? null : tunnel.getDestinationId();
+        }
+
+        @Override
+        public boolean link(LocalPortal from, LocalPortal to) {
+            return from.setDestination(to);
+        }
+
+        @Override
+        public void unlink(LocalPortal portal) {
+            portal.unlink();
+        }
     }
 
     private static final class RecordingLinker implements ReciprocalLinks.Linker {

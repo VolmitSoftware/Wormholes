@@ -229,18 +229,17 @@ final class LocalPortalLinking
 		return true;
 	}
 
-	void destroy()
+	boolean destroy()
 	{
 		if(!beginDestruction())
 		{
-			return;
+			return false;
 		}
 
 		UUID destructionCounterpartId = resolveDimensionalCounterpartId();
 		boolean explicitDimensionalCounterpart = dimensionalCounterpartId != null;
 		ILocalPortal dimensionalCounterpart = destructionCounterpartId == null || Wormholes.portalManager == null
 				? null : Wormholes.portalManager.getLocalPortal(destructionCounterpartId);
-		tunnel = null;
 
 		Box deletionArea = portal.getStructure().getArea();
 		World deletionWorld = portal.getStructure().getWorld();
@@ -266,6 +265,12 @@ final class LocalPortalLinking
 		{
 			Wormholes.portalManager.deletePersistedPairedPortal(destructionCounterpartId, portal.getId());
 		}
+		return true;
+	}
+
+	void releaseTunnel()
+	{
+		tunnel = null;
 	}
 
 	private boolean beginDestruction()
