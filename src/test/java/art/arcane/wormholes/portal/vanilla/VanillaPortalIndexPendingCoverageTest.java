@@ -8,12 +8,16 @@ import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.LinkedHashSet;
+import java.util.Map;
 import java.util.Set;
 
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.Block;
+import org.bukkit.entity.ArmorStand;
+import org.bukkit.entity.Entity;
+import org.bukkit.entity.Player;
 import org.bukkit.util.BlockVector;
 import org.junit.jupiter.api.Test;
 
@@ -135,6 +139,66 @@ public final class VanillaPortalIndexPendingCoverageTest
 		assertFalse(index.covers(inside));
 	}
 
+	@Test
+	public void pendingEndWindowSuppressesEveryEntityEnteringItsPortalBlocks()
+	{
+		World world = world("world");
+		VanillaPortalIndex index = new VanillaPortalIndex();
+		VanillaPortalIndex.PendingCoverage pending = index.registerPendingEnd(new Location(world, 20, 64, 12));
+
+		assertTrue(index.suppressesEntry(entity(Player.class), new Location(world, 21, 64, 12)));
+		assertTrue(index.suppressesEntry(entity(ArmorStand.class), new Location(world, 19, 64, 13)));
+		assertFalse(index.suppressesEntry(entity(Player.class), new Location(world, 40, 64, 12)));
+
+		index.releasePending(pending);
+
+		assertFalse(index.suppressesEntry(entity(Player.class), new Location(world, 21, 64, 12)));
+		assertFalse(index.suppressesEntry(entity(ArmorStand.class), new Location(world, 19, 64, 13)));
+	}
+
+	@Test
+	public void pendingNetherCellsSuppressEntryUntilReleased()
+	{
+		World world = world("world");
+		VanillaPortalIndex index = new VanillaPortalIndex();
+		VanillaPortalIndex.PendingCoverage pending = index.registerPending(cells(
+				new FakeBlock(world, 4, 65, 7, Material.NETHER_PORTAL), new FakeBlock(world, 4, 66, 7, Material.NETHER_PORTAL)));
+
+		assertTrue(index.suppressesEntry(entity(Player.class), new Location(world, 4, 66, 7)));
+		assertTrue(index.suppressesEntry(entity(ArmorStand.class), new Location(world, 4, 65, 7)));
+		assertFalse(index.suppressesEntry(entity(Player.class), new Location(world, 5, 65, 7)));
+
+		index.releasePending(pending);
+
+		assertFalse(index.suppressesEntry(entity(Player.class), new Location(world, 4, 66, 7)));
+	}
+
+	@Test
+	public void nearEndWindowSuppressesPlayersOnlyForEndTravelBlocks()
+	{
+		World world = world("world", Map.of("25,64,12", Material.NETHER_PORTAL, "25,64,13", Material.END_PORTAL));
+		Location netherCell = new Location(world, 25, 64, 12);
+		Location endCell = new Location(world, 25, 64, 13);
+		VanillaPortalIndex index = new VanillaPortalIndex();
+		index.registerPendingEnd(new Location(world, 20, 64, 12));
+
+		assertFalse(index.covers(netherCell.clone().add(0.5D, 0.5D, 0.5D)));
+		assertTrue(index.suppressesEntry(entity(Player.class), endCell));
+		assertFalse(index.suppressesEntry(entity(Player.class), netherCell));
+		assertTrue(index.suppressesEntry(entity(ArmorStand.class), netherCell));
+	}
+
+	private static Entity entity(Class<? extends Entity> type)
+	{
+		return (Entity) Proxy.newProxyInstance(type.getClassLoader(), new Class<?>[] { type }, (proxy, method, arguments) -> switch(method.getName())
+		{
+			case "toString" -> type.getSimpleName() + "Proxy";
+			case "hashCode" -> Integer.valueOf(System.identityHashCode(proxy));
+			case "equals" -> Boolean.valueOf(proxy == arguments[0]);
+			default -> throw new UnsupportedOperationException(method.getName());
+		});
+	}
+
 	private static Set<Block> cells(FakeBlock... blocks)
 	{
 		Set<Block> cells = new LinkedHashSet<Block>();
@@ -147,14 +211,26 @@ public final class VanillaPortalIndexPendingCoverageTest
 
 	private static World world(String name)
 	{
+		return world(name, Map.of());
+	}
+
+	private static World world(String name, Map<String, Material> types)
+	{
 		return (World) Proxy.newProxyInstance(World.class.getClassLoader(), new Class<?>[] { World.class }, (proxy, method, arguments) -> switch(method.getName())
 		{
 			case "getName" -> name;
+			case "getBlockAt" -> blockAt((World) proxy, types, (Location) arguments[0]);
 			case "toString" -> "WorldProxy[" + name + "]";
 			case "hashCode" -> Integer.valueOf(System.identityHashCode(proxy));
 			case "equals" -> Boolean.valueOf(proxy == arguments[0]);
 			default -> throw new UnsupportedOperationException(method.getName());
 		});
+	}
+
+	private static Block blockAt(World world, Map<String, Material> types, Location location)
+	{
+		Material type = types.getOrDefault(location.getBlockX() + "," + location.getBlockY() + "," + location.getBlockZ(), Material.AIR);
+		return new FakeBlock(world, location.getBlockX(), location.getBlockY(), location.getBlockZ(), type).proxy();
 	}
 
 	private static final class FakeBlock implements InvocationHandler

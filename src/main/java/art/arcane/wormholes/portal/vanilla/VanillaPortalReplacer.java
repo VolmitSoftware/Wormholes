@@ -12,6 +12,7 @@ import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
 import org.bukkit.block.data.Orientable;
+import org.bukkit.event.Cancellable;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -19,6 +20,7 @@ import org.bukkit.event.block.Action;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockExplodeEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
+import org.bukkit.event.entity.EntityPortalEnterEvent;
 import org.bukkit.event.entity.EntityPortalEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerPortalEvent;
@@ -208,6 +210,19 @@ public final class VanillaPortalReplacer implements Listener, NetherPortalShapes
 		if(index.covers(event.getFrom()) || index.nearEndWindow(event.getFrom()))
 		{
 			event.setCancelled(true);
+		}
+	}
+
+	@EventHandler(ignoreCancelled = true)
+	public void onEntityPortalEnter(EntityPortalEnterEvent event)
+	{
+		if(!Settings.REPLACE_NETHER_AND_END_PORTALS || !(event instanceof Cancellable cancellable))
+		{
+			return;
+		}
+		if(index.suppressesEntry(event.getEntity(), event.getLocation()))
+		{
+			cancellable.setCancelled(true);
 		}
 	}
 

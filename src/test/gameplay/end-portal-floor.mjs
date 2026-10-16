@@ -164,7 +164,12 @@ export default {
       await context.command('/give @s minecraft:ender_eye 4', /Gave|Given/i)
       await p.equip(/^Eye of Ender$/)
       await p.rightClick(p.point(x, y, z + 2))
-      await serverBlockIn('overworld', x, y, z + 2, 'minecraft:end_portal_frame[eye=true]')
+      if (site.inside) {
+        await p.wait(() => bot.game.dimension !== 'overworld' || bot.blockAt(p.point(x, y, z + 2))?.getProperties().eye === true,
+          `${site.label} frame shows the twelfth eye`)
+      } else {
+        await serverBlockIn('overworld', x, y, z + 2, 'minecraft:end_portal_frame[eye=true]')
+      }
       record.afterEye = { dimension: bot.game.dimension, position: position() }
       const inside = cell => cell.y === y && Math.abs(cell.x - x) <= 1 && Math.abs(cell.z - z) <= 1
       const source = await waitForPortal(portal => !before.has(portal.id) && portal.data.dimensionalPortalKind === 'END_SOURCE'
@@ -184,16 +189,20 @@ export default {
           record.sentOnConversion = { dimension: bot.game.dimension, position: position() }
         } else {
           record.vanillaTravel = { dimension: bot.game.dimension, position: position(), dimensions: [...evidence.dimensions] }
-          await stageIn('overworld', x + 0.5, y, z + 0.5, 0)
         }
       }
+      if (!site.inside) await verifyCleared(site)
+      return record
+    }
+
+    async function verifyCleared(site) {
+      const { x, y, z } = site
       for (let dx = -1; dx <= 1; dx++) {
         for (let dz = -1; dz <= 1; dz++) {
           await serverBlockIn('overworld', x + dx, y, z + dz, 'minecraft:air')
         }
       }
       await serverBlockIn('overworld', x, y - 1, z, site.pit > 0 ? 'minecraft:air' : 'minecraft:stone')
-      return record
     }
 
     async function enter(site, record) {
@@ -316,20 +325,43 @@ export default {
         await phase('end-return', 'walk from the fountain rim into the End exit portal', endReturn)
       }
       await phase('floor-enter', 'stand still at floor level inside the floor End portal completed from outside the ring', () => enter(SITES[2], records.get('floor-level')))
-      if (evidence.serverType === 'folia') {
-        const reason = 'Folia fires no PlayerPortalEvent for End portals, so completing one while standing inside it takes vanilla End travel before Wormholes converts it'
-        evidence.skipped.push({ phase: 'floor-convert', reason })
-      } else {
-        await phase('floor-convert', 'complete the floor End portal while standing inside it, then walk across it at floor level', async () => {
-          const record = await buildAndComplete(SITES[3])
-          if (record.vanillaTravel) {
-            const { dimension, position: at } = record.vanillaTravel
-            context.expect(false, `floor-convert: completing the floor-level End portal while standing inside it sent the player to ${dimension} at ${at.x},${at.y},${at.z} through vanilla travel before Wormholes converted it`,
-              record.vanillaTravel)
+      await phase('floor-convert', 'complete the floor End portal while standing inside it beside an armor stand, then walk across it at floor level', async () => {
+        const site = SITES[3]
+        const probe = { x: site.x - 0.5, y: site.y, z: site.z - 0.5 }
+        const armorStandNear = async (dimension, at, radius, timeoutMs) => {
+          const marker = `QA_STAND_${bot.username}_${Math.round(at.x)}_${Math.round(at.z)}`
+          const selector = `@e[type=minecraft:armor_stand,x=${at.x.toFixed(2)},y=${at.y.toFixed(2)},z=${at.z.toFixed(2)},distance=..${radius}]`
+          const deadline = Date.now() + timeoutMs
+          while (bot.game.dimension === dimension) {
+            try {
+              await context.command(`/execute if entity ${selector} run tellraw ${bot.username} ${JSON.stringify({ text: marker })}`, new RegExp(marker), 1000)
+              return true
+            } catch {
+              if (Date.now() >= deadline) return false
+            }
           }
-          await enter(SITES[3], record)
-        })
-      }
+          return false
+        }
+        if (bot.game.dimension !== 'overworld') await stageIn('overworld', site.x + 0.5, site.y, site.z + 3.5, 180)
+        await context.command(`/summon minecraft:armor_stand ${probe.x} ${probe.y} ${probe.z}`, /Summoned/i)
+        const record = await buildAndComplete(site)
+        record.probe = { summoned: probe }
+        if (record.vanillaTravel) {
+          const { dimension, position: at } = record.vanillaTravel
+          const platform = Math.hypot(at.x - 100.5, at.z - 0.5) < 8 ? ' (the vanilla End platform)' : ''
+          record.probe.alongsideVanillaTravel = await armorStandNear(dimension, at, 8, 3000)
+          context.expect(false, `floor-convert: completing the floor-level End portal while standing inside it sent the player to ${dimension} at ${at.x},${at.y},${at.z}${platform} through vanilla travel before Wormholes converted it`
+            + (record.probe.alongsideVanillaTravel ? '; the armor stand standing in the ring arrived there with it' : ''), record.vanillaTravel)
+        }
+        await enter(site, record)
+        const arrival = record.arrival.centre
+        if (await armorStandNear('the_end', arrival, 14, 6000)) record.probe.located = 'end-arrival'
+        await stageIn('overworld', site.x + 0.5, site.y, site.z + 3.5, 180)
+        if (!record.probe.located && await armorStandNear('overworld', probe, 2, 4000)) record.probe.located = 'overworld-ring'
+        context.expect(record.probe.located, 'floor-convert: the armor stand standing in the ring neither stayed in the overworld ring nor arrived through the END_ARRIVAL',
+          record.probe)
+        await verifyCleared(site)
+      })
       await phase('elevated-enter', 'walk from the frame onto the End portal built over a pit', () => enter(SITES[1], records.get('elevated')))
       if (!returned && !failures.some(failure => failure.startsWith('end-return:'))) {
         if (bot.game.dimension === 'the_end') {

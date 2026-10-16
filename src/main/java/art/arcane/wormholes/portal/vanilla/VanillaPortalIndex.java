@@ -5,8 +5,11 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.Block;
+import org.bukkit.entity.Entity;
+import org.bukkit.entity.Player;
 import org.bukkit.util.BlockVector;
 
 import art.arcane.wormholes.Wormholes;
@@ -105,6 +108,29 @@ final class VanillaPortalIndex
 			}
 		}
 		return false;
+	}
+
+	boolean suppressesEntry(Entity entity, Location portalBlock)
+	{
+		if(portalBlock == null || portalBlock.getWorld() == null)
+		{
+			return false;
+		}
+		Location centre = portalBlock.clone().add(0.5D, 0.5D, 0.5D);
+		if(covers(centre))
+		{
+			return true;
+		}
+		if(!nearEndWindow(centre))
+		{
+			return false;
+		}
+		if(!(entity instanceof Player))
+		{
+			return true;
+		}
+		Material type = portalBlock.getBlock().getType();
+		return type == Material.END_PORTAL || type == Material.END_GATEWAY;
 	}
 
 	boolean coversCells(Set<Block> cells)
