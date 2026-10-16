@@ -38,6 +38,7 @@ import net.minecraft.server.players.PlayerList;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 
@@ -57,6 +58,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -137,6 +139,89 @@ public class MinecraftSeamlessTravelTest extends MinecraftTestBase {
 
         assertTrue(fixture.seamless.defer(fixture.player, source.getId()));
         assertFalse(fixture.seamless.crossing(fixture.player.getUUID()));
+    }
+
+    @Test
+    public void aServerStartedCrossingIgnoresClientMovesUntilTheClientReportsItsSwap() throws ReflectiveOperationException {
+        Fixture fixture = new Fixture();
+        Listener listener = fixture.listener(41, 900);
+        TravelMessage.TravelBegin begin = fixture.serverStarted();
+
+        fixture.seamless.moved(fixture.player, true);
+
+        assertEquals(new Vec3(11.5D, 80.0D, 11.5D), listener.position);
+        assertEquals(42, listener.teleport);
+        assertEquals(900, listener.time);
+        TravelMessage.TravelCross swap = Fixture.swap(begin);
+        when(fixture.session.takeSeamlessCross()).thenReturn(swap, (TravelMessage.TravelCross) null);
+        fixture.seamless.settle(fixture.session, fixture.player);
+        assertNull(listener.position);
+        assertEquals(42, listener.teleport);
+        verify(fixture.player.connection).resetPosition();
+        verify(fixture.session, never()).sendTravel(any());
+        verify(fixture.player.connection, never()).teleport(4.0D, 64.0D, -2.0D, 30.0F, 5.0F);
+    }
+
+    @Test
+    public void aServerStartedCrossingWrapsTheTeleportIdLikeVanilla() throws ReflectiveOperationException {
+        Fixture fixture = new Fixture();
+        Listener listener = fixture.listener(Integer.MAX_VALUE - 1, 900);
+        fixture.serverStarted();
+
+        fixture.seamless.moved(fixture.player, true);
+
+        assertEquals(0, listener.teleport);
+    }
+
+    @Test
+    public void aVanillaTeleportDuringTheWaitKeepsItsOwnAcknowledgement() throws ReflectiveOperationException {
+        Fixture fixture = new Fixture();
+        Listener listener = fixture.listener(41, 900);
+        TravelMessage.TravelBegin begin = fixture.serverStarted();
+        fixture.seamless.moved(fixture.player, true);
+        listener.teleport = 43;
+        listener.position = new Vec3(3.0D, 70.0D, 3.0D);
+        TravelMessage.TravelCross swap = Fixture.swap(begin);
+        when(fixture.session.takeSeamlessCross()).thenReturn(swap, (TravelMessage.TravelCross) null);
+
+        fixture.seamless.settle(fixture.session, fixture.player);
+
+        assertEquals(new Vec3(3.0D, 70.0D, 3.0D), listener.position);
+        assertEquals(43, listener.teleport);
+        verify(fixture.player.connection, never()).resetPosition();
+    }
+
+    @Test
+    public void aRefusedServerStartedMoveLeavesTheClientMovesAlone() throws ReflectiveOperationException {
+        Fixture fixture = new Fixture();
+        Listener listener = fixture.listener(41, 900);
+        fixture.serverStarted();
+
+        fixture.seamless.moved(fixture.player, false);
+
+        assertNull(listener.position);
+        assertEquals(41, listener.teleport);
+    }
+
+    @Test
+    public void aClaimedCrossingLeavesTheClientMovesAlone() throws ReflectiveOperationException {
+        Fixture fixture = new Fixture();
+        Listener listener = fixture.listener(41, 900);
+        MinecraftPortal source = floor(DimensionalPortalKind.END_SOURCE, 64);
+        MinecraftPortal destination = floor(DimensionalPortalKind.END_ARRIVAL, 80);
+        TravelMessage.TravelBegin begin = fixture.endArm(source, destination);
+        when(fixture.registry.crossSeamless(eq(fixture.player), eq(source.getId()), eq(destination), any())).thenReturn(true);
+        when(fixture.registry.travelling(fixture.player.getUUID())).thenReturn(true);
+        TravelMessage.TravelCross claim = new TravelMessage.TravelCross(begin.token(), begin.generation(), 1L,
+            new TravelMessage.TravelPose(11.5D, 64.7D, 11.5D, 0.0F, 40.0F), new Vec3d(11.5D, 66.32D, 11.6D), new Vec3d(11.5D, 66.32D, 11.5D));
+        when(fixture.session.takeSeamlessCross()).thenReturn(claim, (TravelMessage.TravelCross) null);
+        fixture.seamless.settle(fixture.session, fixture.player);
+        assertTrue(fixture.seamless.crossing(fixture.player.getUUID()));
+
+        fixture.seamless.moved(fixture.player, true);
+
+        assertNull(listener.position);
+        assertEquals(41, listener.teleport);
     }
 
     @Test
@@ -388,8 +473,15 @@ public class MinecraftSeamlessTravelTest extends MinecraftTestBase {
         }
     }
 
+    private static final class Listener {
+        private Vec3 position;
+        private int teleport;
+        private int time;
+    }
+
     private static final class Fixture {
         private final WormholesModRuntime runtime = mock(WormholesModRuntime.class);
+        private final MinecraftServer server = mock(MinecraftServer.class);
         private final MinecraftPortalRegistry registry = mock(MinecraftPortalRegistry.class);
         private final MinecraftDoorService doors = mock(MinecraftDoorService.class);
         private final RemoteRoutes routes = mock(RemoteRoutes.class);
@@ -405,7 +497,6 @@ public class MinecraftSeamlessTravelTest extends MinecraftTestBase {
 
         private Fixture() {
             UUID playerId = UUID.randomUUID();
-            MinecraftServer server = mock(MinecraftServer.class);
             player.connection = mock(ServerGamePacketListenerImpl.class, withSettings().extraInterfaces(SeamlessListenerAccess.class));
             when(runtime.portals()).thenReturn(registry);
             when(registry.observedVelocity(player)).thenReturn(new Vec3d(0.0D, 0.0D, 0.0D));
@@ -428,6 +519,47 @@ public class MinecraftSeamlessTravelTest extends MinecraftTestBase {
             PlayerList list = mock(PlayerList.class);
             when(server.getPlayerList()).thenReturn(list);
             when(list.getViewDistance()).thenReturn(10);
+        }
+
+        private Listener listener(int teleport, int tick) {
+            Listener listener = new Listener();
+            listener.teleport = teleport;
+            SeamlessListenerAccess access = (SeamlessListenerAccess) player.connection;
+            when(access.wormholesAwaitingPosition()).thenAnswer(call -> listener.position);
+            doAnswer(call -> {
+                listener.position = call.getArgument(0);
+                return null;
+            }).when(access).wormholesAwaitingPosition(any());
+            when(access.wormholesAwaitingTeleport()).thenAnswer(call -> listener.teleport);
+            doAnswer(call -> {
+                listener.teleport = call.getArgument(0);
+                return null;
+            }).when(access).wormholesAwaitingTeleport(anyInt());
+            doAnswer(call -> {
+                listener.time = call.getArgument(0);
+                return null;
+            }).when(access).wormholesAwaitingTeleportTime(anyInt());
+            when(access.wormholesTickCount()).thenReturn(tick);
+            when(player.position()).thenReturn(new Vec3(11.5D, 80.0D, 11.5D));
+            return listener;
+        }
+
+        private TravelMessage.TravelBegin serverStarted() throws ReflectiveOperationException {
+            MinecraftPortal source = floor(DimensionalPortalKind.NONE, 64);
+            TravelMessage.TravelBegin begin = mock(TravelMessage.TravelBegin.class);
+            when(begin.token()).thenReturn(UUID.randomUUID());
+            when(begin.generation()).thenReturn(4L);
+            arm(source, floor(DimensionalPortalKind.NONE, 80), begin);
+            assertTrue(seamless.defer(player, source.getId()));
+            when(server.getTickCount()).thenReturn(23);
+            assertFalse(seamless.defer(player, source.getId()));
+            assertTrue(seamless.crossing(player.getUUID()));
+            return begin;
+        }
+
+        private static TravelMessage.TravelCross swap(TravelMessage.TravelBegin begin) {
+            return new TravelMessage.TravelCross(begin.token(), begin.generation(), 1L, new TravelMessage.TravelPose(11.5D, 64.0D, 9.0D, 0.0F, 0.0F),
+                new Vec3d(11.5D, 65.62D, 9.0D), new Vec3d(11.5D, 65.62D, 9.0D));
         }
 
         private TravelMessage.TravelBegin endArm(MinecraftPortal source, MinecraftPortal destination) throws ReflectiveOperationException {

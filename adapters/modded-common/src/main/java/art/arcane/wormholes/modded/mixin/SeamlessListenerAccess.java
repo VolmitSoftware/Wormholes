@@ -10,6 +10,21 @@ public interface SeamlessListenerAccess {
     @Accessor("awaitingPositionFromClient")
     Vec3 wormholesAwaitingPosition();
 
+    @Accessor("awaitingPositionFromClient")
+    void wormholesAwaitingPosition(Vec3 position);
+
+    @Accessor("awaitingTeleport")
+    int wormholesAwaitingTeleport();
+
+    @Accessor("awaitingTeleport")
+    void wormholesAwaitingTeleport(int teleport);
+
+    @Accessor("awaitingTeleportTime")
+    void wormholesAwaitingTeleportTime(int tick);
+
+    @Accessor("tickCount")
+    int wormholesTickCount();
+
     @Accessor("clientIsFloating")
     void wormholesClientFloating(boolean floating);
 }

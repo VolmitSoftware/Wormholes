@@ -16,6 +16,7 @@
       "art.arcane.wormholes.clientgametest.AngledCrossingClientGameTest",
       "art.arcane.wormholes.clientgametest.EmbeddedFloorPortalClientGameTest",
       "art.arcane.wormholes.clientgametest.HorizontalPortalCrossingClientGameTest",
+      "art.arcane.wormholes.clientgametest.ServerStartedCrossingClientGameTest",
       "art.arcane.wormholes.clientgametest.RecursivePortalEntitiesClientGameTest",
       "art.arcane.wormholes.clientgametest.MirrorWaterClientGameTest",
       "art.arcane.wormholes.clientgametest.ApertureShapeClientGameTest",

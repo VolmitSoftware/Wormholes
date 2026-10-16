@@ -186,6 +186,7 @@ final class MinecraftSeamlessTravel {
         if (moved && traveler.flight.request == null) {
             traveler.lateToken = traveler.flight.arm.begin().token();
             traveler.lateUntil = runtime.server().getTickCount() + LATE_CLAIM_TICKS;
+            traveler.lateTeleport = awaitSwap(player);
         }
     }
 
@@ -244,6 +245,24 @@ final class MinecraftSeamlessTravel {
             player.getEyeHeight(), new Box(bounds.minX, bounds.maxX, bounds.minY, bounds.maxY, bounds.minZ, bounds.maxZ), MinecraftGravity.frame(player),
             ((SeamlessListenerAccess) player.connection).wormholesAwaitingPosition() != null, player.isChangingDimension(),
             box -> StraddleCollision.obstructed(player.level(), player, box));
+    }
+
+    static int awaitSwap(ServerPlayer player) {
+        SeamlessListenerAccess listener = (SeamlessListenerAccess) player.connection;
+        int teleport = listener.wormholesAwaitingTeleport() + 1 == Integer.MAX_VALUE ? 0 : listener.wormholesAwaitingTeleport() + 1;
+        listener.wormholesAwaitingTeleport(teleport);
+        listener.wormholesAwaitingTeleportTime(listener.wormholesTickCount());
+        listener.wormholesAwaitingPosition(player.position());
+        return teleport;
+    }
+
+    static void swapped(ServerPlayer player, int teleport) {
+        SeamlessListenerAccess listener = (SeamlessListenerAccess) player.connection;
+        if (listener.wormholesAwaitingTeleport() != teleport || listener.wormholesAwaitingPosition() == null) {
+            return;
+        }
+        listener.wormholesAwaitingPosition(null);
+        player.connection.resetPosition();
     }
 
     static boolean residentArrival(RemoteRoute route, ServerPlayer player, Vec3d arrival) {
@@ -386,6 +405,7 @@ final class MinecraftSeamlessTravel {
         Traveler traveler = travelers.computeIfAbsent(player.getUUID(), ignored -> new Traveler());
         long tick = runtime.server().getTickCount();
         if (request.token().equals(traveler.lateToken) && tick <= traveler.lateUntil) {
+            swapped(player, traveler.lateTeleport);
             return;
         }
         Arm arm = traveler.find(request.token(), request.generation());
@@ -627,6 +647,7 @@ final class MinecraftSeamlessTravel {
         private int crossings;
         private UUID lateToken;
         private long lateUntil;
+        private int lateTeleport;
 
         private Arm find(UUID token, long generation) {
             for (Arm arm : arms.values()) {

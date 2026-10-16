@@ -104,6 +104,8 @@
     "CrossingBenchRoutedTap",
     "SeamlessHeldChunkTap",
     "SeamlessPlacementTap",
+    "ServerStartedHoldTap",
+    "ServerStartedMoveTap",
     "HeldChunksAccess"
   ]
 }

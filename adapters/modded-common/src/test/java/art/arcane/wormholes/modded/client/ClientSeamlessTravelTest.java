@@ -276,6 +276,7 @@ public class ClientSeamlessTravelTest extends MinecraftTestBase {
             assertEquals(-0.3D, velocity.getValue().z, 0.000001D);
             verify(crossing.client).dropProjectedEntities(crossing.begin.sourceGeometry());
             assertTrue(crossing.scope.sent.stream().noneMatch(TravelMessage.TravelCancel.class::isInstance));
+            assertTrue(crossing.scope.sent.stream().noneMatch(TravelMessage.TravelCross.class::isInstance));
         }
     }
 
@@ -332,6 +333,31 @@ public class ClientSeamlessTravelTest extends MinecraftTestBase {
     }
 
     @Test
+    public void anUnclaimedServerCrossingReportsTheSwapForTheAcceptedCrossing() throws ReflectiveOperationException {
+        try (Crossing crossing = new Crossing(false)) {
+            crossing.travel.receive(SeamlessTravelFixtures.accept(0.0D, 0.0F));
+            List<TravelMessage.TravelCross> reported = crossing.scope.sent.stream().filter(TravelMessage.TravelCross.class::isInstance)
+                .map(TravelMessage.TravelCross.class::cast).toList();
+            assertEquals(1, reported.size());
+            assertEquals(SeamlessTravelFixtures.TOKEN, reported.getFirst().token());
+            assertEquals(SeamlessTravelFixtures.GENERATION, reported.getFirst().generation());
+            assertSame(crossing.nether, crossing.scope.minecraft.level);
+        }
+    }
+
+    @Test
+    public void anUnclaimedServerCrossingAlongAResidentRouteInTheSameDimensionSwapsIntoTheResidentLevel() throws ReflectiveOperationException {
+        try (Crossing crossing = new Crossing(false)) {
+            TravelMessage.TravelAccept base = SeamlessTravelFixtures.accept(0.0D, 0.0F);
+            crossing.travel.receive(new TravelMessage.TravelAccept(base.token(), base.generation(), base.contentRevision(), base.pose(),
+                base.velocity(), base.levelHandle(), false, base.serverTick(), base.gravity(), base.entityScale()));
+            assertSame(crossing.nether, crossing.scope.minecraft.level);
+            assertTrue(crossing.residents.resident(crossing.source));
+            assertPosition(crossing.player, SeamlessTravelFixtures.EXPECTED_ARRIVAL.x, SeamlessTravelFixtures.EXPECTED_ARRIVAL.z);
+        }
+    }
+
+    @Test
     public void aClosedRouteReleasesReturnViewsIntoItsLevelOnce() throws ReflectiveOperationException {
         try (Crossing crossing = new Crossing(false)) {
             assertTrue(crossing.travel.receive(new TravelMessage.RemoteLevelClose(3)));
@@ -349,6 +375,7 @@ public class ClientSeamlessTravelTest extends MinecraftTestBase {
             crossing.travel.receive(SeamlessTravelFixtures.accept(0.0D, 0.0F));
             assertSame(crossing.source, crossing.scope.minecraft.level);
             assertTrue(crossing.scope.sent.contains(new TravelMessage.RemoteLevelReopen(3)));
+            assertTrue(crossing.scope.sent.stream().noneMatch(TravelMessage.TravelCross.class::isInstance));
             verify(crossing.portalViews, never()).crossed(any(), any(), any(), anyBoolean());
             crossing.scope.worlds.verify(ClientWorldLoader::forceFullSectionDiscovery, never());
         }

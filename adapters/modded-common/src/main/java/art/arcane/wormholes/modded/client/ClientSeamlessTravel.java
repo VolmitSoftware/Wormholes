@@ -483,7 +483,7 @@ public final class ClientSeamlessTravel {
             return;
         }
         ClientLevel source = minecraft.level;
-        ClientLevel target = accept.dimensionChanged() ? residents.level(accept.levelHandle()) : source;
+        ClientLevel target = accept.levelHandle() > 0 ? residents.level(accept.levelHandle()) : source;
         if (target == null) {
             LOGGER.warn("Crossing seamless by the server could not swap: resident level {} is not open", accept.levelHandle());
             sender.accept(new TravelMessage.RemoteLevelReopen(accept.levelHandle()));
@@ -505,6 +505,7 @@ public final class ClientSeamlessTravel {
         if (arm != null && !arm.rules().rotateGravity() && MinecraftGravity.frame(player).equals(GravityFrame.WORLD)) {
             cameraRoll.start(ClientTravelMotion.roll(arm, before, before.position()), rollSeconds(), System.currentTimeMillis());
         }
+        Vec3d eye = ClientTravelMotion.vector(player.getEyePosition());
         if (target != source) {
             ClientLevelSwitch.activate(residents, target, placed, carried);
             residents.retire(source);
@@ -512,6 +513,8 @@ public final class ClientSeamlessTravel {
             ClientTravelMotion.apply(player, placed);
             carried.restore(player);
         }
+        sender.accept(new TravelMessage.TravelCross(accept.token(), accept.generation(), CROSS_REVISION, new TravelMessage.TravelPose(
+            before.position().x(), before.position().y(), before.position().z(), before.yaw(), before.pitch()), eye, eye));
         ClientWorldLoader.forceFullSectionDiscovery();
         previousEye = null;
         crossedView(arm, source, target);

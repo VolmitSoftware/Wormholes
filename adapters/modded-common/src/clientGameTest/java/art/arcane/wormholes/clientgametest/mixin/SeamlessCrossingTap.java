@@ -3,6 +3,7 @@ package art.arcane.wormholes.clientgametest.mixin;
 import art.arcane.wormholes.clientgametest.ArrivalPlacementTap;
 import art.arcane.wormholes.clientgametest.CrossingBenchTap;
 import art.arcane.wormholes.clientgametest.SeamlessTurningTap;
+import art.arcane.wormholes.clientgametest.ServerStartedCrossingTap;
 import art.arcane.wormholes.clientgametest.TravelTap;
 import art.arcane.wormholes.clientgametest.VerticalCameraLoopTap;
 import art.arcane.wormholes.modded.client.ClientSeamlessTravel;
@@ -27,6 +28,9 @@ public abstract class SeamlessCrossingTap {
     @WrapMethod(method = "cross")
     private Vec3 wormholesTest$originalCrossing(Minecraft minecraft, LocalPlayer player, TravelMessage.TravelBegin arm,
                                                float partial, Vec3 previous, Vec3 eye, Operation<Vec3> original) {
+        if (ServerStartedCrossingTap.claimSuppressed(arm)) {
+            return null;
+        }
         TravelTap.crossingAttempted();
         SeamlessTurningTap.Attempt attempt = SeamlessTurningTap.entering(minecraft, player, arm, partial, previous, eye);
         VerticalCameraLoopTap.Attempt vertical = VerticalCameraLoopTap.entering(minecraft, player, arm, partial, previous, eye);
