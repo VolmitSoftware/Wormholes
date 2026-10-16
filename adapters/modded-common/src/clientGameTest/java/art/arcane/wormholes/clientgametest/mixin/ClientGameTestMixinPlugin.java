@@ -24,6 +24,9 @@ public final class ClientGameTestMixinPlugin implements IMixinConfigPlugin {
                 && System.getProperty("fabric.client.gametest") != null
                 && getClass().getClassLoader().getResource("net/fabricmc/fabric/impl/client/gametest/threading/ThreadingImpl.class") != null;
         }
+        if (mixinClassName.contains(".CrossingBench")) {
+            return Boolean.getBoolean("wormholes.clientgametest.crossbench");
+        }
         if (mixinClassName.contains(".DistantHorizons")) {
             return getClass().getClassLoader().getResource("com/seibel/distanthorizons/core/api/internal/ClientApi.class") != null
                 && (!mixinClassName.endsWith(".DistantHorizonsPipelineTap")

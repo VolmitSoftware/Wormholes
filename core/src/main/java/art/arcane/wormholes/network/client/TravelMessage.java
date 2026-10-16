@@ -115,7 +115,7 @@ public sealed interface TravelMessage {
 
     record TravelBegin(UUID token, long generation, UUID sourcePortal, String sourceWorld, ApertureDescriptor sourceGeometry,
                        OpticTransform destinationToSource, float scale, TravelWorld world, TravelPose arrival, EnvironmentState environment,
-                       ArrivalRules rules, boolean resident, int levelHandle, DoorCollisionTarget doorCollision)
+                       ArrivalRules rules, boolean resident, int levelHandle, DoorCollisionTarget doorCollision, boolean returnTraversable)
         implements TravelMessage {
         public TravelBegin {
             travelIdentity(token, generation);

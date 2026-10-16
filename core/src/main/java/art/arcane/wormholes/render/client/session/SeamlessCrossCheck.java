@@ -3,8 +3,10 @@ package art.arcane.wormholes.render.client.session;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.crossing.ScaleRule;
 import art.arcane.optics.crossing.GravityFrame;
+import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.network.client.TravelMessage;
+import art.arcane.wormholes.portal.vanilla.EndPortalContact;
 
 import java.util.Arrays;
 import java.util.Objects;
@@ -56,6 +58,9 @@ public final class SeamlessCrossCheck {
         if (drift > EYE_DRIFT || eyeRise < 0.0D || eyeRise > server.eyeHeight() + EYE_SLACK) {
             return Refusal.INCONSISTENT_EYE;
         }
+        if (EndPortalContact.contactArm(geometry, arm.world().dimension())) {
+            return contact(cross, arm, server) == null ? Refusal.NO_CONTACT : Refusal.NONE;
+        }
         double side = geometry.frontSide() ? 1.0D : -1.0D;
         double before = geometry.signedDistance(cross.previousEye().x(), cross.previousEye().y(), cross.previousEye().z()) * side;
         double after = geometry.signedDistance(cross.currentEye().x(), cross.currentEye().y(), cross.currentEye().z()) * side;
@@ -69,6 +74,20 @@ public final class SeamlessCrossCheck {
         return geometry.containsPoint(intersection.x(), intersection.y(), intersection.z()) ? Refusal.NONE : Refusal.OUTSIDE_APERTURE;
     }
 
+    public static EndPortalContact.Hit contact(TravelMessage.TravelCross cross, TravelMessage.TravelBegin arm, Server server) {
+        if (!EndPortalContact.contactArm(arm.sourceGeometry(), arm.world().dimension())) {
+            return null;
+        }
+        TravelMessage.TravelPose claimed = cross.sourcePose();
+        TravelMessage.TravelPose observed = server.pose();
+        double x = claimed.x() - observed.x();
+        double y = claimed.y() - observed.y();
+        double z = claimed.z() - observed.z();
+        Box bounds = server.bounds();
+        return EndPortalContact.contact(arm.sourceGeometry(), arm.world().dimension(), new Box(bounds.getXa() + x, bounds.getXb() + x,
+            bounds.getYa() + y, bounds.getYb() + y, bounds.getZa() + z, bounds.getZb() + z));
+    }
+
     public static boolean sameSurface(ApertureDescriptor armed, ApertureDescriptor current) {
         return current != null && !current.mirror() && armed.originX() == current.originX() && armed.originY() == current.originY()
             && armed.originZ() == current.originZ() && armed.facing() == current.facing() && armed.frontSide() == current.frontSide()
@@ -79,16 +98,17 @@ public final class SeamlessCrossCheck {
 
     public enum Refusal {
         NONE, AWAITING_TELEPORT, CHANGING_DIMENSION, WRONG_LEVEL, CHANGED_SURFACE, FAR_FROM_SERVER, SEGMENT_TOO_LONG, INCONSISTENT_EYE,
-        WRONG_SIDE, NO_CROSSING, OUTSIDE_APERTURE
+        WRONG_SIDE, NO_CROSSING, OUTSIDE_APERTURE, NO_CONTACT
     }
 
-    public record Server(String world, ApertureDescriptor geometry, TravelMessage.TravelPose pose, Vec3d velocity, double eyeHeight, GravityFrame gravity,
-                         boolean awaitingTeleport, boolean changingDimension) {
+    public record Server(String world, ApertureDescriptor geometry, TravelMessage.TravelPose pose, Vec3d velocity, double eyeHeight, Box bounds,
+                         GravityFrame gravity, boolean awaitingTeleport, boolean changingDimension) {
         public Server {
             Objects.requireNonNull(world, "world");
             Objects.requireNonNull(gravity, "gravity");
             Objects.requireNonNull(pose, "pose");
             Objects.requireNonNull(velocity, "velocity");
+            Objects.requireNonNull(bounds, "bounds");
             if (!Double.isFinite(eyeHeight) || eyeHeight <= 0.0D || eyeHeight > MAX_EYE_HEIGHT || !Double.isFinite(velocity.x())
                 || !Double.isFinite(velocity.y()) || !Double.isFinite(velocity.z())) {
                 throw new IllegalArgumentException("Seamless crossing authority");

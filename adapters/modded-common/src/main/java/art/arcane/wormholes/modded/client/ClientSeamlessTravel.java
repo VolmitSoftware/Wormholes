@@ -19,6 +19,7 @@ import art.arcane.wormholes.modded.MinecraftScaleAccess;
 import art.arcane.wormholes.modded.seamless.StraddleCollision;
 import art.arcane.wormholes.modded.seamless.StraddleTracker;
 import art.arcane.wormholes.network.client.TravelMessage;
+import art.arcane.wormholes.portal.vanilla.EndPortalContact;
 import art.arcane.wormholes.transit.TravellerScale;
 import net.minecraft.client.Camera;
 import net.minecraft.client.DeltaTracker;
@@ -250,6 +251,9 @@ public final class ClientSeamlessTravel {
     }
 
     static StraddleTracker.Straddle straddle(TravelMessage.TravelBegin value, Level destination, Box stretched, Vec3d eye) {
+        if (EndPortalContact.contactAperture(value.sourceGeometry())) {
+            return null;
+        }
         ApertureCells aperture = value.sourceGeometry().aperture();
         if (!StraddleTracker.qualifies(stretched, aperture)) {
             return null;
@@ -281,7 +285,7 @@ public final class ClientSeamlessTravel {
         }
         boolean crossedAny = false;
         for (int combo = 0; combo < MAX_CROSSINGS_PER_FRAME; combo++) {
-            TravelMessage.TravelBegin arm = crossedArm(minecraft.level, previous, eye);
+            TravelMessage.TravelBegin arm = crossedArm(player, partial, minecraft.level, previous, eye);
             if (arm == null) {
                 break;
             }
@@ -297,13 +301,22 @@ public final class ClientSeamlessTravel {
         return crossedAny;
     }
 
-    private TravelMessage.TravelBegin crossedArm(ClientLevel level, Vec3 previous, Vec3 eye) {
+    private TravelMessage.TravelBegin crossedArm(LocalPlayer player, float partial, ClientLevel level, Vec3 previous, Vec3 eye) {
         String dimension = level.dimension().identifier().toString();
         TravelMessage.TravelBegin nearest = null;
         double nearestDistance = Double.POSITIVE_INFINITY;
+        Box traveller = null;
         for (TravelMessage.TravelBegin arm : arms.values()) {
             ApertureDescriptor geometry = arm.sourceGeometry();
-            if (!arm.sourceWorld().equals(dimension) || !crossed(geometry, previous, eye)) {
+            if (!arm.sourceWorld().equals(dimension)) {
+                continue;
+            }
+            if (EndPortalContact.contactAperture(geometry)) {
+                traveller = traveller == null ? traveller(player, partial) : traveller;
+                if (EndPortalContact.contact(geometry, arm.world().dimension(), traveller) == null) {
+                    continue;
+                }
+            } else if (!crossed(geometry, previous, eye)) {
                 continue;
             }
             double distance = Math.abs(geometry.signedDistance(previous.x, previous.y, previous.z));
@@ -320,9 +333,12 @@ public final class ClientSeamlessTravel {
         ClientLevel target = arm.resident() ? residents.level(arm.levelHandle()) : source;
         Pose before = ClientTravelMotion.capture(player);
         TravelMessage.TravelPose crossingPose = crossingPose(player, partial);
-        Vec3 feet = new Vec3(crossingPose.x(), crossingPose.y(), crossingPose.z());
-        Vec3d crossingFeet = new Vec3d(feet.x, feet.y, feet.z);
-        Pose after = ClientTravelMotion.arrive(arm, before, crossingFeet, MinecraftGravity.frame(player));
+        Vec3d feet = new Vec3d(crossingPose.x(), crossingPose.y(), crossingPose.z());
+        EndPortalContact.Hit hit = EndPortalContact.contactAperture(arm.sourceGeometry())
+            ? EndPortalContact.contact(arm.sourceGeometry(), arm.world().dimension(), traveller(player, partial)) : null;
+        Vec3d crossingFeet = hit == null ? feet : hit.exit();
+        Pose departing = hit == null ? before : before.moved(crossingFeet.subtract(feet));
+        Pose after = ClientTravelMotion.arrive(arm, departing, crossingFeet, MinecraftGravity.frame(player));
         String refusal = target == null ? "resident level " + arm.levelHandle() + " is not open"
             : !arrivalLoaded(target, after.position()) ? "arrival terrain not received"
             : arrivalClear(target, player, arm, after.position()) ? null : "arrival body is obstructed";
@@ -334,7 +350,7 @@ public final class ClientSeamlessTravel {
             return null;
         }
         Similarity toward = arm.sourceToDestination();
-        Vec3 expected = ClientTravelMotion.point(toward, feet);
+        Vec3 expected = ClientTravelMotion.point(toward, ClientTravelMotion.position(crossingFeet));
         ClientTravelMotion.Carry carry = ClientTravelMotion.carry(player);
         double scaleBefore = TRAVELLER_SCALE.factor(player);
         GravityFrame gravityBefore = MinecraftGravity.frame(player);
@@ -366,16 +382,20 @@ public final class ClientSeamlessTravel {
         crossedView(arm, source, target);
         long now = System.currentTimeMillis();
         if (!arm.rules().rotateGravity() && MinecraftGravity.frame(player).equals(GravityFrame.WORLD)) {
-            cameraRoll.start(ClientTravelMotion.roll(arm, before, crossingFeet), rollSeconds(), now);
+            cameraRoll.start(ClientTravelMotion.roll(arm, departing, crossingFeet), rollSeconds(), now);
         }
         pending.addLast(new Crossing(arm, source, target, before, carry, after, expected, now + ACCEPT_TIMEOUT_MILLIS, scaleBefore, gravityBefore));
         residents.crossing(pending.peekFirst().source() == pending.peekFirst().target() ? null : pending.peekFirst().source());
         declined = null;
-        returning = StraddleTracker.create(destinationEndpoint(arm), sourceEndpoint(arm, arm.sourceGeometry().aperture()), source,
-            ClientTravelMotion.vector(player.getEyePosition()), 1.0D / arm.scale());
-        StraddleTracker.register(player, returning);
-        straddling = true;
-        return checkpoint(arm, toward, previous, eye);
+        returning = arm.returnTraversable() ? StraddleTracker.create(destinationEndpoint(arm), sourceEndpoint(arm, arm.sourceGeometry().aperture()),
+            source, ClientTravelMotion.vector(player.getEyePosition()), 1.0D / arm.scale()) : null;
+        straddling = returning != null;
+        if (straddling) {
+            StraddleTracker.register(player, returning);
+        } else {
+            StraddleTracker.clear(player);
+        }
+        return hit == null ? checkpoint(arm, toward, previous, eye) : player.getEyePosition(partial);
     }
 
     private void accept(TravelMessage.TravelAccept accept) {
@@ -675,6 +695,16 @@ public final class ClientSeamlessTravel {
 
     private static Box box(AABB bounds) {
         return new Box(bounds.minX, bounds.maxX, bounds.minY, bounds.maxY, bounds.minZ, bounds.maxZ);
+    }
+
+    private static Box traveller(LocalPlayer player, float partial) {
+        Vec3 at = player.getPosition(partial);
+        Vec3 now = player.position();
+        AABB bounds = player.getBoundingBox();
+        double x = at.x - now.x;
+        double y = at.y - now.y;
+        double z = at.z - now.z;
+        return new Box(bounds.minX + x, bounds.maxX + x, bounds.minY + y, bounds.maxY + y, bounds.minZ + z, bounds.maxZ + z);
     }
 
     private record Crossing(TravelMessage.TravelBegin arm, ClientLevel source, ClientLevel target, Pose before, ClientTravelMotion.Carry carry,

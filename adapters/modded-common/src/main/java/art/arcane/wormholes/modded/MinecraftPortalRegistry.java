@@ -27,6 +27,7 @@ import art.arcane.optics.aperture.ApertureCells;
 import art.arcane.wormholes.portal.PortalStateCodec;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.portal.DimensionalPortalKind;
+import art.arcane.wormholes.portal.vanilla.EndPortalContact;
 import art.arcane.wormholes.transit.MomentumPolicy;
 import art.arcane.wormholes.transit.OrientationPolicy;
 import art.arcane.wormholes.transit.TravellerScale;
@@ -332,26 +333,17 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
             }
             Box area = source.getGeometry().captureZone(radius);
             AABB search = new AABB(area.getXa(), area.getYa(), area.getZa(), area.getXb(), area.getYb(), area.getZb());
+            boolean contact = EndPortalContact.applies(source.getDimensionalKind(), source.getFrame().getNormal());
             for (Entity entity : captureEntities(source, level, search)) {
                 Entity root = entity.getRootVehicle();
                 if (pending.containsKey(root.getUUID()) || visited.contains(root.getUUID()) || runtime.doors().travelling(root.getUUID()) || runtime.network().handoffs().locked(root.getUUID()) || runtime.network().entityTransfers().locked(root.getUUID()) || runtime.rtp().locked(root.getUUID())) {
                     continue;
                 }
-                Vec3 current = root.position();
                 Position previous = previousPositions.get(root.getUUID());
                 Vec3d start = previous != null && previous.level() == level
                     ? vector(previous.point()) : new Vec3d(root.xo, root.yo, root.zo);
-                Vec3d end = vector(current);
-                Vec3d lift = !random && root instanceof ServerPlayer eyed && runtime.clientViews().seamlessEye(eyed.getUUID(), source.getId())
-                    ? new Vec3d(0.0D, root.getEyeHeight(), 0.0D) : new Vec3d(0.0D, 0.0D, 0.0D);
-                Vec3d detectStart = start.add(lift);
-                Vec3d detectEnd = end.add(lift);
-                Vec3d intersection = PlaneCrossing.intersection(source.getFrame(), source.getOrigin(), detectStart, detectEnd);
-                DeferredCrossing deferred = deferredCrossings.get(root.getUUID());
-                boolean retained = deferred != null && deferred.source() == source && retainedCrossing(deferred, now) && deferred.crossing().frame().getNormal().x() * (detectEnd.x() - source.getOrigin().x())
-                        + deferred.crossing().frame().getNormal().y() * (detectEnd.y() - source.getOrigin().y())
-                        + deferred.crossing().frame().getNormal().z() * (detectEnd.z() - source.getOrigin().z()) <= 0.0D;
-                if (!retained && (intersection == null || !source.admits(intersection, lift.y() > 0.0D ? 0.0D : root.getEyeHeight()))) {
+                PlaneCrossing crossing = contact ? contactCrossing(source, root, start) : planeCrossing(source, root, start, random, now);
+                if (crossing == null) {
                     continue;
                 }
                 Arrival arrival = arrivals.get(root.getUUID());
@@ -359,14 +351,6 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
                     continue;
                 }
                 visited.add(root.getUUID());
-                Vec3 velocity = root instanceof ServerPlayer ? current.subtract(start.x(), start.y(), start.z()) : root.getDeltaMovement();
-                PlaneCrossing crossing = PlaneCrossing.create(source.getFrame(), source.getOrigin(),
-                    new PlaneCrossing.Motion(detectStart, end, vector(velocity), vector(root.getLookAngle())));
-                if (retained) {
-                    PlaneCrossing held = deferred.crossing();
-                    crossing = lift.y() > 0.0D ? new PlaneCrossing(held.frame(), held.origin(), end, vector(velocity), vector(root.getLookAngle()),
-                        held.frontSide()) : held;
-                }
                 if (!random && root instanceof ServerPlayer player && runtime.clientViews().deferTravel(player.getUUID(), source.getId())) {
                     deferredCrossings.putIfAbsent(root.getUUID(), new DeferredCrossing(player, source, level, source.getDestinationId(), source.getDestinationServer(), crossing, now + 2_500L));
                     continue;
@@ -520,6 +504,41 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
             }
         }
         return candidates;
+    }
+
+    private PlaneCrossing contactCrossing(MinecraftPortal source, Entity root, Vec3d start) {
+        AABB bounds = root.getBoundingBox();
+        EndPortalContact.Hit hit = EndPortalContact.contact(source.getDimensionalKind(), source.getFrame().getNormal(), source.getGeometry(),
+            new Box(bounds.minX, bounds.maxX, bounds.minY, bounds.maxY, bounds.minZ, bounds.maxZ));
+        return hit == null ? null : PlaneCrossing.create(source.getFrame(), source.getOrigin(),
+            new PlaneCrossing.Motion(hit.entry(), hit.exit(), velocity(root, start), vector(root.getLookAngle())));
+    }
+
+    private PlaneCrossing planeCrossing(MinecraftPortal source, Entity root, Vec3d start, boolean random, long now) {
+        Vec3d end = vector(root.position());
+        Vec3d lift = !random && root instanceof ServerPlayer eyed && runtime.clientViews().seamlessEye(eyed.getUUID(), source.getId())
+            ? new Vec3d(0.0D, root.getEyeHeight(), 0.0D) : new Vec3d(0.0D, 0.0D, 0.0D);
+        Vec3d detectStart = start.add(lift);
+        Vec3d detectEnd = end.add(lift);
+        Vec3d intersection = PlaneCrossing.intersection(source.getFrame(), source.getOrigin(), detectStart, detectEnd);
+        DeferredCrossing deferred = deferredCrossings.get(root.getUUID());
+        boolean retained = deferred != null && deferred.source() == source && retainedCrossing(deferred, now) && deferred.crossing().frame().getNormal().x() * (detectEnd.x() - source.getOrigin().x())
+                + deferred.crossing().frame().getNormal().y() * (detectEnd.y() - source.getOrigin().y())
+                + deferred.crossing().frame().getNormal().z() * (detectEnd.z() - source.getOrigin().z()) <= 0.0D;
+        if (!retained && (intersection == null || !source.admits(intersection, lift.y() > 0.0D ? 0.0D : root.getEyeHeight()))) {
+            return null;
+        }
+        Vec3d velocity = velocity(root, start);
+        Vec3d look = vector(root.getLookAngle());
+        if (!retained) {
+            return PlaneCrossing.create(source.getFrame(), source.getOrigin(), new PlaneCrossing.Motion(detectStart, end, velocity, look));
+        }
+        PlaneCrossing held = deferred.crossing();
+        return lift.y() > 0.0D ? new PlaneCrossing(held.frame(), held.origin(), end, velocity, look, held.frontSide()) : held;
+    }
+
+    private static Vec3d velocity(Entity root, Vec3d start) {
+        return root instanceof ServerPlayer ? vector(root.position()).subtract(start) : vector(root.getDeltaMovement());
     }
 
     private boolean retainedCrossing(DeferredCrossing deferred, long now) {

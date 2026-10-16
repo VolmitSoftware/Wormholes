@@ -25,6 +25,10 @@ interface SeamlessClient {
 
     void holdForwardFor(int ticks);
 
+    void holdJump();
+
+    void releaseJump();
+
     void lookAt(float yaw, float pitch);
 
     void moveCursor(double deltaX, double deltaY);

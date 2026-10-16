@@ -299,7 +299,7 @@ public final class PortalViews {
         List<PortalView> previousRoots = List.copyOf(current);
         Map<Object, List<PortalView>> previousChildren = new HashMap<>(children);
         resetReturn(home);
-        if (arm == null || departed == null || home == null || departed == home || !arm.resident()
+        if (arm == null || departed == null || home == null || departed == home || !arm.resident() || !arm.returnTraversable()
             || !arm.sourceWorld().equals(departed.dimension().identifier().toString())
             || residents.level(arm.levelHandle()) != home || ClientWorldLoader.residentRenderer(departed) == null) {
             return;

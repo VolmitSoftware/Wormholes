@@ -1,16 +1,24 @@
 package art.arcane.wormholes.clientgametest;
 
+import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.function.Function;
+import java.util.function.Supplier;
 
 final class CommandSeamlessServer implements SeamlessServer {
     private static final int REPLY_TIMEOUT_TICKS = 200;
+    private static final int SERVER_TASK_TIMEOUT_SECONDS = 120;
 
     private final DriverClient client;
 
@@ -131,6 +139,29 @@ final class CommandSeamlessServer implements SeamlessServer {
     public Vec3 playerPosition() {
         String[] values = client.command("wormholesqa position", "position", REPLY_TIMEOUT_TICKS).trim().split(",");
         return new Vec3(Double.parseDouble(values[0]), Double.parseDouble(values[1]), Double.parseDouble(values[2]));
+    }
+
+    @Override
+    public <T> T computeOnServer(Function<MinecraftServer, T> function) {
+        MinecraftServer server = client.computeOnClient(Minecraft::getSingleplayerServer);
+        SeamlessScenario.assertTrue(server != null, "direct server queries need the owned integrated server");
+        Supplier<T> task = () -> function.apply(server);
+        try {
+            return server.submit(task).get(SERVER_TASK_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        } catch (ExecutionException failure) {
+            if (failure.getCause() instanceof Error error) {
+                throw error;
+            }
+            if (failure.getCause() instanceof RuntimeException error) {
+                throw error;
+            }
+            throw new AssertionError("integrated server query failed", failure.getCause());
+        } catch (TimeoutException failure) {
+            throw new AssertionError("integrated server query exceeded " + SERVER_TASK_TIMEOUT_SECONDS + " seconds", failure);
+        } catch (InterruptedException failure) {
+            Thread.currentThread().interrupt();
+            throw new AssertionError("integrated server query was interrupted", failure);
+        }
     }
 
     @Override

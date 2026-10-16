@@ -62,6 +62,16 @@ final class FabricSeamlessClient implements SeamlessClient {
     }
 
     @Override
+    public void holdJump() {
+        context.getInput().holdKey(options -> options.keyJump);
+    }
+
+    @Override
+    public void releaseJump() {
+        context.getInput().releaseKey(options -> options.keyJump);
+    }
+
+    @Override
     public void lookAt(float yaw, float pitch) {
         context.getInput().lookAt(yaw, pitch);
     }

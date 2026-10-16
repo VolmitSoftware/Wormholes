@@ -1076,6 +1076,7 @@ public class IrisViewPipelinePathTest extends MinecraftTestBase {
             when(forward.sourceGeometry()).thenReturn(sourceGeometry);
             when(forward.sourceToDestination()).thenReturn(toward);
             when(forward.resident()).thenReturn(true);
+            when(forward.returnTraversable()).thenReturn(true);
             when(forward.levelHandle()).thenReturn(1);
             when(reverse.token()).thenReturn(UUID.randomUUID());
             when(reverse.sourcePortal()).thenReturn(UUID.randomUUID());
@@ -1083,6 +1084,7 @@ public class IrisViewPipelinePathTest extends MinecraftTestBase {
             when(reverse.sourceGeometry()).thenReturn(reverseGeometry);
             when(reverse.sourceToDestination()).thenReturn(toward.inverse());
             when(reverse.resident()).thenReturn(true);
+            when(reverse.returnTraversable()).thenReturn(true);
             when(reverse.levelHandle()).thenReturn(2);
             reverseRoot = new ClientPortal(9, reverseGeometry, 1, 0.0D);
             EnvironmentState environment = mock(EnvironmentState.class);

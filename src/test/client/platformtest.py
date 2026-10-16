@@ -64,6 +64,18 @@ def native_dh(path: Path, game_version: str) -> dict:
     return metadata
 
 
+def loader_mod(path: Path, platform: str) -> dict:
+    metadata_path: str = "META-INF/neoforge.mods.toml" if platform == "neoforge" else "META-INF/mods.toml"
+    if not path.is_file():
+        raise ValueError("--mod requires an existing jar: " + str(path))
+    with zipfile.ZipFile(path) as archive:
+        if metadata_path not in archive.namelist():
+            raise ValueError("--mod requires a native " + platform + " mod jar: " + str(path))
+        metadata: dict = tomllib.loads(archive.read(metadata_path).decode())
+    mods: list[dict] = metadata.get("mods", [])
+    return mods[0] if mods else {}
+
+
 def cached_native_mod(coordinate: str, mod_id: str) -> Path:
     group, artifact, version = coordinate.split(":")
     directory: Path = Path.home() / ".gradle/caches/modules-2/files-2.1" / group / artifact / version
@@ -150,6 +162,8 @@ def execute(args: argparse.Namespace) -> int:
         if shader is not None:
             supported_dh_pack(shader)
     bridge_jar: Path = native_bridge(args.minecraft_version, args.platform)
+    extra_mods: list[Path] = [mod.resolve() for mod in args.mod]
+    extra_metadata: list[dict] = [loader_mod(mod, args.platform) for mod in extra_mods]
     dependencies: dict[str, str] = target["renderDependencies"][args.platform]
     renderer_mods: dict[str, Path] = {}
     if args.renderer == "sodium":
@@ -195,6 +209,11 @@ def execute(args: argparse.Namespace) -> int:
             mods = run / "mods"
             mods.mkdir()
             for mod in renderer_mods.values():
+                shutil.copy2(mod, mods / mod.name)
+        if extra_mods:
+            mods = run / "mods"
+            mods.mkdir(exist_ok=True)
+            for mod in extra_mods:
                 shutil.copy2(mod, mods / mod.name)
         if distant_horizons is not None:
             mods = run / "mods"
@@ -275,6 +294,8 @@ def execute(args: argparse.Namespace) -> int:
                 raise RuntimeError("Missing successful native mixin audit or lighting assertions; inspect " + str(log))
             if not dh_acceptance and args.filter in "portal-clip-singleplayer" and "WORMHOLES_PORTAL_CLIP_PASS fixture=portal-clip-singleplayer" not in text:
                 raise AssertionError("Missing successful native portal clip image assertion; inspect " + str(log))
+            if not dh_acceptance and args.filter in "end-portal-floor-singleplayer" and "WORMHOLES_END_PORTAL_FLOOR_PASS fixture=end-portal-floor-singleplayer" not in text:
+                raise AssertionError("Missing successful native End portal floor assertion; inspect " + str(log))
             if dh_acceptance:
                 required: list[str] = ["WORMHOLES_DH_ACCEPTANCE_PASS shaders=" + str(shader is not None).lower()
                     + " native=true fixture=dh-acceptance-singleplayer", "WORMHOLES_DH_CLIP_SCOPE_PASS",
@@ -310,6 +331,7 @@ def execute(args: argparse.Namespace) -> int:
             "minecraftVersion": args.minecraft_version, "renderer": args.renderer,
             "loaderVersion": target["loaders"][args.platform], "bridge": str(bridge_jar),
             "renderDependencies": {name: dependencies[name] for name in renderer_mods},
+            "mods": [{"path": str(mod), "id": metadata.get("modId"), "version": metadata.get("version")} for mod, metadata in zip(extra_mods, extra_metadata)],
             "shaderPack": str(shader) if shader is not None else None,
             "distantHorizons": str(distant_horizons) if distant_horizons is not None else None,
             "distantHorizonsVersion": dh_metadata["version"] if dh_metadata is not None else None,
@@ -333,6 +355,7 @@ def main() -> int:
     parser.add_argument("--renderer", choices=["vanilla", "sodium"], default="vanilla")
     parser.add_argument("--shader-pack", type=Path)
     parser.add_argument("--distant-horizons", type=Path)
+    parser.add_argument("--mod", type=Path, action="append", default=[])
     parser.add_argument("--timeout", type=int, default=1200)
     parser.add_argument("--jvm-arg", action="append", default=[])
     args = parser.parse_args()

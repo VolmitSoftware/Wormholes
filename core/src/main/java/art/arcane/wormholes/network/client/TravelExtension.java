@@ -116,6 +116,7 @@ public final class TravelExtension implements ViewStreamExtension<TravelMessage>
                     out.i32(door.z());
                     out.u8(door.open() ? 1 : 0);
                 }
+                out.u8(begin.returnTraversable() ? 1 : 0);
             }
             case TravelMessage.TravelCross cross -> {
                 identity(out, cross.token(), cross.generation());
@@ -224,7 +225,7 @@ public final class TravelExtension implements ViewStreamExtension<TravelMessage>
                 TravelMessage.TravelPose pose = pose(in);
                 yield new TravelMessage.TravelBegin(token, generation, portal, source, geometry, transform, scale, world, pose,
                     EnvironmentStateCodec.read(in), rules(in), bool(in), in.u8(),
-                    bool(in) ? new TravelMessage.DoorCollisionTarget(in.i32(), in.i32(), in.i32(), bool(in)) : null);
+                    bool(in) ? new TravelMessage.DoorCollisionTarget(in.i32(), in.i32(), in.i32(), bool(in)) : null, bool(in));
             }
             case TravelMessage.TRAVEL_CANCEL -> new TravelMessage.TravelCancel(token, generation);
             case TravelMessage.TRAVEL_CROSS -> new TravelMessage.TravelCross(token, generation, in.i64(), pose(in), vector(in), vector(in));

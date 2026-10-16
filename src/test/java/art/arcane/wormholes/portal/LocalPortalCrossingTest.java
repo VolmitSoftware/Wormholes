@@ -20,11 +20,15 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.frame.AxisPermutation;
 
 class LocalPortalCrossingTest {
+    private static final int SOURCE_FLOOR = 64;
+    private static final int ARRIVAL_FLOOR = 90;
+
     private TraversableManager previousManager;
 
     @BeforeEach
@@ -181,12 +185,137 @@ class LocalPortalCrossingTest {
         assertEquals(location, history.capture(Wormholes.traversableManager.entityContinuity(entity.entity(), location, 1_100L), location, 1_100L));
     }
 
+    @Test
+    void aPlayerStandingStillOnTheFloorOfAnEndSourceIsSent() {
+        World world = LocalPortalTestSupport.world("end-contact-standing");
+        LocalPortal source = window(world, 10, SOURCE_FLOOR, 10, Face.U, DimensionalPortalKind.END_SOURCE);
+        LocalPortalTestSupport.FakeEntity player = LocalPortalTestSupport.FakeEntity.player("standing", new Location(world, 11.5D, SOURCE_FLOOR, 11.5D));
+
+        Traversive crossing = source.traversal().rayTeleport(player.entity(), null);
+
+        assertNotNull(crossing);
+        assertTrue(crossing.isFrontSide());
+        assertVector(new Vector(11.5D, SOURCE_FLOOR, 11.5D), crossing.getInPoint());
+    }
+
+    @Test
+    void walkingAcrossAtFloorLevelIsSentWithoutCrossingThePlane() {
+        World world = LocalPortalTestSupport.world("end-contact-walk");
+        LocalPortal source = window(world, 10, SOURCE_FLOOR, 10, Face.U, DimensionalPortalKind.END_SOURCE);
+        LocalPortalTestSupport.FakeEntity walker = LocalPortalTestSupport.FakeEntity.entity("walker", new Location(world, 11.5D, SOURCE_FLOOR, 11.2D));
+        walker.entity().setVelocity(new Vector(0.0D, 0.0D, -0.2D));
+
+        Traversive crossing = source.traversal().rayTeleport(walker.entity(), new Location(world, 11.5D, SOURCE_FLOOR, 11.4D));
+
+        assertNotNull(crossing);
+        assertVector(new Vector(0.0D, 0.0D, -0.2D), crossing.getInVelocity());
+        assertVector(new Vector(11.5D, SOURCE_FLOOR, 11.2D), crossing.getInPoint());
+    }
+
+    @Test
+    void contactAboveOrBelowTheSourcePlaneArrivesBelowTheArrivalPlaneInsideItsFootprint() {
+        World world = LocalPortalTestSupport.world("end-contact-arrival");
+        LocalPortal source = window(world, 10, SOURCE_FLOOR, 10, Face.U, DimensionalPortalKind.END_SOURCE);
+        LocalPortal arrival = window(world, 100, ARRIVAL_FLOOR, 200, Face.U, DimensionalPortalKind.END_ARRIVAL);
+        double arrivalPlane = ARRIVAL_FLOOR + 0.5D;
+        for (double feet : List.of(SOURCE_FLOOR + 0.0D, SOURCE_FLOOR + 0.3D, SOURCE_FLOOR + 0.5D, SOURCE_FLOOR + 0.7D)) {
+            LocalPortalTestSupport.FakeEntity faller = LocalPortalTestSupport.FakeEntity.entity("faller", new Location(world, 10.4D, feet, 12.6D));
+            faller.entity().setVelocity(new Vector(0.0D, -0.08D, 0.0D));
+
+            Traversive crossing = source.traversal().rayTeleport(faller.entity(), null);
+
+            assertNotNull(crossing, "contact at feet " + feet);
+            Location exit = arrival.computeExitTarget(crossing);
+            assertTrue(exit.getY() < arrivalPlane, "arrival below the END_ARRIVAL plane for feet " + feet + " but was " + exit.getY());
+            assertEquals(Math.min(feet, SOURCE_FLOOR + 0.5D) - SOURCE_FLOOR, exit.getY() - ARRIVAL_FLOOR, 1.0E-2D);
+            assertTrue(exit.getX() >= 100.0D && exit.getX() < 103.0D, "arrival x inside the window: " + exit.getX());
+            assertTrue(exit.getZ() >= 200.0D && exit.getZ() < 203.0D, "arrival z inside the window: " + exit.getZ());
+            assertTrue(arrival.computeExitTarget(crossing).toVector().subtract(new Vector(100.4D, exit.getY(), 202.6D)).length() < 1.0E-6D,
+                "arrival keeps the footprint offset: " + exit);
+        }
+    }
+
+    @Test
+    void feetOnTheFrameTopAreNotSent() {
+        World world = LocalPortalTestSupport.world("end-contact-frame");
+        LocalPortal source = window(world, 10, SOURCE_FLOOR, 10, Face.U, DimensionalPortalKind.END_SOURCE);
+        for (double feet : List.of(SOURCE_FLOOR + 0.75D, SOURCE_FLOOR + 0.8125D)) {
+            LocalPortalTestSupport.FakeEntity player = LocalPortalTestSupport.FakeEntity.player("frame", new Location(world, 11.5D, feet, 11.5D));
+            assertNull(source.traversal().rayTeleport(player.entity(), null));
+        }
+        LocalPortalTestSupport.FakeEntity beside = LocalPortalTestSupport.FakeEntity.player("beside", new Location(world, 9.5D, SOURCE_FLOOR, 11.5D));
+        assertNull(source.traversal().rayTeleport(beside.entity(), null));
+    }
+
+    @Test
+    void aFastFallThatLeavesThePortalBoxStillUsesThePlaneCrossing() {
+        World world = LocalPortalTestSupport.world("end-contact-tunnel");
+        LocalPortal source = window(world, 10, SOURCE_FLOOR, 10, Face.U, DimensionalPortalKind.END_SOURCE);
+        LocalPortalTestSupport.FakeEntity faller = LocalPortalTestSupport.FakeEntity.entity("tunnel", new Location(world, 11.5D, SOURCE_FLOOR - 4.0D, 11.5D));
+        faller.entity().setVelocity(new Vector(0.0D, -5.0D, 0.0D));
+
+        Traversive crossing = source.traversal().rayTeleport(faller.entity(), new Location(world, 11.5D, SOURCE_FLOOR + 1.0D, 11.5D));
+
+        assertNotNull(crossing);
+        assertTrue(crossing.isFrontSide());
+        assertVector(new Vector(11.5D, SOURCE_FLOOR - 4.0D, 11.5D), crossing.getInPoint());
+    }
+
+    @Test
+    void aTravellerAlreadyInAnotherWorldIsNeverAdmitted() {
+        World world = LocalPortalTestSupport.world("end-contact-source-world");
+        World end = LocalPortalTestSupport.world("end-contact-end-world");
+        LocalPortal source = window(world, 10, SOURCE_FLOOR, 10, Face.U, DimensionalPortalKind.END_SOURCE);
+        LocalPortalTestSupport.FakeEntity overlapping = LocalPortalTestSupport.FakeEntity.entity("overlapping", new Location(end, 11.5D, SOURCE_FLOOR, 11.5D));
+        assertNull(source.traversal().rayTeleport(overlapping.entity(), null));
+
+        LocalPortalTestSupport.FakeEntity arrived = LocalPortalTestSupport.FakeEntity.entity("arrived", new Location(end, 12.5D, ARRIVAL_FLOOR - 20.0D, 10.5D));
+        arrived.entity().setVelocity(new Vector(0.0D, -0.08D, 0.0D));
+        assertNull(source.traversal().rayTeleport(arrived.entity(), new Location(world, 11.5D, SOURCE_FLOOR + 0.7D, 11.5D)));
+    }
+
+    @Test
+    void otherFloorPortalsAndWallEndSourcesKeepThePlaneRule() {
+        World world = LocalPortalTestSupport.world("end-contact-other");
+        for (DimensionalPortalKind kind : List.of(DimensionalPortalKind.NONE, DimensionalPortalKind.NETHER, DimensionalPortalKind.END_ARRIVAL,
+            DimensionalPortalKind.END_EXIT)) {
+            LocalPortal floor = window(world, 10, SOURCE_FLOOR, 10, Face.U, kind);
+            LocalPortalTestSupport.FakeEntity player = LocalPortalTestSupport.FakeEntity.player("floor", new Location(world, 11.5D, SOURCE_FLOOR, 11.5D));
+            assertNull(floor.traversal().rayTeleport(player.entity(), null), kind.name());
+        }
+        LocalPortal wall = wall(world, DimensionalPortalKind.END_SOURCE);
+        LocalPortalTestSupport.FakeEntity standing = LocalPortalTestSupport.FakeEntity.player("wall", new Location(world, 11.5D, SOURCE_FLOOR, 10.5D));
+        assertNull(wall.traversal().rayTeleport(standing.entity(), null));
+    }
+
     private static LocalPortal portal(World world, Face normal) {
         PortalStructure structure = new PortalStructure();
         structure.setWorld(world);
         structure.setArea(new Cuboid(new Location(world, -2.0D, 64.0D, -2.0D), new Location(world, 2.0D, 68.0D, 2.0D)));
         LocalPortal portal = new LocalPortal(UUID.randomUUID(), PortalType.PORTAL, structure);
         portal.setFrame(Frame.canonical(normal));
+        portal.setAmbientAttended(false);
+        return portal;
+    }
+
+    private static LocalPortal window(World world, int x, int y, int z, Face normal, DimensionalPortalKind kind) {
+        PortalStructure structure = new PortalStructure();
+        structure.setWorld(world);
+        structure.setArea(new Cuboid(new Location(world, x, y, z), new Location(world, x + 2.0D, y, z + 2.0D)));
+        return managed(structure, normal, kind);
+    }
+
+    private static LocalPortal wall(World world, DimensionalPortalKind kind) {
+        PortalStructure structure = new PortalStructure();
+        structure.setWorld(world);
+        structure.setArea(new Cuboid(new Location(world, 10.0D, SOURCE_FLOOR, 10.0D), new Location(world, 12.0D, SOURCE_FLOOR + 2.0D, 10.0D)));
+        return managed(structure, Face.S, kind);
+    }
+
+    private static LocalPortal managed(PortalStructure structure, Face normal, DimensionalPortalKind kind) {
+        LocalPortal portal = new LocalPortal(UUID.randomUUID(), PortalType.PORTAL, structure);
+        portal.setFrame(Frame.canonical(normal));
+        portal.setDimensionalPortalKind(kind);
         portal.setAmbientAttended(false);
         return portal;
     }

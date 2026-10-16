@@ -63,7 +63,9 @@ final class PortalRemovalProjection {
             awaitView(client, pair, PortalPairScene.Side.LOCAL, label);
         } else {
             int shown = PortalPairViews.awaitTicks(client, minecraft -> PortalPairViews.viewAt(minecraft, pair, PortalPairScene.Side.LOCAL), SETTLE_TICKS);
-            LOGGER.info("[{}] one-way arrival portal view {} after turning back: {}", label, shown >= 0 ? "present" : "absent",
+            assertTrue(shown < 0, label + ": the one-way arrival portal drew a view " + shown + " ticks after turning back although it does not lead back: "
+                + client.computeOnClient(PortalPairViews::describe));
+            LOGGER.info("[{}] one-way arrival portal view absent for {} ticks after turning back: {}", label, SETTLE_TICKS,
                 client.computeOnClient(PortalPairViews::describe));
         }
         Removal removal = new Removal(label, pair, PortalPairScene.Side.LOCAL, PortalPairScene.Stance.BEHIND, PortalPairScene.Side.LOCAL);

@@ -107,6 +107,6 @@ public class ClientSeamlessTravelGravityTest extends MinecraftTestBase {
             base.rules().momentum(), ScaleRule.ratio(0.25D, 4.0D), true);
         return new TravelMessage.TravelBegin(base.token(), base.generation(), base.sourcePortal(), base.sourceWorld(), base.sourceGeometry(),
             TravelMessage.TravelBegin.destinationToSource(toward), 0.5F, base.world(), base.arrival(), base.environment(), rules,
-            base.resident(), base.levelHandle(), base.doorCollision());
+            base.resident(), base.levelHandle(), base.doorCollision(), base.returnTraversable());
     }
 }

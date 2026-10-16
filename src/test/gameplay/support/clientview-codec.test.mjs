@@ -406,12 +406,13 @@ describe('ClientView golden vectors', () => {
       sourceGeometry: portalGeometry([], FULL_SHAPE), destinationToSource: begin.destinationToSource, scale: 1, world: TRAVEL_WORLD, arrival: TRAVEL_ARRIVAL,
       environment: fixtureEnvironment('minecraft:overworld', IDENTITY_TRANSFORM),
       rules: { orientation: 'FRAME', gravityFlip: false, rotateGravity: false, momentum: begin.rules.momentum, scale: { mode: 'OFF', min: 0.0625, max: 16 } },
-      resident: false, levelHandle: 0, doorCollision: null
+      resident: false, levelHandle: 0, doorCollision: null, returnTraversable: true
     })
     assert.deepEqual(begin.destinationToSource.translation, { x: 4, y: 0, z: 6 })
     const resident = decodeVector(vector('travel_begin_resident'))
     assert.deepEqual([resident.resident, resident.levelHandle], [true, 4])
     assert.equal(resident.doorCollision, null)
+    assert.equal(resident.returnTraversable, true)
     assert.deepEqual(resident.sourceGeometry, portalGeometry([], CIRCLE_SHAPE))
     assert.deepEqual(resident.rules, { orientation: 'LOOK', gravityFlip: true, rotateGravity: false, momentum: { mode: 'SCALE', factor: 0.75, maxSpeed: 3.5, impulse: { x: 0, y: 0.25, z: 0 } },
       scale: { mode: 'RATIO', min: 0.25, max: 4 } })
@@ -457,8 +458,8 @@ describe('ClientView golden vectors', () => {
   it('rejects malformed and truncated door collision payloads', () => {
     const base = decodeVector(vector('travel_begin'))
     const frame = encodeS2C({ ...base, doorCollision: { x: 48, y: 70, z: 20, open: true } }, 18)
-    const offset = frame.length - 14
-    for (const index of [offset, frame.length - 1]) {
+    const offset = frame.length - 15
+    for (const index of [offset, frame.length - 2]) {
       const invalid = Buffer.from(frame)
       invalid[index] = 2
       assert.throws(() => decodeS2C(invalid, ALL_CAPS), ClientViewProtocolError)
@@ -470,6 +471,25 @@ describe('ClientView golden vectors', () => {
     }
     for (let length = offset; length < frame.length; length++) {
       assert.throws(() => decodeS2C(frame.subarray(0, length), ALL_CAPS), ClientViewProtocolError)
+    }
+  })
+
+  it('round-trips whether the arrival leads back against the travel begin goldens', () => {
+    for (const name of ['travel_begin', 'travel_begin_resident']) {
+      const entry = vector(name)
+      const golden = decodeVector(entry)
+      assert.equal(golden.returnTraversable, true, name)
+      for (const returnTraversable of [false, true]) {
+        const bytes = Buffer.from(entry.bytes)
+        bytes[bytes.length - 1] = returnTraversable ? 1 : 0
+        const frame = decodeS2C(bytes, entry.caps)
+        assert.deepEqual(frame.message, { ...golden, returnTraversable }, `${name} ${returnTraversable}`)
+        assert.deepEqual(encodeS2C(frame.message, frame.seq, frame.flags), bytes, `${name} ${returnTraversable} re-encodes`)
+        const invalid = Buffer.from(bytes)
+        invalid[invalid.length - 1] = 2
+        assert.throws(() => decodeS2C(invalid, entry.caps), ClientViewProtocolError, `${name} return flag 2`)
+        assert.throws(() => decodeS2C(bytes.subarray(0, bytes.length - 1), entry.caps), ClientViewProtocolError, `${name} truncated return flag`)
+      }
     }
   })
 

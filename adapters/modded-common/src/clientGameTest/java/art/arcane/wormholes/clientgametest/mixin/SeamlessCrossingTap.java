@@ -1,7 +1,9 @@
 package art.arcane.wormholes.clientgametest.mixin;
 
+import art.arcane.wormholes.clientgametest.ArrivalPlacementTap;
 import art.arcane.wormholes.clientgametest.CrossingBenchTap;
 import art.arcane.wormholes.clientgametest.SeamlessTurningTap;
+import art.arcane.wormholes.clientgametest.TravelTap;
 import art.arcane.wormholes.clientgametest.VerticalCameraLoopTap;
 import art.arcane.wormholes.modded.client.ClientSeamlessTravel;
 import art.arcane.wormholes.network.client.TravelMessage;
@@ -25,14 +27,23 @@ public abstract class SeamlessCrossingTap {
     @WrapMethod(method = "cross")
     private Vec3 wormholesTest$originalCrossing(Minecraft minecraft, LocalPlayer player, TravelMessage.TravelBegin arm,
                                                float partial, Vec3 previous, Vec3 eye, Operation<Vec3> original) {
+        TravelTap.crossingAttempted();
         SeamlessTurningTap.Attempt attempt = SeamlessTurningTap.entering(minecraft, player, arm, partial, previous, eye);
         VerticalCameraLoopTap.Attempt vertical = VerticalCameraLoopTap.entering(minecraft, player, arm, partial, previous, eye);
         String from = minecraft.level.dimension().identifier().toString();
         long started = System.nanoTime();
         Vec3 result = original.call(minecraft, player, arm, partial, previous, eye);
         CrossingBenchTap.clientCrossing(started, System.nanoTime() - started, minecraft, from, result != null);
+        if (result != null) {
+            ArrivalPlacementTap.arrived(minecraft, "predicted");
+        }
         SeamlessTurningTap.returned(attempt, minecraft, result);
         VerticalCameraLoopTap.returned(vertical, minecraft, result);
         return result;
+    }
+
+    @Inject(method = "serverCrossing", at = @At("RETURN"))
+    private void wormholesTest$serverCrossing(TravelMessage.TravelAccept accept, CallbackInfo callback) {
+        ArrivalPlacementTap.arrived(Minecraft.getInstance(), "server");
     }
 }

@@ -101,6 +101,7 @@
     "CrossingBenchMoveTap",
     "CrossingBenchRoutedTap",
     "SeamlessHeldChunkTap",
+    "SeamlessPlacementTap",
     "HeldChunksAccess"
   ]
 }

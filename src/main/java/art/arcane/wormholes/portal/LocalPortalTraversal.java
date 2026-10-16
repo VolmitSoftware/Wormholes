@@ -50,6 +50,7 @@ import art.arcane.wormholes.localization.TransitMessages;
 import art.arcane.wormholes.localization.WormholesMessages;
 import art.arcane.wormholes.portal.LocalPortalTransitRegistry.ReentryLatch;
 import art.arcane.wormholes.portal.rtp.BukkitRtpRuntime;
+import art.arcane.wormholes.portal.vanilla.EndPortalContact;
 import art.arcane.wormholes.service.WormholesHud;
 import art.arcane.wormholes.service.WormholesTelemetry;
 import art.arcane.wormholes.platform.WormholesPlatform;
@@ -702,6 +703,39 @@ final class LocalPortalTraversal
 	}
 
 	Traversive rayTeleport(Entity i, Location sweepStart)
+	{
+		World world = i.getWorld();
+		if(world == null || !world.equals(portal.getStructure().getWorld()))
+		{
+			return null;
+		}
+		Traversive contact = endPortalContact(i);
+		return contact == null ? planeCrossing(i, sweepStart) : contact;
+	}
+
+	private Traversive endPortalContact(Entity i)
+	{
+		DimensionalPortalKind kind = portal.getDimensionalPortalKind();
+		Face normal = portal.getFrame().getNormal();
+		if(!EndPortalContact.applies(kind, normal))
+		{
+			return null;
+		}
+		BoundingBox bounds = i.getBoundingBox();
+		EndPortalContact.Hit hit = EndPortalContact.contact(kind, normal, portal.getStructure().geometry(),
+			new Box(bounds.getMinX(), bounds.getMaxX(), bounds.getMinY(), bounds.getMaxY(), bounds.getMinZ(), bounds.getMaxZ()));
+		if(hit == null)
+		{
+			return null;
+		}
+		Location current = i.getLocation();
+		Location start = BukkitGeometry.location(hit.entry(), current.getWorld());
+		start.setYaw(current.getYaw());
+		start.setPitch(current.getPitch());
+		return buildCrossing(i, start, BukkitGeometry.bukkit(hit.exit()), Wormholes.traversableManager.getVelocity(i));
+	}
+
+	private Traversive planeCrossing(Entity i, Location sweepStart)
 	{
 		Vector velocity = Wormholes.traversableManager.getVelocity(i);
 		if(i instanceof Player && velocity.lengthSquared() == 0.0D)

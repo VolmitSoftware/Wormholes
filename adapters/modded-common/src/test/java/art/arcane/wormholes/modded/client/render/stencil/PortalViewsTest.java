@@ -822,6 +822,20 @@ public class PortalViewsTest extends MinecraftTestBase {
     }
 
     @Test
+    public void anArrivalThatDoesNotLeadBackDrawsNoReturnView() {
+        try (TravelScene travel = new TravelScene()) {
+            travel.scene.views.crossed(travel.forward, travel.scene.home, travel.destination, true);
+            assertTrue(travel.scene.views.follow(travel.destination) != null);
+            when(travel.forward.returnTraversable()).thenReturn(false);
+            travel.scene.views.crossed(travel.forward, travel.scene.home, travel.destination, true);
+            assertNull(travel.scene.views.follow(travel.destination));
+            assertFalse(travel.scene.views.hasTraversalHistory());
+            travel.scene.views.frame(travel.destination, travel.toward.point(EYE), List.of(), false, true, List.of(), null);
+            assertTrue(travel.scene.views.current().isEmpty());
+        }
+    }
+
+    @Test
     public void nonresidentArmCannotReusePreviousReturnOwnership() {
         try (TravelScene travel = new TravelScene()) {
             travel.scene.views.crossed(travel.forward, travel.scene.home, travel.destination, true);
@@ -1161,6 +1175,7 @@ public class PortalViewsTest extends MinecraftTestBase {
     private static TravelMessage.TravelBegin residentArm(UUID portal, ApertureDescriptor geometry) {
         TravelMessage.TravelBegin arm = arm(portal, geometry);
         when(arm.resident()).thenReturn(true);
+        when(arm.returnTraversable()).thenReturn(true);
         when(arm.levelHandle()).thenReturn(1);
         when(arm.sourceToDestination()).thenReturn(Similarity.of(OpticTransform.IDENTITY, 2.0D));
         return arm;

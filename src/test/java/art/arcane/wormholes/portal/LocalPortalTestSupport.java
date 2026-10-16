@@ -16,6 +16,7 @@ import org.bukkit.NamespacedKey;
 import org.bukkit.World;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
+import org.bukkit.util.BoundingBox;
 import org.bukkit.util.Vector;
 
 import art.arcane.wormholes.util.Cuboid;
@@ -309,6 +310,8 @@ final class LocalPortalTestSupport
 				case "getUniqueId" -> id;
 				case "getName" -> name;
 				case "getLocation" -> location.clone();
+				case "getBoundingBox" -> new BoundingBox(location.getX() - 0.3D, location.getY(), location.getZ() - 0.3D,
+						location.getX() + 0.3D, location.getY() + 1.8D, location.getZ() + 0.3D);
 				case "getWorld" -> location.getWorld();
 				case "getVelocity" -> velocity.clone();
 				case "setVelocity" ->

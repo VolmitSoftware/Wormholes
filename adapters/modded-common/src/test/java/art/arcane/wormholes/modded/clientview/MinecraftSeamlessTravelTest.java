@@ -4,6 +4,7 @@ import art.arcane.optics.crossing.GravityFrame;
 
 import art.arcane.optics.crossing.ArrivalOrientation;
 import art.arcane.optics.aperture.ApertureCells;
+import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.crossing.PlaneCrossing;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.math.Angles;
@@ -14,23 +15,38 @@ import art.arcane.optics.plate.ChunkLeaseRegistry;
 import art.arcane.wormholes.modded.MinecraftDoorService;
 import art.arcane.wormholes.modded.MinecraftPortal;
 import art.arcane.wormholes.modded.MinecraftPortalRegistry;
+import art.arcane.wormholes.modded.MinecraftProjectorPortalAccess;
 import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.modded.WormholesModRuntime;
+import art.arcane.wormholes.modded.mixin.SeamlessListenerAccess;
 import art.arcane.wormholes.modded.seamless.RemoteRoutes;
 import art.arcane.wormholes.modded.seamless.RemoteRoute;
 import art.arcane.wormholes.modded.seamless.RouteWindow;
 import art.arcane.wormholes.network.client.TravelMessage;
+import art.arcane.wormholes.nexus.NetworkMember;
+import art.arcane.wormholes.portal.ApertureKind;
+import art.arcane.wormholes.portal.DimensionalPortalKind;
+import art.arcane.wormholes.portal.Portal;
+import art.arcane.wormholes.portal.PortalType;
+import art.arcane.wormholes.portal.vanilla.EndPortalContact;
 import art.arcane.wormholes.render.client.session.ClientViewTravel;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.network.ServerGamePacketListenerImpl;
 import net.minecraft.server.players.PlayerList;
+import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.AABB;
 import org.junit.Test;
+import org.mockito.ArgumentCaptor;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 
 import static org.junit.Assert.assertEquals;
@@ -45,6 +61,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.withSettings;
 
 public class MinecraftSeamlessTravelTest extends MinecraftTestBase {
     @Test
@@ -79,6 +96,46 @@ public class MinecraftSeamlessTravelTest extends MinecraftTestBase {
         fixture.seamless.tick(fixture.session, fixture.player);
 
         assertFalse(fixture.seamless.defer(fixture.player, UUID.randomUUID()));
+        assertFalse(fixture.seamless.crossing(fixture.player.getUUID()));
+    }
+
+    @Test
+    public void aServerDetectedEndPortalContactWaitsForTheClientClaim() throws ReflectiveOperationException {
+        Fixture fixture = new Fixture();
+        MinecraftPortal source = floor(DimensionalPortalKind.END_SOURCE, 64);
+        fixture.arm(source, floor(DimensionalPortalKind.END_ARRIVAL, 80));
+
+        assertTrue(fixture.seamless.defer(fixture.player, source.getId()));
+        assertFalse(fixture.seamless.crossing(fixture.player.getUUID()));
+    }
+
+    @Test
+    public void aClaimedEndPortalContactCrossesFromJustBelowTheSourcePlane() throws ReflectiveOperationException {
+        Fixture fixture = new Fixture();
+        MinecraftPortal source = floor(DimensionalPortalKind.END_SOURCE, 64);
+        MinecraftPortal destination = floor(DimensionalPortalKind.END_ARRIVAL, 80);
+        TravelMessage.TravelBegin begin = fixture.endArm(source, destination);
+        TravelMessage.TravelCross cross = new TravelMessage.TravelCross(begin.token(), begin.generation(), 1L,
+            new TravelMessage.TravelPose(11.5D, 64.7D, 11.5D, 0.0F, 40.0F), new Vec3d(11.5D, 66.32D, 11.6D), new Vec3d(11.5D, 66.32D, 11.5D));
+        when(fixture.session.takeSeamlessCross()).thenReturn(cross, (TravelMessage.TravelCross) null);
+
+        fixture.seamless.settle(fixture.session, fixture.player);
+
+        ArgumentCaptor<PlaneCrossing> crossing = ArgumentCaptor.forClass(PlaneCrossing.class);
+        verify(fixture.registry).crossSeamless(eq(fixture.player), eq(source.getId()), eq(destination), crossing.capture());
+        assertEquals(11.5D, crossing.getValue().point().x(), 1.0E-9D);
+        assertEquals(64.499D, crossing.getValue().point().y(), 1.0E-9D);
+        assertEquals(11.5D, crossing.getValue().point().z(), 1.0E-9D);
+        assertFalse(crossing.getValue().frontSide());
+    }
+
+    @Test
+    public void aServerDetectedFrameFloorCrossingStillWaitsForTheClientClaim() throws ReflectiveOperationException {
+        Fixture fixture = new Fixture();
+        MinecraftPortal source = floor(DimensionalPortalKind.NONE, 64);
+        fixture.arm(source, floor(DimensionalPortalKind.NONE, 80));
+
+        assertTrue(fixture.seamless.defer(fixture.player, source.getId()));
         assertFalse(fixture.seamless.crossing(fixture.player.getUUID()));
     }
 
@@ -131,6 +188,60 @@ public class MinecraftSeamlessTravelTest extends MinecraftTestBase {
         verify(fixture.doors, never()).collisionTarget(destinationId);
         when(fixture.peer.door(sourceId)).thenReturn(source);
         assertEquals(target, metadata.invoke(fixture.seamless, fixture.peer, source, destination));
+    }
+
+    @Test
+    public void aReceiveOnlyArrivalIsArmedWithoutAReturn() {
+        Fixture fixture = new Fixture();
+        Pair pair = fixture.pair();
+        when(pair.projector().projectionDestination(pair.destination())).thenReturn(null);
+
+        assertFalse(fixture.seamless.returnTraversable(fixture.peer, fixture.player, pair.source(), pair.destination()));
+    }
+
+    @Test
+    public void aLinkedPairIsArmedWithItsReturnWhileTheTravellerMayUseIt() {
+        Fixture fixture = new Fixture();
+        Pair pair = fixture.pair();
+
+        assertTrue(fixture.seamless.returnTraversable(fixture.peer, fixture.player, pair.source(), pair.destination()));
+        when(fixture.registry.canDepart(fixture.player, pair.destination())).thenReturn(false);
+        assertFalse(fixture.seamless.returnTraversable(fixture.peer, fixture.player, pair.source(), pair.destination()));
+        when(fixture.registry.canDepart(fixture.player, pair.destination())).thenReturn(true);
+        when(fixture.registry.canArrive(fixture.player, pair.source())).thenReturn(false);
+        assertFalse(fixture.seamless.returnTraversable(fixture.peer, fixture.player, pair.source(), pair.destination()));
+    }
+
+    @Test
+    public void aReturnIntoAnotherLevelOrThroughAClosedArrivalIsNotArmed() {
+        Fixture fixture = new Fixture();
+        Pair elsewhere = fixture.pair();
+        when(fixture.registry.resolveLevel(elsewhere.source())).thenReturn(mock(ServerLevel.class));
+        assertFalse(fixture.seamless.returnTraversable(fixture.peer, fixture.player, elsewhere.source(), elsewhere.destination()));
+        Pair closed = fixture.pair();
+        when(closed.destination().isOpen()).thenReturn(false);
+        assertFalse(fixture.seamless.returnTraversable(fixture.peer, fixture.player, closed.source(), closed.destination()));
+        Pair mirrored = fixture.pair();
+        when(mirrored.source().isMirrorMode()).thenReturn(true);
+        assertFalse(fixture.seamless.returnTraversable(fixture.peer, fixture.player, mirrored.source(), mirrored.destination()));
+    }
+
+    @Test
+    public void doorsAreArmedWithTheirReturn() {
+        Fixture fixture = new Fixture();
+        MinecraftPortal door = mock(MinecraftPortal.class);
+        UUID doorId = UUID.randomUUID();
+        when(door.getId()).thenReturn(doorId);
+        when(fixture.peer.door(doorId)).thenReturn(door);
+
+        assertTrue(fixture.seamless.returnTraversable(fixture.peer, fixture.player, door, mock(MinecraftPortal.class)));
+    }
+
+    @Test
+    public void aChangedReturnInvalidatesAnOtherwiseIdenticalArm() throws Exception {
+        ArmFixture fixture = new ArmFixture();
+        assertTrue(fixture.matches(fixture.target, true));
+        assertFalse(fixture.matches(fixture.target, false));
     }
 
     @Test
@@ -209,6 +320,22 @@ public class MinecraftSeamlessTravelTest extends MinecraftTestBase {
         assertTrue(fixture.matches(fixture.target));
     }
 
+    private static MinecraftPortal floor(DimensionalPortalKind kind, int y) {
+        List<Vec3d> cells = new ArrayList<>(9);
+        for (int x = 10; x <= 12; x++) {
+            for (int z = 10; z <= 12; z++) {
+                cells.add(new Vec3d(x, y, z));
+            }
+        }
+        ApertureCells geometry = new ApertureCells();
+        geometry.setBlocks(cells);
+        UUID id = UUID.randomUUID();
+        MinecraftPortal portal = new MinecraftPortal(new MinecraftPortal.Definition(new Portal.State(id, geometry.getApertureCenter(), "Floor",
+            Frame.canonical(Face.D), true), geometry, "minecraft:overworld", Map.of("owner", id.toString(), "type", PortalType.PORTAL.name())));
+        portal.setDimensionalKind(kind);
+        return portal;
+    }
+
     private static final class ArmFixture {
         private final MinecraftPortal source = mock(MinecraftPortal.class);
         private final MinecraftPortal destination = mock(MinecraftPortal.class);
@@ -225,6 +352,7 @@ public class MinecraftSeamlessTravelTest extends MinecraftTestBase {
                 new Vec3d(4, 70, 9), new RouteWindow(0, 0, 2), 3);
             TravelMessage.TravelBegin begin = mock(TravelMessage.TravelBegin.class);
             when(begin.doorCollision()).thenReturn(target);
+            when(begin.returnTraversable()).thenReturn(true);
             Class<?> stateType = Class.forName(MinecraftSeamlessTravel.class.getName() + "$PortalState");
             Method capture = stateType.getDeclaredMethod("capture", MinecraftPortal.class);
             capture.setAccessible(true);
@@ -234,12 +362,16 @@ public class MinecraftSeamlessTravelTest extends MinecraftTestBase {
             constructor.setAccessible(true);
             arm = constructor.newInstance(source, destination, level, true, 7L, 3, begin, capture.invoke(null, source), capture.invoke(null, destination));
             matches = armType.getDeclaredMethod("matches", MinecraftPortal.class, MinecraftPortal.class, RemoteRoute.class,
-                boolean.class, long.class, TravelMessage.DoorCollisionTarget.class);
+                boolean.class, long.class, TravelMessage.DoorCollisionTarget.class, boolean.class);
             matches.setAccessible(true);
         }
 
         private boolean matches(TravelMessage.DoorCollisionTarget next) throws ReflectiveOperationException {
-            return (boolean) matches.invoke(arm, source, destination, route, true, 7L, next);
+            return matches(next, true);
+        }
+
+        private boolean matches(TravelMessage.DoorCollisionTarget next, boolean returnTraversable) throws ReflectiveOperationException {
+            return (boolean) matches.invoke(arm, source, destination, route, true, 7L, next, returnTraversable);
         }
 
         private static void configure(MinecraftPortal portal) {
@@ -274,7 +406,7 @@ public class MinecraftSeamlessTravelTest extends MinecraftTestBase {
         private Fixture() {
             UUID playerId = UUID.randomUUID();
             MinecraftServer server = mock(MinecraftServer.class);
-            player.connection = mock(ServerGamePacketListenerImpl.class);
+            player.connection = mock(ServerGamePacketListenerImpl.class, withSettings().extraInterfaces(SeamlessListenerAccess.class));
             when(runtime.portals()).thenReturn(registry);
             when(registry.observedVelocity(player)).thenReturn(new Vec3d(0.0D, 0.0D, 0.0D));
             when(runtime.doors()).thenReturn(doors);
@@ -297,5 +429,91 @@ public class MinecraftSeamlessTravelTest extends MinecraftTestBase {
             when(server.getPlayerList()).thenReturn(list);
             when(list.getViewDistance()).thenReturn(10);
         }
+
+        private TravelMessage.TravelBegin endArm(MinecraftPortal source, MinecraftPortal destination) throws ReflectiveOperationException {
+            ApertureDescriptor geometry = new ApertureDescriptor(10, 64, 10, Face.D.ordinal(), false, 0, false, 3, 3, new long[] {511L},
+                ShapeDescriptor.FULL, 0.0F, 0.0F, 1.0F, 64, 0, 0, 0, 0, 0, 0, ApertureKind.VANILLA_REPLACEMENT, 0.0D, 0, 1L, List.of());
+            TravelMessage.TravelBegin begin = mock(TravelMessage.TravelBegin.class);
+            when(begin.token()).thenReturn(UUID.randomUUID());
+            when(begin.generation()).thenReturn(4L);
+            when(begin.sourceWorld()).thenReturn("minecraft:overworld");
+            when(begin.sourceGeometry()).thenReturn(geometry);
+            when(begin.scale()).thenReturn(1.0F);
+            when(begin.world()).thenReturn(new TravelMessage.TravelWorld(EndPortalContact.END, EndPortalContact.END, 7L, false, false, 0, 0, 256));
+            arm(source, destination, begin);
+            MinecraftProjectorPortalAccess projector = mock(MinecraftProjectorPortalAccess.class);
+            when(peer.portals()).thenReturn(projector);
+            when(projector.projectionDestination(source)).thenReturn(destination);
+            when(projector.routeIdentity(source)).thenReturn(7L);
+            when(portals.travelGeometry(peer, source, false)).thenReturn(geometry);
+            RemoteRoute route = new RemoteRoute(new RemoteRoute.Key(player.getUUID(), source.getId(), destination.getId()), level,
+                new Vec3d(11.5D, 80.5D, 11.5D), new RouteWindow(2, 2, 2), 3);
+            route.stream().markDelivered(ChunkPos.pack(0, 0));
+            when(routes.route(player.getUUID(), source.getId())).thenReturn(route);
+            when(level.dimension()).thenReturn(Level.OVERWORLD);
+            when(registry.resolveLevel(source)).thenReturn(level);
+            when(registry.get(source.getId())).thenReturn(source);
+            when(registry.canDepart(player, source)).thenReturn(true);
+            when(registry.canArrive(player, destination)).thenReturn(true);
+            when(registry.resolveDestination(eq(source), eq(player), any())).thenReturn(new NetworkMember(destination.getId(), "", "", 0, null));
+            when(player.getX()).thenReturn(11.5D);
+            when(player.getY()).thenReturn(64.8125D);
+            when(player.getZ()).thenReturn(11.5D);
+            when(player.getEyeHeight()).thenReturn(1.62F);
+            when(player.getBoundingBox()).thenReturn(new AABB(11.2D, 64.8125D, 11.2D, 11.8D, 66.6125D, 11.8D));
+            worldGravity(player);
+            return begin;
+        }
+
+        private void arm(MinecraftPortal source, MinecraftPortal destination) throws ReflectiveOperationException {
+            arm(source, destination, mock(TravelMessage.TravelBegin.class));
+        }
+
+        @SuppressWarnings("unchecked")
+        private void arm(MinecraftPortal source, MinecraftPortal destination, TravelMessage.TravelBegin begin) throws ReflectiveOperationException {
+            Class<?> stateType = Class.forName(MinecraftSeamlessTravel.class.getName() + "$PortalState");
+            Method capture = stateType.getDeclaredMethod("capture", MinecraftPortal.class);
+            capture.setAccessible(true);
+            Class<?> armType = Class.forName(MinecraftSeamlessTravel.class.getName() + "$Arm");
+            Constructor<?> armConstructor = armType.getDeclaredConstructor(MinecraftPortal.class, MinecraftPortal.class, ServerLevel.class,
+                boolean.class, long.class, int.class, TravelMessage.TravelBegin.class, stateType, stateType);
+            armConstructor.setAccessible(true);
+            Object arm = armConstructor.newInstance(source, destination, level, false, 7L, 3, begin,
+                capture.invoke(null, source), capture.invoke(null, destination));
+            Class<?> travelerType = Class.forName(MinecraftSeamlessTravel.class.getName() + "$Traveler");
+            Constructor<?> travelerConstructor = travelerType.getDeclaredConstructor();
+            travelerConstructor.setAccessible(true);
+            Object traveler = travelerConstructor.newInstance();
+            Field arms = travelerType.getDeclaredField("arms");
+            arms.setAccessible(true);
+            ((Map<UUID, Object>) arms.get(traveler)).put(source.getId(), arm);
+            Field travelers = MinecraftSeamlessTravel.class.getDeclaredField("travelers");
+            travelers.setAccessible(true);
+            ((Map<UUID, Object>) travelers.get(seamless)).put(player.getUUID(), traveler);
+        }
+
+        private Pair pair() {
+            MinecraftProjectorPortalAccess projector = mock(MinecraftProjectorPortalAccess.class);
+            when(peer.portals()).thenReturn(projector);
+            MinecraftPortal source = portal();
+            MinecraftPortal destination = portal();
+            when(projector.projectionDestination(destination)).thenReturn(source);
+            when(registry.resolveLevel(source)).thenReturn(level);
+            when(registry.canDepart(player, destination)).thenReturn(true);
+            when(registry.canArrive(player, source)).thenReturn(true);
+            return new Pair(projector, source, destination);
+        }
+
+        private MinecraftPortal portal() {
+            MinecraftPortal portal = mock(MinecraftPortal.class);
+            UUID id = UUID.randomUUID();
+            when(portal.getId()).thenReturn(id);
+            when(portal.isOpen()).thenReturn(true);
+            when(registry.get(id)).thenReturn(portal);
+            return portal;
+        }
+    }
+
+    private record Pair(MinecraftProjectorPortalAccess projector, MinecraftPortal source, MinecraftPortal destination) {
     }
 }

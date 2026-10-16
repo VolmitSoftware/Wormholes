@@ -47,6 +47,7 @@
       "art.arcane.wormholes.clientgametest.RotatedNetherPairClientGameTest",
       "art.arcane.wormholes.clientgametest.CardinalLightingClientGameTest",
       "art.arcane.wormholes.clientgametest.SeamlessWalkThroughClientGameTest",
+      "art.arcane.wormholes.clientgametest.EndPortalFloorClientGameTest",
       "art.arcane.wormholes.clientgametest.LookContinuityClientGameTest",
       "art.arcane.wormholes.clientgametest.SingleplayerStoreClientGameTest"
     ],

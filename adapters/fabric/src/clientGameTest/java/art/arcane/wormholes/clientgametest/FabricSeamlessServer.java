@@ -3,6 +3,7 @@ package art.arcane.wormholes.clientgametest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestServerContext;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 
@@ -10,6 +11,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Function;
 
 final class FabricSeamlessServer implements SeamlessServer {
     private final TestServerContext server;
@@ -86,6 +88,11 @@ final class FabricSeamlessServer implements SeamlessServer {
                 SeamlessScenario.removePortal(connection.getServerPlayer(), minecraftServer, portal);
             }
         });
+    }
+
+    @Override
+    public <T> T computeOnServer(Function<MinecraftServer, T> function) {
+        return server.computeOnServer(function::apply);
     }
 
     @Override

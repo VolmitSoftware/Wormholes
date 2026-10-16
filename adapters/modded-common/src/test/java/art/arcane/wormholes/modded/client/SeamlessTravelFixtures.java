@@ -6,6 +6,7 @@ import art.arcane.optics.crossing.Pose;
 import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.mixin.client.PreparedEntityAccess;
+import art.arcane.wormholes.modded.seamless.StraddleHolder;
 import art.arcane.wormholes.network.client.TravelMessage;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.phys.Vec3;
@@ -28,9 +29,14 @@ final class SeamlessTravelFixtures {
     }
 
     static TravelMessage.TravelBegin begin(boolean resident) {
+        return begin(resident, true);
+    }
+
+    static TravelMessage.TravelBegin begin(boolean resident, boolean returnTraversable) {
         return new TravelMessage.TravelBegin(TOKEN, GENERATION, new UUID(1, 3), "minecraft:overworld", ClientTravelTestFixtures.geometry(),
             OpticTransform.translation(-100, -64, -100), 1.0F, ResidentTestFixtures.NETHER, new TravelMessage.TravelPose(100.5, 64, 99.2, 180, 10),
-            ResidentTestFixtures.environment(ResidentTestFixtures.NETHER), TravelMessage.ArrivalRules.FRAME, resident, resident ? 3 : 0, null);
+            ResidentTestFixtures.environment(ResidentTestFixtures.NETHER), TravelMessage.ArrivalRules.FRAME, resident, resident ? 3 : 0, null,
+            returnTraversable);
     }
 
     static TravelMessage.TravelAccept accept(double offset, float yaw) {
@@ -39,7 +45,7 @@ final class SeamlessTravelFixtures {
     }
 
     static LocalPlayer player() {
-        LocalPlayer player = mock(LocalPlayer.class, withSettings().extraInterfaces(PreparedEntityAccess.class));
+        LocalPlayer player = mock(LocalPlayer.class, withSettings().extraInterfaces(PreparedEntityAccess.class, StraddleHolder.class));
         when(player.position()).thenReturn(new Vec3(100.5, 64, 99.0));
         when(player.oldPosition()).thenReturn(new Vec3(100.5, 64, 99.2));
         when(player.getDeltaMovement()).thenReturn(new Vec3(0, 0, -0.3));

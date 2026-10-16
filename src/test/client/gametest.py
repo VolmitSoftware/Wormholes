@@ -75,7 +75,7 @@ def selected_tests(suite: str, names: list[str]) -> list[str]:
 
 def init_script(run: Path, resources: Path, bridge: Path, sodium: Path | None, token: str, iris: Path | None,
                 distant_horizons: Path | None, shader: bool, jvm_args: list[str], baseline: Path | None,
-                baseline_resources: Path | None, replaced: list[Path]) -> str:
+                baseline_resources: Path | None, replaced: list[Path], mods: list[Path]) -> str:
     dependencies = "fabric.dependencies.add('clientGameTestRuntimeOnly', fabric.files(" + groovy(str(bridge)) + "))"
     if sodium is not None:
         dependencies += "\n    fabric.dependencies.add('clientGameTestRuntimeOnly', fabric.files(" + groovy(str(sodium)) + "))"
@@ -83,6 +83,8 @@ def init_script(run: Path, resources: Path, bridge: Path, sodium: Path | None, t
         dependencies += "\n    fabric.dependencies.add('clientGameTestRuntimeOnly', fabric.files(" + groovy(str(iris)) + "))"
     if distant_horizons is not None:
         dependencies += "\n    fabric.dependencies.add('clientGameTestRuntimeOnly', fabric.files(" + groovy(str(distant_horizons)) + "))"
+    for mod in mods:
+        dependencies += "\n    fabric.dependencies.add('clientGameTestRuntimeOnly', fabric.files(" + groovy(str(mod)) + "))"
     overlay = ""
     if baseline is not None:
         originals = ", ".join(groovy(str(path.resolve())) for path in replaced)
@@ -143,6 +145,15 @@ def dh_jar(path: Path, game_version: str) -> dict:
     if game_version not in str(metadata.get("depends", {}).get("minecraft", "")):
         raise ValueError("The DH jar does not declare Minecraft " + game_version + " support")
     return metadata
+
+
+def fabric_mod(path: Path) -> dict:
+    if not path.is_file():
+        raise ValueError("--mod requires an existing jar: " + str(path))
+    with zipfile.ZipFile(path) as archive:
+        if "fabric.mod.json" not in archive.namelist():
+            raise ValueError("--mod requires a Fabric mod jar: " + str(path))
+        return json.loads(archive.read("fabric.mod.json"))
 
 
 def supported_dh_pack(path: Path) -> None:
@@ -259,6 +270,8 @@ def execute(args: argparse.Namespace) -> int:
         raise ValueError("--iris installs Iris without a shader pack and requires --renderer sodium")
     if distant_horizons is not None and shader is not None:
         supported_dh_pack(shader)
+    mods: list[Path] = [mod.resolve() for mod in args.mod]
+    mod_metadata: list[dict] = [fabric_mod(mod) for mod in mods]
     bridge_root = ROOT / "build/client-automator"
     if args.minecraft_version != "26.3":
         bridge_root /= args.minecraft_version
@@ -326,7 +339,7 @@ def execute(args: argparse.Namespace) -> int:
             baseline, baseline_resources, replaced = baseline_overlay(args.iris_baseline_source.resolve(), evidence)
         jvm_args = args.jvm_arg + (["-Dwormholes.test.dhShutdown=true"] if distant_horizons is not None else [])
         script.write_text(init_script(run, resources, bridge, sodium, token, iris, distant_horizons, shader is not None,
-                                     jvm_args, baseline, baseline_resources, replaced))
+                                     jvm_args, baseline, baseline_resources, replaced, mods))
         log = evidence / "runtime.log"
         print("Tests: " + ", ".join(test.rsplit(".", 1)[1] for test in tests), flush=True)
         print("Evidence: " + str(evidence), flush=True)
@@ -407,6 +420,7 @@ def execute(args: argparse.Namespace) -> int:
             (evidence / "result.json").write_text(json.dumps({"passed": success, "tests": tests, "minecraftVersion": args.minecraft_version, "renderer": args.renderer,
                 "shaderPack": shader.name if shader is not None else None, "iris": iris is not None,
                 "distantHorizons": {"path": str(distant_horizons), "version": dh_metadata["version"]} if dh_metadata is not None else None,
+                "mods": [{"path": str(mod), "id": metadata.get("id"), "version": metadata.get("version")} for mod, metadata in zip(mods, mod_metadata)],
                 "failure": failure}, indent=2) + "\n")
         finally:
             script.unlink(missing_ok=True)
@@ -425,6 +439,7 @@ def main() -> int:
     parser.add_argument("--shader-pack", type=Path)
     parser.add_argument("--iris", action="store_true")
     parser.add_argument("--distant-horizons", type=Path)
+    parser.add_argument("--mod", type=Path, action="append", default=[])
     parser.add_argument("--iris-baseline-source", type=Path)
     parser.add_argument("--jvm-arg", action="append", default=[])
     parser.add_argument("--timeout", type=int, default=1200)

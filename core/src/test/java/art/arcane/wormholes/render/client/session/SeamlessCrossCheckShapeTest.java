@@ -3,6 +3,7 @@ package art.arcane.wormholes.render.client.session;
 import art.arcane.optics.crossing.GravityFrame;
 
 import art.arcane.optics.aperture.ApertureDescriptor;
+import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Face;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.shape.ShapeDescriptor;
@@ -59,12 +60,13 @@ final class SeamlessCrossCheckShapeTest {
 
     private static SeamlessCrossCheck.Server server(ApertureDescriptor geometry, double x, double eyeY) {
         return new SeamlessCrossCheck.Server("minecraft:the_nether", geometry, new TravelMessage.TravelPose(x, eyeY - EYE, 0.45D, 0.0F, 0.0F),
-            new Vec3d(0.0D, 0.0D, 0.0D), EYE, GravityFrame.WORLD, false, false);
+            new Vec3d(0.0D, 0.0D, 0.0D), EYE, new Box(x - 0.3D, x + 0.3D, eyeY - EYE, eyeY - EYE + 1.8D, 0.15D, 0.75D), GravityFrame.WORLD, false, false);
     }
 
     private static TravelMessage.TravelBegin arm(ApertureDescriptor geometry) {
         TravelMessage.TravelBegin sample = ClientViewFixtures.travelBegin();
         return new TravelMessage.TravelBegin(sample.token(), sample.generation(), sample.sourcePortal(), sample.sourceWorld(), geometry,
-            sample.destinationToSource(), 1.0F, sample.world(), sample.arrival(), sample.environment(), TravelMessage.ArrivalRules.FRAME, true, 2, sample.doorCollision());
+            sample.destinationToSource(), 1.0F, sample.world(), sample.arrival(), sample.environment(), TravelMessage.ArrivalRules.FRAME, true, 2, sample.doorCollision(),
+            sample.returnTraversable());
     }
 }

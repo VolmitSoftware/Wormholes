@@ -2,11 +2,13 @@ package art.arcane.wormholes.clientgametest;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.List;
 import java.util.UUID;
+import java.util.function.Function;
 
 interface SeamlessServer {
     SeamlessScenario.Route build(SeamlessScenario.RouteSpec spec);
@@ -38,6 +40,8 @@ interface SeamlessServer {
     List<UUID> buildStencilResize();
 
     void removePortals(List<UUID> portals);
+
+    <T> T computeOnServer(Function<MinecraftServer, T> function);
 
     PortalPairScene.Pair buildPortalPair(PortalPairScene.Spec spec);
 

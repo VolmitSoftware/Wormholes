@@ -500,20 +500,27 @@ public final class RemoteRoutes implements AutoCloseable {
         return created;
     }
 
+    static Candidate straddled(Box stretched, List<Candidate> ranked) {
+        for (int index = 0; index < ranked.size(); index++) {
+            Candidate candidate = ranked.get(index);
+            if (!candidate.source().getDimensionalKind().isManagedEndPortal() && StraddleTracker.qualifies(stretched, candidate.source().getGeometry())) {
+                return candidate;
+            }
+        }
+        return null;
+    }
+
     private void straddle(ServerPlayer player, List<Candidate> ranked) {
         Vec3 eye = player.getEyePosition();
         Box stretched = StraddleTracker.stretched(box(player.getBoundingBox()), runtime.portals().observedVelocity(player),
             new Vec3d(player.xo - player.getX(), player.yo - player.getY(), player.zo - player.getZ()));
-        for (int index = 0; index < ranked.size(); index++) {
-            Candidate candidate = ranked.get(index);
-            if (!StraddleTracker.qualifies(stretched, candidate.source().getGeometry())) {
-                continue;
-            }
-            StraddleTracker.track(player, endpoint(candidate.source(), null), endpoint(candidate.destination(), candidate.doorCollision()), candidate.level(),
-                new Vec3d(eye.x, eye.y, eye.z), MinecraftPortalRegistry.travelScale(candidate.source(), candidate.destination()));
+        Candidate candidate = straddled(stretched, ranked);
+        if (candidate == null) {
+            StraddleTracker.clear(player);
             return;
         }
-        StraddleTracker.clear(player);
+        StraddleTracker.track(player, endpoint(candidate.source(), null), endpoint(candidate.destination(), candidate.doorCollision()), candidate.level(),
+            new Vec3d(eye.x, eye.y, eye.z), MinecraftPortalRegistry.travelScale(candidate.source(), candidate.destination()));
     }
 
     private static Box box(AABB box) {

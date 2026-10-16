@@ -149,6 +149,6 @@ public class ClientSeamlessTravelScaleTest extends MinecraftTestBase {
             new MomentumRule(MomentumRule.Mode.PRESERVE, 1.0D, 0.0D, null), rule, false);
         return new TravelMessage.TravelBegin(SCALED_TOKEN, base.generation(), new UUID(2, 4), base.sourceWorld(), base.sourceGeometry(),
             TravelMessage.TravelBegin.destinationToSource(toward), (float) ratio, base.world(), base.arrival(), base.environment(), rules, base.resident(),
-            base.levelHandle(), base.doorCollision());
+            base.levelHandle(), base.doorCollision(), base.returnTraversable());
     }
 }

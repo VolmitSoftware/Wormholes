@@ -1,10 +1,12 @@
 package art.arcane.wormholes.modded.seamless;
 
+import art.arcane.optics.aperture.ApertureCells;
 import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.MinecraftPortal;
 import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.network.client.TravelMessage;
+import art.arcane.wormholes.portal.DimensionalPortalKind;
 import net.minecraft.core.Holder;
 import net.minecraft.server.level.ChunkTrackingView;
 import net.minecraft.server.level.ServerLevel;
@@ -13,12 +15,14 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.dimension.DimensionType;
 import org.junit.Test;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -117,6 +121,37 @@ public class RemoteRoutesRankingTest extends MinecraftTestBase {
         assertTrue(window.within(ChunkTrackingView.of(new ChunkPos(8, 10), 8)));
         assertFalse(window.within(ChunkTrackingView.of(new ChunkPos(2, 10), 8)));
         assertFalse(window.within(ChunkTrackingView.EMPTY));
+    }
+
+    @Test
+    public void managedEndPortalsNeverOpenTheFloorUnderTheirAperture() {
+        ServerLevel level = mock(ServerLevel.class);
+        Box standing = new Box(11.2D, 11.8D, 64.0D, 65.8D, 11.2D, 11.8D);
+        RemoteRoutes.Candidate frame = floor(level, DimensionalPortalKind.NONE);
+
+        for (DimensionalPortalKind kind : new DimensionalPortalKind[] {DimensionalPortalKind.END_SOURCE, DimensionalPortalKind.END_EXIT,
+            DimensionalPortalKind.END_ARRIVAL}) {
+            RemoteRoutes.Candidate end = floor(level, kind);
+            assertNull(RemoteRoutes.straddled(standing, List.of(end)));
+            assertSame(frame, RemoteRoutes.straddled(standing, List.of(end, frame)));
+        }
+        assertSame(frame, RemoteRoutes.straddled(standing, List.of(frame)));
+        assertNull(RemoteRoutes.straddled(new Box(31.2D, 31.8D, 64.0D, 65.8D, 11.2D, 11.8D), List.of(frame)));
+    }
+
+    private static RemoteRoutes.Candidate floor(ServerLevel level, DimensionalPortalKind kind) {
+        List<Vec3d> cells = new ArrayList<>(9);
+        for (int x = 10; x <= 12; x++) {
+            for (int z = 10; z <= 12; z++) {
+                cells.add(new Vec3d(x, 64, z));
+            }
+        }
+        ApertureCells geometry = new ApertureCells();
+        geometry.setBlocks(cells);
+        RemoteRoutes.Candidate candidate = candidate(level, 1.0D);
+        when(candidate.source().getGeometry()).thenReturn(geometry);
+        when(candidate.source().getDimensionalKind()).thenReturn(kind);
+        return candidate;
     }
 
     private static RemoteRoutes.Candidate candidate(ServerLevel level, double distance) {

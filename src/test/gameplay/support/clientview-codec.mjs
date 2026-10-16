@@ -1266,7 +1266,7 @@ function readTravel(reader, type) {
       const arrival = readPose(reader)
       return { type, token, generation, sourcePortal, sourceWorld, sourceGeometry, destinationToSource, scale, world, arrival,
         environment: readEnvironment(reader), rules: readArrivalRules(reader), resident: readFlag(reader, 'resident'), levelHandle: reader.u8(),
-        doorCollision: readDoorCollision(reader) }
+        doorCollision: readDoorCollision(reader), returnTraversable: readFlag(reader, 'return traversable') }
     }
     case 'TRAVEL_CANCEL':
       return { type, token, generation }
@@ -1297,6 +1297,7 @@ function writeTravel(writer, message) {
       writer.u8(message.resident ? 1 : 0)
       writer.u8(message.levelHandle)
       writeDoorCollision(writer, message.doorCollision)
+      writer.u8(message.returnTraversable ? 1 : 0)
       return
     case 'TRAVEL_CANCEL':
       return

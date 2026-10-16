@@ -128,6 +128,7 @@ public final class ClientGameTestDriver {
                 new Pass("held-chunk-singleplayer", label -> SeamlessHeldChunk.run(client, server, label)),
                 new Pass("portal-clip-singleplayer", label -> NativePortalClipAcceptance.run(client, label)),
                 new Pass("stencil-resize-singleplayer", label -> PortalStencilResize.run(client, server, label)),
+                new Pass("end-portal-floor-singleplayer", label -> EndPortalFloor.run(client, server, label)),
                 new Pass("end-return-vertical-from-end-singleplayer", label -> EndReturnPortal.run(client, server, label,
                     PortalPairScene.Orientation.VERTICAL, PortalPairScene.Side.REMOTE)),
                 new Pass("end-return-vertical-from-overworld-singleplayer", label -> EndReturnPortal.run(client, server, label,

@@ -21,6 +21,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.network.ServerGamePacketListenerImpl;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.junit.Test;
 
@@ -47,6 +48,9 @@ public class SeamlessValidationTest extends MinecraftTestBase {
         assertEquals("minecraft:overworld", authority.world());
         assertEquals(-3.9D, authority.velocity().y(), 0.0D);
         assertEquals(1.62D, authority.eyeHeight(), 1.0E-6D);
+        assertEquals(0.2D, authority.bounds().getXa(), 0.0D);
+        assertEquals(2.4D, authority.bounds().getYb(), 0.0D);
+        assertEquals(3.8D, authority.bounds().getZb(), 0.0D);
     }
 
     @Test
@@ -99,6 +103,7 @@ public class SeamlessValidationTest extends MinecraftTestBase {
         when(level.dimension()).thenReturn(Level.OVERWORLD);
         when(player.level()).thenReturn(level);
         when(player.getEyeHeight()).thenReturn(1.62F);
+        when(player.getBoundingBox()).thenReturn(new AABB(0.2D, 0.6D, 3.2D, 0.8D, 2.4D, 3.8D));
         return player;
     }
 

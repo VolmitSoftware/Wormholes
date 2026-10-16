@@ -402,6 +402,7 @@ public class PortalViewsCrossingGraphTest extends MinecraftTestBase {
             when(arm.sourceGeometry()).thenReturn(aperture);
             when(arm.sourceToDestination()).thenReturn(transform);
             when(arm.resident()).thenReturn(true);
+            when(arm.returnTraversable()).thenReturn(true);
             when(arm.levelHandle()).thenReturn(handle);
             return arm;
         }

@@ -29,12 +29,14 @@ import art.arcane.wormholes.network.client.TravelMessage;
 import art.arcane.wormholes.nexus.NetworkMember;
 import art.arcane.wormholes.portal.ApertureKind;
 import art.arcane.wormholes.portal.PortalType;
+import art.arcane.wormholes.portal.vanilla.EndPortalContact;
 import art.arcane.wormholes.render.client.session.ClientViewTravel;
 import art.arcane.wormholes.render.client.session.SeamlessCrossCheck;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.PositionMoveRotation;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -225,9 +227,11 @@ final class MinecraftSeamlessTravel {
     }
 
     static SeamlessCrossCheck.Server authority(ServerPlayer player, ApertureDescriptor geometry, Vec3d velocity) {
+        AABB bounds = player.getBoundingBox();
         return new SeamlessCrossCheck.Server(player.level().dimension().identifier().toString(), geometry,
             new TravelMessage.TravelPose(player.getX(), player.getY(), player.getZ(), player.getYRot(), player.getXRot()), velocity,
-            player.getEyeHeight(), MinecraftGravity.frame(player), ((SeamlessListenerAccess) player.connection).wormholesAwaitingPosition() != null, player.isChangingDimension());
+            player.getEyeHeight(), new Box(bounds.minX, bounds.maxX, bounds.minY, bounds.maxY, bounds.minZ, bounds.maxZ), MinecraftGravity.frame(player),
+            ((SeamlessListenerAccess) player.connection).wormholesAwaitingPosition() != null, player.isChangingDimension());
     }
 
     static boolean residentArrival(RemoteRoute route, ServerPlayer player, Vec3d arrival) {
@@ -265,13 +269,14 @@ final class MinecraftSeamlessTravel {
                 withinAperture);
             long identity = peer.portals().routeIdentity(source);
             TravelMessage.DoorCollisionTarget doorCollision = collisionTarget(peer, source, destination);
-            if (current != null && current.matches(source, destination, route, front, identity, doorCollision)
+            boolean returnTraversable = returnTraversable(peer, player, source, destination);
+            if (current != null && current.matches(source, destination, route, front, identity, doorCollision, returnTraversable)
                 && armedWith(current.begin().rules(), current.begin().scale(), rules(peer, source),
                 MinecraftPortalRegistry.travelScale(source, destination))) {
                 live.add(sourceId);
                 continue;
             }
-            Arm next = arm(travel, player, source, destination, route, front, identity, doorCollision);
+            Arm next = arm(travel, player, source, destination, route, front, identity, doorCollision, returnTraversable);
             if (next != null && travel.sendTravel(next.begin())) {
                 if (current != null) {
                     traveler.retire(current, tick);
@@ -315,7 +320,7 @@ final class MinecraftSeamlessTravel {
     }
 
     private Arm arm(ClientViewTravel<MinecraftClientViewPeer> travel, ServerPlayer player, MinecraftPortal source, MinecraftPortal destination,
-                    RemoteRoute route, boolean front, long identity, TravelMessage.DoorCollisionTarget doorCollision) {
+                    RemoteRoute route, boolean front, long identity, TravelMessage.DoorCollisionTarget doorCollision, boolean returnTraversable) {
         MinecraftClientViewPeer peer = travel.player();
         ServerLevel world = route.level();
         ApertureDescriptor geometry = portals.travelGeometry(peer, source, front);
@@ -337,7 +342,7 @@ final class MinecraftSeamlessTravel {
             player.level().dimension().identifier().toString(), geometry, destinationToSource, (float) toward.scale(), metadata,
             new TravelMessage.TravelPose(feet.x(), feet.y(), feet.z(), player.getYRot(), player.getXRot()),
             MinecraftPortalEnvironment.capture(world, eye, OpticTransform.IDENTITY, world.isFlat()), rules(peer, source), route.resident(),
-            route.handle(), doorCollision);
+            route.handle(), doorCollision, returnTraversable);
         return new Arm(source, destination, world, front, identity, route.handle(), begin, PortalState.capture(source), PortalState.capture(destination));
     }
 
@@ -430,8 +435,8 @@ final class MinecraftSeamlessTravel {
         }
         Vec3d feet = new Vec3d(player.getX(), player.getY(), player.getZ());
         Vec3d velocity = runtime.portals().observedVelocity(player);
-        SeamlessCrossCheck.Refusal check = SeamlessCrossCheck.check(request, arm.begin(),
-            authority(player, portals.travelGeometry(peer, arm.source(), arm.front()), velocity));
+        SeamlessCrossCheck.Server authority = authority(player, portals.travelGeometry(peer, arm.source(), arm.front()), velocity);
+        SeamlessCrossCheck.Refusal check = SeamlessCrossCheck.check(request, arm.begin(), authority);
         if (check != SeamlessCrossCheck.Refusal.NONE) {
             return new Refused(null, check.name().toLowerCase(Locale.ROOT).replace('_', ' ') + String.format(Locale.ROOT,
                 " (claimed %.2f %.2f %.2f, server %.2f %.2f %.2f, speed %.2f)", request.sourcePose().x(), request.sourcePose().y(),
@@ -439,8 +444,10 @@ final class MinecraftSeamlessTravel {
         }
         boolean front = arm.begin().sourceGeometry().frontSide();
         Vec3 look = Vec3.directionFromRotation(request.sourcePose().pitch(), request.sourcePose().yaw());
-        PlaneCrossing crossing = new PlaneCrossing(arm.source().getFrame().view(front), arm.source().getOrigin(),
-            new Vec3d(request.sourcePose().x(), request.sourcePose().y(), request.sourcePose().z()), velocity, new Vec3d(look.x, look.y, look.z), front);
+        EndPortalContact.Hit contact = SeamlessCrossCheck.contact(request, arm.begin(), authority);
+        Vec3d point = contact == null ? new Vec3d(request.sourcePose().x(), request.sourcePose().y(), request.sourcePose().z()) : contact.exit();
+        PlaneCrossing crossing = new PlaneCrossing(arm.source().getFrame().view(front), arm.source().getOrigin(), point, velocity,
+            new Vec3d(look.x, look.y, look.z), front);
         if (!residentArrival(route, player, MinecraftPortalRegistry.passage(arm.source(), arm.destination(), crossing).toward().point(crossing.point()))) {
             return new Refused(null, "arrival column not delivered", false);
         }
@@ -455,6 +462,10 @@ final class MinecraftSeamlessTravel {
         }
         NetworkMember selected = runtime.portals().resolveDestination(source, player, crossing);
         return selected != null && selected.isLocal() && selected.portalId().equals(destination.getId());
+    }
+
+    boolean returnTraversable(MinecraftClientViewPeer peer, ServerPlayer player, MinecraftPortal source, MinecraftPortal destination) {
+        return peer.door(source.getId()) == source || returnDestination(peer, player, destination) != null;
     }
 
     TravelMessage.ArrivalRules rules(MinecraftClientViewPeer peer, MinecraftPortal source) {
@@ -495,23 +506,29 @@ final class MinecraftSeamlessTravel {
 
     private RemoteRoutes.Return returnRoute(ClientViewTravel<MinecraftClientViewPeer> travel, ServerPlayer player, Arm arm, int handle) {
         MinecraftPortal arrival = arm.destination();
-        MinecraftPortal back = travel.player().portals().projectionDestination(arrival);
-        boolean traversable = back != null && runtime.portals().get(arrival.getId()) == arrival && arrival.isOpen() && !arrival.isMirrorMode()
-            && runtime.portals().get(back.getId()) == back && runtime.portals().resolveLevel(back) == player.level() && back.isOpen()
-            && !back.isMirrorMode() && runtime.portals().canDepart(player, arrival) && runtime.portals().canArrive(player, back);
-        MinecraftPortal anchor = traversable ? back : arm.source();
+        MinecraftPortal back = returnDestination(travel.player(), player, arrival);
+        MinecraftPortal anchor = back == null ? arm.source() : back;
         TravelMessage.RemoteLevelOpen open = RemoteRoutes.openReturn(player.level(), anchor, handle,
             RemoteRoutes.fullRadius(player.requestedViewDistance(), runtime.server().getPlayerList().getViewDistance()));
-        return open == null ? null : new RemoteRoutes.Return(arrival, anchor, open, traversable);
+        return open == null ? null : new RemoteRoutes.Return(arrival, anchor, open, back != null);
+    }
+
+    private MinecraftPortal returnDestination(MinecraftClientViewPeer peer, ServerPlayer player, MinecraftPortal arrival) {
+        MinecraftPortal back = peer.portals().projectionDestination(arrival);
+        MinecraftPortalRegistry registry = runtime.portals();
+        boolean traversable = back != null && registry.get(arrival.getId()) == arrival && arrival.isOpen() && !arrival.isMirrorMode()
+            && registry.get(back.getId()) == back && registry.resolveLevel(back) == player.level() && back.isOpen() && !back.isMirrorMode()
+            && registry.canDepart(player, arrival) && registry.canArrive(player, back);
+        return traversable ? back : null;
     }
 
     private record Arm(MinecraftPortal source, MinecraftPortal destination, ServerLevel world, boolean front, long identity, int handle,
                        TravelMessage.TravelBegin begin, PortalState sourceState, PortalState destinationState) {
         private boolean matches(MinecraftPortal nextSource, MinecraftPortal nextDestination, RemoteRoute route, boolean nextFront,
-                                long nextIdentity, TravelMessage.DoorCollisionTarget nextDoorCollision) {
+                                long nextIdentity, TravelMessage.DoorCollisionTarget nextDoorCollision, boolean nextReturnTraversable) {
             return source == nextSource && destination == nextDestination && world == route.level() && front == nextFront
                 && identity == nextIdentity && handle == route.handle() && Objects.equals(begin.doorCollision(), nextDoorCollision)
-                && geometryMatches(nextSource, nextDestination);
+                && begin.returnTraversable() == nextReturnTraversable && geometryMatches(nextSource, nextDestination);
         }
 
         private boolean geometryMatches(MinecraftPortal nextSource, MinecraftPortal nextDestination) {

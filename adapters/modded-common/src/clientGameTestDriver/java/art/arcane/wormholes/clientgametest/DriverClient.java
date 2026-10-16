@@ -107,6 +107,16 @@ final class DriverClient implements SeamlessClient {
     }
 
     @Override
+    public void holdJump() {
+        runOnClient(client -> client.options.keyJump.setDown(true));
+    }
+
+    @Override
+    public void releaseJump() {
+        runOnClient(client -> client.options.keyJump.setDown(false));
+    }
+
+    @Override
     public void lookAt(float yaw, float pitch) {
         runOnClient(client -> {
             client.player.setYRot(yaw);
@@ -135,6 +145,7 @@ final class DriverClient implements SeamlessClient {
     @Override
     public void restoreDefaultGameOptions() {
         releaseForward();
+        releaseJump();
     }
 
     @Override
