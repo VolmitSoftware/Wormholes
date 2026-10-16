@@ -2,6 +2,7 @@ package art.arcane.wormholes.fabric;
 
 import art.arcane.wormholes.modded.WormholesModRuntime;
 import art.arcane.wormholes.modded.clientview.ClientViewPayload;
+import art.arcane.wormholes.modded.menu.MenuPayload;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
@@ -42,7 +43,11 @@ public final class WormholesFabric implements ModInitializer {
         ServerConfigurationNetworking.registerGlobalReceiver(ClientViewPayload.TYPE, (payload, context) ->
             runtime.clientViews().receive(context.packetListener(), payload.data()));
         ServerPlayNetworking.registerGlobalReceiver(ClientViewPayload.TYPE, (payload, context) -> { });
+        PayloadTypeRegistry.clientboundPlay().register(MenuPayload.TYPE, MenuPayload.CODEC);
+        PayloadTypeRegistry.serverboundPlay().register(MenuPayload.TYPE, MenuPayload.SERVERBOUND_CODEC);
+        ServerPlayNetworking.registerGlobalReceiver(MenuPayload.TYPE, (payload, context) -> { });
         ServerConfigurationConnectionEvents.CONFIGURE.register((handler, server) -> configureClientView(handler));
+        ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> runtime.playerJoined(handler.player));
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> clientViewJoined(handler));
         ClientboundPlayChannelEvents.REGISTER.register((handler, sender, server, channels) -> clientViewChannels(handler, channels));
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> runtime.registerCommands(dispatcher));

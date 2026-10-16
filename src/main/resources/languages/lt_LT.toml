@@ -1574,3 +1574,121 @@ off = "Grąžinti visus ClientView žaidėjus prie įprastos projekcijos"
 reset = "Iš naujo paleisti vieno žaidėjo ClientView srautą"
 "reset.player" = "Prisijungusio žaidėjo vardas"
 # ---- end lane:clientview ----
+
+# ---- lane:menu (menu.*) ----
+[menu.native.title]
+portal = "Portalas"
+mode = "Portalo režimas"
+orientation = "Orientacija"
+gateway = "Vartų susiejimas"
+settings = "Nuostatos"
+advanced = "Išsamus srauto derinimas"
+blackout = "Neperšviečiama spalva"
+ambient = "Aplinkos spalva"
+skin = "Paviršiaus apdanga"
+cost = "Kelionės kaina"
+extensions = "Daugiau nustatymų"
+destinations = "Tikslai"
+select = "Pasirinkite portalą"
+rtp = "Atsitiktinis teleportas"
+rtp_destination = "Atsitiktinis tikslas"
+rtp_biome = "Tikslinis biomas"
+rtp_landing = "Nusileidimas"
+rtp_routing = "Maršrutizavimas"
+rtp_effects = "Efektai"
+network = "Tinklas"
+dial = "Rinkti"
+rules = "Taisyklės"
+rules_list = "Taisyklių sąrašas"
+rule = "Taisyklė"
+templates = "Taisyklių šablonai"
+access = "Prieiga"
+transit = "Tranzitas"
+fidelity = "Tikslumas"
+atlas = "Atlasas"
+door = "Durų prieiga"
+language = "Kalba"
+
+[menu.native.context]
+portal = "{portal} - {type}"
+door = "Durys: {kind}"
+network = "{name}"
+
+[menu.native.chrome]
+back = "Atgal"
+close = "Uždaryti"
+apply = "Taikyti"
+confirm = "Patvirtinti"
+cancel = "Atšaukti"
+previous_page = "Ankstesnis puslapis"
+next_page = "Kitas puslapis"
+page = "Puslapis {page} / {pages}"
+use_held_item = "Naudoti laikomą daiktą"
+aim = "Nusitaikyti"
+timeout = "Serveris neatsakė."
+
+[menu.native.action]
+rotate = "Pasukti"
+rotate_clockwise = "Pasukti pagal laikrodžio rodyklę"
+rotate_counterclockwise = "Pasukti prieš laikrodžio rodyklę"
+reset = "Atstatyti"
+clear = "Išvalyti"
+colors = "Spalvos"
+advanced = "Išsamiau"
+reroll = "Perridenti"
+remove = "Pašalinti"
+favorite = "Mėgstamas"
+guide = "Vedlys"
+whitelist = "Leidžiamųjų sąrašas"
+blacklist = "Draudžiamųjų sąrašas"
+use_default = "Naudoti serverio numatytąją"
+
+[menu.native.confirm]
+delete_portal = ["Ištrinti {portal}?", "Portalas bus pašalintas, o į jį vedantys portalai atsieti.", "To negalima atšaukti."]
+"delete_portal.accept" = "Ištrinti"
+rtp_reset = ["Atstatyti {portal}?", "Visi atsitiktinio teleporto nustatymai grįš į numatytąsias reikšmes."]
+"rtp_reset.accept" = "Atstatyti"
+rules_template = ["Įkelti {name}?", "Šablonas pakeis visas šio portalo taisykles."]
+"rules_template.accept" = "Įkelti"
+nexus_leave = ["Palikti {name}?", "Šis portalas nebeskambins ir nebepriims per tinklą."]
+"nexus_leave.accept" = "Palikti"
+
+[menu.native.feedback]
+refreshed = "Meniu pasikeitė ir buvo atnaujintas."
+unavailable = "Ši parinktis šiuo metu nepasiekiama."
+invalid_value = "Ši reikšmė neleidžiama."
+save_failed = "Pakeitimo išsaugoti nepavyko."
+timeout = "Serveris per ilgai neatsakė."
+
+[menu.native.placeholder]
+name = "Portalo pavadinimas"
+code = "Kvietimo kodas"
+block_state = "Bloko būsena, pavyzdžiui, minecraft:glass"
+amount = "Suma"
+player = "Žaidėjo vardas"
+key = "Leidimo raktas"
+group = "Grupės pavadinimas"
+network = "Tinklo pavadinimas"
+address = "Adresas"
+rule_id = "Taisyklės ID"
+line = "Taisyklės eilutė"
+factor = "Daugiklis"
+sound = "Garso ID"
+ticks = "Tikai"
+scale = "Mastelis"
+search = "Ieškoti"
+
+[menu.native.transit]
+factor = "Judesio kiekio koeficientas"
+threshold_effect = "Slenksčio efektas"
+arrival_sound = "Atvykimo garsas"
+mask_ticks = "Kaukės tikai"
+scale_min = "Mažiausias mastelis"
+scale_max = "Didžiausias mastelis"
+
+[menu.native.nexus]
+comparator = "Lygintuvo išvestis"
+
+[menu.native.list]
+page = ["&b&lPuslapis {page}/{pages}&r", "&7Įrašų: {count}"]
+# ---- end lane:menu ----

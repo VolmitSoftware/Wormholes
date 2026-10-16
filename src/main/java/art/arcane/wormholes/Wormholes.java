@@ -23,6 +23,7 @@ import art.arcane.volmlib.util.director.theme.DirectorProduct;
 import art.arcane.volmlib.util.director.theme.DirectorThemes;
 import art.arcane.volmlib.util.plugin.ComponentText;
 import art.arcane.volmlib.util.localization.LocalizationSnapshot;
+import art.arcane.volmlib.util.localization.PluginLanguageEditor;
 import art.arcane.volmlib.util.localization.PluginLanguageService;
 import art.arcane.volmlib.util.localization.BukkitLanguageSwitcher;
 import art.arcane.volmlib.util.localization.VolmitLocales;
@@ -39,6 +40,9 @@ import art.arcane.wormholes.chunk.presend.BukkitChunkPreSendProvider;
 import art.arcane.wormholes.config.WormholesSettings;
 import art.arcane.wormholes.door.DimensionalDoorManager;
 import art.arcane.wormholes.localization.WormholesLocalization;
+import art.arcane.wormholes.menu.BukkitMenuHost;
+import art.arcane.wormholes.menu.MenuRoute;
+import art.arcane.wormholes.menu.MenuService;
 import art.arcane.wormholes.network.ImportExportService;
 import art.arcane.wormholes.network.NetworkManager;
 import art.arcane.wormholes.network.PortalSyncService;
@@ -52,7 +56,6 @@ import art.arcane.wormholes.papi.WormholesPlaceholders;
 import art.arcane.wormholes.platform.BukkitOpticsScheduler;
 import art.arcane.wormholes.platform.BukkitRegionTaskProvider;
 import art.arcane.wormholes.portal.ArrivalWarmer;
-import art.arcane.wormholes.portal.VanillaTravelCostCapture;
 import art.arcane.wormholes.portal.rtp.BukkitRtpEnvironment;
 import art.arcane.wormholes.portal.rtp.BukkitRtpRuntime;
 import art.arcane.wormholes.portal.vanilla.VanillaPortalReplacer;
@@ -70,6 +73,7 @@ import art.arcane.wormholes.survival.doors.dimension.PocketWorldService;
 import art.arcane.wormholes.util.J;
 import art.arcane.wormholes.util.common.SplashScreen;
 import io.github.slimjar.app.builder.SpigotApplicationBuilder;
+import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -112,7 +116,6 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
     public static volatile TraversalService traversalService;
     public static volatile TraversalCostGateway traversalCostGateway;
     public static volatile VaultEconomy vaultEconomy;
-    public static volatile VanillaTravelCostCapture vanillaTravelCostCapture;
     public static volatile RemoteViewCache<BlockData, EntityData<?>, Equipment> remoteViewCache;
     public static volatile ViewSubscriptionManager<BlockData, EntityData<?>, Equipment> viewSubscriptions;
     public static volatile ViewServer viewServer;
@@ -120,7 +123,9 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
     public static volatile PocketWorldService pocketWorldService;
     public static volatile DimensionalDoorManager dimensionalDoorManager;
     public static volatile WormholesLocalization localization;
+    public static volatile MenuService menus;
     private PluginLanguageService languageService;
+    private PluginLanguageEditor languageEditor;
     private BukkitLanguageSwitcher languageSwitcher;
     private BukkitUpdateService updateService;
     private BukkitDebugDump debugDump;
@@ -141,6 +146,7 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
     private WormholesCommandService commandService;
     private WormholesIntegrationService integrationService;
     private FaweProjectionIntegration faweProjectionIntegration;
+    private BukkitMenuHost menuHost;
 
     public Wormholes() {
         getLogger().info("Loading dependencies...");
@@ -210,7 +216,6 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
             effectManager = new EffectManager();
             constructionManager = new ConstructionManager();
             wandSelectionManager = new WandSelectionManager();
-            vanillaTravelCostCapture = new VanillaTravelCostCapture();
             portalManager = new PortalManager();
             traversableManager = new TraversableManager();
             projectionChangeTracker = new WorldChangeTracker();
@@ -231,7 +236,6 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
             getServer().getPluginManager().registerEvents(effectManager, this);
             getServer().getPluginManager().registerEvents(constructionManager, this);
             getServer().getPluginManager().registerEvents(wandSelectionManager, this);
-            getServer().getPluginManager().registerEvents(vanillaTravelCostCapture, this);
             getServer().getPluginManager().registerEvents(new PortalSkinListener(), this);
             getServer().getPluginManager().registerEvents(portalManager, this);
             getServer().getPluginManager().registerEvents(traversableManager, this);
@@ -248,6 +252,8 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
             getServer().getPluginManager().registerEvents(vanillaPortalReplacer, this);
             getServer().getServicesManager().register(NetherPortalShapes.class, vanillaPortalReplacer, this, ServicePriority.Normal);
             registerChatInputListener();
+            menuHost = new BukkitMenuHost(this, portalManager, () -> settings.getMenus().nativeScreens);
+            menus = menuHost.start();
             J.ar(() -> {
                 BukkitRtpRuntime activeRuntime = rtpRuntime;
                 if (activeRuntime != null) {
@@ -336,6 +342,10 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
         if (languageSwitcher != null) {
             languageSwitcher.close();
         }
+        if (languageEditor != null) {
+            languageEditor.close();
+            languageEditor = null;
+        }
         if (languageService != null) {
             languageService.close();
             languageService = null;
@@ -380,6 +390,7 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
         } catch (Throwable ex) {
             getLogger().log(Level.WARNING, "Error during HotloadManager stop", ex);
         }
+        shutdownMenusBeforeManagers();
         shutdownSubsystemsBeforeManagers();
         unregisterIntegrationService();
         unregisterPlaceholders();
@@ -416,6 +427,20 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
         }
         FoliaScheduler.cancelTasks(this);
         drain();
+    }
+
+    private void shutdownMenusBeforeManagers() {
+        BukkitMenuHost activeMenus = menuHost;
+        menuHost = null;
+        menus = null;
+        if (activeMenus == null) {
+            return;
+        }
+        try {
+            activeMenus.stop();
+        } catch (Throwable ex) {
+            getLogger().log(Level.WARNING, "Error during menu teardown", ex);
+        }
     }
 
     private void shutdownSubsystemsBeforeManagers() {
@@ -620,6 +645,20 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
         return languageSwitcher;
     }
 
+    public PluginLanguageEditor getLanguageEditor() {
+        return languageEditor;
+    }
+
+    public void language(CommandSender sender, String[] arguments) {
+        BukkitMenuHost activeMenus = menuHost;
+        if (activeMenus != null && sender instanceof Player player && arguments.length >= 2 && arguments.length <= 3
+            && arguments[0].equalsIgnoreCase("server") && arguments[1].equalsIgnoreCase("edit")
+            && activeMenus.openLanguageEditor(player, arguments.length == 3 ? arguments[2] : null)) {
+            return;
+        }
+        languageSwitcher.command(sender, arguments);
+    }
+
     private void enableLanguageSwitcher() {
         languageService = new PluginLanguageService(new PluginLanguageService.Options(
                 getDataFolder().toPath().resolve("languages/language-preferences.properties"),
@@ -630,6 +669,8 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
                         VolmitLocales.ENGLISH.equals(locale) ? "" : settings.getLanguageFallbacks()),
                 this::selectLanguage,
                 getLogger()));
+        languageEditor = new PluginLanguageEditor(languageService,
+                localization.editorOptions(getDataFolder().toPath(), () -> settings.getLanguageFallbacks()));
         languageSwitcher = BukkitLanguageSwitcher.register(this, languageService,
                 new BukkitLanguageSwitcher.Options("wormholes", "wormholes.admin",
                         DirectorMiniMenu.Theme.fromDirectorTheme(DirectorThemes.forProduct(DirectorProduct.WORMHOLES)),
@@ -732,6 +773,13 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
     static Logger log() {
         Wormholes active = instance;
         return active == null ? Logger.getLogger("Wormholes") : active.getLogger();
+    }
+
+    public static void openMenu(UUID viewerId, MenuRoute route) {
+        MenuService active = menus;
+        if (active != null) {
+            active.open(viewerId, route);
+        }
     }
 
     public static void awaitChatInput(Player player, Consumer<String> callback) {
@@ -935,10 +983,6 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
         projectionManager = null;
         traversableManager = null;
         portalManager = null;
-        if (vanillaTravelCostCapture != null) {
-            vanillaTravelCostCapture.clear();
-            vanillaTravelCostCapture = null;
-        }
         wandSelectionManager = null;
         constructionManager = null;
         effectManager = null;

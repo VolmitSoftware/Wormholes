@@ -13,6 +13,8 @@ import net.minecraft.network.chat.Component;
 import art.arcane.volmlib.util.localization.LinesKey;
 import art.arcane.volmlib.util.localization.MessageArgs;
 import art.arcane.wormholes.localization.RulesMessages;
+import art.arcane.wormholes.menu.portal.MenuExtensionEntry;
+import art.arcane.wormholes.menu.rules.RulesRoutes;
 import art.arcane.wormholes.rules.RulesMenuModel;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.gametest.framework.GameTestSequence;
@@ -138,12 +140,12 @@ public final class MinecraftRulesGameTest {
     }
 
     private void editor(GameTestSequence sequence) {
-        MinecraftRulesMenuEntry entry = new MinecraftRulesMenuEntry(runtime);
+        MenuExtensionEntry entry = MinecraftSubsystemMenuProbe.extensionEntry(runtime, "rules");
         sequence.thenExecute(() -> {
-            helper.assertTrue(entry.id().equals("rules") && entry.icon() == Items.BOOK && entry.label() == RulesMessages.MENU_ENTRY,
+            helper.assertTrue(entry.chestItemId().equals("minecraft:book") && entry.label() == RulesMessages.MENU_ENTRY,
                 "Rules entry identity differs from Bukkit");
-            helper.assertTrue(!entry.enchanted(source, player), "Inert rules entry glowed");
-            entry.onLeftClick(source, player, new MinecraftWindow(runtime, player));
+            helper.assertTrue(!MinecraftSubsystemMenuProbe.glows(runtime, entry, player, source), "Inert rules entry glowed");
+            runtime.menus().open(player.getUUID(), RulesRoutes.profile(source.getId()));
         }).thenIdle(CLICK_TICKS).thenExecute(() -> {
             assertProfile(0L, 0L, "-", RuleOutcome.Kind.ALLOW);
             MinecraftSubsystemMenuProbe.left(player, -3, 0);
@@ -165,7 +167,7 @@ public final class MinecraftRulesGameTest {
         }).thenIdle(CLICK_TICKS).thenExecute(() -> {
             helper.assertTrue(!runtime.rules().document(source).defaultOutcome().allowed(), "Default outcome toggle did not deny");
             assertProfile(0L, 1000L, "-", RuleOutcome.Kind.DENY);
-            helper.assertTrue(entry.enchanted(source, player), "Active rules entry did not glow");
+            helper.assertTrue(MinecraftSubsystemMenuProbe.glows(runtime, entry, player, source), "Active rules entry did not glow");
             MinecraftSubsystemMenuProbe.left(player, 2, 1);
         }).thenIdle(CLICK_TICKS).thenExecute(() -> {
             helper.assertTrue(runtime.rules().document(source).defaultOutcome().allowed(), "Default outcome toggle did not allow");
@@ -341,7 +343,9 @@ public final class MinecraftRulesGameTest {
         cleaned = true;
         player.closeContainer();
         runtime.rules().disconnected(player);
-        runtime.menus().playerDisconnected(player);
+        runtime.portalMenuHost().playerDisconnected(player);
+        runtime.menuCaptures().disconnected(player);
+        runtime.menus().quit(player.getUUID());
         runtime.portals().remove(player, source.getId());
         runtime.portals().remove(player, destination.getId());
         runtime.portals().remove(player, subsystem.getId());

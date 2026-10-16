@@ -1,5 +1,6 @@
 package art.arcane.wormholes.hook;
 
+import art.arcane.wormholes.menu.portal.MenuExtensionEntry;
 import art.arcane.wormholes.network.WireMessageHandler;
 import art.arcane.wormholes.network.WireMessageType;
 import art.arcane.wormholes.portal.LocalPortal;
@@ -22,7 +23,7 @@ public final class WormholesRegistrar {
     private final List<TraversalObserver> traversalObservers = new ArrayList<>();
     private final List<PortalExtensionFactory<?>> portalExtensionFactories = new ArrayList<>();
     private final List<ProjectionSource> projectionSources = new ArrayList<>();
-    private final List<PortalMenuEntry> portalMenuEntries = new ArrayList<>();
+    private final List<MenuExtensionEntry> portalMenuEntries = new ArrayList<>();
     private final Map<WireMessageType, List<WireMessageHandler>> wireHandlers = new EnumMap<>(WireMessageType.class);
 
     public WormholesRegistrar traversalGate(TraversalGate gate) {
@@ -50,7 +51,7 @@ public final class WormholesRegistrar {
         return this;
     }
 
-    public WormholesRegistrar portalMenuEntry(PortalMenuEntry entry) {
+    public WormholesRegistrar menuEntry(MenuExtensionEntry entry) {
         portalMenuEntries.add(Objects.requireNonNull(entry, "entry"));
         return this;
     }
@@ -85,7 +86,7 @@ public final class WormholesRegistrar {
         return Collections.unmodifiableList(new ArrayList<>(projectionSources));
     }
 
-    List<PortalMenuEntry> portalMenuEntries() {
+    List<MenuExtensionEntry> portalMenuEntries() {
         return Collections.unmodifiableList(new ArrayList<>(portalMenuEntries));
     }
 

@@ -1,8 +1,19 @@
 package art.arcane.wormholes.modded;
 
+import art.arcane.volmlib.util.localization.BukkitLanguageMessages;
+import art.arcane.volmlib.util.localization.LocaleOverlay;
+import art.arcane.volmlib.util.localization.LocalizationCandidate;
+import art.arcane.volmlib.util.localization.LocalizationSnapshot;
+import art.arcane.volmlib.util.localization.MessageArgs;
+import art.arcane.volmlib.util.localization.MessageCatalog;
+import art.arcane.volmlib.util.localization.PluginLanguageService;
+import art.arcane.volmlib.util.localization.PluralSelector;
+import art.arcane.volmlib.util.localization.TextKey;
 import art.arcane.volmlib.util.plugin.ComponentText;
 import art.arcane.wormholes.config.WormholesSettings;
 import art.arcane.wormholes.localization.WormholesMessageRenderer;
+import art.arcane.wormholes.menu.MenuService;
+import art.arcane.wormholes.menu.language.LanguageRoutes;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -17,6 +28,12 @@ import net.minecraft.network.chat.Style;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.core.LogEvent;
+import org.apache.logging.log4j.core.Logger;
+import org.apache.logging.log4j.core.appender.AbstractAppender;
+import org.apache.logging.log4j.core.config.Property;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -34,15 +51,20 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.timeout;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 public class MinecraftLanguageSwitcherTest {
@@ -170,6 +192,83 @@ public class MinecraftLanguageSwitcherTest {
             && command.command().equals("/wormholes language self")));
         assertTrue(styles.stream().allMatch(style -> style.getHoverEvent() instanceof HoverEvent.ShowText text
             && text.value().getString().equals("Change only the messages you see.")));
+    }
+
+    @Test
+    public void serverEditOpensTheLanguageMenusAndLoadsANamedLocaleFirst() {
+        permissions(true, true);
+        WormholesModRuntime runtime = mockRuntime();
+        MenuService menus = mock(MenuService.class);
+        when(runtime.menus()).thenReturn(menus);
+        MinecraftLanguageSwitcher switcher = new MinecraftLanguageSwitcher(runtime, localization);
+
+        switcher.command(source(true), new String[]{"server", "edit"});
+        verify(menus).open(PLAYER, LanguageRoutes.locales());
+
+        List<Component> loading = new ArrayList<>();
+        switcher.command(source(true, loading), new String[]{"server", "edit", "fr-FR"});
+        verify(menus, timeout(5000)).open(PLAYER, LanguageRoutes.groups("fr_FR"));
+        assertTrue(localization.languageMenus().document("fr_FR").isPresent());
+        assertEquals("Loading fr-FR messages...", loading.getFirst().getString());
+
+        List<Component> failed = new ArrayList<>();
+        switcher.command(source(true, failed), new String[]{"server", "edit", "xx_XX"});
+        verify(menus, timeout(5000).times(2)).open(PLAYER, LanguageRoutes.locales());
+        synchronized (failed) {
+            assertTrue(failed.stream().anyMatch(message -> message.getString().startsWith("Unable to edit: ")));
+        }
+    }
+
+    @Test
+    public void aFailedLocaleLoadIsLoggedEvenWhenThePlayerHasLeft() throws Exception {
+        permissions(true, true);
+        WormholesModRuntime runtime = mockRuntime();
+        when(runtime.menus()).thenReturn(mock(MenuService.class));
+        when(player.hasDisconnected()).thenReturn(true);
+        List<LogEvent> errors = new CopyOnWriteArrayList<>();
+        AbstractAppender appender = new AbstractAppender("language-switcher-test", null, null, true, Property.EMPTY_ARRAY) {
+            @Override
+            public void append(LogEvent event) {
+                if (event.getLevel() == Level.ERROR) {
+                    errors.add(event.toImmutable());
+                }
+            }
+        };
+        appender.start();
+        Logger logger = (Logger) LogManager.getLogger("Wormholes");
+        logger.addAppender(appender);
+        try {
+            new MinecraftLanguageSwitcher(runtime, localization).command(source(true), new String[]{"server", "edit", "xx_XX"});
+            long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+            while (errors.isEmpty() && System.nanoTime() < deadline) {
+                Thread.sleep(10L);
+            }
+        } finally {
+            logger.removeAppender(appender);
+            appender.stop();
+        }
+
+        assertEquals(1, errors.size());
+        assertNotNull(errors.getFirst().getThrown());
+    }
+
+    @Test
+    public void localizedTextUsesThePlayersSnapshotAndEscapesUntrustedArguments() {
+        TextKey title = BukkitLanguageMessages.EDITOR_TITLE;
+        TextKey languages = BukkitLanguageMessages.EDITOR_LANGUAGES;
+        LocalizationSnapshot snapshot = LocalizationSnapshot.create(new LocalizationCandidate(
+            MessageCatalog.of("en_US", title, languages),
+            List.of(LocaleOverlay.builder("fr_FR").text(languages.id(), "<gold>Langues</gold>").build()),
+            PluralSelector.oneOther()));
+        PluginLanguageService service = mock(PluginLanguageService.class);
+        ServerPlayer viewer = mock(ServerPlayer.class);
+        UUID viewerId = UUID.randomUUID();
+        when(viewer.getUUID()).thenReturn(viewerId);
+        when(service.snapshot(viewerId)).thenReturn(snapshot);
+        String section = MinecraftLanguageSwitcher.localized(service, viewer, languages, MessageArgs.empty()).plain();
+        assertTrue(MinecraftLanguageSwitcher.localized(service, viewer, languages, MessageArgs.empty()).legacy().contains("§6Langues"));
+        assertEquals("Test<green>&c[ff0000] › Langues", MinecraftLanguageSwitcher.localized(service, viewer, title,
+            MessageArgs.builder().untrusted("plugin", "Test<green>&c[ff0000]§c").untrusted("section", section).build()).plain());
     }
 
     private void assertScenario(String name, boolean admin, boolean self, String personal, String... arguments) throws Exception {

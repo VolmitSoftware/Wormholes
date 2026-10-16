@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded;
 
+import art.arcane.wormholes.menu.portal.PortalRoutes;
 import art.arcane.optics.math.Vec3d;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerPlayer;
@@ -23,7 +24,7 @@ final class MinecraftPortalInteractions {
         if (portal == null) {
             return false;
         }
-        runtime.menus().open(player, portal.getId());
+        runtime.menus().open(player.getUUID(), PortalRoutes.home(portal.getId()));
         return true;
     }
 
@@ -38,9 +39,9 @@ final class MinecraftPortalInteractions {
                 && runtime.portals().canManage(player, portal)) {
                 if (hand == InteractionHand.MAIN_HAND) {
                     if (!portal.getSurfaceSkin().isEmpty() && runtime.access().permission(player, "wormholes.admin")) {
-                        runtime.menus().cosmetics().applySurfaceSkinFromInteraction(player, portal, "");
+                        runtime.portalMenuHost().applySurfaceSkin(player, portal, "");
                     } else {
-                        runtime.menus().open(player, portal.getId());
+                        runtime.menus().open(player.getUUID(), PortalRoutes.home(portal.getId()));
                     }
                 }
                 return true;

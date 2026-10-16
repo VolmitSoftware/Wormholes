@@ -1,5 +1,7 @@
 package art.arcane.wormholes.modded;
 
+import art.arcane.wormholes.menu.portal.PortalRoutes;
+import art.arcane.wormholes.modded.menu.host.MinecraftPortalMenuHost;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -9,21 +11,23 @@ import org.junit.Test;
 import org.mockito.MockedStatic;
 
 import java.util.List;
+import java.util.UUID;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
-import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 public class MinecraftPortalSkinInteractionTest extends MinecraftTestBase {
+    private static final UUID PLAYER = UUID.fromString("c1b2c3d4-0000-4000-8000-000000000001");
+    private static final UUID PORTAL = UUID.fromString("c1b2c3d4-0000-4000-8000-0000000000aa");
+
     @Test
     public void adminSkinRemovalConsumesTheFrameGestureBeforeOpeningMenus() {
         WormholesModRuntime runtime = mock(WormholesModRuntime.class, RETURNS_DEEP_STUBS);
@@ -41,13 +45,15 @@ public class MinecraftPortalSkinInteractionTest extends MinecraftTestBase {
         when(portal.getSurfaceSkin()).thenReturn("minecraft:stone");
         when(runtime.access().permission(player, "wormholes.admin")).thenReturn(true);
         assertTrue(MinecraftPortalInteractions.frame(runtime, player, InteractionHand.MAIN_HAND, BlockPos.ZERO));
-        verify(runtime.menus().cosmetics()).applySurfaceSkinFromInteraction(player, portal, "");
+        verify(runtime.portalMenuHost()).applySurfaceSkin(player, portal, "");
         verify(runtime.menus(), never()).open(any(), any());
         assertTrue(MinecraftPortalInteractions.frame(runtime, player, InteractionHand.OFF_HAND, BlockPos.ZERO));
-        verify(runtime.menus().cosmetics()).applySurfaceSkinFromInteraction(player, portal, "");
+        verify(runtime.portalMenuHost()).applySurfaceSkin(player, portal, "");
         when(portal.getSurfaceSkin()).thenReturn("");
+        when(player.getUUID()).thenReturn(PLAYER);
+        when(portal.getId()).thenReturn(PORTAL);
         assertTrue(MinecraftPortalInteractions.frame(runtime, player, InteractionHand.MAIN_HAND, BlockPos.ZERO));
-        verify(runtime.menus()).open(player, portal.getId());
+        verify(runtime.menus()).open(PLAYER, PortalRoutes.home(PORTAL));
     }
 
     @Test
@@ -55,21 +61,27 @@ public class MinecraftPortalSkinInteractionTest extends MinecraftTestBase {
         WormholesModRuntime runtime = mock(WormholesModRuntime.class, RETURNS_DEEP_STUBS);
         ServerPlayer player = mock(ServerPlayer.class);
         MinecraftPortal portal = mock(MinecraftPortal.class);
+        when(portal.getId()).thenReturn(PORTAL);
         when(portal.getSurfaceSkin()).thenReturn("minecraft:stone");
-        MinecraftPortalMenus menus = spy(new MinecraftPortalMenus(runtime));
-        doReturn(true).when(menus).ensureCanManage(player, portal);
-        doReturn(false).when(menus).update(eq(player), eq(portal), any());
-        MinecraftPortalCosmeticsMenu cosmetics = new MinecraftPortalCosmeticsMenu(menus);
+        when(runtime.portals().get(PORTAL)).thenReturn(portal);
+        when(runtime.portals().canManage(player, portal)).thenReturn(true);
+        when(runtime.portals().update(eq(player), eq(PORTAL), any())).thenReturn(false);
+        MinecraftPortalMenuHost host = new MinecraftPortalMenuHost(runtime);
         try (MockedStatic<MinecraftMenuText> notices = mockStatic(MinecraftMenuText.class)) {
-            assertFalse(cosmetics.applySurfaceSkinFromInteraction(player, portal, "minecraft:glass"));
-            assertFalse(cosmetics.applySurfaceSkinFromInteraction(player, portal, ""));
-            verify(menus, never()).update(any(), any(), any());
+            assertFalse(host.applySurfaceSkin(player, portal, "minecraft:glass"));
+            assertFalse(host.applySurfaceSkin(player, portal, ""));
+            verify(runtime.portals(), never()).update(any(), any(), any());
             when(runtime.access().permission(player, "wormholes.admin")).thenReturn(true);
-            assertTrue(cosmetics.applySurfaceSkinFromInteraction(player, portal, ""));
-            verify(menus).update(eq(player), eq(portal), any());
+            assertTrue(host.applySurfaceSkin(player, portal, ""));
+            verify(runtime.portals()).update(eq(player), eq(PORTAL), any());
             when(runtime.access().permission(player, "wormholes.admin")).thenReturn(false);
-            assertFalse(cosmetics.applySurfaceSkinFromInteraction(player, portal, "minecraft:water"));
-            verify(menus).update(eq(player), eq(portal), any());
+            assertFalse(host.applySurfaceSkin(player, portal, "minecraft:water"));
+            verify(runtime.portals()).update(eq(player), eq(PORTAL), any());
+            when(runtime.access().permission(player, "wormholes.admin")).thenReturn(true);
+            when(runtime.portals().canManage(player, portal)).thenReturn(false);
+            assertFalse(host.applySurfaceSkin(player, portal, "minecraft:glass"));
+            verify(player).closeContainer();
+            verify(runtime.portals()).update(eq(player), eq(PORTAL), any());
         }
     }
 }

@@ -13,7 +13,6 @@ import org.bukkit.event.Listener;
 
 import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Face;
-import art.arcane.volmlib.util.inventorygui.Window;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.frame.QuarterTurn;
 
@@ -108,16 +107,6 @@ public interface ILocalPortal extends IPortal, IWritable, Listener, TraversalAdm
 	public String getRouter(boolean dark);
 
 	public String getRouter(boolean dark, IPortal source);
-
-	public void uiOpenPortalMenu(Player p);
-
-	public Window uiCreatePortalMenu(Player p);
-
-	public void uiChooseMode(Player p);
-
-	public void uiChooseDestination(Player p);
-
-	public void uiChangeName(Player p);
 
 	public void uiChangeDirection(Player p);
 

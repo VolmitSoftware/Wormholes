@@ -4,6 +4,7 @@ import art.arcane.volmlib.util.event.ProtectionProbe;
 
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.localization.NexusMessages;
+import art.arcane.wormholes.menu.nexus.NexusRoutes;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.LocalPortal;
 import art.arcane.wormholes.portal.PortalAccessPolicy;
@@ -31,12 +32,10 @@ import java.util.UUID;
 public final class DialGestures implements Listener {
     private final NetworkRegistry registry;
     private final Dialer dialer;
-    private final DialMenu dialMenu;
 
-    public DialGestures(NetworkRegistry registry, Dialer dialer, DialMenu dialMenu) {
+    public DialGestures(NetworkRegistry registry, Dialer dialer) {
         this.registry = registry;
         this.dialer = dialer;
-        this.dialMenu = dialMenu;
     }
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
@@ -76,7 +75,7 @@ public final class DialGestures implements Listener {
             return;
         }
         event.setCancelled(true);
-        dialMenu.open(portal, player);
+        Wormholes.openMenu(player.getUniqueId(), NexusRoutes.dial(portal.getId()));
     }
 
     /** A hotbar step of one in either direction, wrapping across the ends of the bar. */

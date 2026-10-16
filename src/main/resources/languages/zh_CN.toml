@@ -1574,3 +1574,121 @@ off = "让所有 ClientView 玩家恢复原版投影"
 reset = "重新启动某个玩家的 ClientView 数据流"
 "reset.player" = "在线玩家名称"
 # ---- end lane:clientview ----
+
+# ---- lane:menu (menu.*) ----
+[menu.native.title]
+portal = "传送门"
+mode = "传送门模式"
+orientation = "朝向"
+gateway = "网关配对"
+settings = "设置"
+advanced = "高级数据流调节"
+blackout = "遮蔽颜色"
+ambient = "环境颜色"
+skin = "表面皮肤"
+cost = "通行费用"
+extensions = "更多设置"
+destinations = "目的地"
+select = "选择传送门"
+rtp = "随机传送"
+rtp_destination = "随机目的地"
+rtp_biome = "目标生物群系"
+rtp_landing = "落点"
+rtp_routing = "路由"
+rtp_effects = "效果"
+network = "网络"
+dial = "拨号"
+rules = "规则"
+rules_list = "规则列表"
+rule = "规则"
+templates = "规则模板"
+access = "访问"
+transit = "通行"
+fidelity = "保真度"
+atlas = "图鉴"
+door = "维度门访问"
+language = "语言"
+
+[menu.native.context]
+portal = "{portal} - {type}"
+door = "{kind}维度门"
+network = "{name}"
+
+[menu.native.chrome]
+back = "返回"
+close = "关闭"
+apply = "应用"
+confirm = "确认"
+cancel = "取消"
+previous_page = "上一页"
+next_page = "下一页"
+page = "第 {page} / {pages} 页"
+use_held_item = "使用手持物品"
+aim = "瞄准"
+timeout = "服务器没有响应。"
+
+[menu.native.action]
+rotate = "旋转"
+rotate_clockwise = "顺时针旋转"
+rotate_counterclockwise = "逆时针旋转"
+reset = "重置"
+clear = "清除"
+colors = "颜色"
+advanced = "高级"
+reroll = "重新抽取"
+remove = "移除"
+favorite = "收藏"
+guide = "指引"
+whitelist = "白名单"
+blacklist = "黑名单"
+use_default = "使用服务器默认值"
+
+[menu.native.confirm]
+delete_portal = ["删除 {portal}？", "这会移除该传送门，并解除通往它的传送门的链接。", "此操作无法撤销。"]
+"delete_portal.accept" = "删除"
+rtp_reset = ["重置 {portal}？", "所有随机传送设置都会恢复为默认值。"]
+"rtp_reset.accept" = "重置"
+rules_template = ["加载 {name}？", "模板会替换此传送门的所有规则。"]
+"rules_template.accept" = "加载"
+nexus_leave = ["退出 {name}？", "此传送门将停止通过网络拨号和接收。"]
+"nexus_leave.accept" = "退出"
+
+[menu.native.feedback]
+refreshed = "菜单已更改并已刷新。"
+unavailable = "该选项目前不可用。"
+invalid_value = "不允许该值。"
+save_failed = "无法保存更改。"
+timeout = "服务器响应时间过长。"
+
+[menu.native.placeholder]
+name = "传送门名称"
+code = "邀请码"
+block_state = "方块状态，例如 minecraft:glass"
+amount = "金额"
+player = "玩家名称"
+key = "权限键"
+group = "组名称"
+network = "网络名称"
+address = "地址"
+rule_id = "规则 ID"
+line = "规则行"
+factor = "系数"
+sound = "声音 ID"
+ticks = "刻"
+scale = "缩放"
+search = "搜索"
+
+[menu.native.transit]
+factor = "动量系数"
+threshold_effect = "临界效果"
+arrival_sound = "到达音效"
+mask_ticks = "遮罩刻数"
+scale_min = "最小缩放"
+scale_max = "最大缩放"
+
+[menu.native.nexus]
+comparator = "比较器输出"
+
+[menu.native.list]
+page = ["&b&l第 {page}/{pages} 页&r", "&7{count} 个条目"]
+# ---- end lane:menu ----

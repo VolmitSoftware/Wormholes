@@ -49,7 +49,6 @@ public final class WormholesLifecycleBytecodeTest {
         "projectionManager",
         "traversableManager",
         "portalManager",
-        "vanillaTravelCostCapture",
         "wandSelectionManager",
         "constructionManager",
         "effectManager",

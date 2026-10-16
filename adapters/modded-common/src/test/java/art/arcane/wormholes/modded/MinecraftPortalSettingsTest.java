@@ -18,6 +18,7 @@ import art.arcane.wormholes.transit.OrientationPolicy;
 import art.arcane.wormholes.transit.TransitionProfile;
 import art.arcane.optics.math.Face;
 import art.arcane.wormholes.config.WormholesSettings;
+import art.arcane.wormholes.menu.MenuService;
 import art.arcane.wormholes.network.PortalSettingsApplyQueue;
 import art.arcane.wormholes.network.PortalSyncService;
 import art.arcane.wormholes.portal.DimensionalPortalKind;
@@ -225,7 +226,7 @@ public class MinecraftPortalSettingsTest extends MinecraftTestBase {
             WormholesSettings settings = MinecraftTestSettings.defaults();
             settings.getMain().twoWayEndPortals = twoWay;
             when(runtime.portals()).thenReturn(mock(MinecraftPortalRegistry.class));
-            when(runtime.menus()).thenReturn(mock(MinecraftPortalMenus.class));
+            when(runtime.menus()).thenReturn(mock(MenuService.class));
             when(runtime.configuration()).thenReturn(configuration);
             when(configuration.settings()).thenReturn(settings);
             MinecraftPortalSyncAccess access = new MinecraftPortalSyncAccess(runtime);

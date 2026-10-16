@@ -1,5 +1,6 @@
 package art.arcane.wormholes.nexus;
 
+import art.arcane.volmlib.util.localization.MessageArgs;
 import art.arcane.wormholes.util.BukkitJsonDocuments;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.WormholesSubsystems;
@@ -8,6 +9,10 @@ import art.arcane.wormholes.config.WormholesSettings;
 import art.arcane.wormholes.config.toml.NexusConfig;
 import art.arcane.wormholes.hook.WormholesRegistrar;
 import art.arcane.wormholes.hook.WormholesSubsystem;
+import art.arcane.wormholes.localization.NexusMessages;
+import art.arcane.wormholes.menu.host.BukkitMenuEntries;
+import art.arcane.wormholes.menu.nexus.NexusRoutes;
+import art.arcane.wormholes.menu.portal.MenuExtensionEntry;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.ITunnel;
 import art.arcane.wormholes.portal.LocalPortal;
@@ -32,7 +37,6 @@ public final class NexusSubsystem implements WormholesSubsystem, NexusPortalList
     private volatile Dialer dialer;
     private volatile DestinationScheduler scheduler;
     private volatile RedstoneIo redstoneIo;
-    private volatile DialMenu dialMenu;
     private volatile DialGestures dialGestures;
     private volatile AtlasRuntime atlas;
     private volatile int schedulerTask = -1;
@@ -82,17 +86,17 @@ public final class NexusSubsystem implements WormholesSubsystem, NexusPortalList
         dialer = new Dialer(created, NexusSubsystem::applyTunnel, NexusSubsystem::config);
         RedstoneIo io = new RedstoneIo(redstoneIndex, dialer, NexusSubsystem::config, NexusSubsystem::loadedPortals);
         redstoneIo = io;
-        DialMenu menu = new DialMenu(created, dialer);
-        dialMenu = menu;
-        dialGestures = new DialGestures(created, dialer, menu);
-        registrar.portalMenuEntry(new NetworkMenuEntry(created, new NetworkMenu(created, menu, io)));
+        dialGestures = new DialGestures(created, dialer);
+        registrar.menuEntry(new MenuExtensionEntry("nexus-network", "minecraft:compass", "network", NexusMessages.MENU_ENTRY, 1,
+            BukkitMenuEntries.arguments(portal -> networkArguments(created, portal)), BukkitMenuEntries.always(),
+            BukkitMenuEntries.when(NexusSubsystem::onNetwork), NexusRoutes::network));
         registrar.portalExtension(NexusPortalExtension.class, extensionPortal -> new NexusPortalExtension(extensionPortal, this));
         registrar.traversalObserver(returns);
         registrar.traversalObserver(io);
         registrar.destinationResolver(new NexusDestinationResolver(created, returns,
                 new NexusDestinationResolver.BukkitTunnels(), NexusSubsystem::worldTime));
         AtlasRuntime runtime = new AtlasRuntime(
-                Wormholes.instance.getDataFolder().toPath().resolve("atlas").resolve("players"), created, menu);
+                Wormholes.instance.getDataFolder().toPath().resolve("atlas").resolve("players"), created);
         atlas = runtime;
         registrar.traversalObserver(runtime.service());
     }
@@ -216,6 +220,19 @@ public final class NexusSubsystem implements WormholesSubsystem, NexusPortalList
             }
         }
         return local;
+    }
+
+    private static MessageArgs networkArguments(NetworkRegistry registry, LocalPortal portal) {
+        NexusPortalExtension state = portal.extension(NexusPortalExtension.class);
+        PortalNetwork network = state == null ? null : registry.byId(state.networkId());
+        return NexusText.args(
+                "name", network == null ? "" : network.name(),
+                "address", state == null ? "" : state.address());
+    }
+
+    private static boolean onNetwork(LocalPortal portal) {
+        NexusPortalExtension state = portal.extension(NexusPortalExtension.class);
+        return state != null && state.isOnNetwork();
     }
 
     private static long worldTime(LocalPortal portal) {

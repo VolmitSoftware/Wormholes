@@ -2,18 +2,21 @@ package art.arcane.wormholes.gametest;
 
 import art.arcane.wormholes.modded.MinecraftProxyPayload;
 import art.arcane.wormholes.modded.clientview.ClientViewPayload;
+import art.arcane.wormholes.modded.menu.MenuPayload;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import art.arcane.wormholes.modded.MinecraftGameTestPlayer;
 import art.arcane.wormholes.modded.RuntimeBaselineEnvironment;
 import net.neoforged.neoforge.network.registration.NetworkRegistry;
 import art.arcane.wormholes.modded.WormholesGameTests;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.gametest.framework.GameTestTicker;
 import net.neoforged.neoforge.gametest.GameTestHooks;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
+import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.server.ServerStartedEvent;
 import net.neoforged.neoforge.event.server.ServerStoppingEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
@@ -24,7 +27,8 @@ public final class NeoForgeGameTests {
     public NeoForgeGameTests(IEventBus bus) {
         bus.addListener((RegisterPayloadHandlersEvent event) -> event.registrar("1").optional()
             .playToClient(MinecraftProxyPayload.TYPE, MinecraftProxyPayload.CODEC, (payload, context) -> { })
-            .commonBidirectional(ClientViewPayload.TYPE, ClientViewPayload.CODEC, (payload, context) -> { }));
+            .commonBidirectional(ClientViewPayload.TYPE, ClientViewPayload.CODEC, (payload, context) -> { })
+            .playBidirectional(MenuPayload.TYPE, MenuPayload.CODEC, (payload, context) -> { }));
         MinecraftGameTestPlayer.configureConnections(NetworkRegistry::configureMockConnection);
         bus.addListener((RegisterEvent event) -> event.register(Registries.TEST_ENVIRONMENT_DEFINITION_TYPE,
             RuntimeBaselineEnvironment.ID, () -> RuntimeBaselineEnvironment.CODEC));
@@ -52,6 +56,8 @@ public final class NeoForgeGameTests {
             WormholesGameTests.ENTITY_PROJECTION_RUNTIME, () -> WormholesGameTests::entityProjectionRuntime));
         bus.addListener((RegisterEvent event) -> event.register(Registries.TEST_FUNCTION,
             WormholesGameTests.MENU_PARITY_RUNTIME, () -> WormholesGameTests::menuParityRuntime));
+        bus.addListener((RegisterEvent event) -> event.register(Registries.TEST_FUNCTION,
+            WormholesGameTests.NATIVE_MENU_PROTOCOL_RUNTIME, () -> WormholesGameTests::nativeMenuProtocolRuntime));
         bus.addListener((RegisterEvent event) -> event.register(Registries.TEST_FUNCTION,
             WormholesGameTests.OCCLUSION_SKIN_RUNTIME, () -> WormholesGameTests::occlusionSkinRuntime));
         bus.addListener((RegisterEvent event) -> event.register(Registries.TEST_FUNCTION,
@@ -82,6 +88,13 @@ public final class NeoForgeGameTests {
         NeoForge.EVENT_BUS.addListener((ServerStartedEvent event) -> WormholesGameTests.start(event.getServer()));
         NeoForge.EVENT_BUS.addListener((ServerTickEvent.Post event) -> tick());
         NeoForge.EVENT_BUS.addListener((ServerStoppingEvent event) -> WormholesGameTests.RUNTIME.stop());
+        NeoForge.EVENT_BUS.addListener(this::playerJoined);
+    }
+
+    private void playerJoined(PlayerEvent.PlayerLoggedInEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player && WormholesGameTests.RUNTIME.running()) {
+            WormholesGameTests.RUNTIME.playerJoined(player);
+        }
     }
 
     private void tick() {

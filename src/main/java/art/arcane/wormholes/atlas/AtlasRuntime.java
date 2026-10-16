@@ -4,7 +4,6 @@ import art.arcane.wormholes.util.BukkitJsonDocuments;
 
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.config.toml.AtlasConfig;
-import art.arcane.wormholes.nexus.DialMenu;
 import art.arcane.wormholes.nexus.NetworkRegistry;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.util.J;
@@ -13,32 +12,26 @@ import org.bukkit.entity.Player;
 import java.nio.file.Path;
 import java.util.List;
 
-/** Owns the atlas store, service, menu and command, and the one-second discovery and guide task. */
+/** Owns the atlas store, service and command, and the one-second discovery and guide task. */
 public final class AtlasRuntime {
     private static final int TICK_INTERVAL_TICKS = 20;
     private static final int FLUSH_INTERVAL_TICKS = 100;
 
     private final AtlasPlayerStore store;
     private final AtlasService service;
-    private final AtlasMenu menu;
     private final CommandAtlas command;
 
     private volatile int tickTask = -1;
     private volatile int flushTask = -1;
 
-    public AtlasRuntime(Path playersDirectory, NetworkRegistry registry, DialMenu dialMenu) {
+    public AtlasRuntime(Path playersDirectory, NetworkRegistry registry) {
         store = new AtlasPlayerStore(playersDirectory, BukkitJsonDocuments.INSTANCE);
         service = new AtlasService(store, registry, AtlasRuntime::config, AtlasRuntime::loadedPortals);
-        menu = new AtlasMenu(service, dialMenu);
-        command = new CommandAtlas(service, menu);
+        command = new CommandAtlas(service);
     }
 
     public AtlasService service() {
         return service;
-    }
-
-    public AtlasMenu menu() {
-        return menu;
     }
 
     public void start(Wormholes plugin) {

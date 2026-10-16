@@ -123,7 +123,7 @@ final class LocalPortalGate
 		portal.applyFrame(portal.getFrame().withNormal(d));
 		invalidateProjection();
 		portal.save();
-		portal.settings().refreshOpenMenusUnlessApplyingRemote();
+		portal.settings().invalidateMenusUnlessApplyingRemote();
 		syncGatewayTickets();
 	}
 
@@ -132,7 +132,7 @@ final class LocalPortalGate
 		portal.applyFrame(frame);
 		invalidateProjection();
 		portal.save();
-		portal.settings().refreshOpenMenusUnlessApplyingRemote();
+		portal.settings().invalidateMenusUnlessApplyingRemote();
 		syncGatewayTickets();
 	}
 

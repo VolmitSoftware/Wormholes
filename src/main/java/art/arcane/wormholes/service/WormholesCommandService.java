@@ -130,7 +130,7 @@ public final class WormholesCommandService implements CommandExecutor, TabComple
 
     boolean executeCommand(CommandSender sender, String label, String[] args) {
         if (args.length > 0 && "language".equalsIgnoreCase(args[0])) {
-            plugin.getLanguageSwitcher().command(sender, Arrays.copyOfRange(args, 1, args.length));
+            plugin.language(sender, Arrays.copyOfRange(args, 1, args.length));
             return true;
         }
         return LanguageAudience.call(sender instanceof Player player ? player.getUniqueId() : null,

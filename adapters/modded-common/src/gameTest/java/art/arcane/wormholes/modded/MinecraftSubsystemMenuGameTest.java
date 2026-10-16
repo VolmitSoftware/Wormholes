@@ -7,6 +7,11 @@ import art.arcane.wormholes.localization.AccessMessages;
 import art.arcane.wormholes.localization.FidelityMessages;
 import art.arcane.wormholes.localization.TransitMessages;
 import art.arcane.wormholes.localization.WormholesMessages;
+import art.arcane.wormholes.menu.access.AccessRoutes;
+import art.arcane.wormholes.menu.fidelity.FidelityRoutes;
+import art.arcane.wormholes.menu.portal.MenuExtensionEntry;
+import art.arcane.wormholes.menu.transit.TransitRoutes;
+import art.arcane.wormholes.modded.menu.MinecraftMenuViewer;
 import art.arcane.wormholes.render.FidelitySettings;
 import art.arcane.optics.fidelity.AtmosphereMode;
 import art.arcane.wormholes.transit.MomentumPolicy;
@@ -52,12 +57,13 @@ final class MinecraftSubsystemMenuGameTest {
     }
 
     private void access(GameTestSequence sequence) {
-        MinecraftAccessMenuEntry entry = new MinecraftAccessMenuEntry(runtime);
+        MenuExtensionEntry entry = MinecraftSubsystemMenuProbe.extensionEntry(runtime, "access");
         sequence.thenExecute(() -> {
-            helper.assertTrue(entry.id().equals("access") && entry.icon() == Items.NAME_TAG && entry.label() == AccessMessages.MENU_ENTRY,
+            helper.assertTrue(entry.chestItemId().equals("minecraft:name_tag") && entry.label() == AccessMessages.MENU_ENTRY,
                 "Access entry identity differs from Bukkit");
-            helper.assertTrue(!entry.enchanted(portal, viewer()), "Access entry glowed without roles");
-            entry.onLeftClick(portal, viewer(), new MinecraftWindow(runtime, viewer()));
+            helper.assertTrue(!MinecraftSubsystemMenuProbe.glows(runtime, entry, viewer(), portal), "Access entry glowed without roles");
+            runtime.menus().open(viewer().getUUID(), AccessRoutes.roles(portal.getId()));
+        }).thenIdle(CLICK_TICKS).thenExecute(() -> {
             assertAccessHeader(1);
             MinecraftSubsystemMenuProbe.left(viewer(), -1, 0);
         }).thenIdle(CLICK_TICKS + 1).thenExecute(() -> {
@@ -67,7 +73,7 @@ final class MinecraftSubsystemMenuGameTest {
             helper.assertTrue(MinecraftChatInput.chat(viewer(), guest.player().getGameProfile().name()), "Access player prompt did not consume chat");
         }).thenIdle(PROMPT_TICKS).thenExecute(() -> {
             helper.assertTrue(portal.role(guest.player().getUUID()) == PortalRole.USER, "Access prompt did not add the player as trusted");
-            helper.assertTrue(entry.enchanted(portal, viewer()), "Access entry did not glow with roles");
+            helper.assertTrue(MinecraftSubsystemMenuProbe.glows(runtime, entry, viewer(), portal), "Access entry did not glow with roles");
             assertAccessHeader(2);
             MinecraftSubsystemMenuProbe.assertElement(helper, viewer(), -4, 1, MinecraftDyedItems.pane(DyeColor.LIME),
                 MinecraftSubsystemMenuProbe.name(viewer(), AccessMessages.MENU_ROLE, MinecraftPortalText.arguments(
@@ -138,12 +144,12 @@ final class MinecraftSubsystemMenuGameTest {
     }
 
     private void fidelity(GameTestSequence sequence) {
-        MinecraftFidelityMenuEntry entry = new MinecraftFidelityMenuEntry(runtime);
+        MenuExtensionEntry entry = MinecraftSubsystemMenuProbe.extensionEntry(runtime, "fidelity");
         sequence.thenExecute(() -> {
             viewer().closeContainer();
-            helper.assertTrue(entry.id().equals("fidelity") && entry.icon() == Items.SPYGLASS && entry.label() == FidelityMessages.MENU_ENTRY
-                && entry.visible(portal, viewer()), "Fidelity entry identity differs from Bukkit");
-            entry.onLeftClick(portal, viewer(), new MinecraftWindow(runtime, viewer()));
+            helper.assertTrue(entry.chestItemId().equals("minecraft:spyglass") && entry.label() == FidelityMessages.MENU_ENTRY
+                && entry.visible().test(new MinecraftMenuViewer(runtime, viewer()), portal.getId()), "Fidelity entry identity differs from Bukkit");
+            runtime.menus().open(viewer().getUUID(), FidelityRoutes.main(portal.getId()));
         }).thenIdle(CLICK_TICKS).thenExecute(() -> {
             assertFidelity(null);
             MinecraftSubsystemMenuProbe.left(viewer(), -3, 1);
@@ -193,12 +199,13 @@ final class MinecraftSubsystemMenuGameTest {
     }
 
     private void transit(GameTestSequence sequence) {
-        MinecraftTransitMenuEntry entry = new MinecraftTransitMenuEntry(runtime);
+        MenuExtensionEntry entry = MinecraftSubsystemMenuProbe.extensionEntry(runtime, "transit");
         sequence.thenExecute(() -> {
             viewer().closeContainer();
-            helper.assertTrue(entry.id().equals("transit") && entry.icon() == Items.FEATHER && entry.label() == TransitMessages.MENU_ENTRY
-                && entry.visible(portal, viewer()) && !entry.enchanted(portal, viewer()), "Transit entry identity differs from Bukkit");
-            entry.onLeftClick(portal, viewer(), new MinecraftWindow(runtime, viewer()));
+            helper.assertTrue(entry.chestItemId().equals("minecraft:feather") && entry.label() == TransitMessages.MENU_ENTRY
+                && entry.visible().test(new MinecraftMenuViewer(runtime, viewer()), portal.getId()) && !MinecraftSubsystemMenuProbe.glows(runtime, entry, viewer(), portal), "Transit entry identity differs from Bukkit");
+            runtime.menus().open(viewer().getUUID(), TransitRoutes.main(portal.getId()));
+        }).thenIdle(CLICK_TICKS).thenExecute(() -> {
             MinecraftSubsystemMenuProbe.assertWindow(helper, viewer(), MinecraftPortalText.router(runtime, portal, true), 3,
                 MinecraftDyedItems.pane(DyeColor.CYAN), MinecraftSubsystemMenuProbe.slot(0, 0), "Transit window");
             MinecraftSubsystemMenuProbe.assertElement(helper, viewer(), -2, 1, Items.SLIME_BALL,
@@ -226,7 +233,7 @@ final class MinecraftSubsystemMenuGameTest {
             MinecraftSubsystemMenuProbe.assertElement(helper, viewer(), 0, 1, Items.PHANTOM_MEMBRANE,
                 MinecraftSubsystemMenuProbe.name(viewer(), TransitMessages.MENU_MEMBRANE, MinecraftPortalText.arguments("state", on)),
                 true, "Transit membrane in place");
-            helper.assertTrue(entry.enchanted(portal, viewer()), "Transit entry did not glow with overrides");
+            helper.assertTrue(MinecraftSubsystemMenuProbe.glows(runtime, entry, viewer(), portal), "Transit entry did not glow with overrides");
             MinecraftSubsystemMenuProbe.left(viewer(), 1, 1);
         }).thenIdle(CLICK_TICKS).thenExecute(() -> {
             helper.assertTrue(Boolean.TRUE.equals(portal.setting("transit.bounce")), "Transit bounce toggle did not persist");

@@ -55,6 +55,10 @@ public final class MinecraftChatInput implements AutoCloseable {
         return true;
     }
 
+    public void cancel(ServerPlayer player, Consumer<String> callback) {
+        inputs.remove(player.getUUID(), callback);
+    }
+
     public void disconnected(ServerPlayer player) {
         inputs.remove(player.getUUID());
     }

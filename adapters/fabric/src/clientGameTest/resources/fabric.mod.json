@@ -62,6 +62,15 @@
     "wormholes-dh-gametest": [
       "art.arcane.wormholes.clientgametest.DistantHorizonsClientGameTest"
     ],
+    "wormholes-native-menu-gametest": [
+      "art.arcane.wormholes.clientgametest.NativeMenuScreenClientGameTest",
+      "art.arcane.wormholes.clientgametest.NativeMenuPortalClientGameTest",
+      "art.arcane.wormholes.clientgametest.NativeMenuSettingsClientGameTest",
+      "art.arcane.wormholes.clientgametest.NativeMenuCostDestinationClientGameTest",
+      "art.arcane.wormholes.clientgametest.NativeMenuRtpTransitFidelityClientGameTest",
+      "art.arcane.wormholes.clientgametest.NativeMenuRulesLanguageClientGameTest",
+      "art.arcane.wormholes.clientgametest.NativeMenuNexusAtlasAccessClientGameTest"
+    ],
     "wormholes-shader-gametest": [
       "art.arcane.wormholes.clientgametest.ShaderOcclusionClientGameTest",
       "art.arcane.wormholes.clientgametest.ShaderHistoryClientGameTest",

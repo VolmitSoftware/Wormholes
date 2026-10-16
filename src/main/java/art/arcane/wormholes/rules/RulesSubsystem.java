@@ -9,6 +9,10 @@ import art.arcane.wormholes.config.toml.RulesConfig;
 import art.arcane.wormholes.hook.WormholesRegistrar;
 import art.arcane.wormholes.hook.WormholesSubsystem;
 import art.arcane.wormholes.localization.RulesMessages;
+import art.arcane.wormholes.menu.host.BukkitMenuEntries;
+import art.arcane.wormholes.menu.portal.MenuExtensionEntry;
+import art.arcane.wormholes.menu.rules.RulesRoutes;
+import art.arcane.wormholes.portal.LocalPortal;
 import art.arcane.wormholes.service.WormholesHud;
 import art.arcane.wormholes.util.J;
 import org.bukkit.Bukkit;
@@ -44,7 +48,8 @@ public final class RulesSubsystem implements WormholesSubsystem {
         registrar.portalExtension(RulesPortalExtension.class, RulesPortalExtension::new);
         registrar.traversalGate(new RulesGate(environment, warmups, ledger));
         registrar.traversalObserver(new RulesObserver(ledger));
-        registrar.portalMenuEntry(new RulesMenuEntry());
+        registrar.menuEntry(new MenuExtensionEntry("rules", "minecraft:book", "settings", RulesMessages.MENU_ENTRY, 0,
+            portalId -> MessageArgs.empty(), BukkitMenuEntries.always(), BukkitMenuEntries.when(RulesSubsystem::authored), RulesRoutes::profile));
     }
 
     @Override
@@ -78,6 +83,11 @@ public final class RulesSubsystem implements WormholesSubsystem {
         ledger.clear();
         PortalCooldowns.clear();
         ConditionCache.clear();
+    }
+
+    private static boolean authored(LocalPortal portal) {
+        RulesPortalExtension extension = portal.extension(RulesPortalExtension.class);
+        return extension != null && !extension.document().isInert();
     }
 
     /** Drops the in-memory traveler state a departed player owned, and cancels a warmup on damage. */

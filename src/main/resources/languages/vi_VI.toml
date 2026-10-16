@@ -1574,3 +1574,121 @@ off = "Đưa mọi người chơi ClientView về phép chiếu vanilla"
 reset = "Khởi động lại luồng ClientView của một người chơi"
 "reset.player" = "Tên người chơi trực tuyến"
 # ---- end lane:clientview ----
+
+# ---- lane:menu (menu.*) ----
+[menu.native.title]
+portal = "Cổng dịch chuyển"
+mode = "Chế độ cổng"
+orientation = "Hướng"
+gateway = "Ghép cặp cổng liên máy chủ"
+settings = "Cài đặt"
+advanced = "Tinh chỉnh luồng nâng cao"
+blackout = "Màu che kín"
+ambient = "Màu môi trường"
+skin = "Giao diện bề mặt"
+cost = "Chi phí di chuyển"
+extensions = "Cài đặt khác"
+destinations = "Điểm đến"
+select = "Chọn cổng"
+rtp = "Dịch chuyển ngẫu nhiên"
+rtp_destination = "Điểm đến ngẫu nhiên"
+rtp_biome = "Quần xã mục tiêu"
+rtp_landing = "Hạ cánh"
+rtp_routing = "Định tuyến"
+rtp_effects = "Hiệu ứng"
+network = "Mạng"
+dial = "Quay số"
+rules = "Quy tắc"
+rules_list = "Danh sách quy tắc"
+rule = "Quy tắc"
+templates = "Mẫu quy tắc"
+access = "Truy cập"
+transit = "Quá cảnh"
+fidelity = "Độ trung thực"
+atlas = "Bản đồ"
+door = "Truy cập cửa"
+language = "Ngôn ngữ"
+
+[menu.native.context]
+portal = "{portal} - {type}"
+door = "Cửa {kind}"
+network = "{name}"
+
+[menu.native.chrome]
+back = "Trở lại"
+close = "Đóng"
+apply = "Áp dụng"
+confirm = "Xác nhận"
+cancel = "Hủy"
+previous_page = "Trang trước"
+next_page = "Trang sau"
+page = "Trang {page} / {pages}"
+use_held_item = "Dùng vật phẩm đang cầm"
+aim = "Ngắm"
+timeout = "Máy chủ không phản hồi."
+
+[menu.native.action]
+rotate = "Xoay"
+rotate_clockwise = "Xoay theo chiều kim đồng hồ"
+rotate_counterclockwise = "Xoay ngược chiều kim đồng hồ"
+reset = "Đặt lại"
+clear = "Xóa"
+colors = "Màu sắc"
+advanced = "Nâng cao"
+reroll = "Quay lại"
+remove = "Gỡ bỏ"
+favorite = "Yêu thích"
+guide = "Dẫn đường"
+whitelist = "Danh sách cho phép"
+blacklist = "Danh sách chặn"
+use_default = "Dùng mặc định của máy chủ"
+
+[menu.native.confirm]
+delete_portal = ["Xóa {portal}?", "Thao tác này xóa cổng và hủy liên kết các cổng dẫn đến nó.", "Không thể hoàn tác."]
+"delete_portal.accept" = "Xóa"
+rtp_reset = ["Đặt lại {portal}?", "Mọi cài đặt dịch chuyển ngẫu nhiên sẽ trở về mặc định."]
+"rtp_reset.accept" = "Đặt lại"
+rules_template = ["Tải {name}?", "Mẫu sẽ thay thế mọi quy tắc của cổng này."]
+"rules_template.accept" = "Tải"
+nexus_leave = ["Rời {name}?", "Cổng này sẽ ngừng quay số và nhận qua mạng."]
+"nexus_leave.accept" = "Rời"
+
+[menu.native.feedback]
+refreshed = "Menu đã thay đổi và được làm mới."
+unavailable = "Tùy chọn này hiện không khả dụng."
+invalid_value = "Giá trị này không được phép."
+save_failed = "Không thể lưu thay đổi."
+timeout = "Máy chủ phản hồi quá lâu."
+
+[menu.native.placeholder]
+name = "Tên cổng"
+code = "Mã mời"
+block_state = "Trạng thái khối, ví dụ minecraft:glass"
+amount = "Số tiền"
+player = "Tên người chơi"
+key = "Khóa quyền"
+group = "Tên nhóm"
+network = "Tên mạng"
+address = "Địa chỉ"
+rule_id = "Mã quy tắc"
+line = "Dòng quy tắc"
+factor = "Hệ số"
+sound = "Mã âm thanh"
+ticks = "Tick"
+scale = "Tỷ lệ"
+search = "Tìm kiếm"
+
+[menu.native.transit]
+factor = "Hệ số động lượng"
+threshold_effect = "Hiệu ứng ngưỡng"
+arrival_sound = "Âm đến nơi"
+mask_ticks = "Tick mặt nạ"
+scale_min = "Tỷ lệ tối thiểu"
+scale_max = "Tỷ lệ tối đa"
+
+[menu.native.nexus]
+comparator = "Đầu ra bộ so sánh"
+
+[menu.native.list]
+page = ["&b&lTrang {page}/{pages}&r", "&7{count} mục"]
+# ---- end lane:menu ----

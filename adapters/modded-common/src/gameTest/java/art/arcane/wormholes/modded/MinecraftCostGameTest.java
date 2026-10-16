@@ -4,19 +4,14 @@ import art.arcane.wormholes.api.traversal.TraversalQuote;
 import art.arcane.wormholes.api.traversal.TraversalReceipt;
 import art.arcane.wormholes.api.traversal.TraversalRefundReason;
 import art.arcane.wormholes.api.traversal.TraversalReservation;
+import art.arcane.wormholes.menu.portal.PortalRoutes;
 import art.arcane.wormholes.portal.PortalType;
-import com.mojang.authlib.GameProfile;
-import io.netty.channel.embedded.EmbeddedChannel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.Connection;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.protocol.PacketFlow;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.server.network.CommonListenerCookie;
-import net.minecraft.server.network.ServerGamePacketListenerImpl;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.item.ItemStack;
@@ -37,8 +32,8 @@ public final class MinecraftCostGameTest {
 
     private final GameTestHelper helper;
     private final WormholesModRuntime runtime;
+    private final MinecraftGameTestPlayer connection;
     private final ServerPlayer player;
-    private final EmbeddedChannel channel;
     private final MinecraftPortal source;
     private final MinecraftPortal destination;
     private final Provider provider;
@@ -48,13 +43,8 @@ public final class MinecraftCostGameTest {
     private MinecraftCostGameTest(GameTestHelper helper) {
         this.helper = helper;
         runtime = WormholesGameTests.RUNTIME;
-        CommonListenerCookie cookie = CommonListenerCookie.createInitial(new GameProfile(UUID.randomUUID(), "cost-traveler"), false);
-        player = new ServerPlayer(runtime.server(), helper.getLevel(), cookie.gameProfile(), cookie.clientInformation());
-        Connection connection = new Connection(PacketFlow.SERVERBOUND);
-        channel = new EmbeddedChannel(connection);
-        player.connection = new ServerGamePacketListenerImpl(runtime.server(), connection, player, cookie);
-        player.initInventoryMenu();
-        player.setNoGravity(true);
+        connection = MinecraftGameTestPlayer.connect(runtime, helper.getLevel(), "cost-traveler");
+        player = connection.player();
         source = runtime.portals().create(player.getUUID(), helper.getLevel(), cells(2), PortalType.PORTAL, new Vec3(0, 0, -1));
         destination = runtime.portals().create(player.getUUID(), helper.getLevel(), cells(14), PortalType.PORTAL, new Vec3(0, 0, -1));
         helper.assertTrue(runtime.portals().link(player, source.getId(), destination.getId()), "Cost fixture portal link failed");
@@ -86,12 +76,8 @@ public final class MinecraftCostGameTest {
         data.putInt("integer", 7);
         selected.set(DataComponents.CUSTOM_DATA, CustomData.of(data));
         player.setItemInHand(InteractionHand.MAIN_HAND, selected);
-        helper.assertTrue(runtime.menus().open(player, source.getId()) == 1, "Cost owner could not open editor");
+        runtime.menus().open(player.getUUID(), PortalRoutes.cost(source.getId()));
         helper.startSequence()
-            .thenIdle(MENU_TICKS)
-            .thenExecute(() -> click(15))
-            .thenIdle(MENU_TICKS)
-            .thenExecute(() -> click(32))
             .thenIdle(MENU_TICKS)
             .thenExecute(() -> {
                 costWindow();
@@ -110,7 +96,6 @@ public final class MinecraftCostGameTest {
                     "Cost quantity controls did not persist changes");
                 helper.assertTrue(item(23).is(Items.CHEST) && item(23).getCount() == 3, "Cost quantity element did not show the quantity");
                 player.closeContainer();
-                helper.getLevel().addNewPlayer(player);
                 approach();
             })
             .thenIdle(3)
@@ -130,20 +115,15 @@ public final class MinecraftCostGameTest {
                 helper.assertTrue(player.getInventory().getItem(0).getCount() == 17, "Successful traversal did not debit exactly three matching items");
                 helper.assertTrue(provider.reserved == 1 && provider.committed == 1 && provider.refunded == 0,
                     "Successful native traversal did not settle provider exactly once");
-                helper.assertTrue(runtime.menus().open(player, source.getId()) == 1, "Cost owner could not reopen editor");
+                runtime.menus().open(player.getUUID(), PortalRoutes.cost(source.getId()));
             })
-            .thenIdle(MENU_TICKS)
-            .thenExecute(() -> click(15))
-            .thenIdle(MENU_TICKS)
-            .thenExecute(() -> click(32))
             .thenIdle(MENU_TICKS)
             .thenExecute(() -> click(11))
             .thenIdle(MENU_TICKS)
             .thenExecute(() -> {
                 helper.assertTrue(source.setting("travelCost") == null, "Free mode did not clear persisted price");
                 helper.assertTrue(item(11).is(Items.FEATHER) && item(11).hasFoil(), "Free mode was not marked active");
-                channel.runPendingTasks();
-                helper.assertTrue(!channel.outboundMessages().isEmpty(), "Cost editor emitted no inventory packets");
+                helper.assertTrue(!connection.drainPackets().isEmpty(), "Cost editor emitted no inventory packets");
                 LoggerFactory.getLogger("WormholesGameTest").info("WORMHOLES_GAME_TEST_PASS costs_runtime drop_capture exact_nbt quantity provider_denial paid_traversal commit_once free_mode");
                 cleanup();
             })
@@ -181,10 +161,8 @@ public final class MinecraftCostGameTest {
 
     private void approach() {
         Vec3 start = Vec3.atBottomCenterOf(helper.absolutePos(new BlockPos(3, 2, 3)));
-        player.setPos(start);
-        player.xo = start.x;
-        player.yo = start.y;
-        player.zo = start.z;
+        player.connection.teleport(start.x, start.y, start.z, 0.0F, 0.0F);
+        connection.acknowledgePosition();
         player.setDeltaMovement(Vec3.ZERO);
     }
 
@@ -214,8 +192,7 @@ public final class MinecraftCostGameTest {
         runtime.costs().disconnected(player);
         runtime.portals().remove(player, source.getId());
         runtime.portals().remove(player, destination.getId());
-        player.discard();
-        channel.finishAndReleaseAll();
+        connection.close();
         try {
             registration.close();
         } catch (Exception error) {

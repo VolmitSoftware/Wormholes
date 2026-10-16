@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded;
 
+import art.arcane.wormholes.menu.portal.PortalRoutes;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.portal.rtp.RtpService;
 import com.google.gson.JsonArray;
@@ -56,6 +57,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -84,6 +86,7 @@ public final class MinecraftMenuParityGameTest {
     private final WormholesModRuntime runtime;
     private final JsonObject golden;
     private final List<Normalization> normalizations;
+    private final List<SlotMask> slotMasks;
     private final ProtocolInfo<ClientGamePacketListener> clientbound;
     private final JsonArray paths;
     private final List<String> report = new ArrayList<>();
@@ -110,6 +113,7 @@ public final class MinecraftMenuParityGameTest {
         this.runtime = runtime;
         this.golden = golden;
         normalizations = normalizations(golden.getAsJsonArray("normalizations"));
+        slotMasks = slotMasks(golden.getAsJsonArray("slotMasks"));
         paths = golden.getAsJsonArray("paths");
         clientbound = GameProtocols.CLIENTBOUND_TEMPLATE.bind(RegistryFriendlyByteBuf.decorator(runtime.server().registryAccess()));
     }
@@ -208,7 +212,7 @@ public final class MinecraftMenuParityGameTest {
         JsonObject action = steps.get(stepIndex).getAsJsonObject().getAsJsonObject("action");
         String type = action.get("type").getAsString();
         switch (type) {
-            case "open-portal" -> runtime.menus().open(player, portal(action.get("portal").getAsString()).getId());
+            case "open-portal" -> runtime.menus().open(player.getUUID(), PortalRoutes.home(portal(action.get("portal").getAsString()).getId()));
             case "command" -> runtime.server().getCommands().performPrefixedCommand(player.createCommandSourceStack(),
                 action.get("command").getAsString());
             case "click" -> click(player, action);
@@ -336,7 +340,8 @@ public final class MinecraftMenuParityGameTest {
             }
         } else {
             JsonArray groups = step.has("unordered") ? step.getAsJsonArray("unordered") : new JsonArray();
-            compareWindow(unordered(expectedWindow.getAsJsonObject(), groups), unordered(actualWindow.getAsJsonObject(), groups), differences);
+            compareWindow(unordered(expectedWindow.getAsJsonObject(), groups), unordered(actualWindow.getAsJsonObject(), groups),
+                maskedSlots(step.get("id").getAsString()), differences);
         }
         if (differences.isEmpty()) {
             matched++;
@@ -390,7 +395,7 @@ public final class MinecraftMenuParityGameTest {
         return result;
     }
 
-    private static void compareWindow(JsonObject expected, JsonObject actual, List<String> differences) {
+    private static void compareWindow(JsonObject expected, JsonObject actual, Set<Integer> masked, List<String> differences) {
         for (String key : List.of("menu", "rows")) {
             if (!expected.get(key).equals(actual.get(key))) {
                 differences.add(key + ": expected " + expected.get(key) + ", native " + actual.get(key));
@@ -403,6 +408,9 @@ public final class MinecraftMenuParityGameTest {
         Map<Integer, JsonObject> actualSlots = slots(actual.getAsJsonArray("slots"));
         int size = Math.max(expected.get("rows").getAsInt(), actual.get("rows").getAsInt()) * 9;
         for (int slot = 0; slot < size; slot++) {
+            if (masked.contains(slot)) {
+                continue;
+            }
             JsonObject left = expectedSlots.getOrDefault(slot, emptySlot(slot));
             JsonObject right = actualSlots.getOrDefault(slot, emptySlot(slot));
             if (left.equals(right)) {
@@ -701,7 +709,9 @@ public final class MinecraftMenuParityGameTest {
         if (connection != null) {
             ServerPlayer player = connection.player();
             player.closeContainer();
-            runtime.menus().playerDisconnected(player);
+                runtime.portalMenuHost().playerDisconnected(player);
+            runtime.menuCaptures().disconnected(player);
+            runtime.menus().quit(player.getUUID());
             connection.close();
             connection = null;
         }
@@ -741,6 +751,17 @@ public final class MinecraftMenuParityGameTest {
 
     private String pathName() {
         return pathIndex < paths.size() ? path().get("name").getAsString() : "<none>";
+    }
+
+    private Set<Integer> maskedSlots(String stepId) {
+        String pathName = pathName();
+        Set<Integer> result = new HashSet<>();
+        for (SlotMask mask : slotMasks) {
+            if (mask.path().equals(pathName) && (mask.steps().isEmpty() || mask.steps().contains(stepId))) {
+                result.addAll(mask.slots());
+            }
+        }
+        return result;
     }
 
     private static String describe(JsonObject action) {
@@ -817,6 +838,25 @@ public final class MinecraftMenuParityGameTest {
         return result;
     }
 
+    private static List<SlotMask> slotMasks(JsonArray entries) {
+        List<SlotMask> result = new ArrayList<>(entries.size());
+        for (JsonElement entry : entries) {
+            JsonObject object = entry.getAsJsonObject();
+            Set<String> steps = new HashSet<>();
+            if (object.has("steps")) {
+                for (JsonElement step : object.getAsJsonArray("steps")) {
+                    steps.add(step.getAsString());
+                }
+            }
+            Set<Integer> slots = new HashSet<>();
+            for (JsonElement slot : object.getAsJsonArray("slots")) {
+                slots.add(slot.getAsInt());
+            }
+            result.add(new SlotMask(object.get("path").getAsString(), Set.copyOf(steps), Set.copyOf(slots)));
+        }
+        return result;
+    }
+
     private static JsonObject load() {
         try (InputStream stream = MinecraftMenuParityGameTest.class.getResourceAsStream(GOLDEN)) {
             if (stream == null) {
@@ -858,5 +898,8 @@ public final class MinecraftMenuParityGameTest {
     }
 
     private record Normalization(Pattern pattern, String replacement) {
+    }
+
+    private record SlotMask(String path, Set<String> steps, Set<Integer> slots) {
     }
 }

@@ -3,15 +3,12 @@ package art.arcane.wormholes.clientgametest;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.BackupConfirmScreen;
 import net.minecraft.client.gui.screens.ConfirmScreen;
-import net.minecraft.client.gui.screens.ConnectScreen;
 import net.minecraft.client.gui.screens.DisconnectedScreen;
 import net.minecraft.client.gui.screens.GenericMessageScreen;
 import net.minecraft.client.gui.screens.LevelLoadingScreen;
 import net.minecraft.client.gui.screens.TitleScreen;
 import net.minecraft.client.gui.screens.worldselection.CreateWorldScreen;
 import net.minecraft.client.gui.screens.worldselection.WorldCreationUiState;
-import net.minecraft.client.multiplayer.ServerData;
-import net.minecraft.client.multiplayer.resolver.ServerAddress;
 import net.minecraft.client.server.IntegratedServer;
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.Registries;
@@ -45,16 +42,9 @@ final class DriverWorlds {
     }
 
     void dedicated(String address, Runnable body) {
-        client.runOnClient(minecraft -> ConnectScreen.startConnecting(ClientGui.screen(minecraft), minecraft, ServerAddress.parseString(address),
-            new ServerData("Wormholes client gametest", address, ServerData.Type.OTHER), false, null));
-        awaitWorld();
-        body.run();
-        client.runOnClient(minecraft -> {
-            minecraft.level.disconnect(Component.literal("Disconnecting"));
-            minecraft.disconnectWithSavingScreen();
-        });
-        client.waitFor(minecraft -> minecraft.level == null, LOAD_TIMEOUT_TICKS);
-        returnToTitle();
+        try (ExternalServerSession session = ExternalServerSession.connect(client, address)) {
+            body.run();
+        }
     }
 
     private void awaitWorld() {

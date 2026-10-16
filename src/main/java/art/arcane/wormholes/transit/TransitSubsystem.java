@@ -16,12 +16,17 @@ import org.bukkit.Bukkit;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 
+import art.arcane.volmlib.util.localization.MessageArgs;
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.config.WormholesSettings;
 import art.arcane.wormholes.config.toml.TransitConfig;
 import art.arcane.wormholes.hook.WormholesRegistrar;
 import art.arcane.wormholes.hook.WormholesSubsystem;
+import art.arcane.wormholes.localization.TransitMessages;
+import art.arcane.wormholes.menu.host.BukkitMenuEntries;
+import art.arcane.wormholes.menu.portal.MenuExtensionEntry;
+import art.arcane.wormholes.menu.transit.TransitRoutes;
 import art.arcane.wormholes.network.TraversalService;
 import art.arcane.wormholes.network.convoy.ConvoyArrivalPlacer;
 import art.arcane.wormholes.network.convoy.ConvoyHandlers;
@@ -57,7 +62,9 @@ public final class TransitSubsystem implements WormholesSubsystem {
         registrar.portalExtension(TransitPortalExtension.class, extensionPortal -> new TransitPortalExtension());
         registrar.traversalGate(new TransitGate());
         registrar.traversalObserver(new TransitObserver());
-        registrar.portalMenuEntry(new TransitMenuEntry());
+        registrar.menuEntry(new MenuExtensionEntry("transit", "minecraft:feather", "transit", TransitMessages.MENU_ENTRY, 1,
+            portalId -> MessageArgs.empty(), BukkitMenuEntries.when(TransitSubsystem::hasTransit), BukkitMenuEntries.when(TransitSubsystem::customized),
+            TransitRoutes::main));
         ConvoyHandlers.register(registrar, TransitSubsystem::convoyTransfers, TransitSubsystem::convoyArrivals,
             TransitSubsystem::convoyTimeoutMillis);
     }
@@ -88,6 +95,16 @@ public final class TransitSubsystem implements WormholesSubsystem {
     @Override
     public void onSettingsReloaded(WormholesSettings settings) {
         apply(settings == null ? null : settings.getTransit());
+    }
+
+    private static boolean hasTransit(LocalPortal portal) {
+        return portal.extension(TransitPortalExtension.class) != null;
+    }
+
+    private static boolean customized(LocalPortal portal) {
+        TransitPortalExtension transit = portal.extension(TransitPortalExtension.class);
+        return transit != null && (transit.momentum() != null || transit.orientation() != null || transit.isMembrane() || transit.isBounce()
+            || !transit.profile().isNone() || !ScaleRuleSettings.isDefault(transit.scaleRule()));
     }
 
     private static ConvoyTransferService<Entity, Player, ConvoyGraph, UniversalTunnel, Traversive, LocalPortal> convoyTransfers() {

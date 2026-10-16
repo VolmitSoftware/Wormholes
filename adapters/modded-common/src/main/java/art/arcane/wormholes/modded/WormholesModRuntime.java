@@ -1,8 +1,47 @@
 package art.arcane.wormholes.modded;
 
 import art.arcane.optics.plate.ChunkLeaseRegistry;
+import art.arcane.wormholes.menu.MenuController;
+import art.arcane.wormholes.menu.MenuRegistry;
+import art.arcane.wormholes.menu.MenuService;
+import art.arcane.wormholes.menu.access.AccessMenuController;
+import art.arcane.wormholes.menu.atlas.AtlasMenuController;
+import art.arcane.wormholes.menu.cosmetics.CosmeticsMenuController;
+import art.arcane.wormholes.menu.cost.CostMenuController;
+import art.arcane.wormholes.menu.destination.DestinationMenuController;
+import art.arcane.wormholes.menu.door.DoorAccessMenuController;
+import art.arcane.wormholes.menu.extensions.ExtensionsMenuController;
+import art.arcane.wormholes.menu.fidelity.FidelityMenuController;
+import art.arcane.wormholes.menu.language.LanguageMenuController;
+import art.arcane.wormholes.menu.nexus.DialMenuController;
+import art.arcane.wormholes.menu.nexus.NetworkMenuController;
+import art.arcane.wormholes.menu.portal.PortalMenuController;
+import art.arcane.wormholes.menu.rtp.RtpMenuController;
+import art.arcane.wormholes.menu.rules.RulesMenuController;
+import art.arcane.wormholes.menu.settings.SettingsMenuController;
+import art.arcane.wormholes.menu.transit.TransitMenuController;
 import art.arcane.wormholes.modded.clientview.MinecraftClientViewCommands;
 import art.arcane.wormholes.modded.clientview.MinecraftClientViewService;
+import art.arcane.wormholes.modded.menu.MinecraftChestRenderer;
+import art.arcane.wormholes.modded.menu.MinecraftMenuCaptures;
+import art.arcane.wormholes.modded.menu.MinecraftMenuHost;
+import art.arcane.wormholes.modded.menu.MinecraftMenuIcons;
+import art.arcane.wormholes.modded.menu.MinecraftMenuTransport;
+import art.arcane.wormholes.modded.menu.host.MinecraftAccessMenuHost;
+import art.arcane.wormholes.modded.menu.host.MinecraftAtlasMenuHost;
+import art.arcane.wormholes.modded.menu.host.MinecraftCosmeticsMenuHost;
+import art.arcane.wormholes.modded.menu.host.MinecraftCostMenuHost;
+import art.arcane.wormholes.modded.menu.host.MinecraftDestinationMenuHost;
+import art.arcane.wormholes.modded.menu.host.MinecraftDialMenuHost;
+import art.arcane.wormholes.modded.menu.host.MinecraftDoorAccessMenuHost;
+import art.arcane.wormholes.modded.menu.host.MinecraftExtensionsMenuHost;
+import art.arcane.wormholes.modded.menu.host.MinecraftFidelityMenuHost;
+import art.arcane.wormholes.modded.menu.host.MinecraftGatewayMenuHost;
+import art.arcane.wormholes.modded.menu.host.MinecraftNetworkMenuHost;
+import art.arcane.wormholes.modded.menu.host.MinecraftPortalMenuHost;
+import art.arcane.wormholes.modded.menu.host.MinecraftRtpMenuHost;
+import art.arcane.wormholes.modded.menu.host.MinecraftRulesMenuHost;
+import art.arcane.wormholes.modded.menu.host.MinecraftTransitMenuHost;
 import art.arcane.wormholes.modded.seamless.RemoteRoutes;
 import art.arcane.wormholes.modded.seamless.SeamlessMove;
 import art.arcane.wormholes.portal.rtp.MinecraftRtpRuntime;
@@ -35,6 +74,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import net.minecraft.world.phys.Vec3;
 import java.util.Objects;
 import java.util.PriorityQueue;
+import java.util.Random;
 import java.util.concurrent.CancellationException;
 
 public final class WormholesModRuntime {
@@ -55,7 +95,10 @@ public final class WormholesModRuntime {
     private final MinecraftProjectionService projections = new MinecraftProjectionService(this);
     private final MinecraftClientViewService clientViews = new MinecraftClientViewService(this);
     private final MinecraftChatInput chatInput = new MinecraftChatInput(this);
-    private final MinecraftPortalMenus menus = new MinecraftPortalMenus(this);
+    private final MinecraftPortalMenuHost portalMenuHost = new MinecraftPortalMenuHost(this);
+    private final MinecraftMenuCaptures menuCaptures = new MinecraftMenuCaptures(this);
+    private final MinecraftChestRenderer chestRenderer = new MinecraftChestRenderer(this, new MinecraftMenuIcons(LOGGER::warn, portalMenuHost::template), menuCaptures);
+    private final MinecraftMenuTransport menuTransport = new MinecraftMenuTransport(this);
     private final MinecraftPortalLookLabels lookLabels = new MinecraftPortalLookLabels(this);
     private final MinecraftLocalization localization = new MinecraftLocalization(this);
     private final MinecraftRtpRuntime rtp = new MinecraftRtpRuntime(this);
@@ -73,6 +116,7 @@ public final class WormholesModRuntime {
     private WormholesModConfiguration configuration;
     private MinecraftStorePaths stores;
     private MinecraftPortalRegistry portals;
+    private MenuService menus;
     private final MinecraftWormholesApi api = new MinecraftWormholesApi(this);
     private long tick;
     private long sequence;
@@ -98,6 +142,7 @@ public final class WormholesModRuntime {
             preSend = new ChunkPreSendService<>(new MinecraftChunkPreSendPlatform(this), configuration::preSendOptions);
             portals = new MinecraftPortalRegistry(this, new MinecraftPortalRegistry.Options(
                 stores.data().resolve("portals"), new PortalAccess()));
+            menus = menuService();
             try {
                 portals.load();
                 doors.load(new MinecraftDoorService.Options(stores.doors(), new PortalAccess()));
@@ -112,7 +157,6 @@ public final class WormholesModRuntime {
             costs.start();
             rtp.start();
             chatInput.start();
-            menus.start();
             atlas.start();
             network.start();
             networkTools.start();
@@ -216,6 +260,7 @@ public final class WormholesModRuntime {
         doors.tick();
         tools.tick();
         atlas.tick();
+        portalMenuHost.tick();
         menus.tick();
         lookLabels.tick();
         network.tick();
@@ -347,6 +392,12 @@ public final class WormholesModRuntime {
         return doors;
     }
 
+    public void playerJoined(ServerPlayer player) {
+        if (running()) {
+            menus().quit(player.getUUID());
+        }
+    }
+
     public void playerDisconnected(ServerPlayer player) {
         MinecraftServer current;
         synchronized (this) {
@@ -411,9 +462,21 @@ public final class WormholesModRuntime {
         return chatInput;
     }
 
-    public MinecraftPortalMenus menus() {
+    public MinecraftPortalMenuHost portalMenuHost() {
+        return portalMenuHost;
+    }
+
+    public MinecraftMenuCaptures menuCaptures() {
+        return menuCaptures;
+    }
+
+    public MenuService menus() {
         requireServerThread();
-        return menus;
+        return Objects.requireNonNull(menus, "Wormholes is not running");
+    }
+
+    public MinecraftMenuTransport menuTransport() {
+        return menuTransport;
     }
 
     public MinecraftAtlasService atlas() {
@@ -480,8 +543,12 @@ public final class WormholesModRuntime {
         costs.disconnected(player);
         network.handoffs().disconnected(player);
         chatInput.disconnected(player);
-        localization.disconnected(player);
-        menus.playerDisconnected(player);
+        if (!superseded(player)) {
+            portalMenuHost.playerDisconnected(player);
+            menuCaptures.disconnected(player);
+            chestRenderer.disconnected(player.getUUID());
+            menus.quit(player.getUUID());
+        }
         lookLabels.playerDisconnected(player);
         projections.playerDisconnected(player);
         tools.playerDisconnected(player);
@@ -490,6 +557,34 @@ public final class WormholesModRuntime {
         portals.playerDisconnected(player);
         remoteRoutes.forget(player.getUUID(), false);
         seamlessMoving.remove(player.getUUID());
+    }
+
+    private boolean superseded(ServerPlayer player) {
+        ServerPlayer current = server().getPlayerList().getPlayer(player.getUUID());
+        return current != null && current != player;
+    }
+
+    private MenuService menuService() {
+        MinecraftMenuHost host = new MinecraftMenuHost(this, new MinecraftMenuHost.Options(chestRenderer, menuCaptures));
+        MinecraftExtensionsMenuHost extensions = new MinecraftExtensionsMenuHost(MinecraftExtensionEntries.create(this));
+        List<MenuController> controllers = new ArrayList<>(16);
+        controllers.add(new PortalMenuController(portalMenuHost, new MinecraftGatewayMenuHost(this)));
+        controllers.add(new SettingsMenuController(portalMenuHost, extensions));
+        controllers.add(new CosmeticsMenuController(portalMenuHost, new MinecraftCosmeticsMenuHost()));
+        controllers.add(new CostMenuController(portalMenuHost, new MinecraftCostMenuHost(this)));
+        controllers.add(new DestinationMenuController(portalMenuHost, new MinecraftDestinationMenuHost(this)));
+        controllers.add(new ExtensionsMenuController(portalMenuHost, extensions));
+        controllers.add(new RtpMenuController(portalMenuHost, new MinecraftRtpMenuHost(this)));
+        controllers.add(new TransitMenuController(portalMenuHost, new MinecraftTransitMenuHost(this)));
+        controllers.add(new FidelityMenuController(portalMenuHost, new MinecraftFidelityMenuHost(this)));
+        controllers.add(new RulesMenuController(portalMenuHost, new MinecraftRulesMenuHost(this)));
+        controllers.add(new LanguageMenuController(localization.languageMenus()));
+        controllers.add(new NetworkMenuController(new MinecraftNetworkMenuHost(this), new Random()));
+        controllers.add(new DialMenuController(new MinecraftDialMenuHost(this)));
+        controllers.add(new AtlasMenuController(new MinecraftAtlasMenuHost(this)));
+        controllers.add(new AccessMenuController(new MinecraftAccessMenuHost(this)));
+        controllers.add(new DoorAccessMenuController(new MinecraftDoorAccessMenuHost(this)));
+        return new MenuService(host, new MenuRegistry(controllers));
     }
 
     private void releaseServices() {
@@ -502,7 +597,10 @@ public final class WormholesModRuntime {
             rules::close,
             construction::close,
             MinecraftWindow::closeAll,
-            menus::close,
+            portalMenuHost::close,
+            menuCaptures::close,
+            chestRenderer::close,
+            () -> { if (menus != null) { menus.shutdown(); } },
             lookLabels::close,
             chatInput::close,
             clientViews::close,
@@ -547,6 +645,7 @@ public final class WormholesModRuntime {
         running = false;
         pending.clear();
         portals = null;
+        menus = null;
         configuration = null;
         stores = null;
         preSend = null;

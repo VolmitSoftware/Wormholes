@@ -274,7 +274,7 @@ class PortalSyncServiceTest {
         }
 
         @Override
-        public void refreshOpenMenus() {
+        public void invalidateMenus() {
             menuRefreshes.incrementAndGet();
         }
     }

@@ -1574,3 +1574,121 @@ off = "すべての ClientView プレイヤーをバニラ投影に戻す"
 reset = "プレイヤー 1 人の ClientView ストリームを再開"
 "reset.player" = "オンラインプレイヤー名"
 # ---- end lane:clientview ----
+
+# ---- lane:menu (menu.*) ----
+[menu.native.title]
+portal = "ポータル"
+mode = "ポータルモード"
+orientation = "向き"
+gateway = "ゲートウェイのペアリング"
+settings = "設定"
+advanced = "高度なストリーム調整"
+blackout = "遮蔽の色"
+ambient = "アンビエントカラー"
+skin = "表面スキン"
+cost = "移動コスト"
+extensions = "その他の設定"
+destinations = "目的地"
+select = "ポータルを選択"
+rtp = "ランダムテレポート"
+rtp_destination = "ランダムな目的地"
+rtp_biome = "目的のバイオーム"
+rtp_landing = "着地"
+rtp_routing = "ルーティング"
+rtp_effects = "エフェクト"
+network = "ネットワーク"
+dial = "ダイヤル"
+rules = "ルール"
+rules_list = "ルール一覧"
+rule = "ルール"
+templates = "ルールテンプレート"
+access = "アクセス"
+transit = "通過"
+fidelity = "忠実度"
+atlas = "アトラス"
+door = "ドアのアクセス"
+language = "言語"
+
+[menu.native.context]
+portal = "{portal} - {type}"
+door = "{kind}ドア"
+network = "{name}"
+
+[menu.native.chrome]
+back = "戻る"
+close = "閉じる"
+apply = "適用"
+confirm = "確認"
+cancel = "キャンセル"
+previous_page = "前のページ"
+next_page = "次のページ"
+page = "{page} / {pages} ページ"
+use_held_item = "手に持ったアイテムを使う"
+aim = "狙う"
+timeout = "サーバーから応答がありません。"
+
+[menu.native.action]
+rotate = "回転"
+rotate_clockwise = "時計回りに回転"
+rotate_counterclockwise = "反時計回りに回転"
+reset = "リセット"
+clear = "クリア"
+colors = "色"
+advanced = "詳細"
+reroll = "再抽選"
+remove = "削除"
+favorite = "お気に入り"
+guide = "ガイド"
+whitelist = "ホワイトリスト"
+blacklist = "ブラックリスト"
+use_default = "サーバーの既定値を使う"
+
+[menu.native.confirm]
+delete_portal = ["{portal} を削除しますか？", "ポータルを削除し、ここへつながるポータルのリンクを解除します。", "元に戻すことはできません。"]
+"delete_portal.accept" = "削除"
+rtp_reset = ["{portal} をリセットしますか？", "ランダムテレポートの設定がすべて既定値に戻ります。"]
+"rtp_reset.accept" = "リセット"
+rules_template = ["{name} を読み込みますか？", "テンプレートでこのポータルのルールがすべて置き換わります。"]
+"rules_template.accept" = "読み込む"
+nexus_leave = ["{name} から離脱しますか？", "このポータルはネットワーク経由のダイヤルと受信を停止します。"]
+"nexus_leave.accept" = "離脱"
+
+[menu.native.feedback]
+refreshed = "メニューが変更されたため更新しました。"
+unavailable = "その項目は現在使用できません。"
+invalid_value = "その値は使用できません。"
+save_failed = "変更を保存できませんでした。"
+timeout = "サーバーの応答に時間がかかりすぎました。"
+
+[menu.native.placeholder]
+name = "ポータル名"
+code = "招待コード"
+block_state = "ブロック状態（例: minecraft:glass）"
+amount = "金額"
+player = "プレイヤー名"
+key = "権限キー"
+group = "グループ名"
+network = "ネットワーク名"
+address = "アドレス"
+rule_id = "ルール ID"
+line = "ルール行"
+factor = "係数"
+sound = "サウンド ID"
+ticks = "ティック"
+scale = "スケール"
+search = "検索"
+
+[menu.native.transit]
+factor = "勢いの係数"
+threshold_effect = "境界エフェクト"
+arrival_sound = "到着音"
+mask_ticks = "マスクのティック数"
+scale_min = "最小スケール"
+scale_max = "最大スケール"
+
+[menu.native.nexus]
+comparator = "コンパレーター出力"
+
+[menu.native.list]
+page = ["&b&lページ {page}/{pages}&r", "&7項目 {count} 件"]
+# ---- end lane:menu ----

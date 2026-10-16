@@ -594,24 +594,48 @@ public final class MinecraftPortal extends Portal implements PortalSettingsTarge
         }
     }
 
+    public AtmosphereMode getAtmosphereMode() {
+        return AtmosphereMode.parse(text("fidelity.atmosphere"), null);
+    }
+
     public void setAtmosphereMode(AtmosphereMode mode) {
         setOverride("fidelity.atmosphere", mode == null ? null : mode.configName());
+    }
+
+    public AcousticsProfile getAcousticsProfile() {
+        return AcousticsProfile.parse(text("fidelity.acoustics"), null);
     }
 
     public void setAcousticsProfile(AcousticsProfile profile) {
         setOverride("fidelity.acoustics", profile == null ? null : profile.configName());
     }
 
+    public LodProfile getLodProfile() {
+        return LodProfile.parse(text("fidelity.lod"), null);
+    }
+
     public void setLodProfile(LodProfile profile) {
         setOverride("fidelity.lod", profile == null ? null : profile.configName());
+    }
+
+    public Boolean getBlockEntities() {
+        return values.get("fidelity.block_entities") instanceof Boolean enabled ? enabled : null;
     }
 
     public void setBlockEntities(Boolean enabled) {
         setOverride("fidelity.block_entities", enabled);
     }
 
+    public MomentumPolicy getMomentum() {
+        return MomentumPolicy.decode(text("transit.momentum"));
+    }
+
     public void setMomentum(MomentumPolicy policy) {
         setOverride("transit.momentum", policy == null ? null : policy.encode());
+    }
+
+    public OrientationPolicy getOrientation() {
+        return OrientationPolicy.parse(text("transit.orientation"), null);
     }
 
     public void setOrientation(OrientationPolicy policy) {
@@ -630,8 +654,16 @@ public final class MinecraftPortal extends Portal implements PortalSettingsTarge
         }
     }
 
+    public boolean isMembrane() {
+        return Boolean.TRUE.equals(values.get("transit.membrane"));
+    }
+
     public void setMembrane(boolean enabled) {
         values.put("transit.membrane", enabled);
+    }
+
+    public boolean isBounce() {
+        return Boolean.TRUE.equals(values.get("transit.bounce"));
     }
 
     public void setBounce(boolean enabled) {
@@ -647,6 +679,10 @@ public final class MinecraftPortal extends Portal implements PortalSettingsTarge
         setOverride(ScaleRuleSettings.MODE, standard ? null : ScaleRuleSettings.format(rule.mode()));
         setOverride(ScaleRuleSettings.MIN, standard ? null : ScaleRuleSettings.format(rule.min()));
         setOverride(ScaleRuleSettings.MAX, standard ? null : ScaleRuleSettings.format(rule.max()));
+    }
+
+    public TransitionProfile getTransitionProfile() {
+        return TransitionProfile.decode(text("transit.profile"));
     }
 
     public void setTransitionProfile(TransitionProfile profile) {

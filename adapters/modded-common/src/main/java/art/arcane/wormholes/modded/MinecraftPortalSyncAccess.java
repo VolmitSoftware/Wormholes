@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded;
 
+import art.arcane.wormholes.menu.MenuScope;
 import art.arcane.optics.crossing.ScaleRule;
 import art.arcane.wormholes.transit.ScaleRuleSettings;
 import art.arcane.wormholes.network.PortalInfo;
@@ -151,6 +152,6 @@ public final class MinecraftPortalSyncAccess implements PortalSyncAccess<Minecra
 
     @Override
     public void refreshMenus(MinecraftPortal portal) {
-        runtime.menus().refresh(portal.getId());
+        runtime.menus().invalidate(new MenuScope.Portal(portal.getId()));
     }
 }

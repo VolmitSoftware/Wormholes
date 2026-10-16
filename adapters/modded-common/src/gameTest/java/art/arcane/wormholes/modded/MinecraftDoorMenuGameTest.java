@@ -15,11 +15,11 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.network.Connection;
+import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.PacketFlow;
 import net.minecraft.network.protocol.game.ClientboundAddEntityPacket;
 import net.minecraft.network.protocol.game.ClientboundRemoveEntitiesPacket;
 import net.minecraft.network.protocol.game.ClientboundSetEntityDataPacket;
-import net.minecraft.network.protocol.game.ClientboundSystemChatPacket;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.network.CommonListenerCookie;
 import net.minecraft.server.network.ServerGamePacketListenerImpl;
@@ -49,6 +49,7 @@ public final class MinecraftDoorMenuGameTest {
     private static final int ADD_SLOT = 5;
     private static final int PROJECTION_SLOT = 6;
     private static final int FIRST_ENTRY_SLOT = 9;
+    private static final String ADMINISTRATOR = "wormholes.admin";
 
     private final Options options;
     private final MinecraftDoorService doors;
@@ -56,6 +57,8 @@ public final class MinecraftDoorMenuGameTest {
     private final ServerPlayer stranger;
     private final EmbeddedChannel strangerChannel;
     private final boolean projectionEnabled;
+    private final MinecraftGameTestPlayer manager;
+    private final AutoCloseable administration;
 
     private MinecraftDoorMenuGameTest(Options options) {
         this.options = options;
@@ -69,6 +72,10 @@ public final class MinecraftDoorMenuGameTest {
         stranger.connection = new ServerGamePacketListenerImpl(options.player().level().getServer(), connection, stranger, cookie);
         stranger.initInventoryMenu();
         stranger.setPos(options.player().position());
+        manager = MinecraftGameTestPlayer.connect(options.runtime(), options.player().level(), "door-manager");
+        UUID managerId = manager.player().getUUID();
+        administration = options.runtime().access().register((candidate, node) -> candidate.getUUID().equals(managerId) && node.equals(ADMINISTRATOR)
+            ? MinecraftAccessService.Decision.ALLOW : MinecraftAccessService.Decision.UNSET);
     }
 
     public static CompletableFuture<Boolean> verify(Options options) {
@@ -77,29 +84,22 @@ public final class MinecraftDoorMenuGameTest {
 
     private CompletableFuture<Boolean> run() {
         ServerPlayer owner = options.player();
-        owner.setItemInHand(InteractionHand.MAIN_HAND, ItemStack.EMPTY);
-        owner.setShiftKeyDown(true);
-        options.helper().assertTrue(options.runtime().useBlock(owner, InteractionHand.MAIN_HAND, hit()),
-            "Owner sneak interaction did not open door access controls");
-        owner.setShiftKeyDown(false);
-        header(1);
-        options.helper().assertTrue(!doors.canManage(stranger, itemId), "Unprivileged stranger can manage dimensional door");
-        DoorOpenState original = endpoint().openState();
-        click(OPEN_STATE_SLOT, 0, ContainerInput.PICKUP);
-        return await(() -> endpoint().openState() == original.flipped() && item(OPEN_STATE_SLOT).is(openIcon(original.flipped())))
-            .thenCompose(ignored -> {
-                click(OPEN_STATE_SLOT, 0, ContainerInput.PICKUP);
-                return await(() -> endpoint().openState() == original && item(OPEN_STATE_SLOT).is(openIcon(original)));
-            }).thenCompose(ignored -> projection()).thenCompose(ignored -> surface())
+        ServerPlayer viewer = manager.player();
+        viewer.setItemInHand(InteractionHand.MAIN_HAND, ItemStack.EMPTY);
+        viewer.setShiftKeyDown(true);
+        options.helper().assertTrue(options.runtime().useBlock(viewer, InteractionHand.MAIN_HAND, hit()),
+            "Manager sneak interaction did not open door access controls");
+        viewer.setShiftKeyDown(false);
+        return await(() -> window() != null && viewer.containerMenu instanceof MinecraftWindowMenu).thenCompose(ignored -> openState())
+            .thenCompose(ignored -> projection()).thenCompose(ignored -> surface())
             .thenCompose(ignored -> prompt("cancel")).thenCompose(ignored -> {
                 header(1);
                 options.runtime().server().services().nameToIdCache().add(new NameAndId(owner.getUUID(), owner.getGameProfile().name()));
                 options.runtime().server().services().nameToIdCache().add(new NameAndId(stranger.getUUID(), stranger.getGameProfile().name()));
                 return prompt(owner.getGameProfile().name());
-            }).thenCompose(ignored -> {
+            }).thenCompose(ignored -> await(() -> chatted(WormholesMessages.DOOR_ACCESS_OWNER_ALWAYS, MessageArgs.empty())))
+            .thenCompose(ignored -> {
                 header(1);
-                options.helper().assertTrue(chatted(WormholesMessages.DOOR_ACCESS_OWNER_ALWAYS, MessageArgs.empty()),
-                    "Owner name prompt did not send the owner notice to chat");
                 options.helper().assertTrue(record().players().isEmpty(), "Owner name prompt listed the owner");
                 return prompt(stranger.getGameProfile().name());
             }).thenCompose(ignored -> await(() -> listedState() == DoorAccessState.NEUTRAL && rows() == 2
@@ -124,12 +124,14 @@ public final class MinecraftDoorMenuGameTest {
                 return await(() -> listedState() == null && window() != null && rows() == 1);
             }).thenApply(ignored -> {
                 header(1);
-                options.helper().assertTrue(owner.containerMenu.getCarried().isEmpty(), "Door menu click moved a control item into player cursor");
+                options.helper().assertTrue(viewer.containerMenu.getCarried().isEmpty(), "Door menu click moved a control item into player cursor");
                 LoggerFactory.getLogger("WormholesGameTest").info("WORMHOLES_GAME_TEST_PASS door_menu sneak_open title gray_pane header_layout owner_guard open_state projection_master_guard projection_cycle private_surface animated_metadata surface_cleanup prompt_cancel prompt_owner prompt_add list_height whitelist blacklist interaction_deny shift_remove item_safety");
                 return true;
             }).whenCompleteAsync((passed, failure) -> {
                 options.runtime().configuration().settings().getDoors().projectionEnabled = projectionEnabled;
-                owner.closeContainer();
+                viewer.closeContainer();
+                manager.close();
+                close(administration);
                 if (!stranger.isRemoved()) {
                     stranger.discard();
                 }
@@ -137,13 +139,25 @@ public final class MinecraftDoorMenuGameTest {
             }, owner.level().getServer());
     }
 
+    private CompletableFuture<Boolean> openState() {
+        header(1);
+        options.helper().assertTrue(!doors.canManage(stranger, itemId), "Unprivileged stranger can manage dimensional door");
+        DoorOpenState original = endpoint().openState();
+        click(OPEN_STATE_SLOT, 0, ContainerInput.PICKUP);
+        return await(() -> endpoint().openState() == original.flipped() && item(OPEN_STATE_SLOT).is(openIcon(original.flipped())))
+            .thenCompose(ignored -> {
+                click(OPEN_STATE_SLOT, 0, ContainerInput.PICKUP);
+                return await(() -> endpoint().openState() == original && item(OPEN_STATE_SLOT).is(openIcon(original)));
+            });
+    }
+
     private void header(int rows) {
-        ServerPlayer owner = options.player();
+        ServerPlayer viewer = manager.player();
         MinecraftWindow window = window();
         options.helper().assertTrue(window != null && window.isVisible(), "Door access window is not open");
         options.helper().assertTrue(rows() == rows, "Door access window has " + rows() + " rows instead of " + rows);
-        String kind = MinecraftMenuText.text(owner, WormholesMessages.DOOR_ACCESS_KIND_PAIR, MessageArgs.empty()).getString();
-        options.helper().assertTrue(window.getTitle().equals(MinecraftLegacyText.text(owner, WormholesMessages.DOOR_MENU_ACCESS_TITLE,
+        String kind = MinecraftMenuText.text(viewer, WormholesMessages.DOOR_ACCESS_KIND_PAIR, MessageArgs.empty()).getString();
+        options.helper().assertTrue(window.getTitle().equals(MinecraftLegacyText.text(viewer, WormholesMessages.DOOR_MENU_ACCESS_TITLE,
             MinecraftPortalText.arguments("kind", kind))), "Door access title differs from the localized title");
         options.helper().assertTrue(item(PLACARD_SLOT).is(MinecraftDoorItems.material(options.endpoint().identity()))
             && item(PLACARD_SLOT).getHoverName().getString().equals(placardName(kind)),
@@ -157,27 +171,26 @@ public final class MinecraftDoorMenuGameTest {
     }
 
     private String placardName(String kind) {
-        List<String> lines = MinecraftLegacyText.lines(options.player(), WormholesMessages.DOOR_MENU_ACCESS_PLACARD, MinecraftPortalText.arguments(
+        List<String> lines = MinecraftLegacyText.lines(manager.player(), WormholesMessages.DOOR_MENU_ACCESS_PLACARD, MinecraftPortalText.arguments(
             "kind", kind, "owner", options.player().getGameProfile().name(), "whitelisted", 0, "blacklisted", 0, "count", record().players().size()));
         return MinecraftLegacyText.component(lines.getFirst()).getString();
     }
 
     private CompletableFuture<Boolean> prompt(String input) {
         click(ADD_SLOT, 0, ContainerInput.PICKUP);
-        return await(() -> window() == null && !(options.player().containerMenu instanceof MinecraftWindowMenu)).thenCompose(ignored -> {
+        return await(() -> window() == null && !(manager.player().containerMenu instanceof MinecraftWindowMenu)).thenCompose(ignored -> {
             options.helper().assertTrue(chatted(WormholesMessages.DOOR_ACCESS_PROMPT_PLAYER, MinecraftPortalText.arguments("cancel",
-                MinecraftMenuText.text(options.player(), WormholesMessages.PORTAL_INPUT_CANCEL, MessageArgs.empty()).getString())),
+                MinecraftMenuText.text(manager.player(), WormholesMessages.PORTAL_INPUT_CANCEL, MessageArgs.empty()).getString())),
                 "Door access prompt was not sent to chat");
-            options.helper().assertTrue(MinecraftChatInput.chat(options.player(), input), "Door access prompt did not consume chat input");
-            return await(() -> window() != null && options.player().containerMenu instanceof MinecraftWindowMenu);
+            options.helper().assertTrue(MinecraftChatInput.chat(manager.player(), input), "Door access prompt did not consume chat input");
+            return await(() -> window() != null && manager.player().containerMenu instanceof MinecraftWindowMenu);
         });
     }
 
     private boolean chatted(TextKey key, MessageArgs arguments) {
-        String expected = MinecraftMenuText.text(options.player(), key, arguments).getString();
-        options.channel().runPendingTasks();
-        for (Object packet : options.channel().outboundMessages()) {
-            if (packet instanceof ClientboundSystemChatPacket chat && !chat.overlay() && chat.content().getString().equals(expected)) {
+        String expected = MinecraftMenuText.text(manager.player(), key, arguments).getString();
+        for (Component message : manager.messages()) {
+            if (message.getString().equals(expected)) {
                 return true;
             }
         }
@@ -230,7 +243,6 @@ public final class MinecraftDoorMenuGameTest {
     private CompletableFuture<Boolean> projection() {
         DoorProjectionState original = endpoint().projection();
         options.runtime().configuration().settings().getDoors().projectionEnabled = false;
-        options.channel().outboundMessages().clear();
         click(PROJECTION_SLOT, 0, ContainerInput.PICKUP);
         return await(() -> chatted(DoorViewMessages.DISABLED, MessageArgs.empty())).thenCompose(ignored -> {
             options.helper().assertTrue(endpoint().projection() == original, "Disabled global projection allowed an endpoint override");
@@ -246,27 +258,27 @@ public final class MinecraftDoorMenuGameTest {
             case ON -> DoorViewMessages.STATE_ON;
             case OFF -> DoorViewMessages.STATE_OFF;
         };
-        String state = MinecraftMenuText.text(options.player(), key, MessageArgs.empty()).getString();
-        String label = MinecraftLegacyText.component(MinecraftLegacyText.lines(options.player(), DoorViewMessages.MENU_PROJECTION,
+        String state = MinecraftMenuText.text(manager.player(), key, MessageArgs.empty()).getString();
+        String label = MinecraftLegacyText.component(MinecraftLegacyText.lines(manager.player(), DoorViewMessages.MENU_PROJECTION,
             MinecraftPortalText.arguments("state", state)).getFirst()).getString();
         click(PROJECTION_SLOT, 0, ContainerInput.PICKUP);
         return await(() -> endpoint().projection() == expected && item(PROJECTION_SLOT).getHoverName().getString().equals(label));
     }
 
     private void click(int slot, int button, ContainerInput input) {
-        options.player().containerMenu.clicked(slot, button, input, options.player());
+        manager.player().containerMenu.clicked(slot, button, input, manager.player());
     }
 
     private MinecraftWindow window() {
-        return MinecraftWindow.active(options.player());
+        return MinecraftWindow.active(manager.player());
     }
 
     private int rows() {
-        return options.player().containerMenu instanceof MinecraftWindowMenu menu ? menu.getRowCount() : 0;
+        return manager.player().containerMenu instanceof MinecraftWindowMenu menu ? menu.getRowCount() : 0;
     }
 
     private ItemStack item(int slot) {
-        return options.player().containerMenu instanceof MinecraftWindowMenu menu && slot < menu.size() ? menu.item(slot) : ItemStack.EMPTY;
+        return manager.player().containerMenu instanceof MinecraftWindowMenu menu && slot < menu.size() ? menu.item(slot) : ItemStack.EMPTY;
     }
 
     private static Item openIcon(DoorOpenState state) {
@@ -288,6 +300,14 @@ public final class MinecraftDoorMenuGameTest {
     private BlockHitResult hit() {
         BlockPos block = new BlockPos(options.endpoint().position().x(), options.endpoint().position().y(), options.endpoint().position().z());
         return new BlockHitResult(Vec3.atCenterOf(block), Direction.NORTH, block, false);
+    }
+
+    private static void close(AutoCloseable registration) {
+        try {
+            registration.close();
+        } catch (Exception failure) {
+            throw new IllegalStateException("the door manager permission could not be removed", failure);
+        }
     }
 
     private CompletableFuture<Boolean> await(BooleanSupplier condition) {
@@ -320,7 +340,6 @@ public final class MinecraftDoorMenuGameTest {
         return result;
     }
 
-    public record Options(GameTestHelper helper, WormholesModRuntime runtime, ServerPlayer player, EmbeddedChannel channel,
-                          PlacedDoorEndpoint endpoint) {
+    public record Options(GameTestHelper helper, WormholesModRuntime runtime, ServerPlayer player, PlacedDoorEndpoint endpoint) {
     }
 }

@@ -265,7 +265,7 @@ public class CommandPortals {
         if (change.status() == ScaleRuleChange.Status.SET) {
             transit.setScaleRule(change.rule());
             local.save();
-            local.refreshOpenMenus();
+            local.invalidateMenus();
             if (local.isSettingsSyncEnabled() && Wormholes.portalSyncService != null && !PortalSyncService.isApplyingRemote()) {
                 Wormholes.portalSyncService.broadcastSettings(local);
             }

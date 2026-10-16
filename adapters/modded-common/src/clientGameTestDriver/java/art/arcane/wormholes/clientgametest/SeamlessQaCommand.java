@@ -47,6 +47,8 @@ public final class SeamlessQaCommand {
             .then(Commands.literal("removepair").then(Commands.argument(ARGUMENT, StringArgumentType.greedyString())
                 .executes(SeamlessQaCommand::removePair)))
             .then(Commands.literal("exists").then(Commands.argument(ARGUMENT, StringArgumentType.greedyString()).executes(SeamlessQaCommand::exists)))
+            .then(Commands.literal("projection").then(Commands.argument(ARGUMENT, StringArgumentType.greedyString())
+                .executes(SeamlessQaCommand::projection)))
             .then(Commands.literal("fall").executes(SeamlessQaCommand::fall))
             .then(Commands.literal("dimension").executes(SeamlessQaCommand::dimension))
             .then(Commands.literal("gunpowder").executes(SeamlessQaCommand::gunpowder)));
@@ -247,6 +249,17 @@ public final class SeamlessQaCommand {
                 UUID.fromString(StringArgumentType.getString(context, ARGUMENT).trim())));
         } catch (RuntimeException | AssertionError failure) {
             fail(player, "exists", failure);
+        }
+        return 1;
+    }
+
+    private static int projection(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        ServerPlayer player = context.getSource().getPlayerOrException();
+        try {
+            reply(player, "projection " + NativeMenuDriverPass.projection(context.getSource().getServer(),
+                UUID.fromString(StringArgumentType.getString(context, ARGUMENT).trim())).name());
+        } catch (RuntimeException | AssertionError failure) {
+            fail(player, "projection", failure);
         }
         return 1;
     }

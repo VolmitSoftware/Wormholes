@@ -89,7 +89,7 @@ public enum BukkitPortalSyncAccess implements PortalSyncAccess<ILocalPortal> {
 
     @Override
     public void refreshMenus(ILocalPortal portal) {
-        ((LocalPortal) portal).refreshOpenMenus();
+        ((LocalPortal) portal).invalidateMenus();
     }
 
     private static void dispatchRetry(Consumer<Runnable> globalDispatcher, Runnable task, long delayTicks) {

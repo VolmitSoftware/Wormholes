@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded;
 
+import art.arcane.wormholes.menu.MenuScope;
 import art.arcane.volmlib.util.localization.TextKey;
 import art.arcane.wormholes.config.toml.NetworkConfig;
 import art.arcane.wormholes.localization.WormholesMessages;
@@ -307,7 +308,7 @@ public final class MinecraftNetworkTools implements AutoCloseable {
                     return;
                 }
                 runtime.portals().save(portal);
-                runtime.menus().refresh(portalId);
+                runtime.menus().invalidate(new MenuScope.Portal(portalId));
                 send(source, WormholesMessages.NETWORK_LINKED, Map.of("portal", portal.getName(),
                     "destination", portalCode.portalName(), "server", name));
             } else {

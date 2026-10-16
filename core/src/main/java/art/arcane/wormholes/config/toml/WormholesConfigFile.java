@@ -46,4 +46,5 @@ public class WormholesConfigFile {
     public OpsConfig ops = new OpsConfig();
     public DimensionalConfig dimensional = new DimensionalConfig();
     public ClientViewConfig clientView = new ClientViewConfig();
+    public MenuConfig menus = new MenuConfig();
 }

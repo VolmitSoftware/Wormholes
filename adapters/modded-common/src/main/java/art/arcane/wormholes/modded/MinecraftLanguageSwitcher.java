@@ -1,12 +1,18 @@
 package art.arcane.wormholes.modded;
 
+import art.arcane.volmlib.util.format.ColorFormatter;
 import art.arcane.volmlib.util.localization.BukkitLanguageMessages;
 import art.arcane.volmlib.util.localization.MessageArgs;
 import art.arcane.volmlib.util.localization.MessageArgument;
+import art.arcane.volmlib.util.localization.MessageArgumentKind;
 import art.arcane.volmlib.util.localization.PluginLanguageService;
+import art.arcane.volmlib.util.localization.ResolvedText;
 import art.arcane.volmlib.util.localization.TextKey;
 import art.arcane.volmlib.util.localization.VolmitLocales;
 import art.arcane.volmlib.util.plugin.ComponentText;
+import art.arcane.wormholes.localization.WormholesMessageRenderer;
+import art.arcane.wormholes.menu.language.LanguageMenuView;
+import art.arcane.wormholes.menu.language.LanguageRoutes;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
@@ -25,6 +31,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.function.Function;
 
 final class MinecraftLanguageSwitcher {
@@ -38,17 +45,34 @@ final class MinecraftLanguageSwitcher {
 
     private final WormholesModRuntime runtime;
     private final MinecraftLocalization localization;
-    private final MinecraftLanguageEditor editor;
 
     MinecraftLanguageSwitcher(WormholesModRuntime runtime, MinecraftLocalization localization) {
         this.runtime = Objects.requireNonNull(runtime, "runtime");
         this.localization = Objects.requireNonNull(localization, "localization");
-        editor = new MinecraftLanguageEditor(runtime, localization,
-            player -> command(player.createCommandSourceStack(), new String[]{"server"}));
     }
 
-    MinecraftLanguageEditor editor() {
-        return editor;
+    static ComponentText localized(PluginLanguageService languages, ServerPlayer player, TextKey key, MessageArgs supplied) {
+        String template;
+        MessageArgs resolvedArguments;
+        try {
+            ResolvedText resolved = languages.snapshot(player == null ? null : player.getUUID()).resolve(key, supplied);
+            template = resolved.template();
+            resolvedArguments = resolved.arguments();
+        } catch (RuntimeException failure) {
+            template = key.english();
+            resolvedArguments = supplied;
+        }
+        template = ComponentText.normalizeMarkup(template);
+        for (MessageArgument argument : resolvedArguments.arguments().values()) {
+            String value = String.valueOf(argument.value());
+            if (argument.kind() == MessageArgumentKind.UNTRUSTED) {
+                value = MinecraftDirectorMiniMenu.escapeText(ColorFormatter.stripColor(value));
+            } else {
+                value = ComponentText.normalizeMarkup(value);
+            }
+            template = template.replace("{" + argument.name() + "}", value);
+        }
+        return ComponentText.component(WormholesMessageRenderer.markup(template));
     }
 
     void register(CommandDispatcher<CommandSourceStack> dispatcher) {
@@ -78,8 +102,10 @@ final class MinecraftLanguageSwitcher {
                 message(source, BukkitLanguageMessages.EDITOR_PLAYER_ONLY);
             } else if (arguments.length > 3) {
                 message(source, BukkitLanguageMessages.EDITOR_USAGE, MessageArgument.untrusted("command", COMMAND));
+            } else if (arguments.length == 3) {
+                openLocale(source, player, arguments[2]);
             } else {
-                editor.open(player, arguments.length == 3 ? arguments[2] : null);
+                runtime.menus().open(player.getUUID(), LanguageRoutes.locales());
             }
             return 1;
         }
@@ -273,6 +299,27 @@ final class MinecraftLanguageSwitcher {
         });
     }
 
+    private void openLocale(CommandSourceStack source, ServerPlayer player, String locale) {
+        message(source, BukkitLanguageMessages.EDITOR_LOADING, MessageArgument.untrusted("locale", locale));
+        localization.languageMenus().load(locale).whenComplete((document, failure) -> {
+            Throwable cause = failure instanceof CompletionException && failure.getCause() != null ? failure.getCause() : failure;
+            if (cause != null) {
+                LOGGER.error("Unable to load {} language messages for {}", PLUGIN, locale, cause);
+            }
+            reply(source, () -> localeLoaded(source, player, document, cause));
+        });
+    }
+
+    private void localeLoaded(CommandSourceStack source, ServerPlayer player, LanguageMenuView document, Throwable cause) {
+        if (cause == null) {
+            runtime.menus().open(player.getUUID(), LanguageRoutes.groups(document.locale()));
+            return;
+        }
+        message(source, BukkitLanguageMessages.EDITOR_UNABLE_TO_EDIT, MessageArgument.untrusted("reason",
+            Objects.requireNonNullElse(cause.getMessage(), cause.getClass().getSimpleName())));
+        runtime.menus().open(player.getUUID(), LanguageRoutes.locales());
+    }
+
     private void selectionFeedback(CommandSourceStack source, String scope, String requested, String applied, Throwable failure) {
         if (failure != null) {
             message(source, BukkitLanguageMessages.SAVE_FAILED, MessageArgument.untrusted("plugin", PLUGIN));
@@ -319,7 +366,7 @@ final class MinecraftLanguageSwitcher {
         for (MessageArgument argument : arguments) {
             builder.add(argument);
         }
-        MinecraftDirectorMiniMenu.send(source, MinecraftLanguageEditor.localized(languages(), source.getPlayer(), key, builder.build())
+        MinecraftDirectorMiniMenu.send(source, localized(languages(), source.getPlayer(), key, builder.build())
             .colorIfAbsent(THEME.description()));
     }
 

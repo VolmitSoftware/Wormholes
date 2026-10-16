@@ -1,5 +1,6 @@
 package art.arcane.wormholes.clientgametest;
 
+import art.arcane.wormholes.portal.ProjectionMode;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
@@ -139,6 +140,10 @@ final class CommandSeamlessServer implements SeamlessServer {
     public Vec3 playerPosition() {
         String[] values = client.command("wormholesqa position", "position", REPLY_TIMEOUT_TICKS).trim().split(",");
         return new Vec3(Double.parseDouble(values[0]), Double.parseDouble(values[1]), Double.parseDouble(values[2]));
+    }
+
+    ProjectionMode projection(UUID portal) {
+        return ProjectionMode.valueOf(client.command("wormholesqa projection " + portal, "projection", REPLY_TIMEOUT_TICKS).trim());
     }
 
     @Override

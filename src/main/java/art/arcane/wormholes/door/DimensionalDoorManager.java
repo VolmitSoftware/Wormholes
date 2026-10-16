@@ -18,6 +18,7 @@ import art.arcane.wormholes.door.view.DoorProjectionRegistry;
 import art.arcane.wormholes.localization.PocketsMessages;
 import art.arcane.wormholes.localization.WormholesLocalization;
 import art.arcane.wormholes.localization.WormholesMessages;
+import art.arcane.wormholes.menu.door.DoorRoutes;
 import art.arcane.wormholes.platform.BukkitRegionTaskProvider;
 import art.arcane.wormholes.platform.WormholesPlatform;
 import art.arcane.optics.crossing.PlaneCrossing;
@@ -125,7 +126,6 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 	private final DoorChunkLoader chunkLoader;
 	private final DoorBlockProtection protection;
 	private final DoorTransitFailures transitFailures;
-	private final DoorAccessMenu accessMenu;
 	private final DoorAccessFeedback accessFeedback;
 	private final DoorAccessAuthorizer accessAuthorizer;
 	private final PocketRulesListener rulesListener;
@@ -196,7 +196,6 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 		resizeWorkflow = new PocketResizeWorkflow(mutationJournal);
 		resizingPockets = ConcurrentHashMap.newKeySet();
 		protection = new DoorBlockProtection(guard, pockets);
-		accessMenu = new DoorAccessMenu(this);
 		accessFeedback = new DoorAccessFeedback(plugin);
 		accessAuthorizer = new DoorAccessAuthorizer(plugin);
 		rulesListener = new PocketRulesListener(
@@ -1046,22 +1045,17 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 		return transitFailures.breakdown();
 	}
 
-	void openAccessMenu(Player player, PlacedDoorEndpoint endpoint)
-	{
-		accessMenu.open(player, endpoint);
-	}
-
-	Optional<DoorAccessRecord> accessRecord(UUID itemId)
+	public Optional<DoorAccessRecord> accessRecord(UUID itemId)
 	{
 		return guard.state().accessRecord(itemId);
 	}
 
-	Optional<PlacedDoorEndpoint> endpoint(UUID itemId)
+	public Optional<PlacedDoorEndpoint> endpoint(UUID itemId)
 	{
 		return guard.state().findEndpointByItem(itemId);
 	}
 
-	boolean applyOpenState(PlacedDoorEndpoint expected, DoorOpenState openState) throws IOException
+	public boolean applyOpenState(PlacedDoorEndpoint expected, DoorOpenState openState) throws IOException
 	{
 		Objects.requireNonNull(expected, "expected");
 		Objects.requireNonNull(openState, "openState");
@@ -1093,7 +1087,7 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 	 * Stores one door's through-view override and re-reads the door so its aperture and backing pane
 	 * follow immediately.
 	 */
-	boolean applyProjectionState(PlacedDoorEndpoint expected, DoorProjectionState projection) throws IOException
+	public boolean applyProjectionState(PlacedDoorEndpoint expected, DoorProjectionState projection) throws IOException
 	{
 		Objects.requireNonNull(expected, "expected");
 		Objects.requireNonNull(projection, "projection");
@@ -1121,17 +1115,17 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 		return true;
 	}
 
-	boolean applyAccessState(UUID itemId, UUID playerId, DoorAccessState state) throws IOException
+	public boolean applyAccessState(UUID itemId, UUID playerId, DoorAccessState state) throws IOException
 	{
 		return guard.mutate(() -> guard.state().setAccessState(itemId, playerId, state));
 	}
 
-	boolean addAccessPlayer(UUID itemId, UUID playerId) throws IOException
+	public boolean addAccessPlayer(UUID itemId, UUID playerId) throws IOException
 	{
 		return guard.mutate(() -> guard.state().addAccessPlayer(itemId, playerId));
 	}
 
-	boolean removeAccessPlayer(UUID itemId, UUID playerId) throws IOException
+	public boolean removeAccessPlayer(UUID itemId, UUID playerId) throws IOException
 	{
 		return guard.mutate(() -> guard.state().removeAccessPlayer(itemId, playerId));
 	}
@@ -1536,7 +1530,7 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 			event.setUseItemInHand(Event.Result.DENY);
 			if(event.getHand() == EquipmentSlot.HAND)
 			{
-				scheduleAccessMenu(player, endpoint);
+				Wormholes.openMenu(player.getUniqueId(), DoorRoutes.access(endpoint.identity().itemId()));
 			}
 			return;
 		}
@@ -1841,14 +1835,6 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 			plugin.getLogger().log(Level.SEVERE, "Could not roll back an unscheduled door placement", ex);
 		}
 		runtimes.remove(endpoint);
-	}
-
-	private void scheduleAccessMenu(Player player, PlacedDoorEndpoint endpoint)
-	{
-		if(!FoliaScheduler.runEntity(plugin, player, () -> openAccessMenu(player, endpoint)))
-		{
-			openAccessMenu(player, endpoint);
-		}
 	}
 
 	private static DoorPosition position(Block block, int lowerY)

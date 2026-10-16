@@ -1,5 +1,8 @@
 package art.arcane.wormholes.modded;
 
+import art.arcane.wormholes.menu.MenuScope;
+import art.arcane.wormholes.menu.destination.DestinationRoutes;
+import art.arcane.wormholes.menu.portal.PortalRoutes;
 import art.arcane.optics.crossing.ScaleRule;
 import art.arcane.optics.crossing.GravityFrame;
 import art.arcane.wormholes.modded.gravity.MinecraftGravity;
@@ -75,11 +78,11 @@ public final class MinecraftPortalTools implements AutoCloseable {
 
     public void registerCommands(CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(Commands.literal("wormholes")
-            .then(Commands.literal("edit").executes(context -> runtime.menus().openSelection(context.getSource().getPlayerOrException()))
+            .then(Commands.literal("edit").executes(context -> select(context.getSource().getPlayerOrException()))
                 .then(Commands.argument("portal", UuidArgument.uuid()).executes(context ->
-                    runtime.menus().open(context.getSource().getPlayerOrException(), UuidArgument.getUuid(context, "portal")))))
+                    edit(context.getSource().getPlayerOrException(), UuidArgument.getUuid(context, "portal")))))
             .then(Commands.literal("transfer").then(Commands.argument("portal", UuidArgument.uuid())
-                .then(Commands.argument("owner", UuidArgument.uuid()).executes(context -> runtime.menus().transfer(
+                .then(Commands.argument("owner", UuidArgument.uuid()).executes(context -> transfer(
                     context.getSource().getPlayerOrException(), UuidArgument.getUuid(context, "portal"), UuidArgument.getUuid(context, "owner")) ? 1 : 0))))
             .then(Commands.literal("wand").requires(source -> runtime.access().permission(source, "wormholes.admin.items"))
                 .executes(context -> giveWand(context.getSource(), true))
@@ -426,6 +429,30 @@ public final class MinecraftPortalTools implements AutoCloseable {
         return 1;
     }
 
+    private int select(ServerPlayer player) {
+        runtime.menus().open(player.getUUID(), DestinationRoutes.select());
+        return 1;
+    }
+
+    private int edit(ServerPlayer player, UUID portalId) {
+        runtime.menus().open(player.getUUID(), PortalRoutes.home(portalId));
+        return runtime.portals().canManage(player, runtime.portals().get(portalId)) ? 1 : 0;
+    }
+
+    private boolean transfer(ServerPlayer actor, UUID portalId, UUID newOwner) {
+        MinecraftPortal portal = runtime.portals().get(portalId);
+        boolean administrator = Commands.hasPermission(Commands.LEVEL_ADMINS).test(actor.createCommandSourceStack());
+        if (portal == null || !administrator && !portal.getOwner().equals(actor.getUUID())) {
+            actor.sendSystemMessage(MinecraftMenuText.text(actor, WormholesMessages.PORTAL_EDIT_DENIED, MessageArgs.empty()));
+            return false;
+        }
+        if (!runtime.portals().update(actor, portalId, target -> target.setOwner(newOwner))) {
+            return false;
+        }
+        runtime.menus().invalidate(new MenuScope.Portal(portalId));
+        return true;
+    }
+
     private int gravity(CommandSourceStack source, UUID id, Boolean enabled) throws CommandSyntaxException {
         ServerPlayer player = source.getPlayerOrException();
         MinecraftPortal portal = runtime.portals().get(id);
@@ -435,7 +462,7 @@ public final class MinecraftPortalTools implements AutoCloseable {
         if (enabled != null && !runtime.portals().update(player, id, target -> target.setGravityRotationEnabled(enabled))) {
             return changed(source, false, "");
         }
-        runtime.menus().refresh(id);
+        runtime.menus().invalidate(new MenuScope.Portal(id));
         Component reply = runtime.localization().text(player, TransitMessages.GRAVITY_CURRENT,
             Map.of("portal", portal.getName(), "state", portal.isGravityRotationEnabled() ? "on" : "off"));
         source.sendSuccess(() -> reply, enabled != null);
@@ -469,7 +496,7 @@ public final class MinecraftPortalTools implements AutoCloseable {
             return changed(source, false, "");
         }
         if (set) {
-            runtime.menus().refresh(id);
+            runtime.menus().invalidate(new MenuScope.Portal(id));
         }
         Component reply = runtime.localization().text(player, set ? TransitMessages.SCALE_SET : TransitMessages.SCALE_CURRENT,
             Map.of("portal", portal.getName(), "mode", ScaleRuleChange.mode(change.rule()), "value", ScaleRuleChange.range(change.rule())));

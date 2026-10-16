@@ -1574,3 +1574,121 @@ off = "Riporta tutti i giocatori ClientView alla proiezione vanilla"
 reset = "Riavvia il flusso ClientView di un giocatore"
 "reset.player" = "Nome del giocatore online"
 # ---- end lane:clientview ----
+
+# ---- lane:menu (menu.*) ----
+[menu.native.title]
+portal = "Portale"
+mode = "Modalità portale"
+orientation = "Orientamento"
+gateway = "Abbinamento del varco"
+settings = "Impostazioni"
+advanced = "Regolazione avanzata del flusso"
+blackout = "Colore di oscuramento"
+ambient = "Colore ambientale"
+skin = "Aspetto superficie"
+cost = "Costo di viaggio"
+extensions = "Altre impostazioni"
+destinations = "Destinazioni"
+select = "Scegli un portale"
+rtp = "Teletrasporto casuale"
+rtp_destination = "Destinazione casuale"
+rtp_biome = "Bioma di destinazione"
+rtp_landing = "Atterraggio"
+rtp_routing = "Instradamento"
+rtp_effects = "Effetti"
+network = "Rete"
+dial = "Componi"
+rules = "Regole"
+rules_list = "Elenco regole"
+rule = "Regola"
+templates = "Modelli di regole"
+access = "Accesso"
+transit = "Transito"
+fidelity = "Fedeltà"
+atlas = "Atlante"
+door = "Accesso alla porta"
+language = "Lingua"
+
+[menu.native.context]
+portal = "{portal} - {type}"
+door = "Porta {kind}"
+network = "{name}"
+
+[menu.native.chrome]
+back = "Indietro"
+close = "Chiudi"
+apply = "Applica"
+confirm = "Conferma"
+cancel = "Annulla"
+previous_page = "Pagina precedente"
+next_page = "Pagina successiva"
+page = "Pagina {page} / {pages}"
+use_held_item = "Usa l'oggetto in mano"
+aim = "Mira"
+timeout = "Il server non ha risposto."
+
+[menu.native.action]
+rotate = "Ruota"
+rotate_clockwise = "Ruota in senso orario"
+rotate_counterclockwise = "Ruota in senso antiorario"
+reset = "Ripristina"
+clear = "Cancella"
+colors = "Colori"
+advanced = "Avanzate"
+reroll = "Ritira"
+remove = "Rimuovi"
+favorite = "Preferito"
+guide = "Guida"
+whitelist = "Lista consentiti"
+blacklist = "Lista bloccati"
+use_default = "Usa il valore del server"
+
+[menu.native.confirm]
+delete_portal = ["Eliminare {portal}?", "Il portale viene rimosso e i portali che vi conducono vengono scollegati.", "L'operazione non può essere annullata."]
+"delete_portal.accept" = "Elimina"
+rtp_reset = ["Ripristinare {portal}?", "Tutte le impostazioni del teletrasporto casuale tornano ai valori predefiniti."]
+"rtp_reset.accept" = "Ripristina"
+rules_template = ["Caricare {name}?", "Il modello sostituisce tutte le regole di questo portale."]
+"rules_template.accept" = "Carica"
+nexus_leave = ["Lasciare {name}?", "Questo portale smette di comporre e ricevere tramite la rete."]
+"nexus_leave.accept" = "Lascia"
+
+[menu.native.feedback]
+refreshed = "Il menu è cambiato ed è stato aggiornato."
+unavailable = "Questa opzione non è disponibile al momento."
+invalid_value = "Questo valore non è consentito."
+save_failed = "Impossibile salvare la modifica."
+timeout = "Il server ha impiegato troppo tempo a rispondere."
+
+[menu.native.placeholder]
+name = "Nome del portale"
+code = "Codice di invito"
+block_state = "Stato del blocco, per esempio minecraft:glass"
+amount = "Importo"
+player = "Nome del giocatore"
+key = "Chiave di permesso"
+group = "Nome del gruppo"
+network = "Nome della rete"
+address = "Indirizzo"
+rule_id = "ID della regola"
+line = "Riga della regola"
+factor = "Fattore"
+sound = "ID del suono"
+ticks = "Tick"
+scale = "Scala"
+search = "Cerca"
+
+[menu.native.transit]
+factor = "Fattore di slancio"
+threshold_effect = "Effetto di soglia"
+arrival_sound = "Suono di arrivo"
+mask_ticks = "Tick della maschera"
+scale_min = "Scala minima"
+scale_max = "Scala massima"
+
+[menu.native.nexus]
+comparator = "Uscita del comparatore"
+
+[menu.native.list]
+page = ["&b&lPagina {page}/{pages}&r", "&7{count} voci"]
+# ---- end lane:menu ----

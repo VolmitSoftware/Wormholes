@@ -56,6 +56,7 @@ public final class WormholesGameTests {
     public static final Identifier ENTITY_TRANSFERS_RUNTIME = Identifier.fromNamespaceAndPath("wormholes", "entity_transfers_runtime");
     public static final Identifier RECIPE_BOOK_RUNTIME = Identifier.fromNamespaceAndPath("wormholes", "recipe_book_runtime");
     public static final Identifier MENU_PARITY_RUNTIME = Identifier.fromNamespaceAndPath("wormholes", "menu_parity_runtime");
+    public static final Identifier NATIVE_MENU_PROTOCOL_RUNTIME = Identifier.fromNamespaceAndPath("wormholes", "native_menu_protocol_runtime");
     public static final Identifier LANGUAGE_RUNTIME = Identifier.fromNamespaceAndPath("wormholes", "language_runtime");
     public static final Identifier OCCLUSION_SKIN_RUNTIME = Identifier.fromNamespaceAndPath("wormholes", "occlusion_skin_runtime");
     public static final Identifier PROJECTION_DIRT_RUNTIME = Identifier.fromNamespaceAndPath("wormholes", "projection_dirt_runtime");
@@ -138,6 +139,10 @@ public final class WormholesGameTests {
 
     public static void menuParityRuntime(GameTestHelper helper) {
         MinecraftMenuParityGameTest.run(helper);
+    }
+
+    public static void nativeMenuProtocolRuntime(GameTestHelper helper) {
+        MinecraftNativeMenuProtocolGameTest.run(helper);
     }
 
     public static void languageRuntime(GameTestHelper helper) {

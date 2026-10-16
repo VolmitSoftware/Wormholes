@@ -2,9 +2,16 @@ package art.arcane.wormholes.neoforge;
 
 import art.arcane.wormholes.modded.WormholesModRuntime;
 import art.arcane.wormholes.modded.client.WormholesClient;
+import art.arcane.wormholes.modded.client.menu.ClientMenus;
 import art.arcane.wormholes.modded.clientview.ClientViewPayload;
+import art.arcane.wormholes.modded.menu.MenuPayload;
+import art.arcane.wormholes.modded.menu.MinecraftMenuTransport;
+import art.arcane.wormholes.menu.protocol.MenuCodec;
+import art.arcane.wormholes.menu.protocol.MenuProtocolException;
+import art.arcane.wormholes.menu.protocol.MenuServerMessage;
 import net.minecraft.SharedConstants;
 import net.minecraft.server.Bootstrap;
+import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.client.network.event.RegisterClientPayloadHandlersEvent;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
@@ -20,6 +27,7 @@ import org.mockito.MockedStatic;
 import java.util.function.Consumer;
 
 import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -70,12 +78,61 @@ public class NeoForgePayloadRegistrationTest {
         when(event.registrar("1")).thenReturn(registrar);
         when(registrar.optional()).thenReturn(registrar);
         when(registrar.playToClient(any(), any(), any())).thenReturn(registrar);
+        when(registrar.commonBidirectional(any(), any(), any())).thenReturn(registrar);
         try (MockedConstruction<WormholesModRuntime> runtimes = mockConstruction(WormholesModRuntime.class)) {
             new WormholesNeoForge(bus);
             ArgumentCaptor<Consumer<RegisterPayloadHandlersEvent>> registrations = ArgumentCaptor.captor();
             verify(bus, times(2)).addListener(registrations.capture());
             registrations.getAllValues().getFirst().accept(event);
             verify(registrar).commonBidirectional(eq(ClientViewPayload.TYPE), eq(ClientViewPayload.CODEC), any());
+        }
+    }
+
+    @Test
+    public void commonLifecycleRoutesServerboundMenuFramesToTheTransport() {
+        IEventBus bus = mock(IEventBus.class);
+        RegisterPayloadHandlersEvent event = mock(RegisterPayloadHandlersEvent.class);
+        PayloadRegistrar registrar = mock(PayloadRegistrar.class);
+        MinecraftMenuTransport transport = mock(MinecraftMenuTransport.class);
+        IPayloadContext context = mock(IPayloadContext.class);
+        ServerPlayer player = mock(ServerPlayer.class);
+        byte[] frame = {32, 1};
+        when(event.registrar("1")).thenReturn(registrar);
+        when(registrar.optional()).thenReturn(registrar);
+        when(registrar.playToClient(any(), any(), any())).thenReturn(registrar);
+        when(registrar.commonBidirectional(any(), any(), any())).thenReturn(registrar);
+        when(context.player()).thenReturn(player);
+        try (MockedConstruction<WormholesModRuntime> runtimes = mockConstruction(WormholesModRuntime.class,
+            (runtime, construction) -> when(runtime.menuTransport()).thenReturn(transport))) {
+            new WormholesNeoForge(bus);
+            ArgumentCaptor<Consumer<RegisterPayloadHandlersEvent>> registrations = ArgumentCaptor.captor();
+            verify(bus, times(2)).addListener(registrations.capture());
+            registrations.getAllValues().getFirst().accept(event);
+            ArgumentCaptor<IPayloadHandler<MenuPayload>> handlers = ArgumentCaptor.captor();
+            verify(registrar).playBidirectional(eq(MenuPayload.TYPE), eq(MenuPayload.CODEC), handlers.capture());
+            handlers.getValue().handle(new MenuPayload(frame), context);
+            verify(transport).receive(player, frame);
+        }
+    }
+
+    @Test
+    public void clientLifecycleRoutesClientboundMenuFramesToTheMenuSession() throws MenuProtocolException {
+        IEventBus bus = mock(IEventBus.class);
+        WormholesClient client = mock(WormholesClient.class);
+        RegisterClientPayloadHandlersEvent event = mock(RegisterClientPayloadHandlersEvent.class);
+        IPayloadContext context = mock(IPayloadContext.class);
+        try (MockedStatic<WormholesClient> clients = mockStatic(WormholesClient.class)) {
+            clients.when(() -> WormholesClient.initialize(any(), any())).thenReturn(client);
+            new WormholesNeoForgeClient(bus);
+            ArgumentCaptor<Consumer<RegisterClientPayloadHandlersEvent>> registrations = ArgumentCaptor.captor();
+            verify(bus).addListener(registrations.capture());
+            registrations.getValue().accept(event);
+            ArgumentCaptor<IPayloadHandler<MenuPayload>> handlers = ArgumentCaptor.captor();
+            verify(event).register(eq(MenuPayload.TYPE), handlers.capture());
+            ClientMenus.connected();
+            handlers.getValue().handle(new MenuPayload(MenuCodec.encodeServer(new MenuServerMessage.Accept(1))), context);
+            assertEquals(1, ClientMenus.session().version());
+            ClientMenus.disconnected();
         }
     }
 }

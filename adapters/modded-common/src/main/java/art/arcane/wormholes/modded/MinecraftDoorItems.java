@@ -101,7 +101,7 @@ public final class MinecraftDoorItems {
         }
     }
 
-    static Item material(DoorItemIdentity identity) {
+    public static Item material(DoorItemIdentity identity) {
         boolean trapdoor = identity.form() == DoorForm.TRAPDOOR;
         return switch (identity.kind()) {
             case PAIR -> trapdoor ? Items.OAK_TRAPDOOR : Items.OAK_DOOR;

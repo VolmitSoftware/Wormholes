@@ -1574,3 +1574,121 @@ off = "Вернуть всех игроков ClientView к обычной пр�
 reset = "Перезапустить поток ClientView одного игрока"
 "reset.player" = "Имя игрока в сети"
 # ---- end lane:clientview ----
+
+# ---- lane:menu (menu.*) ----
+[menu.native.title]
+portal = "Портал"
+mode = "Режим портала"
+orientation = "Ориентация"
+gateway = "Сопряжение шлюза"
+settings = "Настройки"
+advanced = "Расширенная настройка потока"
+blackout = "Цвет затемнения"
+ambient = "Цвет окружения"
+skin = "Скин поверхности"
+cost = "Стоимость перемещения"
+extensions = "Дополнительные настройки"
+destinations = "Пункты назначения"
+select = "Выберите портал"
+rtp = "Случайная телепортация"
+rtp_destination = "Случайное назначение"
+rtp_biome = "Целевой биом"
+rtp_landing = "Высадка"
+rtp_routing = "Маршрутизация"
+rtp_effects = "Эффекты"
+network = "Сеть"
+dial = "Набрать"
+rules = "Правила"
+rules_list = "Список правил"
+rule = "Правило"
+templates = "Шаблоны правил"
+access = "Доступ"
+transit = "Переход"
+fidelity = "Точность"
+atlas = "Атлас"
+door = "Доступ к двери"
+language = "Язык"
+
+[menu.native.context]
+portal = "{portal} - {type}"
+door = "Дверь: {kind}"
+network = "{name}"
+
+[menu.native.chrome]
+back = "Назад"
+close = "Закрыть"
+apply = "Применить"
+confirm = "Подтвердить"
+cancel = "Отмена"
+previous_page = "Предыдущая страница"
+next_page = "Следующая страница"
+page = "Страница {page} / {pages}"
+use_held_item = "Использовать предмет в руке"
+aim = "Прицелиться"
+timeout = "Сервер не ответил."
+
+[menu.native.action]
+rotate = "Повернуть"
+rotate_clockwise = "Повернуть по часовой стрелке"
+rotate_counterclockwise = "Повернуть против часовой стрелки"
+reset = "Сбросить"
+clear = "Очистить"
+colors = "Цвета"
+advanced = "Дополнительно"
+reroll = "Перебросить"
+remove = "Удалить"
+favorite = "Избранное"
+guide = "Навигация"
+whitelist = "Белый список"
+blacklist = "Чёрный список"
+use_default = "Использовать значение сервера"
+
+[menu.native.confirm]
+delete_portal = ["Удалить {portal}?", "Портал будет удалён, а ведущие к нему порталы будут отвязаны.", "Это действие нельзя отменить."]
+"delete_portal.accept" = "Удалить"
+rtp_reset = ["Сбросить {portal}?", "Все настройки случайной телепортации вернутся к значениям по умолчанию."]
+"rtp_reset.accept" = "Сбросить"
+rules_template = ["Загрузить {name}?", "Шаблон заменит все правила этого портала."]
+"rules_template.accept" = "Загрузить"
+nexus_leave = ["Покинуть {name}?", "Этот портал перестанет набирать и принимать через сеть."]
+"nexus_leave.accept" = "Покинуть"
+
+[menu.native.feedback]
+refreshed = "Меню изменилось и было обновлено."
+unavailable = "Этот вариант сейчас недоступен."
+invalid_value = "Это значение недопустимо."
+save_failed = "Не удалось сохранить изменение."
+timeout = "Сервер слишком долго не отвечал."
+
+[menu.native.placeholder]
+name = "Название портала"
+code = "Код приглашения"
+block_state = "Состояние блока, например minecraft:glass"
+amount = "Сумма"
+player = "Имя игрока"
+key = "Ключ разрешения"
+group = "Название группы"
+network = "Название сети"
+address = "Адрес"
+rule_id = "ID правила"
+line = "Строка правила"
+factor = "Множитель"
+sound = "ID звука"
+ticks = "Тики"
+scale = "Масштаб"
+search = "Поиск"
+
+[menu.native.transit]
+factor = "Множитель импульса"
+threshold_effect = "Эффект порога"
+arrival_sound = "Звук прибытия"
+mask_ticks = "Тики маски"
+scale_min = "Минимальный масштаб"
+scale_max = "Максимальный масштаб"
+
+[menu.native.nexus]
+comparator = "Вывод компаратора"
+
+[menu.native.list]
+page = ["&b&lСтраница {page}/{pages}&r", "&7Записей: {count}"]
+# ---- end lane:menu ----

@@ -1,6 +1,6 @@
 package art.arcane.wormholes.modded.mixin;
 
-import art.arcane.wormholes.modded.MinecraftPortalMenus;
+import art.arcane.wormholes.modded.menu.host.MinecraftPortalMenuHost;
 import art.arcane.wormholes.modded.MinecraftNexus;
 import net.minecraft.network.protocol.game.ServerboundSetCarriedItemPacket;
 import net.minecraft.network.protocol.game.ClientboundSetHeldSlotPacket;
@@ -30,11 +30,11 @@ public abstract class PortalDirectionMixin {
 
     @Inject(method = "handlePunch", at = @At("TAIL"))
     private void wormholesApplyDirection(CallbackInfo callback) {
-        MinecraftPortalMenus.directionInput(player, false);
+        MinecraftPortalMenuHost.directionInput(player, false);
     }
 
     @Inject(method = {"handleUseItem", "handleUseItemOn"}, at = @At("TAIL"))
     private void wormholesCancelDirection(CallbackInfo callback) {
-        MinecraftPortalMenus.directionInput(player, true);
+        MinecraftPortalMenuHost.directionInput(player, true);
     }
 }

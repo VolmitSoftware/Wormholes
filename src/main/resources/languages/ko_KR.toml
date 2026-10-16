@@ -1574,3 +1574,121 @@ off = "모든 ClientView 플레이어를 바닐라 투영으로 되돌리기"
 reset = "플레이어 한 명의 ClientView 스트림 다시 시작"
 "reset.player" = "온라인 플레이어 이름"
 # ---- end lane:clientview ----
+
+# ---- lane:menu (menu.*) ----
+[menu.native.title]
+portal = "포털"
+mode = "포털 모드"
+orientation = "방향"
+gateway = "게이트웨이 페어링"
+settings = "설정"
+advanced = "고급 스트림 조정"
+blackout = "차단 색상"
+ambient = "환경 색상"
+skin = "표면 스킨"
+cost = "이동 비용"
+extensions = "추가 설정"
+destinations = "목적지"
+select = "포털 선택"
+rtp = "무작위 순간이동"
+rtp_destination = "무작위 목적지"
+rtp_biome = "목표 생물 군계"
+rtp_landing = "착륙"
+rtp_routing = "경로 지정"
+rtp_effects = "효과"
+network = "네트워크"
+dial = "연결"
+rules = "규칙"
+rules_list = "규칙 목록"
+rule = "규칙"
+templates = "규칙 템플릿"
+access = "접근"
+transit = "통과"
+fidelity = "충실도"
+atlas = "지도책"
+door = "차원문 접근"
+language = "언어"
+
+[menu.native.context]
+portal = "{portal} - {type}"
+door = "{kind} 차원문"
+network = "{name}"
+
+[menu.native.chrome]
+back = "뒤로"
+close = "닫기"
+apply = "적용"
+confirm = "확인"
+cancel = "취소"
+previous_page = "이전 페이지"
+next_page = "다음 페이지"
+page = "{page} / {pages} 페이지"
+use_held_item = "손에 든 아이템 사용"
+aim = "조준"
+timeout = "서버가 응답하지 않았습니다."
+
+[menu.native.action]
+rotate = "회전"
+rotate_clockwise = "시계 방향으로 회전"
+rotate_counterclockwise = "시계 반대 방향으로 회전"
+reset = "초기화"
+clear = "지우기"
+colors = "색상"
+advanced = "고급"
+reroll = "다시 뽑기"
+remove = "제거"
+favorite = "즐겨찾기"
+guide = "안내"
+whitelist = "허용 목록"
+blacklist = "차단 목록"
+use_default = "서버 기본값 사용"
+
+[menu.native.confirm]
+delete_portal = ["{portal}을(를) 삭제할까요?", "포털을 제거하고 이 포털로 이어지는 포털의 연결을 해제합니다.", "되돌릴 수 없습니다."]
+"delete_portal.accept" = "삭제"
+rtp_reset = ["{portal}을(를) 초기화할까요?", "무작위 순간이동 설정이 모두 기본값으로 돌아갑니다."]
+"rtp_reset.accept" = "초기화"
+rules_template = ["{name}을(를) 불러올까요?", "템플릿이 이 포털의 모든 규칙을 대체합니다."]
+"rules_template.accept" = "불러오기"
+nexus_leave = ["{name}에서 나갈까요?", "이 포털은 네트워크를 통한 연결과 수신을 멈춥니다."]
+"nexus_leave.accept" = "나가기"
+
+[menu.native.feedback]
+refreshed = "메뉴가 바뀌어 새로 고쳤습니다."
+unavailable = "지금은 이 옵션을 사용할 수 없습니다."
+invalid_value = "허용되지 않는 값입니다."
+save_failed = "변경 사항을 저장할 수 없습니다."
+timeout = "서버 응답이 너무 오래 걸렸습니다."
+
+[menu.native.placeholder]
+name = "포털 이름"
+code = "초대 코드"
+block_state = "블록 상태(예: minecraft:glass)"
+amount = "금액"
+player = "플레이어 이름"
+key = "권한 키"
+group = "그룹 이름"
+network = "네트워크 이름"
+address = "주소"
+rule_id = "규칙 ID"
+line = "규칙 줄"
+factor = "배율"
+sound = "소리 ID"
+ticks = "틱"
+scale = "크기"
+search = "검색"
+
+[menu.native.transit]
+factor = "운동량 계수"
+threshold_effect = "경계 효과"
+arrival_sound = "도착 소리"
+mask_ticks = "마스크 틱"
+scale_min = "최소 크기"
+scale_max = "최대 크기"
+
+[menu.native.nexus]
+comparator = "비교기 출력"
+
+[menu.native.list]
+page = ["&b&l페이지 {page}/{pages}&r", "&7항목 {count}개"]
+# ---- end lane:menu ----

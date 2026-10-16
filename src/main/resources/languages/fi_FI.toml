@@ -1574,3 +1574,121 @@ off = "Palauta kaikki ClientView-pelaajat vanilla-projektioon"
 reset = "Käynnistä yhden pelaajan ClientView-virta uudelleen"
 "reset.player" = "Paikalla olevan pelaajan nimi"
 # ---- end lane:clientview ----
+
+# ---- lane:menu (menu.*) ----
+[menu.native.title]
+portal = "Portaali"
+mode = "Portaalin tila"
+orientation = "Suuntaus"
+gateway = "Yhdyskäytävän paritus"
+settings = "Asetukset"
+advanced = "Kuvavirran lisäasetukset"
+blackout = "Pimennysväri"
+ambient = "Ympäristöväri"
+skin = "Pinnan ulkoasu"
+cost = "Matkustuskustannus"
+extensions = "Lisäasetukset"
+destinations = "Kohteet"
+select = "Valitse portaali"
+rtp = "Satunnainen teleportti"
+rtp_destination = "Satunnainen kohde"
+rtp_biome = "Kohdebiomi"
+rtp_landing = "Laskeutuminen"
+rtp_routing = "Reititys"
+rtp_effects = "Tehosteet"
+network = "Verkko"
+dial = "Valitse"
+rules = "Säännöt"
+rules_list = "Sääntöluettelo"
+rule = "Sääntö"
+templates = "Sääntömallit"
+access = "Pääsy"
+transit = "Läpikulku"
+fidelity = "Tarkkuus"
+atlas = "Kartasto"
+door = "Oven käyttöoikeus"
+language = "Kieli"
+
+[menu.native.context]
+portal = "{portal} - {type}"
+door = "Ovi: {kind}"
+network = "{name}"
+
+[menu.native.chrome]
+back = "Takaisin"
+close = "Sulje"
+apply = "Käytä"
+confirm = "Vahvista"
+cancel = "Peruuta"
+previous_page = "Edellinen sivu"
+next_page = "Seuraava sivu"
+page = "Sivu {page} / {pages}"
+use_held_item = "Käytä kädessä olevaa esinettä"
+aim = "Tähtää"
+timeout = "Palvelin ei vastannut."
+
+[menu.native.action]
+rotate = "Kierrä"
+rotate_clockwise = "Kierrä myötäpäivään"
+rotate_counterclockwise = "Kierrä vastapäivään"
+reset = "Palauta"
+clear = "Tyhjennä"
+colors = "Värit"
+advanced = "Lisäasetukset"
+reroll = "Arvo uudelleen"
+remove = "Poista"
+favorite = "Suosikki"
+guide = "Opastus"
+whitelist = "Sallittujen lista"
+blacklist = "Estolista"
+use_default = "Käytä palvelimen oletusta"
+
+[menu.native.confirm]
+delete_portal = ["Poistetaanko {portal}?", "Tämä poistaa portaalin ja purkaa siihen johtavien portaalien linkit.", "Tätä ei voi perua."]
+"delete_portal.accept" = "Poista"
+rtp_reset = ["Palautetaanko {portal}?", "Kaikki satunnaisen teleportin asetukset palautuvat oletuksiin."]
+"rtp_reset.accept" = "Palauta"
+rules_template = ["Ladataanko {name}?", "Malli korvaa kaikki tämän portaalin säännöt."]
+"rules_template.accept" = "Lataa"
+nexus_leave = ["Poistutaanko verkosta {name}?", "Tämä portaali lakkaa valitsemasta ja vastaanottamasta verkon kautta."]
+"nexus_leave.accept" = "Poistu"
+
+[menu.native.feedback]
+refreshed = "Valikko muuttui ja päivitettiin."
+unavailable = "Tämä vaihtoehto ei ole nyt käytettävissä."
+invalid_value = "Tämä arvo ei ole sallittu."
+save_failed = "Muutosta ei voitu tallentaa."
+timeout = "Palvelin vastasi liian hitaasti."
+
+[menu.native.placeholder]
+name = "Portaalin nimi"
+code = "Kutsukoodi"
+block_state = "Kuution tila, esimerkiksi minecraft:glass"
+amount = "Määrä"
+player = "Pelaajan nimi"
+key = "Käyttöoikeusavain"
+group = "Ryhmän nimi"
+network = "Verkon nimi"
+address = "Osoite"
+rule_id = "Säännön tunnus"
+line = "Sääntörivi"
+factor = "Kerroin"
+sound = "Äänen tunnus"
+ticks = "Tikit"
+scale = "Mittakaava"
+search = "Hae"
+
+[menu.native.transit]
+factor = "Liikemäärän kerroin"
+threshold_effect = "Kynnystehoste"
+arrival_sound = "Saapumisääni"
+mask_ticks = "Maskin tikit"
+scale_min = "Pienin mittakaava"
+scale_max = "Suurin mittakaava"
+
+[menu.native.nexus]
+comparator = "Komparaattorin lähtö"
+
+[menu.native.list]
+page = ["&b&lSivu {page}/{pages}&r", "&7{count} merkintää"]
+# ---- end lane:menu ----

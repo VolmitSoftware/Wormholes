@@ -489,6 +489,7 @@ tasks.named('check').configure {
 pluginPackaging {
     artifacts {
         create('distribution') {
+            stripLocalVariables = true
             packed = true
             taskName = 'shadowJar'
             policyName = 'Wormholes'

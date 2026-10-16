@@ -1,20 +1,14 @@
 package art.arcane.wormholes.portal;
 
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.Mockito.RETURNS_DEFAULTS;
-import static org.mockito.Mockito.RETURNS_SELF;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.mockConstruction;
-import static org.mockito.Mockito.mockStatic;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.mockito.Mockito.withSettings;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Proxy;
@@ -24,24 +18,27 @@ import java.util.function.Supplier;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
-import org.bukkit.Registry;
 import org.bukkit.Server;
 import org.bukkit.World;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Player;
-import org.bukkit.inventory.MenuType;
-import org.bukkit.potion.PotionEffectType;
 import org.junit.jupiter.api.Test;
-import org.mockito.MockedConstruction;
-import org.mockito.MockedStatic;
 
-import io.papermc.paper.registry.RegistryAccess;
-import io.papermc.paper.registry.RegistryKey;
-
+import art.arcane.wormholes.PortalManager;
+import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.localization.WormholesMessages;
+import art.arcane.wormholes.menu.BukkitMenuViewer;
+import art.arcane.wormholes.menu.MenuActionOrigin;
+import art.arcane.wormholes.menu.MenuContext;
+import art.arcane.wormholes.menu.MenuDecision;
+import art.arcane.wormholes.menu.MenuState;
+import art.arcane.wormholes.menu.NoticeChannel;
+import art.arcane.wormholes.menu.destination.DestinationMenuController;
+import art.arcane.wormholes.menu.host.BukkitDestinationMenuHost;
+import art.arcane.wormholes.menu.host.BukkitPortalMenuHost;
+import art.arcane.wormholes.menu.portal.PortalRoutes;
 import art.arcane.wormholes.util.Cuboid;
-import art.arcane.volmlib.util.inventorygui.UIWindow;
 import art.arcane.volmlib.util.json.JSONObject;
 
 public final class LocalPortalMirrorDestinationTest
@@ -197,32 +194,27 @@ public final class LocalPortalMirrorDestinationTest
 		LocalPortal mirror = LocalPortalTestSupport.portal(world, PortalType.PORTAL);
 		mirror.setMirrorMode(true);
 		LocalPortal linkable = LocalPortalTestSupport.portal(world, PortalType.PORTAL);
-		Player viewer = LocalPortalTestSupport.FakeEntity.player("viewer", new Location(world, 0.0D, 64.0D, 0.0D)).player();
-		LocalPortalMenus menus = mock(LocalPortalMenus.class);
-		LocalPortalText text = mock(LocalPortalText.class);
-		when(menus.text()).thenReturn(text);
+		Player viewer = mock(Player.class);
+		when(viewer.getUniqueId()).thenReturn(UUID.randomUUID());
+		when(viewer.isOp()).thenReturn(true);
+		PortalManager manager = mock(PortalManager.class);
+		when(manager.getLocalPortal(mirror.getId())).thenReturn(mirror);
+		when(manager.getLocalPortal(linkable.getId())).thenReturn(linkable);
+		DestinationMenuController controller = new DestinationMenuController(new BukkitPortalMenuHost(manager),
+				new BukkitDestinationMenuHost(manager, () -> null));
 
-		assertDoesNotThrow(() -> mirror.uiChooseDestination(null));
+		MenuDecision.Deny refused = assertInstanceOf(MenuDecision.Deny.class, controller.routeGuard(context(viewer, mirror)));
 
-		try(MockedStatic<RegistryAccess> registries = mockStatic(RegistryAccess.class))
-		{
-			RegistryAccess access = mock(RegistryAccess.class, invocation -> menuRegistry(invocation.getArgument(0)));
-			registries.when(RegistryAccess::registryAccess).thenReturn(access);
+		assertFalse(refused.close());
+		assertEquals(NoticeChannel.SUCCESS_EFFECT, refused.notice().chestChannel());
+		assertTrue(refused.notice().feedback().text().contains(Wormholes.text().plain(WormholesMessages.PORTAL_TRAVEL_MIRROR_LOCKED)));
+		assertInstanceOf(MenuDecision.Allow.class, controller.routeGuard(context(viewer, linkable)));
+	}
 
-			try(MockedConstruction<UIWindow> windows = mockConstruction(UIWindow.class, withSettings().defaultAnswer(RETURNS_SELF),
-					(window, context) -> assertSame(viewer, context.arguments().get(1))))
-			{
-				new LocalPortalDestinationMenu(mirror, menus).open(viewer);
-
-				assertTrue(windows.constructed().isEmpty());
-				verify(text).notifySetting(viewer, WormholesMessages.PORTAL_TRAVEL_MIRROR_LOCKED);
-
-				new LocalPortalDestinationMenu(linkable, menus).open(viewer);
-
-				assertEquals(1, windows.constructed().size());
-				verify(windows.constructed().getFirst()).setVisible(true);
-			}
-		}
+	private static MenuContext context(Player viewer, LocalPortal portal)
+	{
+		return new MenuContext(new BukkitMenuViewer(viewer), PortalRoutes.destinationPicker(portal.getId()), 0, new MenuState(), null,
+				MenuActionOrigin.CHEST);
 	}
 
 	@Test
@@ -280,17 +272,6 @@ public final class LocalPortalMirrorDestinationTest
 		assertFalse(reloaded.isMirrorMode());
 		assertNotNull(reloaded.getTunnel());
 		assertEquals(destination.getId(), reloaded.getTunnel().getDestinationId());
-	}
-
-	private static Registry<?> menuRegistry(Object key)
-	{
-		boolean menu = key == MenuType.class || key == RegistryKey.MENU;
-		boolean effect = key == PotionEffectType.class || key == RegistryKey.MOB_EFFECT;
-		return mock(Registry.class, invocation -> switch(invocation.getMethod().getName())
-		{
-			case "get", "getOrThrow" -> menu ? mock(MenuType.Typed.class, RETURNS_SELF) : effect ? mock(PotionEffectType.class) : null;
-			default -> RETURNS_DEFAULTS.answer(invocation);
-		});
 	}
 
 	private static LocalPortal reload(JSONObject stored, World world) throws Exception

@@ -11,6 +11,7 @@ import net.minecraft.core.BlockPos;
 import art.arcane.volmlib.util.localization.MessageArgs;
 import art.arcane.volmlib.util.localization.TextKey;
 import art.arcane.wormholes.localization.WormholesMessages;
+import art.arcane.wormholes.menu.rtp.RtpRoutes;
 import art.arcane.wormholes.portal.rtp.RtpSafetyMode;
 import art.arcane.wormholes.portal.rtp.RtpVerticalMode;
 import art.arcane.optics.math.Box;
@@ -61,6 +62,7 @@ public final class MinecraftRtpGameTest {
     private MinecraftPortal editorPortal;
     private RtpSettings editorInitial;
     private MinecraftWindow editorWindow;
+    private MinecraftGameTestPlayer editorOutsider;
     private double editorCenterX;
     private int rimWindowStart;
     private int rimParticles;
@@ -205,20 +207,22 @@ public final class MinecraftRtpGameTest {
                 cells.add(helper.absolutePos(new BlockPos(x, y, 12)));
             }
         }
-        MinecraftRtpMenus menus = new MinecraftRtpMenus(runtime);
         return sequence.thenExecute(() -> {
             editorPortal = runtime.portals().create(viewer.getUUID(), helper.getLevel(), cells, PortalType.RTP, new Vec3(0, 0, -1));
             editorInitial = runtime.rtp().settings(editorPortal);
-            MinecraftGameTestPlayer outsider = MinecraftGameTestPlayer.connect(runtime, helper.getLevel(), "RtpOutsider");
+            editorOutsider = MinecraftGameTestPlayer.connect(runtime, helper.getLevel(), "RtpOutsider");
+            runtime.menus().open(editorOutsider.player().getUUID(), RtpRoutes.overview(editorPortal.getId()));
+        }).thenIdle(EDITOR_CLICK_TICKS).thenExecute(() -> {
             try {
-                menus.open(outsider.player(), editorPortal.getId());
-                MinecraftSubsystemMenuProbe.assertClosed(helper, outsider.player(), "Outsider RTP editor");
-                helper.assertTrue(MinecraftSubsystemMenuProbe.messaged(outsider.messages(), MinecraftSubsystemMenuProbe.text(outsider.player(),
+                MinecraftSubsystemMenuProbe.assertClosed(helper, editorOutsider.player(), "Outsider RTP editor");
+                helper.assertTrue(MinecraftSubsystemMenuProbe.messaged(editorOutsider.messages(), MinecraftSubsystemMenuProbe.text(editorOutsider.player(),
                     WormholesMessages.PORTAL_EDIT_DENIED, MessageArgs.empty())), "Outsider RTP editor denial was not sent");
             } finally {
-                outsider.close();
+                editorOutsider.close();
+                editorOutsider = null;
             }
-            menus.open(viewer, editorPortal.getId());
+            runtime.menus().open(viewer.getUUID(), RtpRoutes.overview(editorPortal.getId()));
+        }).thenIdle(EDITOR_CLICK_TICKS).thenExecute(() -> {
             assertOverview(viewer);
             MinecraftSubsystemMenuProbe.left(viewer, 3, 2);
         }).thenIdle(EDITOR_CLICK_TICKS).thenExecute(() -> {
@@ -288,7 +292,6 @@ public final class MinecraftRtpGameTest {
                 helper.assertTrue(editorWindow != null && !editorWindow.isVisible() && viewer.containerMenu != viewer.inventoryMenu,
                     "RTP back did not open the portal menu");
                 viewer.closeContainer();
-                menus.close();
                 runtime.portals().remove(viewer, editorPortal.getId());
                 editorPortal = null;
                 LoggerFactory.getLogger("WormholesGameTest").info("WORMHOLES_GAME_TEST_PASS rtp_editor denial layout effects coordinates biomes private landing reset notices back_navigation");
@@ -431,6 +434,9 @@ public final class MinecraftRtpGameTest {
         }
         if (second != null) {
             second.close();
+        }
+        if (editorOutsider != null) {
+            editorOutsider.close();
         }
         runtime.portals().remove(connection.player(), portal.getId());
         connection.close();

@@ -2,7 +2,6 @@ package art.arcane.wormholes.door.view;
 
 import art.arcane.optics.math.Vec3d;
 
-import art.arcane.volmlib.util.inventorygui.Window;
 import art.arcane.volmlib.util.json.JSONObject;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.config.WormholesSettings;
@@ -513,27 +512,6 @@ public abstract class AbstractApertureFacade implements ILocalPortal {
     @Override
     public boolean canArrive(Entity entity) {
         return false;
-    }
-
-    @Override
-    public void uiOpenPortalMenu(Player player) {
-    }
-
-    @Override
-    public Window uiCreatePortalMenu(Player player) {
-        return null;
-    }
-
-    @Override
-    public void uiChooseMode(Player player) {
-    }
-
-    @Override
-    public void uiChooseDestination(Player player) {
-    }
-
-    @Override
-    public void uiChangeName(Player player) {
     }
 
     @Override

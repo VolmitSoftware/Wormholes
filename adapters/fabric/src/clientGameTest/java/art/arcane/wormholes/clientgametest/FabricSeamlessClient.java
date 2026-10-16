@@ -1,5 +1,6 @@
 package art.arcane.wormholes.clientgametest;
 
+import art.arcane.wormholes.clientgametest.menu.NativeMenuInput;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.minecraft.client.Minecraft;
 
@@ -94,5 +95,10 @@ final class FabricSeamlessClient implements SeamlessClient {
     @Override
     public TickStepper lockstep() {
         return ServerPacketDelivery.stepper(this);
+    }
+
+    @Override
+    public NativeMenuInput menuInput() {
+        return new FabricNativeMenuInput(context);
     }
 }

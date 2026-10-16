@@ -1574,3 +1574,121 @@ off = "החזר את כל שחקני ClientView להקרנה הרגילה"
 reset = "הפעל מחדש את זרם ה-ClientView של שחקן"
 "reset.player" = "שם השחקן המחובר"
 # ---- end lane:clientview ----
+
+# ---- lane:menu (menu.*) ----
+[menu.native.title]
+portal = "פורטל"
+mode = "מצב פורטל"
+orientation = "כיוון"
+gateway = "צימוד שערים"
+settings = "הגדרות"
+advanced = "כוונון זרם מתקדם"
+blackout = "צבע אטום"
+ambient = "צבע סביבה"
+skin = "מעטה משטח"
+cost = "עלות מעבר"
+extensions = "הגדרות נוספות"
+destinations = "יעדים"
+select = "בחירת פורטל"
+rtp = "שיגור אקראי"
+rtp_destination = "יעד אקראי"
+rtp_biome = "ביום יעד"
+rtp_landing = "נחיתה"
+rtp_routing = "ניתוב"
+rtp_effects = "אפקטים"
+network = "רשת"
+dial = "חיוג"
+rules = "כללים"
+rules_list = "רשימת כללים"
+rule = "כלל"
+templates = "תבניות כללים"
+access = "גישה"
+transit = "מעבר"
+fidelity = "נאמנות"
+atlas = "אטלס"
+door = "גישה לדלת"
+language = "שפה"
+
+[menu.native.context]
+portal = "{portal} - {type}"
+door = "דלת {kind}"
+network = "{name}"
+
+[menu.native.chrome]
+back = "אחורה"
+close = "סגירה"
+apply = "החלה"
+confirm = "אישור"
+cancel = "ביטול"
+previous_page = "העמוד הקודם"
+next_page = "העמוד הבא"
+page = "עמוד {page} / {pages}"
+use_held_item = "שימוש בפריט שביד"
+aim = "כיוון"
+timeout = "השרת לא הגיב."
+
+[menu.native.action]
+rotate = "סיבוב"
+rotate_clockwise = "סיבוב עם כיוון השעון"
+rotate_counterclockwise = "סיבוב נגד כיוון השעון"
+reset = "איפוס"
+clear = "ניקוי"
+colors = "צבעים"
+advanced = "מתקדם"
+reroll = "הגרלה מחדש"
+remove = "הסרה"
+favorite = "מועדף"
+guide = "הכוונה"
+whitelist = "רשימה לבנה"
+blacklist = "רשימה שחורה"
+use_default = "שימוש בברירת המחדל של השרת"
+
+[menu.native.confirm]
+delete_portal = ["למחוק את {portal}?", "פעולה זו מסירה את הפורטל ומנתקת פורטלים שמובילים אליו.", "לא ניתן לבטל פעולה זו."]
+"delete_portal.accept" = "מחיקה"
+rtp_reset = ["לאפס את {portal}?", "כל הגדרות השיגור האקראי יחזרו לברירת המחדל."]
+"rtp_reset.accept" = "איפוס"
+rules_template = ["לטעון את {name}?", "התבנית מחליפה את כל הכללים של פורטל זה."]
+"rules_template.accept" = "טעינה"
+nexus_leave = ["לעזוב את {name}?", "פורטל זה יפסיק לחייג ולקבל דרך הרשת."]
+"nexus_leave.accept" = "עזיבה"
+
+[menu.native.feedback]
+refreshed = "התפריט השתנה ורוענן."
+unavailable = "אפשרות זו אינה זמינה כרגע."
+invalid_value = "ערך זה אינו מותר."
+save_failed = "לא ניתן היה לשמור את השינוי."
+timeout = "השרת לקח יותר מדי זמן להגיב."
+
+[menu.native.placeholder]
+name = "שם הפורטל"
+code = "קוד הזמנה"
+block_state = "מצב בלוק, לדוגמה minecraft:glass"
+amount = "סכום"
+player = "שם השחקן"
+key = "מפתח הרשאה"
+group = "שם הקבוצה"
+network = "שם הרשת"
+address = "כתובת"
+rule_id = "מזהה כלל"
+line = "שורת כלל"
+factor = "מקדם"
+sound = "מזהה צליל"
+ticks = "טיקים"
+scale = "קנה מידה"
+search = "חיפוש"
+
+[menu.native.transit]
+factor = "מקדם תנע"
+threshold_effect = "אפקט סף"
+arrival_sound = "צליל הגעה"
+mask_ticks = "טיקים של מסכה"
+scale_min = "קנה מידה מינימלי"
+scale_max = "קנה מידה מקסימלי"
+
+[menu.native.nexus]
+comparator = "פלט המשווה"
+
+[menu.native.list]
+page = ["&b&lדף {page}/{pages}&r", "&7{count} רשומות"]
+# ---- end lane:menu ----

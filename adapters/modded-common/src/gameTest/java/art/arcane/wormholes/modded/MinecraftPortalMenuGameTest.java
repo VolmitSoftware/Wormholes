@@ -4,6 +4,8 @@ import art.arcane.volmlib.util.localization.LinesKey;
 import art.arcane.volmlib.util.localization.MessageArgs;
 import art.arcane.wormholes.access.PortalRole;
 import art.arcane.wormholes.localization.WormholesMessages;
+import art.arcane.wormholes.menu.portal.PortalRoutes;
+import art.arcane.wormholes.modded.menu.host.MinecraftPortalMenuHost;
 import art.arcane.wormholes.portal.AmbientParticleStyle;
 import art.arcane.wormholes.portal.BlackoutColor;
 import art.arcane.optics.frame.QuarterTurn;
@@ -47,12 +49,12 @@ public final class MinecraftPortalMenuGameTest {
 
     private final GameTestHelper helper;
     private final WormholesModRuntime runtime;
-    private final ConnectedPlayer owner;
-    private final ConnectedPlayer outsider;
+    private final MinecraftGameTestPlayer owner;
+    private final MinecraftGameTestPlayer outsider;
+    private final ConnectedPlayer surface;
     private final MinecraftPortal source;
     private final MinecraftPortal destination;
     private final List<Runnable> steps = new ArrayList<>();
-    private final List<String> clicks = new ArrayList<>();
     private final CompletableFuture<Boolean> result = new CompletableFuture<>();
     private AutoCloseable permissions;
     private Frame originalFrame;
@@ -64,8 +66,9 @@ public final class MinecraftPortalMenuGameTest {
     private MinecraftPortalMenuGameTest(GameTestHelper helper) {
         this.helper = helper;
         runtime = WormholesGameTests.RUNTIME;
-        owner = player(helper, "menu-owner");
-        outsider = player(helper, "menu-outsider");
+        owner = MinecraftGameTestPlayer.connect(runtime, helper.getLevel(), "menu-owner");
+        outsider = MinecraftGameTestPlayer.connect(runtime, helper.getLevel(), "menu-outsider");
+        surface = player(helper, "menu-surface");
         source = runtime.portals().create(owner.player().getUUID(), helper.getLevel(), cells(helper, 3), PortalType.PORTAL, new Vec3(0, 0, -1));
         destination = runtime.portals().create(owner.player().getUUID(), helper.getLevel(), cells(helper, 15), PortalType.PORTAL, new Vec3(0, 0, -1));
     }
@@ -92,9 +95,11 @@ public final class MinecraftPortalMenuGameTest {
 
     private void home() {
         step(() -> {
-            helper.assertTrue(runtime.menus().open(outsider.player(), source.getId()) == 0, "Unrelated player opened portal editor");
-            helper.assertTrue(outsider.player().containerMenu == outsider.player().inventoryMenu, "Denied player received a portal window");
+            runtime.menus().open(outsider.player().getUUID(), PortalRoutes.home(source.getId()));
             runtime.server().getCommands().performPrefixedCommand(owner.player().createCommandSourceStack(), "wormholes edit " + source.getId());
+        });
+        step(() -> {
+            helper.assertTrue(outsider.player().containerMenu == outsider.player().inventoryMenu, "Denied player received a portal window");
             homeTitle = MinecraftPortalText.router(runtime, source, true);
             window(4, MinecraftDyedItems.pane(DyeColor.GRAY), homeTitle, "home");
             int accessible = 0;
@@ -197,7 +202,7 @@ public final class MinecraftPortalMenuGameTest {
             window(5, MinecraftDyedItems.pane(DyeColor.GRAY), homeTitle, "settings after quality cycle");
             runtime.portals().update(owner.player(), source.getId(), portal -> portal.setNetworkViewQuality(NetworkViewQuality.values()[NetworkViewQuality.CUSTOM.ordinal() - 1]));
             owner.player().closeContainer();
-            runtime.menus().open(owner.player(), source.getId());
+            runtime.menus().open(owner.player().getUUID(), PortalRoutes.home(source.getId()));
         });
         step(() -> click(15));
         step(() -> {
@@ -277,7 +282,7 @@ public final class MinecraftPortalMenuGameTest {
                 "Back to settings did not reopen the settings window");
             runtime.portals().update(owner.player(), source.getId(), portal -> portal.setNetworkViewQuality(NetworkViewQuality.STANDARD));
             owner.player().closeContainer();
-            runtime.menus().open(owner.player(), source.getId());
+            runtime.menus().open(owner.player().getUUID(), PortalRoutes.home(source.getId()));
         });
     }
 
@@ -341,8 +346,8 @@ public final class MinecraftPortalMenuGameTest {
             named(12, Items.GLASS, WormholesMessages.PORTAL_MENU_SURFACE_SKIN_GLASS);
             named(14, Items.BARRIER, WormholesMessages.PORTAL_MENU_SURFACE_SKIN_CLEAR);
             named(22, Items.ARROW, WormholesMessages.PORTAL_MENU_BACK_SETTINGS);
-            permissions = runtime.access().register((player, node) -> player == owner.player() && node.equals("wormholes.admin")
-                ? MinecraftAccessService.Decision.ALLOW : MinecraftAccessService.Decision.UNSET);
+            permissions = runtime.access().register((player, node) -> (player == owner.player() || player == surface.player())
+                && node.equals("wormholes.admin") ? MinecraftAccessService.Decision.ALLOW : MinecraftAccessService.Decision.UNSET);
             click(12);
         });
         step(() -> {
@@ -352,7 +357,7 @@ public final class MinecraftPortalMenuGameTest {
         });
         step(() -> {
             helper.assertTrue(source.getSurfaceSkin().isEmpty(), "Skin picker did not clear glass");
-            MinecraftPortalSurfaceGameTest.run(new MinecraftPortalSurfaceGameTest.Options(helper, runtime, owner.player(), owner.channel()));
+            MinecraftPortalSurfaceGameTest.run(new MinecraftPortalSurfaceGameTest.Options(helper, runtime, surface.player(), surface.channel()));
             closePermissions();
             click(22);
         });
@@ -360,39 +365,18 @@ public final class MinecraftPortalMenuGameTest {
     }
 
     private void extensionsAndCosts() {
+        step(() -> click(34));
         step(() -> {
-            MinecraftPortalExtensionsMenu extensions = runtime.menus().extensions();
-            helper.assertTrue(extensions.hasEntries(), "More settings had no registered entries");
-            List<Class<?>> order = List.of(MinecraftAccessMenuEntry.class, MinecraftRulesMenuEntry.class, MinecraftNetworkMenuEntry.class,
-                MinecraftTransitMenuEntry.class, MinecraftFidelityMenuEntry.class);
-            int previous = -1;
-            for (MinecraftPortalMenuEntry entry : extensions.visibleEntries(source, owner.player())) {
-                int position = order.indexOf(entry.getClass());
-                helper.assertTrue(position > previous, "More settings entry " + entry.id() + " is out of registration order");
-                previous = position;
-            }
-            List<MinecraftPortalMenuEntry> synthetic = new ArrayList<>();
-            for (int index = 0; index < 11; index++) {
-                synthetic.add(new RecordingEntry("synthetic-" + index, index == 0, index != 10, clicks));
-            }
-            new MinecraftPortalExtensionsMenu(runtime.menus(), synthetic).open(owner.player(), source);
-            window(4, MinecraftDyedItems.pane(DyeColor.CYAN), homeTitle, "more settings");
+            window(3, MinecraftDyedItems.pane(DyeColor.CYAN), homeTitle, "more settings");
             named(4, Items.COMPARATOR, WormholesMessages.PORTAL_MENU_EXTENSIONS);
-            for (int index = 0; index < 10; index++) {
-                named(9 + index, Items.PAPER, WormholesMessages.PORTAL_MENU_DELETE);
-            }
-            slot(9, Items.PAPER, true);
-            slot(10, Items.PAPER, false);
-            helper.assertTrue(item(19).is(MinecraftDyedItems.pane(DyeColor.CYAN)), "Hidden more settings entry was shown");
-            named(31, Items.ARROW, WormholesMessages.PORTAL_MENU_BACK_SETTINGS);
-            chest().clicked(9, 1, ContainerInput.PICKUP, owner.player());
-            chest().clicked(10, 0, ContainerInput.QUICK_MOVE, owner.player());
-            click(11);
-        });
-        step(() -> {
-            helper.assertTrue(clicks.equals(List.of("synthetic-0:right", "synthetic-1:shift-left", "synthetic-2:left")),
-                "More settings entries did not receive their click types: " + clicks);
-            click(31);
+            slot(9, Items.NAME_TAG, false);
+            slot(10, Items.BOOK, false);
+            slot(11, Items.COMPASS, false);
+            slot(12, Items.FEATHER, false);
+            slot(13, Items.SPYGLASS, false);
+            helper.assertTrue(item(14).is(MinecraftDyedItems.pane(DyeColor.CYAN)), "More settings showed an entry past the five built-in ones");
+            named(22, Items.ARROW, WormholesMessages.PORTAL_MENU_BACK_SETTINGS);
+            click(22);
         });
         step(() -> {
             window(5, MinecraftDyedItems.pane(DyeColor.GRAY), homeTitle, "settings after more settings");
@@ -425,9 +409,9 @@ public final class MinecraftPortalMenuGameTest {
                 ? MinecraftAccessService.Decision.DENY
                 : player == owner.player() && node.startsWith("wormholes.portals.") ? MinecraftAccessService.Decision.ALLOW
                 : MinecraftAccessService.Decision.UNSET);
-            runtime.menus().open(owner.player(), source.getId());
-            click(24);
+            runtime.menus().open(owner.player().getUUID(), PortalRoutes.home(source.getId()));
         });
+        step(() -> click(24));
         step(() -> {
             window(3, MinecraftDyedItems.pane(DyeColor.GRAY), homeTitle, "mode");
             slot(4, Items.BEACON, false);
@@ -450,14 +434,16 @@ public final class MinecraftPortalMenuGameTest {
         step(() -> {
             helper.assertTrue(source.getType() == PortalType.PORTAL, "Denied mode change applied");
             helper.assertTrue(owner.player().containerMenu == owner.player().inventoryMenu, "Denied mode change left the window open");
-            runtime.menus().open(owner.player(), source.getId());
-            click(24);
+            runtime.menus().open(owner.player().getUUID(), PortalRoutes.home(source.getId()));
         });
+        step(() -> click(24));
         step(() -> click(17));
         step(() -> {
             helper.assertTrue(source.isMirrorMode(), "Mirror mode was not selected");
             helper.assertTrue(owner.player().containerMenu == owner.player().inventoryMenu, "Mirror selection did not close the window");
-            runtime.menus().open(owner.player(), source.getId());
+            runtime.menus().open(owner.player().getUUID(), PortalRoutes.home(source.getId()));
+        });
+        step(() -> {
             slot(24, Items.COPPER_TORCH, true);
             click(24);
         });
@@ -470,13 +456,15 @@ public final class MinecraftPortalMenuGameTest {
         });
         step(() -> {
             helper.assertTrue(!source.isMirrorMode() && source.getType() == PortalType.PORTAL, "Portal mode did not clear mirror state");
-            runtime.menus().open(owner.player(), source.getId());
-            click(24);
+            runtime.menus().open(owner.player().getUUID(), PortalRoutes.home(source.getId()));
         });
+        step(() -> click(24));
         step(() -> click(15));
         step(() -> {
             helper.assertTrue(source.getType() == PortalType.RTP, "Mode picker did not select RTP");
-            runtime.menus().open(owner.player(), source.getId());
+            runtime.menus().open(owner.player().getUUID(), PortalRoutes.home(source.getId()));
+        });
+        step(() -> {
             slot(11, Items.COMPASS, false);
             helper.assertTrue(item(11).getCount() == 1, "RTP destination count was not one");
             slot(24, Items.COMPASS, true);
@@ -495,9 +483,9 @@ public final class MinecraftPortalMenuGameTest {
     private void orientation() {
         step(() -> {
             originalFrame = source.getFrame();
-            runtime.menus().open(owner.player(), source.getId());
-            click(22);
+            runtime.menus().open(owner.player().getUUID(), PortalRoutes.home(source.getId()));
         });
+        step(() -> click(22));
         step(() -> {
             window(3, MinecraftDyedItems.pane(DyeColor.BLUE), homeTitle, "orientation");
             slot(4, Items.COMPASS, false);
@@ -527,29 +515,36 @@ public final class MinecraftPortalMenuGameTest {
         step(() -> {
             helper.assertTrue(owner.player().containerMenu == owner.player().inventoryMenu, "Direction prompt did not close the window");
             owner.player().setShiftKeyDown(true);
-            MinecraftPortalMenus.directionInput(owner.player(), false);
+            MinecraftPortalMenuHost.directionInput(owner.player(), false);
             owner.player().setShiftKeyDown(false);
             helper.assertTrue(source.getFrame().getNormal() == originalFrame.getNormal(), "Sneaking cancelled direction still applied");
-            runtime.menus().open(owner.player(), source.getId());
-            click(22);
         });
-        step(() -> click(10));
+        step(() -> {
+            helper.assertTrue(owner.player().containerMenu == owner.player().inventoryMenu, "A cancelled direction reopened the chest menu");
+            runtime.menus().open(owner.player().getUUID(), PortalRoutes.home(source.getId()));
+        });
+        step(() -> click(22));
+        step(() -> {
+            window(3, MinecraftDyedItems.pane(DyeColor.BLUE), homeTitle, "orientation after a cancelled direction");
+            click(10);
+        });
         step(() -> {
             owner.player().setYRot(90.0F);
             owner.player().setXRot(0.0F);
             Vec3 look = owner.player().getLookAngle();
             Face expected = Face.closest(look.x, look.y, look.z);
-            MinecraftPortalMenus.directionInput(owner.player(), false);
+            MinecraftPortalMenuHost.directionInput(owner.player(), false);
             helper.assertTrue(source.getDirection() == expected, "Direction prompt did not apply the looked direction");
+        });
+        step(() -> {
+            helper.assertTrue(owner.player().containerMenu == owner.player().inventoryMenu, "An applied direction reopened the chest menu");
             runtime.portals().update(owner.player(), source.getId(), portal -> portal.setFrame(originalFrame));
         });
     }
 
     private void rename() {
-        step(() -> {
-            runtime.menus().open(owner.player(), source.getId());
-            click(20);
-        });
+        step(() -> runtime.menus().open(owner.player().getUUID(), PortalRoutes.home(source.getId())));
+        step(() -> click(20));
         step(() -> {
             helper.assertTrue(owner.player().containerMenu == owner.player().inventoryMenu, "Rename prompt did not close the window");
             broadcast(owner.player(), "Renamed through native chat");
@@ -579,7 +574,9 @@ public final class MinecraftPortalMenuGameTest {
         step(() -> {
             helper.assertTrue(destination.getId().equals(source.getDestinationId()), "Destination picker did not link portal");
             helper.assertTrue(owner.player().containerMenu == owner.player().inventoryMenu, "Destination selection reopened a window");
-            runtime.menus().open(owner.player(), source.getId());
+            runtime.menus().open(owner.player().getUUID(), PortalRoutes.home(source.getId()));
+        });
+        step(() -> {
             homeTitle = MinecraftPortalText.router(runtime, source, true);
             helper.assertTrue(homeTitle.endsWith(destination.getName()), "Home title did not route to the linked destination");
             window(4, MinecraftDyedItems.pane(DyeColor.GRAY), homeTitle, "linked home");
@@ -601,17 +598,17 @@ public final class MinecraftPortalMenuGameTest {
             helper.assertTrue(source.getId().equals(destination.getDestinationId()) && destination.getId().equals(source.getDestinationId()),
                 "Link and return did not pair both portals");
             helper.assertTrue(owner.player().containerMenu == owner.player().inventoryMenu, "Link and return left the window open");
-            runtime.menus().open(owner.player(), source.getId());
-            click(11);
+            runtime.menus().open(owner.player().getUUID(), PortalRoutes.home(source.getId()));
         });
+        step(() -> click(11));
         step(() -> click(find(destination.getName())));
         step(() -> {
             helper.assertTrue(source.getDestinationId() == null, "Destination picker did not unlink selected destination");
             runtime.portals().link(owner.player(), destination.getId(), null);
             homeTitle = MinecraftPortalText.router(runtime, source, true);
-            runtime.menus().open(owner.player(), source.getId());
-            click(11);
+            runtime.menus().open(owner.player().getUUID(), PortalRoutes.home(source.getId()));
         });
+        step(() -> click(11));
         step(() -> {
             window(6, MinecraftDyedItems.pane(DyeColor.GRAY), homeTitle, "destinations before close");
             owner.player().closeContainer();
@@ -623,7 +620,9 @@ public final class MinecraftPortalMenuGameTest {
         step(() -> {
             runtime.portals().update(owner.player(), source.getId(), portal -> portal.setType(PortalType.GATEWAY));
             owner.player().closeContainer();
-            runtime.menus().open(owner.player(), source.getId());
+            runtime.menus().open(owner.player().getUUID(), PortalRoutes.home(source.getId()));
+        });
+        step(() -> {
             slot(11, Items.END_CRYSTAL, true);
             click(11);
         });
@@ -653,8 +652,8 @@ public final class MinecraftPortalMenuGameTest {
     }
 
     private void selection() {
+        step(() -> runtime.server().getCommands().performPrefixedCommand(owner.player().createCommandSourceStack(), "wormholes edit"));
         step(() -> {
-            runtime.server().getCommands().performPrefixedCommand(owner.player().createCommandSourceStack(), "wormholes edit");
             window(6, MinecraftDyedItems.pane(DyeColor.GRAY), "", "portal selection");
             click(find(source.getName()));
         });
@@ -664,19 +663,24 @@ public final class MinecraftPortalMenuGameTest {
     private void revocation() {
         step(() -> {
             runtime.portals().update(owner.player(), source.getId(), portal -> portal.setRole(outsider.player().getUUID(), PortalRole.CO_OWNER));
-            helper.assertTrue(runtime.menus().open(outsider.player(), source.getId()) == 1, "Co-owner could not open portal editor");
-            helper.assertTrue(!runtime.menus().transfer(outsider.player(), source.getId(), outsider.player().getUUID()), "Co-owner stole portal ownership");
+            runtime.menus().open(outsider.player().getUUID(), PortalRoutes.home(source.getId()));
+        });
+        step(() -> {
+            helper.assertTrue(outsider.player().containerMenu instanceof MinecraftWindowMenu, "Co-owner could not open portal editor");
+            transfer(outsider.player(), outsider.player().getUUID());
+            helper.assertTrue(source.getOwner().equals(owner.player().getUUID()), "Co-owner stole portal ownership");
             runtime.portals().update(owner.player(), source.getId(), portal -> portal.setRole(outsider.player().getUUID(), PortalRole.DENIED));
             outsider.player().containerMenu.clicked(13, 0, ContainerInput.PICKUP, outsider.player());
         });
         step(() -> {
             helper.assertTrue(source.getProjectionMode() == ProjectionMode.OFF, "Revoked co-owner changed portal through stale window");
             helper.assertTrue(outsider.player().containerMenu == outsider.player().inventoryMenu, "Revoked window remained open");
-            runtime.menus().open(owner.player(), source.getId());
-            click(20);
+            runtime.menus().open(owner.player().getUUID(), PortalRoutes.home(source.getId()));
         });
+        step(() -> click(20));
         step(() -> {
-            helper.assertTrue(runtime.menus().transfer(owner.player(), source.getId(), outsider.player().getUUID()), "Owner transfer failed");
+            transfer(owner.player(), outsider.player().getUUID());
+            helper.assertTrue(source.getOwner().equals(outsider.player().getUUID()), "Owner transfer failed");
             broadcast(owner.player(), "Must not replace the name");
         });
         step(() -> {
@@ -689,9 +693,9 @@ public final class MinecraftPortalMenuGameTest {
 
     private void destroy() {
         step(() -> {
-            runtime.menus().open(owner.player(), destination.getId());
-            chest().clicked(31, 0, ContainerInput.PICKUP, owner.player());
+            runtime.menus().open(owner.player().getUUID(), PortalRoutes.home(destination.getId()));
         });
+        step(() -> chest().clicked(31, 0, ContainerInput.PICKUP, owner.player()));
         step(() -> {
             helper.assertTrue(runtime.portals().get(destination.getId()) != null, "Plain click destroyed the portal");
             chest().clicked(31, 0, ContainerInput.QUICK_MOVE, owner.player());
@@ -701,6 +705,11 @@ public final class MinecraftPortalMenuGameTest {
                 + "more_settings costs modes mirror orientation direction rename destinations reciprocal gateway selection revocation transfer destroy "
                 + "inventory_integrity");
         });
+    }
+
+    private void transfer(ServerPlayer actor, UUID newOwner) {
+        runtime.server().getCommands().performPrefixedCommand(actor.createCommandSourceStack(),
+            "wormholes transfer " + source.getId() + " " + newOwner);
     }
 
     private static int activationRange(int value) {
@@ -736,8 +745,6 @@ public final class MinecraftPortalMenuGameTest {
         }
         cleaned = true;
         closePermissions();
-        runtime.menus().playerDisconnected(owner.player());
-        runtime.menus().playerDisconnected(outsider.player());
         runtime.chatInput().disconnected(owner.player());
         runtime.chatInput().disconnected(outsider.player());
         if (runtime.portals().get(source.getId()) != null) {
@@ -748,6 +755,7 @@ public final class MinecraftPortalMenuGameTest {
         }
         owner.close();
         outsider.close();
+        surface.close();
     }
 
     private void closePermissions() {
@@ -853,43 +861,6 @@ public final class MinecraftPortalMenuGameTest {
             result.add(helper.absolutePos(new BlockPos(x + 1, y, 1)));
         }
         return result;
-    }
-
-    private record RecordingEntry(String id, boolean highlighted, boolean shown, List<String> clicks) implements MinecraftPortalMenuEntry {
-        @Override
-        public Item icon() {
-            return Items.PAPER;
-        }
-
-        @Override
-        public LinesKey label() {
-            return WormholesMessages.PORTAL_MENU_DELETE;
-        }
-
-        @Override
-        public boolean visible(MinecraftPortal portal, ServerPlayer viewer) {
-            return shown;
-        }
-
-        @Override
-        public boolean enchanted(MinecraftPortal portal, ServerPlayer viewer) {
-            return highlighted;
-        }
-
-        @Override
-        public void onLeftClick(MinecraftPortal portal, ServerPlayer viewer, MinecraftWindow window) {
-            clicks.add(id + ":left");
-        }
-
-        @Override
-        public void onRightClick(MinecraftPortal portal, ServerPlayer viewer, MinecraftWindow window) {
-            clicks.add(id + ":right");
-        }
-
-        @Override
-        public void onShiftLeftClick(MinecraftPortal portal, ServerPlayer viewer, MinecraftWindow window) {
-            clicks.add(id + ":shift-left");
-        }
     }
 
     private record ConnectedPlayer(ServerPlayer player, EmbeddedChannel channel) implements AutoCloseable {

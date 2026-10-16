@@ -2,6 +2,7 @@ package art.arcane.wormholes.neoforge;
 
 import art.arcane.wormholes.modded.MinecraftProxyPayload;
 import art.arcane.wormholes.modded.clientview.ClientViewPayload;
+import art.arcane.wormholes.modded.menu.MenuPayload;
 import net.neoforged.neoforge.network.event.RegisterConfigurationTasksEvent;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
@@ -84,11 +85,18 @@ public final class WormholesNeoForge {
     private void registerPayloads(RegisterPayloadHandlersEvent event) {
         event.registrar("1").optional()
             .playToClient(MinecraftProxyPayload.TYPE, MinecraftProxyPayload.CODEC, (payload, context) -> { })
-            .commonBidirectional(ClientViewPayload.TYPE, ClientViewPayload.CODEC, this::clientViewPayload);
+            .commonBidirectional(ClientViewPayload.TYPE, ClientViewPayload.CODEC, this::clientViewPayload)
+            .playBidirectional(MenuPayload.TYPE, MenuPayload.CODEC, this::menuPayload);
     }
 
     private void clientViewPayload(ClientViewPayload payload, IPayloadContext context) {
         runtime.clientViews().receive(context.connection(), payload.data());
+    }
+
+    private void menuPayload(MenuPayload payload, IPayloadContext context) {
+        if (context.player() instanceof ServerPlayer player) {
+            runtime.menuTransport().receive(player, payload.data());
+        }
     }
 
     private void configurationTasks(RegisterConfigurationTasksEvent event) {
@@ -103,6 +111,7 @@ public final class WormholesNeoForge {
 
     private void playerJoined(PlayerEvent.PlayerLoggedInEvent event) {
         if (event.getEntity() instanceof ServerPlayer player && runtime.running()) {
+            runtime.playerJoined(player);
             runtime.clientViews().joined(player, player.connection.hasChannel(ClientViewPayload.TYPE));
         }
     }

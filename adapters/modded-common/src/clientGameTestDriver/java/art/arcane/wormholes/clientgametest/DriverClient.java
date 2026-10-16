@@ -1,6 +1,7 @@
 package art.arcane.wormholes.clientgametest;
 
 import art.arcane.wormholes.clientgametest.drivermixin.DriverWindowSize;
+import art.arcane.wormholes.clientgametest.menu.NativeMenuInput;
 import io.netty.channel.Channel;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractButton;
@@ -13,11 +14,9 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.chunk.status.ChunkStatus;
 
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.locks.LockSupport;
@@ -29,12 +28,10 @@ import java.util.function.Supplier;
 final class DriverClient implements SeamlessClient {
     private static final long STALL_MILLIS = 120_000L;
     private static final int CHUNK_TIMEOUT_TICKS = 1200;
-    private static final String REPLY_PREFIX = "[whqa] ";
     private static final long LOCKSTEP_POLL_NANOS = 200_000L;
 
     private final Minecraft minecraft;
     private final Object tickLock = new Object();
-    private final BlockingQueue<String> replies = new LinkedBlockingQueue<>();
     private volatile Lockstep activeLockstep;
     private long ticks;
 
@@ -164,6 +161,11 @@ final class DriverClient implements SeamlessClient {
         return lockstep;
     }
 
+    @Override
+    public NativeMenuInput menuInput() {
+        return new DriverNativeMenuInput(this);
+    }
+
     void ticked() {
         synchronized (tickLock) {
             ticks++;
@@ -174,12 +176,6 @@ final class DriverClient implements SeamlessClient {
 
     void cursorFrame() {
         NativeSeamlessInput.frame(minecraft);
-    }
-
-    void systemMessage(String text) {
-        if (text.startsWith(REPLY_PREFIX)) {
-            replies.add(text.substring(REPLY_PREFIX.length()));
-        }
     }
 
     String command(String command, String reply, int timeoutTicks) {
@@ -235,22 +231,7 @@ final class DriverClient implements SeamlessClient {
         if (lockstep != null) {
             DriverLockstep.requireOwner(lockstep.lease);
         }
-        replies.clear();
-        runOnClient(client -> client.getConnection().sendCommand(command));
-        for (int tick = 0; tick <= timeoutTicks; tick++) {
-            String received = replies.poll();
-            while (received != null) {
-                if (received.startsWith("error ")) {
-                    throw new AssertionError("/" + command + " failed on the server: " + received.substring(6));
-                }
-                if (received.startsWith(reply + " ") || received.equals(reply)) {
-                    return received.substring(Math.min(received.length(), reply.length() + 1));
-                }
-                received = replies.poll();
-            }
-            waitTicks(1);
-        }
-        throw new AssertionError("/" + command + " got no '" + reply + "' reply within " + timeoutTicks + " ticks");
+        return QaReplies.command(this, command, reply, timeoutTicks);
     }
 
     private void awaitClientTick(DriverLockstep.Lease lease, long target) {

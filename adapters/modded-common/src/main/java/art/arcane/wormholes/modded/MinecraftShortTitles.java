@@ -12,7 +12,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.function.LongSupplier;
 
-final class MinecraftShortTitles {
+public final class MinecraftShortTitles {
     static final int FADE_IN_TICKS = 5;
     static final int STAY_TICKS = 7;
     static final int FADE_OUT_TICKS = 5;
@@ -22,11 +22,11 @@ final class MinecraftShortTitles {
     private final LongSupplier ticks;
     private final Map<UUID, Map<UUID, Hold>> holds = new HashMap<>();
 
-    MinecraftShortTitles(LongSupplier ticks) {
+    public MinecraftShortTitles(LongSupplier ticks) {
         this.ticks = ticks;
     }
 
-    void send(ServerPlayer player, UUID portalId, String legacy) {
+    public void send(ServerPlayer player, UUID portalId, String legacy) {
         long now = ticks.getAsLong();
         Map<UUID, Hold> portalHolds = holds.computeIfAbsent(portalId, ignored -> new HashMap<>());
         Hold hold = portalHolds.get(player.getUUID());
@@ -47,7 +47,7 @@ final class MinecraftShortTitles {
         player.connection.send(new ClientboundSetTitleTextPacket(Component.empty()));
     }
 
-    void expire() {
+    public void expire() {
         long now = ticks.getAsLong();
         Iterator<Map<UUID, Hold>> portals = holds.values().iterator();
         while (portals.hasNext()) {
@@ -59,7 +59,7 @@ final class MinecraftShortTitles {
         }
     }
 
-    void clear() {
+    public void clear() {
         holds.clear();
     }
 

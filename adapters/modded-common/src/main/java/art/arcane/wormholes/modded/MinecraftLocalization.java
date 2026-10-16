@@ -10,12 +10,12 @@ import art.arcane.volmlib.util.plugin.ComponentText;
 import art.arcane.wormholes.config.WormholesSettings;
 import art.arcane.wormholes.localization.WormholesLocaleLoader;
 import art.arcane.wormholes.localization.WormholesMessageRenderer;
+import art.arcane.wormholes.modded.menu.host.MinecraftLanguageMenuHost;
 import com.mojang.brigadier.CommandDispatcher;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.inventory.AbstractContainerMenu;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -36,6 +36,7 @@ public final class MinecraftLocalization implements AutoCloseable {
     private static final Map<MinecraftServer, MinecraftLocalization> SERVICES = new ConcurrentHashMap<>();
     private final WormholesModRuntime runtime;
     private final MinecraftLanguageSwitcher switcher;
+    private final MinecraftLanguageMenuHost languageMenus;
     private final Set<CompletableFuture<?>> pending = ConcurrentHashMap.newKeySet();
     private final AtomicLong generation = new AtomicLong();
     private volatile DefaultLanguage current;
@@ -45,27 +46,17 @@ public final class MinecraftLocalization implements AutoCloseable {
     private MinecraftServer server;
     private ExecutorService reader;
     private PluginLanguageService languages;
+    private PluginLanguageEditor editor;
     private CompletableFuture<Void> defaultSelection = CompletableFuture.completedFuture(null);
 
     public MinecraftLocalization(WormholesModRuntime runtime) {
         this.runtime = Objects.requireNonNull(runtime);
         switcher = new MinecraftLanguageSwitcher(runtime, this);
+        languageMenus = new MinecraftLanguageMenuHost(this);
     }
 
     public static MinecraftLocalization forPlayer(ServerPlayer player) {
         return Objects.requireNonNull(SERVICES.get(player.level().getServer()), "Wormholes localization is not running");
-    }
-
-    public static boolean chat(ServerPlayer player, String message) {
-        MinecraftLocalization service = SERVICES.get(player.level().getServer());
-        return service != null && service.switcher.editor().chat(player, message);
-    }
-
-    public static void menuOpened(ServerPlayer player, AbstractContainerMenu menu) {
-        MinecraftLocalization service = SERVICES.get(player.level().getServer());
-        if (service != null) {
-            service.switcher.editor().opened(player, menu);
-        }
     }
 
     public void start(Path directory, WormholesSettings settings) throws IOException {
@@ -81,7 +72,7 @@ public final class MinecraftLocalization implements AutoCloseable {
             directory.resolve("languages/language-preferences.properties"), VolmitLocales::all,
             () -> current.locale(), () -> current.snapshot(), locale -> load(locale, fallbacks),
             (locale, snapshot) -> current = new DefaultLanguage(locale, snapshot), LOGGER));
-        switcher.editor().start(new PluginLanguageEditor(languages, new PluginLanguageEditor.Options(
+        editor = new PluginLanguageEditor(languages, new PluginLanguageEditor.Options(
             locale -> load(locale, locale.equals(VolmitLocales.ENGLISH) ? "" : fallbacks), edit -> {
                 LocalizationSnapshot updated = WormholesLocaleLoader.edit(this.directory, edit,
                     edit.locale().equals(VolmitLocales.ENGLISH) ? "" : fallbacks);
@@ -89,7 +80,7 @@ public final class MinecraftLocalization implements AutoCloseable {
                     current = new DefaultLanguage(edit.locale(), updated);
                 }
                 return updated;
-            })));
+            }));
         SERVICES.put(server, this);
     }
 
@@ -108,7 +99,9 @@ public final class MinecraftLocalization implements AutoCloseable {
     public void close() {
         runtime.requireServerThread();
         closed = true;
-        switcher.editor().close();
+        if (editor != null) {
+            editor.close();
+        }
         generation.incrementAndGet();
         if (server != null) {
             SERVICES.remove(server, this);
@@ -181,12 +174,20 @@ public final class MinecraftLocalization implements AutoCloseable {
         switcher.register(dispatcher);
     }
 
-    public void disconnected(ServerPlayer player) {
-        switcher.editor().disconnected(player);
+    public PluginLanguageService languages() {
+        return languages;
     }
 
-    PluginLanguageService languages() {
-        return languages;
+    public PluginLanguageEditor editor() {
+        return Objects.requireNonNull(editor, "Wormholes localization is not running");
+    }
+
+    public MinecraftLanguageMenuHost languageMenus() {
+        return languageMenus;
+    }
+
+    public void showServerLanguages(ServerPlayer player) {
+        switcher.command(player.createCommandSourceStack(), new String[]{"server"});
     }
 
     boolean closed() {

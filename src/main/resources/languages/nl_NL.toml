@@ -1574,3 +1574,121 @@ off = "Alle ClientView-spelers terugzetten naar de vanilla-projectie"
 reset = "De ClientView-stream van één speler opnieuw starten"
 "reset.player" = "Naam van de online speler"
 # ---- end lane:clientview ----
+
+# ---- lane:menu (menu.*) ----
+[menu.native.title]
+portal = "Portaal"
+mode = "Portaalmodus"
+orientation = "Oriëntatie"
+gateway = "Gatewaykoppeling"
+settings = "Instellingen"
+advanced = "Geavanceerde streaminstellingen"
+blackout = "Verduisteringskleur"
+ambient = "Omgevingskleur"
+skin = "Oppervlakteskin"
+cost = "Reiskosten"
+extensions = "Meer instellingen"
+destinations = "Bestemmingen"
+select = "Kies een portaal"
+rtp = "Willekeurige teleport"
+rtp_destination = "Willekeurige bestemming"
+rtp_biome = "Doelbioom"
+rtp_landing = "Landing"
+rtp_routing = "Routering"
+rtp_effects = "Effecten"
+network = "Netwerk"
+dial = "Kiezen"
+rules = "Regels"
+rules_list = "Regellijst"
+rule = "Regel"
+templates = "Regelsjablonen"
+access = "Toegang"
+transit = "Doorgang"
+fidelity = "Getrouwheid"
+atlas = "Atlas"
+door = "Deurtoegang"
+language = "Taal"
+
+[menu.native.context]
+portal = "{portal} - {type}"
+door = "Deur: {kind}"
+network = "{name}"
+
+[menu.native.chrome]
+back = "Terug"
+close = "Sluiten"
+apply = "Toepassen"
+confirm = "Bevestigen"
+cancel = "Annuleren"
+previous_page = "Vorige pagina"
+next_page = "Volgende pagina"
+page = "Pagina {page} / {pages}"
+use_held_item = "Vastgehouden voorwerp gebruiken"
+aim = "Richten"
+timeout = "De server heeft niet geantwoord."
+
+[menu.native.action]
+rotate = "Draaien"
+rotate_clockwise = "Met de klok mee draaien"
+rotate_counterclockwise = "Tegen de klok in draaien"
+reset = "Herstellen"
+clear = "Wissen"
+colors = "Kleuren"
+advanced = "Geavanceerd"
+reroll = "Opnieuw rollen"
+remove = "Verwijderen"
+favorite = "Favoriet"
+guide = "Gids"
+whitelist = "Witte lijst"
+blacklist = "Zwarte lijst"
+use_default = "Serverstandaard gebruiken"
+
+[menu.native.confirm]
+delete_portal = ["{portal} verwijderen?", "Hiermee wordt het portaal verwijderd en worden portalen die ernaartoe leiden ontkoppeld.", "Dit kan niet ongedaan worden gemaakt."]
+"delete_portal.accept" = "Verwijderen"
+rtp_reset = ["{portal} herstellen?", "Alle instellingen voor willekeurige teleport keren terug naar hun standaardwaarde."]
+"rtp_reset.accept" = "Herstellen"
+rules_template = ["{name} laden?", "Het sjabloon vervangt alle regels van dit portaal."]
+"rules_template.accept" = "Laden"
+nexus_leave = ["{name} verlaten?", "Dit portaal stopt met kiezen en ontvangen via het netwerk."]
+"nexus_leave.accept" = "Verlaten"
+
+[menu.native.feedback]
+refreshed = "Het menu is gewijzigd en vernieuwd."
+unavailable = "Die optie is nu niet beschikbaar."
+invalid_value = "Die waarde is niet toegestaan."
+save_failed = "De wijziging kon niet worden opgeslagen."
+timeout = "De server deed er te lang over om te antwoorden."
+
+[menu.native.placeholder]
+name = "Portaalnaam"
+code = "Uitnodigingscode"
+block_state = "Blokstatus, bijvoorbeeld minecraft:glass"
+amount = "Bedrag"
+player = "Spelersnaam"
+key = "Rechtensleutel"
+group = "Groepsnaam"
+network = "Netwerknaam"
+address = "Adres"
+rule_id = "Regel-ID"
+line = "Regelregel"
+factor = "Factor"
+sound = "Geluids-ID"
+ticks = "Ticks"
+scale = "Schaal"
+search = "Zoeken"
+
+[menu.native.transit]
+factor = "Vaartfactor"
+threshold_effect = "Drempeleffect"
+arrival_sound = "Aankomstgeluid"
+mask_ticks = "Maskerticks"
+scale_min = "Minimale schaal"
+scale_max = "Maximale schaal"
+
+[menu.native.nexus]
+comparator = "Comparatoruitvoer"
+
+[menu.native.list]
+page = ["&b&lPagina {page}/{pages}&r", "&7{count} items"]
+# ---- end lane:menu ----

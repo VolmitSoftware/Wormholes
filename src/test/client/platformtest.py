@@ -294,6 +294,8 @@ def execute(args: argparse.Namespace) -> int:
                 raise RuntimeError("Missing successful native mixin audit or lighting assertions; inspect " + str(log))
             if not dh_acceptance and args.filter in "portal-clip-singleplayer" and "WORMHOLES_PORTAL_CLIP_PASS fixture=portal-clip-singleplayer" not in text:
                 raise AssertionError("Missing successful native portal clip image assertion; inspect " + str(log))
+            if not dh_acceptance and args.filter in "native-menu-home-singleplayer" and "WORMHOLES_NATIVE_MENU_DRIVER_PASS fixture=native-menu-home-singleplayer" not in text:
+                raise AssertionError("Missing successful native menu screen assertion; inspect " + str(log))
             if not dh_acceptance and args.filter in "end-portal-floor-singleplayer" and "WORMHOLES_END_PORTAL_FLOOR_PASS fixture=end-portal-floor-singleplayer" not in text:
                 raise AssertionError("Missing successful native End portal floor assertion; inspect " + str(log))
             if not dh_acceptance and args.filter in "end-portal-floor-one-way-singleplayer" and "WORMHOLES_END_PORTAL_FLOOR_PASS fixture=end-portal-floor-one-way-singleplayer" not in text:

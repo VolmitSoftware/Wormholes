@@ -14,6 +14,11 @@ const DOOR_SUPPORT = at(-3, -1, -1)
 const SETTLE_TICKS = 6
 const SETTLE_QUIET_MS = 250
 const SETTLE_MAX_MS = 8000
+const RTP_STATUS_SLOT = 4
+const RTP_STATUS_NAME = 'Random Destination Status'
+const RTP_READY_LORE = ['State: Ready', 'Active: Ready', 'Standby: Ready']
+const RTP_READY_POLL_MS = 500
+const RTP_READY_TIMEOUT_MS = 120000
 
 const LEVEL_NAME = 'minecraft:overworld'
 const PEER = 'GoldenPeer'
@@ -40,6 +45,22 @@ const NORMALIZATIONS = [
     pattern: '^(?:minecraft:overworld_the_end|minecraft:the_end)$',
     replacement: '<end>',
     reason: 'Paper names the end world after the level name while native servers identify it as minecraft:the_end'
+  }
+]
+
+const SLOT_MASKS = [
+  {
+    id: 'transit-gravity',
+    path: 'transit',
+    slots: [10],
+    reason: 'Directional gravity is a Fabric, Forge and NeoForge Transit control; Paper, Purpur and Folia keep a cyan pane in this slot'
+  },
+  {
+    id: 'rtp-biome-registry',
+    path: 'rtp-pages',
+    steps: ['rtp-biomes'],
+    slots: [10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 23, 24, 25, 28, 29, 30, 31, 32, 33, 34, 37, 38, 39, 40, 41, 42, 43],
+    reason: 'Biome registry differs by server build; the biome page lists the registered biomes by display name, so its tiles shift when a build adds or lacks a biome'
   }
 ]
 
@@ -226,6 +247,36 @@ const PATHS = [
       { id: 'fidelity-block-entities-next', action: click(16) },
       { id: 'fidelity-atmosphere-reset', action: click(10, SHIFT_LEFT) },
       { id: 'home-from-fidelity-back', action: click(22) }
+    ]
+  },
+  {
+    name: 'transit',
+    steps: [
+      { id: 'home', action: HOME },
+      { id: 'settings', action: click(15) },
+      { id: 'extensions', action: click(34) },
+      { id: 'transit', action: click(12) },
+      { id: 'transit-momentum-next', action: click(11) },
+      { id: 'transit-momentum-factor-prompt', action: click(11, RIGHT) },
+      { id: 'transit-momentum-factor-set', action: chat('2.5') },
+      { id: 'transit-orientation-next', action: click(12) },
+      { id: 'transit-membrane-on', action: click(13) },
+      { id: 'transit-bounce-on', action: click(14) },
+      { id: 'transit-threshold-prompt', action: click(15) },
+      { id: 'transit-threshold-set', action: chat('minecraft:end_rod') },
+      { id: 'transit-arrival-prompt', action: click(15, RIGHT) },
+      { id: 'transit-arrival-set', action: chat('minecraft:block.bell.use') },
+      { id: 'transit-mask-prompt', action: click(15, SHIFT_LEFT) },
+      { id: 'transit-mask-set', action: chat('40') },
+      { id: 'transit-scale-next', action: click(16) },
+      { id: 'transit-scale-min-prompt', action: click(16, RIGHT) },
+      { id: 'transit-scale-min-set', action: chat('0.5') },
+      { id: 'transit-scale-max-prompt', action: click(16, SHIFT_RIGHT) },
+      { id: 'transit-scale-max-set', action: chat('2') },
+      { id: 'transit-factor-cancel-prompt', action: click(11, RIGHT) },
+      { id: 'transit-after-factor-cancel', action: chat('cancel') },
+      { id: 'transit-membrane-off', action: click(13) },
+      { id: 'home-from-transit-back', action: click(22) }
     ]
   },
   {
@@ -586,6 +637,17 @@ function canonicalSlot(slot, item) {
   return result
 }
 
+function plainText(segments) {
+  return (segments ?? []).map(segment => segment.text).join('')
+}
+
+function rtpStatus(window) {
+  if (!window) return null
+  const entry = canonicalSlot(RTP_STATUS_SLOT, window.slots[RTP_STATUS_SLOT])
+  if (plainText(entry.name) !== RTP_STATUS_NAME) return null
+  return (entry.lore ?? []).map(plainText)
+}
+
 export default {
   name: 'wormholes-menu-parity',
   description: 'Walk every Wormholes inventory menu and record canonical window dumps for native parity goldens.',
@@ -628,6 +690,20 @@ export default {
         if (Date.now() - quietStart > SETTLE_MAX_MS) throw new Error('Window traffic did not settle')
         await context.sleep(50)
       }
+    }
+
+    async function awaitRtpReady(stepId) {
+      let status = rtpStatus(bot.currentWindow)
+      if (!status) return
+      try {
+        await context.waitUntil(() => {
+          status = rtpStatus(bot.currentWindow)
+          return !status || RTP_READY_LORE.every((line, index) => status[index] === line)
+        }, { timeoutMs: RTP_READY_TIMEOUT_MS, intervalMs: RTP_READY_POLL_MS, label: `RTP status Ready on ${stepId}` })
+      } catch (error) {
+        throw new Error(`RTP status slot ${RTP_STATUS_SLOT} did not read ${RTP_READY_LORE.join(', ')} within ${RTP_READY_TIMEOUT_MS / 1000} s on step ${stepId}; last status: ${status ? status.join(' | ') : 'no status slot'}`, { cause: error })
+      }
+      await settle()
     }
 
     async function lookClick(cell) {
@@ -820,6 +896,7 @@ export default {
         unordered: 'slot groups whose listing order follows platform world registration order; compared as a sorted multiset'
         },
         normalizations: NORMALIZATIONS,
+        slotMasks: SLOT_MASKS,
         paths: captured
       }
       mkdirSync(dirname(output), { recursive: true })
@@ -836,6 +913,7 @@ export default {
           opened = 0
           await perform(step.action)
           await settle()
+          await awaitRtpReady(step.id)
           const result = snapshot(windowBefore)
           steps.push({ id: step.id, action: step.action, ...(step.unordered ? { unordered: step.unordered } : {}), ...result })
         }

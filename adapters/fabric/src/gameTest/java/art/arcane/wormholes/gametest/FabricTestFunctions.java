@@ -28,6 +28,7 @@ final class FabricTestFunctions {
         register.accept(ResourceKey.create(Registries.TEST_FUNCTION, WormholesGameTests.RTP_RUNTIME), WormholesGameTests::rtpRuntime);
         register.accept(ResourceKey.create(Registries.TEST_FUNCTION, WormholesGameTests.ENTITY_PROJECTION_RUNTIME), WormholesGameTests::entityProjectionRuntime);
         register.accept(ResourceKey.create(Registries.TEST_FUNCTION, WormholesGameTests.MENU_PARITY_RUNTIME), WormholesGameTests::menuParityRuntime);
+        register.accept(ResourceKey.create(Registries.TEST_FUNCTION, WormholesGameTests.NATIVE_MENU_PROTOCOL_RUNTIME), WormholesGameTests::nativeMenuProtocolRuntime);
         register.accept(ResourceKey.create(Registries.TEST_FUNCTION, WormholesGameTests.OCCLUSION_SKIN_RUNTIME), WormholesGameTests::occlusionSkinRuntime);
         register.accept(ResourceKey.create(Registries.TEST_FUNCTION, WormholesGameTests.PROJECTION_DIRT_RUNTIME), WormholesGameTests::projectionDirtRuntime);
         register.accept(ResourceKey.create(Registries.TEST_FUNCTION, WormholesGameTests.PROJECTION_GAZE_RUNTIME), WormholesGameTests::projectionGazeRuntime);

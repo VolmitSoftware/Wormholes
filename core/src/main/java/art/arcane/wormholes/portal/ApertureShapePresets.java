@@ -17,6 +17,10 @@ public final class ApertureShapePresets {
     private ApertureShapePresets() {
     }
 
+    public static List<ShapeDescriptor> presets() {
+        return PRESETS;
+    }
+
     public static ShapeDescriptor next(ShapeDescriptor current) {
         return PRESETS.get((PRESETS.indexOf(current) + 1) % PRESETS.size());
     }

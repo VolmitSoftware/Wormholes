@@ -11,6 +11,7 @@ import art.arcane.wormholes.rules.ChargePool;
 import art.arcane.wormholes.rules.CompiledRules;
 import art.arcane.wormholes.rules.PortalCooldowns;
 import art.arcane.wormholes.rules.RuleAdmission;
+import art.arcane.wormholes.rules.RuleAuthoring;
 import art.arcane.wormholes.rules.Condition;
 import art.arcane.wormholes.rules.TravelerClass;
 import art.arcane.wormholes.rules.RuleCostReservation;
@@ -18,8 +19,6 @@ import art.arcane.wormholes.rules.RuleCostText;
 import art.arcane.wormholes.rules.RuleDocument;
 import art.arcane.wormholes.rules.RuleValidationException;
 import art.arcane.wormholes.rules.RuleOutcome;
-import art.arcane.wormholes.rules.Rule;
-import art.arcane.wormholes.rules.Effect;
 import art.arcane.wormholes.rules.RuleDocumentCodec;
 import art.arcane.wormholes.rules.RuleTraversalLedger;
 import art.arcane.wormholes.rules.TraversalProfile;
@@ -32,7 +31,6 @@ import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -65,23 +63,9 @@ public final class MinecraftRules implements AutoCloseable {
     }
 
     public RuleDocument authorDocument(ServerPlayer author, RuleDocument document) {
-        List<Rule> rules = new ArrayList<>(document.rules().size());
-        for (Rule rule : document.rules()) {
-            List<Effect> effects = new ArrayList<>(rule.effects().size());
-            for (Effect effect : rule.effects()) {
-                if (effect instanceof Effect.Command command) {
-                    if (command.asConsole() && (!runtime.access().administrator(author)
-                        || !runtime.configuration().settings().getRules().commandEffectsConsoleAllowed)) {
-                        throw new IllegalArgumentException("Console command effects require an administrator and enabled console effects");
-                    }
-                    effects.add(new Effect.Command(command.line(), command.asConsole(), author.getUUID()));
-                } else {
-                    effects.add(effect);
-                }
-            }
-            rules.add(new Rule(rule.id(), rule.conditions(), rule.outcome(), rule.costs(), effects));
-        }
-        return document.withRules(rules);
+        return RuleAuthoring.author(document, author.getUUID(), runtime.access().administrator(author),
+                runtime.configuration().settings().getRules().commandEffectsConsoleAllowed)
+            .orElseThrow(() -> new IllegalArgumentException(RuleAuthoring.CONSOLE_EFFECT_REFUSED));
     }
 
     public void placeholders(MinecraftRuleEvaluation.Placeholders provider) {

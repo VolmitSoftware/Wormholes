@@ -20,6 +20,7 @@ import net.md_5.bungee.api.ChatColor;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.geometry.Raycast;
 import art.arcane.wormholes.localization.WormholesMessages;
+import art.arcane.wormholes.menu.MenuService;
 import art.arcane.wormholes.service.WormholesAudience;
 import art.arcane.wormholes.service.WormholesHud;
 import art.arcane.volmlib.util.scheduling.AR;
@@ -203,6 +204,11 @@ final class LocalPortalPrompts
 				WormholesHud.releaseDirection(e.getPlayer());
 				WormholesAudience.sendMessage(e.getPlayer(), Wormholes.text().component(
 						cancelled ? WormholesMessages.PORTAL_DIRECTION_CANCELLED : WormholesMessages.PORTAL_DIRECTION_SET));
+				MenuService menus = Wormholes.menus;
+				if(menus != null)
+				{
+					menus.resume(e.getPlayer().getUniqueId());
+				}
 			}
 		}
 	}

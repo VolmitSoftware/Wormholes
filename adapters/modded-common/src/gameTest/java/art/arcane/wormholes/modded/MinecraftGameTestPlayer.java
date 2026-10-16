@@ -130,6 +130,11 @@ public record MinecraftGameTestPlayer(WormholesModRuntime runtime, ServerPlayer 
         return packets;
     }
 
+    public void leavePlayerList() {
+        CONNECTED.remove(this);
+        runtime.server().getPlayerList().remove(player);
+    }
+
     @Override
     public void close() {
         CONNECTED.remove(this);

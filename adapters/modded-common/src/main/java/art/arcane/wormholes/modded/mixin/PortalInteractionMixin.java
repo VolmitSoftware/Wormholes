@@ -1,6 +1,6 @@
 package art.arcane.wormholes.modded.mixin;
 
-import art.arcane.wormholes.modded.MinecraftPortalMenus;
+import art.arcane.wormholes.modded.menu.host.MinecraftPortalMenuHost;
 import net.minecraft.network.protocol.game.ServerboundInteractPacket;
 import net.minecraft.network.protocol.game.ServerboundPunchPacket;
 import net.minecraft.network.protocol.game.ServerboundUseItemPacket;
@@ -18,7 +18,7 @@ public abstract class PortalInteractionMixin {
 
     @Inject(method = "handlePunch", at = @At(value = "INVOKE", target = "Lnet/minecraft/server/level/ServerPlayer;resetLastActionTime()V"), cancellable = true)
     private void wormholesPunch(ServerboundPunchPacket packet, CallbackInfo callback) {
-        if (MinecraftPortalMenus.packetPunch(player)) {
+        if (MinecraftPortalMenuHost.packetPunch(player)) {
             player.resetLastActionTime();
             callback.cancel();
         }
@@ -26,14 +26,14 @@ public abstract class PortalInteractionMixin {
 
     @Inject(method = "handleUseItem", at = @At(value = "INVOKE", target = "Lnet/minecraft/server/level/ServerPlayerGameMode;useItem(Lnet/minecraft/server/level/ServerPlayer;Lnet/minecraft/world/level/Level;Lnet/minecraft/world/item/ItemStack;Lnet/minecraft/world/InteractionHand;)Lnet/minecraft/world/InteractionResult;"), cancellable = true)
     private void wormholesUse(ServerboundUseItemPacket packet, CallbackInfo callback) {
-        if (MinecraftPortalMenus.packetUse(player, packet.hand())) {
+        if (MinecraftPortalMenuHost.packetUse(player, packet.hand())) {
             callback.cancel();
         }
     }
 
     @Inject(method = "handleInteract", at = @At(value = "INVOKE", target = "Lnet/minecraft/server/level/ServerPlayer;resetLastActionTime()V"), cancellable = true)
     private void wormholesEntity(ServerboundInteractPacket packet, CallbackInfo callback) {
-        if (MinecraftPortalMenus.packetUse(player, packet.hand())) {
+        if (MinecraftPortalMenuHost.packetUse(player, packet.hand())) {
             player.resetLastActionTime();
             callback.cancel();
         }

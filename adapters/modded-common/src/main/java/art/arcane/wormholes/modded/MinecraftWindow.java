@@ -51,10 +51,6 @@ public final class MinecraftWindow {
         return ACTIVE_WINDOWS.get(viewer.getUUID());
     }
 
-    public ServerPlayer getViewer() {
-        return viewer;
-    }
-
     public String getTitle() {
         return title;
     }

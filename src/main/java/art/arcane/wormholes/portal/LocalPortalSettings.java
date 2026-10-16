@@ -193,7 +193,7 @@ final class LocalPortalSettings
 		portal.gate().invalidateProjection();
 		portal.save();
 		broadcastSettingsIfEnabled();
-		refreshOpenMenusUnlessApplyingRemote();
+		invalidateMenusUnlessApplyingRemote();
 	}
 
 	void assignProjectionMode(ProjectionMode mode)
@@ -233,7 +233,7 @@ final class LocalPortalSettings
 			Wormholes.portalSyncService.broadcastRemoteCache(portal);
 		}
 		broadcastSettingsIfEnabled();
-		refreshOpenMenusUnlessApplyingRemote();
+		invalidateMenusUnlessApplyingRemote();
 	}
 
 	void assignMirrorMode(boolean mirrorMode)
@@ -257,7 +257,7 @@ final class LocalPortalSettings
 		portal.gate().invalidateProjection();
 		portal.save();
 		broadcastSettingsIfEnabled();
-		refreshOpenMenusUnlessApplyingRemote();
+		invalidateMenusUnlessApplyingRemote();
 	}
 
 	static ProjectionMode resolveProjectionMode(JSONObject j)
@@ -304,7 +304,7 @@ final class LocalPortalSettings
 		permissionMode = normalized;
 		portal.save();
 		broadcastSettingsIfEnabled();
-		refreshOpenMenusUnlessApplyingRemote();
+		invalidateMenusUnlessApplyingRemote();
 	}
 
 	String getPermissionNode()
@@ -328,7 +328,7 @@ final class LocalPortalSettings
 		outgoingTraversalsEnabled = normalized;
 		portal.save();
 		broadcastSettingsIfEnabled();
-		refreshOpenMenusUnlessApplyingRemote();
+		invalidateMenusUnlessApplyingRemote();
 	}
 
 	void assignOutgoingTraversalsEnabled(boolean enabled)
@@ -395,7 +395,7 @@ final class LocalPortalSettings
 		incomingTraversalsEnabled = normalized;
 		portal.save();
 		broadcastSettingsIfEnabled();
-		refreshOpenMenusUnlessApplyingRemote();
+		invalidateMenusUnlessApplyingRemote();
 	}
 
 	void assignIncomingTraversalsEnabled(boolean enabled)
@@ -426,7 +426,7 @@ final class LocalPortalSettings
 				+ "\",\"context\":{\"portal\":\"" + portal.getId() + "\"}}");
 		portal.save();
 		broadcastSettingsIfEnabled();
-		refreshOpenMenusUnlessApplyingRemote();
+		invalidateMenusUnlessApplyingRemote();
 	}
 
 	NetworkViewQuality getNetworkViewQuality()
@@ -704,7 +704,7 @@ final class LocalPortalSettings
 		}
 		publicLookLabel = enabled;
 		portal.save();
-		refreshOpenMenusUnlessApplyingRemote();
+		invalidateMenusUnlessApplyingRemote();
 	}
 
 	boolean isSettingsSyncEnabled()
@@ -724,7 +724,7 @@ final class LocalPortalSettings
 		{
 			Wormholes.portalSyncService.broadcastSettingsToggle(portal);
 		}
-		refreshOpenMenusUnlessApplyingRemote();
+		invalidateMenusUnlessApplyingRemote();
 	}
 
 	private void loadApertureShape(JSONObject j)
@@ -761,7 +761,7 @@ final class LocalPortalSettings
 	private void travelCostChanged()
 	{
 		portal.save();
-		refreshOpenMenusUnlessApplyingRemote();
+		invalidateMenusUnlessApplyingRemote();
 	}
 
 	private void renderSettingsChanged()
@@ -781,16 +781,16 @@ final class LocalPortalSettings
 			Wormholes.projectionManager.removeProjector(portal);
 		}
 		broadcastSettingsIfEnabled();
-		refreshOpenMenusUnlessApplyingRemote();
+		invalidateMenusUnlessApplyingRemote();
 	}
 
-	void refreshOpenMenusUnlessApplyingRemote()
+	void invalidateMenusUnlessApplyingRemote()
 	{
 		if(PortalSyncService.isApplyingRemote())
 		{
 			return;
 		}
-		portal.refreshOpenMenus();
+		portal.invalidateMenus();
 	}
 
 	void broadcastSettingsIfEnabled()

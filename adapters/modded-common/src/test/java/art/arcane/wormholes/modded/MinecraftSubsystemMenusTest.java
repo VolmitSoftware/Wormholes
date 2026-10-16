@@ -1,12 +1,16 @@
 package art.arcane.wormholes.modded;
 
-import art.arcane.wormholes.access.PortalRole;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.portal.Portal;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.aperture.ApertureCells;
-import art.arcane.wormholes.portal.rtp.RtpPortalEditorModel;
 import art.arcane.optics.math.Face;
+import art.arcane.optics.fidelity.AcousticsProfile;
+import art.arcane.optics.fidelity.AtmosphereMode;
+import art.arcane.optics.volume.LodProfile;
+import art.arcane.wormholes.transit.MomentumPolicy;
+import art.arcane.wormholes.transit.OrientationPolicy;
+import art.arcane.wormholes.transit.TransitionProfile;
 import org.junit.Test;
 
 import java.util.List;
@@ -19,30 +23,6 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 public class MinecraftSubsystemMenusTest {
-    @Test
-    public void accessRolesFillRowsUnderTheHeader() {
-        assertEquals(1, MinecraftAccessMenu.entryRow(0));
-        assertEquals(-4, MinecraftAccessMenu.entryPosition(0));
-        assertEquals(4, MinecraftAccessMenu.entryPosition(8));
-        assertEquals(2, MinecraftAccessMenu.entryRow(9));
-        assertEquals(-4, MinecraftAccessMenu.entryPosition(9));
-        assertEquals(1, MinecraftAccessMenu.viewportHeight(0));
-        assertEquals(2, MinecraftAccessMenu.viewportHeight(9));
-        assertEquals(3, MinecraftAccessMenu.viewportHeight(10));
-        assertEquals(6, MinecraftAccessMenu.viewportHeight(500));
-    }
-
-    @Test
-    public void accessAdditionResolvesLikeBukkit() {
-        MinecraftPortal portal = portal();
-        UUID guest = UUID.randomUUID();
-        assertEquals(MinecraftAccessMenu.AddResolution.NOT_FOUND, MinecraftAccessMenu.resolveAddition(portal, null));
-        assertEquals(MinecraftAccessMenu.AddResolution.OWNER, MinecraftAccessMenu.resolveAddition(portal, portal.getOwner()));
-        assertEquals(MinecraftAccessMenu.AddResolution.ADD, MinecraftAccessMenu.resolveAddition(portal, guest));
-        portal.setRole(guest, PortalRole.USER);
-        assertEquals(MinecraftAccessMenu.AddResolution.ALREADY_LISTED, MinecraftAccessMenu.resolveAddition(portal, guest));
-    }
-
     @Test
     public void portalKeepsAccessGroupsAndDirectoryFlag() {
         MinecraftPortal portal = portal();
@@ -62,29 +42,39 @@ public class MinecraftSubsystemMenusTest {
     }
 
     @Test
-    public void transitAnswersParseLikeBukkit() {
-        assertEquals(2.5D, MinecraftTransitMenu.parseFactor(" 2.5 "), 0D);
-        assertNull(MinecraftTransitMenu.parseFactor("10.5"));
-        assertNull(MinecraftTransitMenu.parseFactor("NaN"));
-        assertNull(MinecraftTransitMenu.parseFactor("fast"));
-        assertEquals(Integer.valueOf(-1), MinecraftTransitMenu.parseMaskTicks(" "));
-        assertEquals(Integer.valueOf(200), MinecraftTransitMenu.parseMaskTicks("200"));
-        assertNull(MinecraftTransitMenu.parseMaskTicks("201"));
-        assertNull(MinecraftTransitMenu.parseMaskTicks("-2"));
-        assertEquals("", MinecraftTransitMenu.soundOrEmpty(" None "));
-        assertEquals("", MinecraftTransitMenu.soundOrEmpty("-"));
-        assertEquals("minecraft:block.portal.travel", MinecraftTransitMenu.soundOrEmpty(" Minecraft:Block.Portal.Travel "));
-    }
+    public void portalReadsBackItsTransitAndFidelityOverrides() {
+        MinecraftPortal portal = portal();
+        assertNull(portal.getMomentum());
+        assertNull(portal.getOrientation());
+        assertFalse(portal.isMembrane());
+        assertFalse(portal.isBounce());
+        assertTrue(portal.getTransitionProfile().isNone());
+        assertNull(portal.getAtmosphereMode());
+        assertNull(portal.getAcousticsProfile());
+        assertNull(portal.getLodProfile());
+        assertNull(portal.getBlockEntities());
 
-    @Test
-    public void rtpBiomesSortByPrettyNameAndSkipIrisKeys() {
-        List<RtpPortalEditorModel.BiomeOption> options = MinecraftRtpMenus.biomeOptions(List.of(
-            "minecraft:snowy_plains", "minecraft:badlands", "iris:custom", "minecraft:badlands"));
-        assertEquals(2, options.size());
-        assertEquals("minecraft:badlands", options.get(0).key());
-        assertEquals("Badlands", options.get(0).displayName());
-        assertEquals("Snowy Plains", options.get(1).displayName());
-        assertFalse(options.get(1).irisBiome());
+        MomentumPolicy momentum = MomentumPolicy.of(MomentumPolicy.Mode.values()[1]).withFactor(2.5D);
+        TransitionProfile profile = TransitionProfile.NONE.withArrivalSound("minecraft:block.bell.use").withMaskOverrideTicks(40);
+        portal.setMomentum(momentum);
+        portal.setOrientation(OrientationPolicy.values()[1]);
+        portal.setMembrane(true);
+        portal.setBounce(true);
+        portal.setTransitionProfile(profile);
+        portal.setAtmosphereMode(AtmosphereMode.values()[0]);
+        portal.setAcousticsProfile(AcousticsProfile.values()[0]);
+        portal.setLodProfile(LodProfile.values()[0]);
+        portal.setBlockEntities(Boolean.FALSE);
+
+        assertEquals(momentum, portal.getMomentum());
+        assertEquals(OrientationPolicy.values()[1], portal.getOrientation());
+        assertTrue(portal.isMembrane());
+        assertTrue(portal.isBounce());
+        assertEquals(profile, portal.getTransitionProfile());
+        assertEquals(AtmosphereMode.values()[0], portal.getAtmosphereMode());
+        assertEquals(AcousticsProfile.values()[0], portal.getAcousticsProfile());
+        assertEquals(LodProfile.values()[0], portal.getLodProfile());
+        assertEquals(Boolean.FALSE, portal.getBlockEntities());
     }
 
     private static MinecraftPortal portal() {

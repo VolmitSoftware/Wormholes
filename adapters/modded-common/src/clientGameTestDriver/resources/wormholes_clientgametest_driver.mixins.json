@@ -5,10 +5,11 @@
   "compatibilityLevel": "JAVA_21",
   "client": [
     "CursorFrameTap",
+    "DriverKeyboardInput",
+    "DriverMouseInput",
     "DriverWindowSize",
     "LockstepClientTicks",
-    "LockstepServerTicks",
-    "QaReplyTap"
+    "LockstepServerTicks"
   ],
   "injectors": {
     "defaultRequire": 1

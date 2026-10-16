@@ -9,15 +9,27 @@ import java.util.function.Function;
 
 public final class RtpPortalEditorModel
 {
-	static final double MINIMUM_COORDINATE = RtpSettings.MINIMUM_COORDINATE;
-	static final double MAXIMUM_COORDINATE = RtpSettings.MAXIMUM_COORDINATE;
-	static final int MAXIMUM_RADIUS = RtpSettings.MAXIMUM_RADIUS;
-	static final long MINIMUM_CYCLE_MILLIS = 15_000L;
-	static final long MAXIMUM_CYCLE_MILLIS = 86_400_000L;
-	static final long MINIMUM_LEASE_MILLIS = 5_000L;
-	static final long MAXIMUM_LEASE_MILLIS = 600_000L;
-	static final long MINIMUM_RESERVATION_MILLIS = 5_000L;
-	static final long MAXIMUM_RESERVATION_MILLIS = 300_000L;
+	public static final double MINIMUM_COORDINATE = RtpSettings.MINIMUM_COORDINATE;
+	public static final double MAXIMUM_COORDINATE = RtpSettings.MAXIMUM_COORDINATE;
+	public static final int MAXIMUM_RADIUS = RtpSettings.MAXIMUM_RADIUS;
+	public static final long MINIMUM_CYCLE_MILLIS = 15_000L;
+	public static final long MAXIMUM_CYCLE_MILLIS = 86_400_000L;
+	public static final long MINIMUM_LEASE_MILLIS = 5_000L;
+	public static final long MAXIMUM_LEASE_MILLIS = 600_000L;
+	public static final long MINIMUM_RESERVATION_MILLIS = 5_000L;
+	public static final long MAXIMUM_RESERVATION_MILLIS = 300_000L;
+	public static final int RADIUS_STEP = 128;
+	public static final int RADIUS_BIG_STEP = 1024;
+	public static final double CENTER_STEP = 16.0D;
+	public static final double CENTER_BIG_STEP = 256.0D;
+	public static final int Y_STEP = 1;
+	public static final int Y_BIG_STEP = 8;
+	public static final long CYCLE_STEP_MILLIS = 30_000L;
+	public static final long CYCLE_BIG_STEP_MILLIS = 300_000L;
+	public static final long LEASE_STEP_MILLIS = 5_000L;
+	public static final long LEASE_BIG_STEP_MILLIS = 30_000L;
+	public static final long RESERVATION_STEP_MILLIS = 5_000L;
+	public static final long RESERVATION_BIG_STEP_MILLIS = 30_000L;
 
 	private RtpPortalEditorModel()
 	{
@@ -81,6 +93,86 @@ public final class RtpPortalEditorModel
 		return builder.build();
 	}
 
+	public static RadiiMutation minimumRadius(SettingsSnapshot settings, int requested)
+	{
+		int selected = clamp(requested, 0, MAXIMUM_RADIUS);
+		if(selected < settings.maximumRadius())
+		{
+			return new RadiiMutation(selected, settings.maximumRadius());
+		}
+		return selected < MAXIMUM_RADIUS
+				? new RadiiMutation(selected, selected + 1)
+				: new RadiiMutation(MAXIMUM_RADIUS - 1, MAXIMUM_RADIUS);
+	}
+
+	public static RadiiMutation maximumRadius(SettingsSnapshot settings, int requested)
+	{
+		int selected = clamp(requested, 0, MAXIMUM_RADIUS);
+		if(selected > settings.minimumRadius())
+		{
+			return new RadiiMutation(settings.minimumRadius(), selected);
+		}
+		return selected > 0 ? new RadiiMutation(selected - 1, selected) : new RadiiMutation(0, 1);
+	}
+
+	public static CustomCenterMutation customCenter(SettingsSnapshot settings, boolean xAxis, double requested)
+	{
+		double x = Objects.requireNonNull(settings.customCenterX(), "customCenterX").doubleValue();
+		double z = Objects.requireNonNull(settings.customCenterZ(), "customCenterZ").doubleValue();
+		double adjusted = Math.max(MINIMUM_COORDINATE, Math.min(MAXIMUM_COORDINATE, requested));
+		return xAxis ? new CustomCenterMutation(adjusted, z) : new CustomCenterMutation(x, adjusted);
+	}
+
+	public static YMutation yBound(SettingsSnapshot settings, WorldOption target, YField field, int requested)
+	{
+		int lower = settings.lowerY();
+		int upper = settings.upperY();
+		int preferred = settings.preferredY();
+		switch(field)
+		{
+			case LOWER ->
+			{
+				lower = Math.min(clamp(requested, target.minimumFeetY(), target.maximumFeetY()), upper);
+				preferred = Math.max(preferred, lower);
+			}
+			case UPPER ->
+			{
+				upper = Math.max(clamp(requested, target.minimumFeetY(), target.maximumFeetY()), lower);
+				preferred = Math.min(preferred, upper);
+			}
+			case PREFERRED -> preferred = clamp(requested, lower, upper);
+		}
+		return new YMutation(lower, upper, preferred);
+	}
+
+	public static CycleDurationMutation cycleDuration(long requestedMillis)
+	{
+		return new CycleDurationMutation(clamp(requestedMillis, MINIMUM_CYCLE_MILLIS, MAXIMUM_CYCLE_MILLIS));
+	}
+
+	public static LeaseIdleMutation leaseIdle(long requestedMillis)
+	{
+		return new LeaseIdleMutation(clamp(requestedMillis, MINIMUM_LEASE_MILLIS, MAXIMUM_LEASE_MILLIS));
+	}
+
+	public static ReservationTimeoutMutation reservationTimeout(long requestedMillis)
+	{
+		return new ReservationTimeoutMutation(clamp(requestedMillis, MINIMUM_RESERVATION_MILLIS, MAXIMUM_RESERVATION_MILLIS));
+	}
+
+	public static CenterModeMutation centerMode(EditorSnapshot snapshot, RtpCenterMode mode)
+	{
+		SettingsSnapshot settings = snapshot.settings();
+		Double customX = settings.customCenterX();
+		Double customZ = settings.customCenterZ();
+		if(mode == RtpCenterMode.CUSTOM && customX == null)
+		{
+			customX = Double.valueOf(snapshot.sourceCenterX());
+			customZ = Double.valueOf(snapshot.sourceCenterZ());
+		}
+		return new CenterModeMutation(mode, customX, customZ);
+	}
+
 	public sealed interface Mutation permits AllocationMutation, CenterModeMutation, CustomCenterMutation,
 			CycleDurationMutation, LeaseIdleMutation, RadiiMutation, ReservationTimeoutMutation,
 			ResetCenterTargetMutation, RimMutation, RotationMutation, SafetyModeMutation, SoundMutation, TargetBiomeMutation,
@@ -92,6 +184,13 @@ public final class RtpPortalEditorModel
 	{
 		REROLL,
 		REBUILD_POOL
+	}
+
+	public enum YField
+	{
+		LOWER,
+		UPPER,
+		PREFERRED
 	}
 
 	public enum StatusState
@@ -479,6 +578,16 @@ public final class RtpPortalEditorModel
 			key = requireText(key, "key");
 			displayName = requireText(displayName, "displayName");
 		}
+	}
+
+	private static int clamp(int value, int minimum, int maximum)
+	{
+		return Math.max(minimum, Math.min(maximum, value));
+	}
+
+	private static long clamp(long value, long minimum, long maximum)
+	{
+		return Math.max(minimum, Math.min(maximum, value));
 	}
 
 	private static void validateCoordinatePair(Double x, Double z)

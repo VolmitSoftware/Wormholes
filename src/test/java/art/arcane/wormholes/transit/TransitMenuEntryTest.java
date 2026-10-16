@@ -2,17 +2,23 @@ package art.arcane.wormholes.transit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
-import org.bukkit.Material;
+import java.util.UUID;
+
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
+import art.arcane.wormholes.PortalManager;
+import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.hook.WormholesHooks;
 import art.arcane.wormholes.hook.WormholesRegistrar;
 import art.arcane.wormholes.localization.TransitMessages;
+import art.arcane.wormholes.menu.portal.MenuExtensionEntry;
+import art.arcane.wormholes.menu.transit.TransitRoutes;
 import art.arcane.wormholes.portal.LocalPortal;
 
 final class TransitMenuEntryTest {
@@ -23,39 +29,41 @@ final class TransitMenuEntryTest {
 
     @Test
     void entryIsTheFeatherTileAndLightsUpOncePortalStateDivergesFromTheDefaults() {
-        TransitMenuEntry entry = new TransitMenuEntry();
-        assertEquals("transit", entry.id());
-        assertEquals(Material.FEATHER, entry.icon());
-        assertSame(TransitMessages.MENU_ENTRY, entry.label());
+        PortalManager previous = Wormholes.portalManager;
+        PortalManager portals = mock(PortalManager.class);
+        Wormholes.portalManager = portals;
+        try {
+            MenuExtensionEntry entry = registeredEntry();
+            assertEquals("transit", entry.id());
+            assertEquals("minecraft:feather", entry.chestItemId());
+            assertEquals("transit", entry.nativeSprite());
+            assertSame(TransitMessages.MENU_ENTRY, entry.label());
+            assertEquals(1, entry.chestHintLines());
 
-        LocalPortal bare = TransitTestSupport.portal(TransitTestSupport.world("menu-bare"));
-        assertFalse(entry.visible(bare, null), "no extension, no tile");
+            WormholesHooks.clear();
+            LocalPortal bare = TransitTestSupport.portal(TransitTestSupport.world("menu-bare"));
+            when(portals.getLocalPortal(bare.getId())).thenReturn(bare);
+            assertFalse(entry.visible().test(null, bare.getId()), "no extension, no tile");
 
-        WormholesHooks.install(new WormholesRegistrar().portalExtension(TransitPortalExtension.class, extensionPortal -> new TransitPortalExtension()));
-        LocalPortal portal = TransitTestSupport.portal(TransitTestSupport.world("menu"));
-        assertTrue(entry.visible(portal, null));
-        assertFalse(entry.enchanted(portal, null));
-        portal.extension(TransitPortalExtension.class).setMembrane(true);
-        assertTrue(entry.enchanted(portal, null));
+            WormholesHooks.install(new WormholesRegistrar().portalExtension(TransitPortalExtension.class, extensionPortal -> new TransitPortalExtension()));
+            LocalPortal portal = TransitTestSupport.portal(TransitTestSupport.world("menu"));
+            when(portals.getLocalPortal(portal.getId())).thenReturn(portal);
+            assertEquals(TransitRoutes.main(portal.getId()), entry.route().apply(portal.getId()));
+            assertTrue(entry.visible().test(null, portal.getId()));
+            assertFalse(entry.enchanted().test(null, portal.getId()));
+            portal.extension(TransitPortalExtension.class).setMembrane(true);
+            assertTrue(entry.enchanted().test(null, portal.getId()));
+            assertFalse(entry.visible().test(null, UUID.randomUUID()));
+        } finally {
+            Wormholes.portalManager = previous;
+        }
     }
 
-    @Test
-    void chatAnswersAreParsedDefensively() {
-        assertEquals(1.5D, TransitMenu.parseFactor(" 1.5 "));
-        assertNull(TransitMenu.parseFactor("eleven"));
-        assertNull(TransitMenu.parseFactor("-1"));
-        assertNull(TransitMenu.parseFactor("11"));
-        assertNull(TransitMenu.parseFactor(null));
-
-        assertEquals(-1, TransitMenu.parseMaskTicks(""));
-        assertEquals(-1, TransitMenu.parseMaskTicks("-1"));
-        assertEquals(12, TransitMenu.parseMaskTicks("12"));
-        assertNull(TransitMenu.parseMaskTicks("201"));
-        assertNull(TransitMenu.parseMaskTicks("soon"));
-
-        assertEquals("", TransitMenu.soundOrEmpty("-"));
-        assertEquals("", TransitMenu.soundOrEmpty("default"));
-        assertEquals("minecraft:block.bell.use", TransitMenu.soundOrEmpty(" Minecraft:Block.Bell.Use "));
+    private static MenuExtensionEntry registeredEntry() {
+        WormholesRegistrar registrar = new WormholesRegistrar();
+        new TransitSubsystem().register(registrar);
+        WormholesHooks.install(registrar);
+        return WormholesHooks.portalMenuEntries().getFirst();
     }
 
     @Test

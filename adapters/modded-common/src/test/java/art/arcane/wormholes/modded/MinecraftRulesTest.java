@@ -9,6 +9,8 @@ import art.arcane.wormholes.rules.RuleAdmission;
 import art.arcane.wormholes.rules.CompiledRules;
 import art.arcane.wormholes.rules.Cost;
 import art.arcane.wormholes.rules.Rule;
+import art.arcane.wormholes.rules.Effect;
+import art.arcane.wormholes.rules.RuleAuthoring;
 import art.arcane.wormholes.rules.Condition;
 import art.arcane.wormholes.rules.TravelerClass;
 import art.arcane.wormholes.localization.WormholesMessages;
@@ -37,6 +39,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -169,6 +172,29 @@ public class MinecraftRulesTest extends MinecraftTestBase {
     public void malformedChargeShapeDeniesWithoutThrowingDuringAdmission() {
         MinecraftRules rules = service();
         assertFalse(rules.document(portal(Map.of("rules.charges", "invalid"))).defaultOutcome().allowed());
+    }
+
+    @Test
+    public void authoringStampsTheAuthorAndRefusesConsoleEffectsWithoutAnAdministrator() {
+        WormholesModRuntime runtime = runtime();
+        MinecraftAccessService access = mock(MinecraftAccessService.class);
+        when(runtime.access()).thenReturn(access);
+        ServerPlayer author = mock(ServerPlayer.class);
+        UUID authorId = UUID.randomUUID();
+        when(author.getUUID()).thenReturn(authorId);
+        MinecraftRules rules = new MinecraftRules(runtime);
+        RuleDocument player = RuleDocument.EMPTY.withRules(List.of(new Rule("greet", List.of(), RuleOutcome.allow(), List.of(),
+            List.of(new Effect.Command("say hi", false, null)))));
+        RuleDocument console = RuleDocument.EMPTY.withRules(List.of(new Rule("op", List.of(), RuleOutcome.allow(), List.of(),
+            List.of(new Effect.Command("op {player}", true, null)))));
+
+        Effect.Command stamped = (Effect.Command) rules.authorDocument(author, player).rules().getFirst().effects().getFirst();
+        assertEquals(authorId, stamped.authorId());
+        IllegalArgumentException refused = assertThrows(IllegalArgumentException.class, () -> rules.authorDocument(author, console));
+        assertEquals(RuleAuthoring.CONSOLE_EFFECT_REFUSED, refused.getMessage());
+
+        when(access.administrator(author)).thenReturn(true);
+        assertTrue(((Effect.Command) rules.authorDocument(author, console).rules().getFirst().effects().getFirst()).asConsole());
     }
 
     private static MinecraftRules service() {

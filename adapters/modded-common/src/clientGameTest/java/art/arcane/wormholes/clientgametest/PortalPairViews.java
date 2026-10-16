@@ -1,9 +1,14 @@
 package art.arcane.wormholes.clientgametest;
 
 import art.arcane.optics.math.Vec3d;
+import art.arcane.wormholes.clientgametest.menu.MenuScreenDriver;
+import art.arcane.wormholes.menu.portal.PortalRoutes;
 import art.arcane.wormholes.modded.client.ClientPortal;
 import art.arcane.wormholes.modded.client.ClientSeamlessTravel;
 import art.arcane.wormholes.modded.client.WormholesClient;
+import art.arcane.wormholes.modded.client.menu.MenuConfirmOverlay;
+import art.arcane.wormholes.modded.client.menu.NativeMenuListener;
+import art.arcane.wormholes.modded.client.menu.NativeMenuScreen;
 import art.arcane.wormholes.modded.client.render.ClientPortalRenderer;
 import art.arcane.wormholes.modded.client.render.stencil.PortalStencilRenderer;
 import art.arcane.wormholes.modded.client.render.stencil.PortalView;
@@ -21,9 +26,13 @@ import net.minecraft.world.phys.Vec3;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Predicate;
 
 final class PortalPairViews {
+    private static final String NATIVE_MENU = "native menu";
+    private static final String CHEST_MENU = "chest menu";
+    private static final String DELETE_ELEMENT = "destroy";
     private static final int MENU_TIMEOUT_TICKS = 100;
     private static final int LOOK_SETTLE_TICKS = 4;
     private static final int PLACE_TIMEOUT_TICKS = 400;
@@ -97,7 +106,7 @@ final class PortalPairViews {
         return state.toString();
     }
 
-    static void deleteThroughMenu(SeamlessClient client, PortalPairScene.Pair pair, PortalPairScene.Side side) {
+    static String deleteThroughMenu(SeamlessClient client, PortalPairScene.Pair pair, PortalPairScene.Side side) {
         Vec3 center = pair.center(side);
         Vec3 eye = client.computeOnClient(minecraft -> minecraft.player.getEyePosition());
         double dx = center.x - eye.x;
@@ -110,13 +119,18 @@ final class PortalPairViews {
         SeamlessScenario.assertTrue(client.computeOnClient(minecraft -> minecraft.player.getMainHandItem().is(Items.BLAZE_ROD)),
             "the player is not holding the portal wand");
         client.runOnClient(minecraft -> minecraft.gameMode.useItem(minecraft.player, InteractionHand.MAIN_HAND));
-        int slot = awaitTicks(client, minecraft -> deleteSlot(minecraft) >= 0, MENU_TIMEOUT_TICKS);
-        SeamlessScenario.assertTrue(slot >= 0, "the portal wand did not open a portal menu with a Delete Portal control: "
-            + client.computeOnClient(PortalPairViews::describe));
+        int opened = awaitTicks(client, minecraft -> nativeDelete(minecraft) || deleteSlot(minecraft) >= 0, MENU_TIMEOUT_TICKS);
+        SeamlessScenario.assertTrue(opened >= 0, "the portal wand did not open a native or chest portal menu with a Delete Portal control: screen "
+            + client.computeOnClient(PortalPairViews::screen) + "; " + client.computeOnClient(PortalPairViews::describe));
+        if (client.computeOnClient(PortalPairViews::nativeDelete)) {
+            deleteThroughNativeMenu(client);
+            return NATIVE_MENU;
+        }
         client.runOnClient(minecraft -> {
             AbstractContainerMenu menu = minecraft.player.containerMenu;
             minecraft.gameMode.handleContainerInput(menu.containerId, deleteSlot(minecraft), 0, ContainerInput.QUICK_MOVE, minecraft.player);
         });
+        return CHEST_MENU;
     }
 
     static void deleteThroughCommand(SeamlessClient client, PortalPairScene.Pair pair, PortalPairScene.Side side) {
@@ -146,6 +160,31 @@ final class PortalPairViews {
             client.waitTicks(1);
         }
         return -1;
+    }
+
+    private static void deleteThroughNativeMenu(SeamlessClient client) {
+        MenuScreenDriver driver = new MenuScreenDriver(client.menuInput());
+        driver.click(DELETE_ELEMENT);
+        int armed = awaitTicks(client, minecraft -> NativeMenuListener.current().flatMap(NativeMenuScreen::confirmation)
+            .filter(MenuConfirmOverlay::armed).isPresent(), MENU_TIMEOUT_TICKS);
+        SeamlessScenario.assertTrue(armed >= 0, NATIVE_MENU + ": Delete Portal did not show an armed confirmation: screen "
+            + client.computeOnClient(PortalPairViews::screen) + "; " + client.computeOnClient(PortalPairViews::describe));
+        driver.confirm();
+    }
+
+    private static boolean nativeDelete(Minecraft minecraft) {
+        return NativeMenuListener.current()
+            .filter(screen -> screen.snapshot().screenId().equals(PortalRoutes.HOME) && screen.confirmation().isEmpty())
+            .flatMap(screen -> screen.widgetFor(DELETE_ELEMENT))
+            .isPresent();
+    }
+
+    private static String screen(Minecraft minecraft) {
+        Optional<NativeMenuScreen> current = NativeMenuListener.current();
+        if (current.isPresent()) {
+            return NATIVE_MENU + " " + current.get().snapshot().screenId() + (current.get().confirmation().isPresent() ? " (confirming)" : "");
+        }
+        return String.valueOf(ClientGui.screen(minecraft));
     }
 
     private static int deleteSlot(Minecraft minecraft) {

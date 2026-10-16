@@ -10,11 +10,11 @@ import org.bukkit.entity.Player;
  * the player is not on, or the portal's permission node all refuse it - and a network that is not PUBLIC
  * is neither dialable nor enumerable by someone who is not on its roster.
  */
-final class DialAdmission {
+public final class DialAdmission {
     private DialAdmission() {
     }
 
-    static boolean allows(LocalPortal portal, PortalNetwork network, Player player) {
+    public static boolean allows(LocalPortal portal, PortalNetwork network, Player player) {
         if (network == null) {
             return false;
         }

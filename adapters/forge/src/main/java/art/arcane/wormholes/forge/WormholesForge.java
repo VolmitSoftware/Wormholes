@@ -2,6 +2,7 @@ package art.arcane.wormholes.forge;
 
 import art.arcane.wormholes.modded.WormholesModRuntime;
 import art.arcane.wormholes.modded.clientview.ClientViewPayload;
+import art.arcane.wormholes.modded.menu.MenuPayload;
 import net.minecraft.network.Connection;
 import net.minecraft.network.protocol.PacketFlow;
 import net.minecraft.server.network.ConfigurationTask;
@@ -51,8 +52,13 @@ public final class WormholesForge {
         runtime.clientViews().packets(payload -> NetworkProtocol.PLAY.buildPacket(PacketFlow.CLIENTBOUND, clientView, payload));
         GatherLoginConfigurationTasksEvent.BUS.addListener(event -> configureClientView(event, clientView));
         PlayerEvent.PlayerLoggedInEvent.BUS.addListener(event -> clientViewJoined(event, clientView));
+        Channel<CustomPacketPayload> menus = ChannelBuilder.named(MenuPayload.ID).optional().payloadChannel().play()
+            .bidirectional().add(MenuPayload.TYPE, MenuPayload.CODEC.cast(), this::menuPayload)
+            .build();
+        runtime.menuTransport().packets(payload -> NetworkProtocol.PLAY.buildPacket(PacketFlow.CLIENTBOUND, menus, payload));
+        PlayerEvent.PlayerLoggedInEvent.BUS.addListener(this::playerJoined);
         if (FMLEnvironment.dist == Dist.CLIENT) {
-            WormholesForgeClient.initialize(clientView);
+            WormholesForgeClient.initialize(clientView, menus);
         }
     }
 
@@ -75,6 +81,18 @@ public final class WormholesForge {
             return;
         }
         runtime.clientViews().receivePlay(sender, payload.data());
+    }
+
+    private void menuPayload(MenuPayload payload, CustomPayloadEvent.Context context) {
+        context.setPacketHandled(true);
+        if (context.isClientSide()) {
+            WormholesForgeClient.receiveMenu(payload);
+            return;
+        }
+        ServerPlayer sender = context.getSender();
+        if (sender != null) {
+            runtime.menuTransport().receive(sender, payload.data());
+        }
     }
 
     private void configureClientView(GatherLoginConfigurationTasksEvent event, Channel<CustomPacketPayload> clientView) {
@@ -124,6 +142,12 @@ public final class WormholesForge {
 
     private boolean beforeBreak(BlockEvent.BreakEvent event) {
         return event.getPlayer() instanceof ServerPlayer player && runtime.running() && runtime.beforeBreak(player, event.getPos());
+    }
+
+    private void playerJoined(PlayerEvent.PlayerLoggedInEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player) {
+            runtime.playerJoined(player);
+        }
     }
 
     private void playerDisconnected(PlayerEvent.PlayerLoggedOutEvent event) {

@@ -109,15 +109,16 @@ final class PortalRemovalProjection {
         int gunpowder = server.playerGunpowder();
         int notices = SystemNotices.mark();
         capture(client, removal.label() + "-before-removal");
+        String path = "command";
         if (method == Method.MENU) {
-            PortalPairViews.deleteThroughMenu(client, pair, removed);
+            path = PortalPairViews.deleteThroughMenu(client, pair, removed);
         } else {
             PortalPairViews.deleteThroughCommand(client, pair, removed);
         }
         int deleted = awaitServer(client, server, pair, removed);
-        assertTrue(deleted >= 0, removal.label() + ": the " + method + " removal did not delete the " + removed + " portal on the server");
+        assertTrue(deleted >= 0, removal.label() + ": the " + path + " removal did not delete the " + removed + " portal on the server");
         LOGGER.info("[{}] {} removal deleted the {} portal {} ticks after the request; gunpowder in inventory {} -> server {} client {}",
-            removal.label(), method, removed, deleted, gunpowder, server.playerGunpowder(), client.computeOnClient(PortalPairViews::clientGunpowder));
+            removal.label(), path, removed, deleted, gunpowder, server.playerGunpowder(), client.computeOnClient(PortalPairViews::clientGunpowder));
         int cleared = PortalPairViews.awaitTicks(client, minecraft -> PortalPairViews.remaining(minecraft, pair, removed).isEmpty(), CLEAR_TICKS);
         if (cleared < 0) {
             String remaining = client.computeOnClient(minecraft -> PortalPairViews.remaining(minecraft, pair, removed));

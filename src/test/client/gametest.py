@@ -61,7 +61,7 @@ def native_frame(state: dict) -> bool:
 def selected_tests(suite: str, names: list[str]) -> list[str]:
     metadata = json.loads((FABRIC / "src/clientGameTest/resources/fabric.mod.json").read_text())
     if not names:
-        key = {"edge": "fabric-client-gametest", "compatibility": "wormholes-compatibility-gametest", "shader": "wormholes-shader-gametest", "dh": "wormholes-dh-gametest"}[suite]
+        key = {"edge": "fabric-client-gametest", "compatibility": "wormholes-compatibility-gametest", "shader": "wormholes-shader-gametest", "dh": "wormholes-dh-gametest", "menus": "wormholes-native-menu-gametest"}[suite]
         return metadata["entrypoints"][key]
     selected: list[str] = []
     for name in names:
@@ -75,7 +75,7 @@ def selected_tests(suite: str, names: list[str]) -> list[str]:
 
 def init_script(run: Path, resources: Path, bridge: Path, sodium: Path | None, token: str, iris: Path | None,
                 distant_horizons: Path | None, shader: bool, jvm_args: list[str], baseline: Path | None,
-                baseline_resources: Path | None, replaced: list[Path], mods: list[Path]) -> str:
+                baseline_resources: Path | None, replaced: list[Path], mods: list[Path], server: str | None, username: str | None) -> str:
     dependencies = "fabric.dependencies.add('clientGameTestRuntimeOnly', fabric.files(" + groovy(str(bridge)) + "))"
     if sodium is not None:
         dependencies += "\n    fabric.dependencies.add('clientGameTestRuntimeOnly', fabric.files(" + groovy(str(sodium)) + "))"
@@ -96,6 +96,13 @@ def init_script(run: Path, resources: Path, bridge: Path, sodium: Path | None, t
     fabric.sourceSets.clientGameTest.java.exclude { entry -> entry.file.name == 'ShaderHistoryClientGameTest.java' }
 """.replace("ORIGINALS", originals).replace("OVERLAY_RESOURCES", groovy(str(baseline_resources))).replace("OVERLAY", groovy(str(baseline))).replace("ORIGINAL_MIXINS", groovy(str((ROOT / "adapters/modded-common/src/main/resources/wormholes.mixins.json").resolve())))
     arguments = "\n".join("        vmArg(" + groovy(argument) + ")" for argument in jvm_args)
+    connection: list[str] = []
+    if server is not None:
+        connection.append("systemProperties.put('wormholes.clientgametest.server', " + groovy(server) + ")")
+        connection.append("systemProperties.put('fabric.client.gametest.disableNetworkSynchronizer', 'true')")
+    if username is not None:
+        connection.append("programArgs('--username', " + groovy(username) + ")")
+        connection.append("systemProperties.put('wormholes.clientgametest.username', " + groovy(username) + ")")
     return """gradle.projectsEvaluated {
     Project fabric = gradle.rootProject
     if (fabric.name != 'wormholes-fabric') {
@@ -125,6 +132,7 @@ def init_script(run: Path, resources: Path, bridge: Path, sodium: Path | None, t
         systemProperties.put('wormholes.test.shaderPackRequested', SHADER_PACK)
         systemProperties.put('wormholes.test.fabricPhasedShutdown', 'true')
         systemProperties.put('wormholes.clientgametest.baseline', BASELINE)
+        EXTERNAL_CONNECTION
         JVM_ARGUMENTS
     }
     fabric.tasks.matching { it.name == 'deleteGameTestRunDir' }.configureEach {
@@ -134,7 +142,7 @@ def init_script(run: Path, resources: Path, bridge: Path, sodium: Path | None, t
         eulaFile.set(new File(runRoot, 'eula.txt'))
     }
 }
-""".replace("RUN_ROOT", groovy(str(run))).replace("TEST_RESOURCES", groovy(str(resources))).replace("DEPENDENCIES", dependencies).replace("TOKEN", groovy(token)).replace("SHADER_PACK", groovy(str(shader).lower())).replace("OVERLAY_CONFIGURATION", overlay).replace("JVM_ARGUMENTS", arguments).replace("BASELINE", groovy(str(baseline is not None).lower()))
+""".replace("RUN_ROOT", groovy(str(run))).replace("TEST_RESOURCES", groovy(str(resources))).replace("DEPENDENCIES", dependencies).replace("TOKEN", groovy(token)).replace("SHADER_PACK", groovy(str(shader).lower())).replace("OVERLAY_CONFIGURATION", overlay).replace("JVM_ARGUMENTS", arguments).replace("BASELINE", groovy(str(baseline is not None).lower())).replace("EXTERNAL_CONNECTION", "\n        ".join(connection))
 
 
 def dh_jar(path: Path, game_version: str) -> dict:
@@ -339,9 +347,11 @@ def execute(args: argparse.Namespace) -> int:
             baseline, baseline_resources, replaced = baseline_overlay(args.iris_baseline_source.resolve(), evidence)
         jvm_args = args.jvm_arg + (["-Dwormholes.test.dhShutdown=true"] if distant_horizons is not None else [])
         script.write_text(init_script(run, resources, bridge, sodium, token, iris, distant_horizons, shader is not None,
-                                     jvm_args, baseline, baseline_resources, replaced, mods))
+                                     jvm_args, baseline, baseline_resources, replaced, mods, args.server, args.username))
         log = evidence / "runtime.log"
         print("Tests: " + ", ".join(test.rsplit(".", 1)[1] for test in tests), flush=True)
+        if args.server is not None:
+            print("External server: " + args.server + (" as " + args.username if args.username is not None else ""), flush=True)
         print("Evidence: " + str(evidence), flush=True)
         with log.open("w") as output:
             process = subprocess.Popen([str(ROOT / "gradlew"), "--init-script", str(script), "runClientGameTest", "-PminecraftVersion=" + args.minecraft_version, "--no-daemon", "--console=plain"],
@@ -421,7 +431,7 @@ def execute(args: argparse.Namespace) -> int:
                 "shaderPack": shader.name if shader is not None else None, "iris": iris is not None,
                 "distantHorizons": {"path": str(distant_horizons), "version": dh_metadata["version"]} if dh_metadata is not None else None,
                 "mods": [{"path": str(mod), "id": metadata.get("id"), "version": metadata.get("version")} for mod, metadata in zip(mods, mod_metadata)],
-                "failure": failure}, indent=2) + "\n")
+                "server": args.server, "username": args.username, "failure": failure}, indent=2) + "\n")
         finally:
             script.unlink(missing_ok=True)
             assert run.parent.resolve() == QA_WORKSPACE.resolve() and marker.read_text() == run_id
@@ -433,7 +443,7 @@ def execute(args: argparse.Namespace) -> int:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("tests", nargs="*")
-    parser.add_argument("--suite", choices=["edge", "compatibility", "shader", "dh"], default="edge")
+    parser.add_argument("--suite", choices=["edge", "compatibility", "shader", "dh", "menus"], default="edge")
     parser.add_argument("--minecraft-version", choices=supported_versions(), default="26.3")
     parser.add_argument("--renderer", choices=["vanilla", "sodium"], default="sodium")
     parser.add_argument("--shader-pack", type=Path)
@@ -445,7 +455,15 @@ def main() -> int:
     parser.add_argument("--timeout", type=int, default=1200)
     parser.add_argument("--record-demo", action="store_true")
     parser.add_argument("--demo-take", action="append", choices=["gravity-pov", "gravity-third-person", "scale-pov", "scale-third-person"], default=[])
+    parser.add_argument("--server")
+    parser.add_argument("--username")
     args = parser.parse_args()
+    if args.server is not None and not re.fullmatch(r"[A-Za-z0-9.-]+:\d{1,5}", args.server):
+        parser.error("--server must be host:port")
+    if args.server is not None and not args.tests:
+        parser.error("--server requires explicit test names")
+    if args.username is not None and not re.fullmatch(r"[A-Za-z0-9_]{3,16}", args.username):
+        parser.error("--username must be a 3-16 character Minecraft name")
     if args.demo_take:
         if not args.record_demo:
             parser.error("--demo-take requires --record-demo")

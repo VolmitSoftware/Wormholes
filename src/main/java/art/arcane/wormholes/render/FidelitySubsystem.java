@@ -4,11 +4,16 @@ import java.util.List;
 
 import org.bukkit.entity.Player;
 
+import art.arcane.volmlib.util.localization.MessageArgs;
 import art.arcane.wormholes.ProjectionManager;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.config.WormholesSettings;
 import art.arcane.wormholes.hook.WormholesRegistrar;
 import art.arcane.wormholes.hook.WormholesSubsystem;
+import art.arcane.wormholes.localization.FidelityMessages;
+import art.arcane.wormholes.menu.fidelity.FidelityRoutes;
+import art.arcane.wormholes.menu.host.BukkitMenuEntries;
+import art.arcane.wormholes.menu.portal.MenuExtensionEntry;
 import art.arcane.wormholes.network.WireMessage;
 import art.arcane.wormholes.network.WireMessageType;
 import art.arcane.optics.fidelity.AcousticsBridge;
@@ -35,7 +40,9 @@ public final class FidelitySubsystem implements WormholesSubsystem {
     @Override
     public void register(WormholesRegistrar registrar) {
         registrar.portalExtension(FidelityPortalExtension.class, extensionPortal -> new FidelityPortalExtension());
-        registrar.portalMenuEntry(new FidelityMenuEntry());
+        registrar.menuEntry(new MenuExtensionEntry("fidelity", "minecraft:spyglass", "projection", FidelityMessages.MENU_ENTRY, 1,
+            portalId -> MessageArgs.empty(), BukkitMenuEntries.when(portal -> portal.extension(FidelityPortalExtension.class) != null),
+            BukkitMenuEntries.never(), FidelityRoutes::main));
         registrar.wireHandler(WireMessageType.VIEW_WEATHER, (peerName, message) -> {
             if (!(message instanceof WireMessage.ViewWeather weather)) {
                 return false;

@@ -186,10 +186,6 @@ public final class MinecraftPortalText {
         return localized(viewer, mode == ProjectionMode.ON ? WormholesMessages.LABEL_ON : WormholesMessages.LABEL_OFF);
     }
 
-    public static String onOffLabel(ServerPlayer viewer, boolean enabled) {
-        return localized(viewer, enabled ? WormholesMessages.LABEL_ON : WormholesMessages.LABEL_OFF);
-    }
-
     public static String permissionModeLabel(ServerPlayer viewer, PortalPermissionMode mode) {
         return localized(viewer, mode == PortalPermissionMode.WHITELIST
             ? WormholesMessages.PORTAL_LABEL_WHITELIST : WormholesMessages.PORTAL_LABEL_BLACKLIST);

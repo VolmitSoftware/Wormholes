@@ -1,6 +1,7 @@
 package art.arcane.wormholes.modded;
 
 import art.arcane.wormholes.access.PortalLookup;
+import art.arcane.wormholes.menu.nexus.NexusRoutes;
 import art.arcane.wormholes.nexus.DestinationEntry;
 import art.arcane.wormholes.nexus.DestinationMode;
 import art.arcane.wormholes.nexus.DestinationPolicy;
@@ -163,14 +164,14 @@ public final class MinecraftNexusCommands {
             switch (action) {
                 case "menu" -> {
                     if (runtime.portals().canManage(actor, portal)) {
-                        nexus.menus().openManagement(actor, portal);
+                        runtime.menus().open(actor.getUUID(), NexusRoutes.network(portal.getId()));
                     } else {
-                        nexus.menus().open(actor, portal);
+                        runtime.menus().open(actor.getUUID(), NexusRoutes.dial(portal.getId()));
                     }
                 }
                 case "dial" -> {
                     if (value.isBlank()) {
-                        nexus.menus().open(actor, portal);
+                        runtime.menus().open(actor.getUUID(), NexusRoutes.dial(portal.getId()));
                     } else if (!nexus.dial(actor, portal, value)) {
                         throw new IllegalArgumentException("Address is unavailable or dialing is still cooling down");
                     }

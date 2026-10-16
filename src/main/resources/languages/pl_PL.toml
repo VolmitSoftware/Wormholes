@@ -1574,3 +1574,121 @@ off = "Przywróć wszystkich graczy ClientView do projekcji vanilla"
 reset = "Uruchom ponownie strumień ClientView jednego gracza"
 "reset.player" = "Nazwa gracza online"
 # ---- end lane:clientview ----
+
+# ---- lane:menu (menu.*) ----
+[menu.native.title]
+portal = "Portal"
+mode = "Tryb portalu"
+orientation = "Orientacja"
+gateway = "Parowanie bramy"
+settings = "Ustawienia"
+advanced = "Zaawansowane ustawienia strumienia"
+blackout = "Kolor zaciemnienia"
+ambient = "Kolor otoczenia"
+skin = "Skórka powierzchni"
+cost = "Koszt podróży"
+extensions = "Więcej ustawień"
+destinations = "Cele"
+select = "Wybierz portal"
+rtp = "Losowa teleportacja"
+rtp_destination = "Losowy cel"
+rtp_biome = "Docelowy biom"
+rtp_landing = "Lądowanie"
+rtp_routing = "Trasowanie"
+rtp_effects = "Efekty"
+network = "Sieć"
+dial = "Wybierz"
+rules = "Zasady"
+rules_list = "Lista zasad"
+rule = "Zasada"
+templates = "Szablony zasad"
+access = "Dostęp"
+transit = "Tranzyt"
+fidelity = "Wierność"
+atlas = "Atlas"
+door = "Dostęp do drzwi"
+language = "Język"
+
+[menu.native.context]
+portal = "{portal} - {type}"
+door = "Drzwi: {kind}"
+network = "{name}"
+
+[menu.native.chrome]
+back = "Wstecz"
+close = "Zamknij"
+apply = "Zastosuj"
+confirm = "Potwierdź"
+cancel = "Anuluj"
+previous_page = "Poprzednia strona"
+next_page = "Następna strona"
+page = "Strona {page} / {pages}"
+use_held_item = "Użyj trzymanego przedmiotu"
+aim = "Celuj"
+timeout = "Serwer nie odpowiedział."
+
+[menu.native.action]
+rotate = "Obróć"
+rotate_clockwise = "Obróć zgodnie z ruchem wskazówek zegara"
+rotate_counterclockwise = "Obróć przeciwnie do ruchu wskazówek zegara"
+reset = "Resetuj"
+clear = "Wyczyść"
+colors = "Kolory"
+advanced = "Zaawansowane"
+reroll = "Wylosuj ponownie"
+remove = "Usuń"
+favorite = "Ulubione"
+guide = "Prowadzenie"
+whitelist = "Biała lista"
+blacklist = "Czarna lista"
+use_default = "Użyj domyślnej wartości serwera"
+
+[menu.native.confirm]
+delete_portal = ["Usunąć {portal}?", "Portal zostanie usunięty, a prowadzące do niego portale odłączone.", "Tej operacji nie można cofnąć."]
+"delete_portal.accept" = "Usuń"
+rtp_reset = ["Zresetować {portal}?", "Wszystkie ustawienia losowej teleportacji wrócą do wartości domyślnych."]
+"rtp_reset.accept" = "Resetuj"
+rules_template = ["Wczytać {name}?", "Szablon zastąpi wszystkie zasady tego portalu."]
+"rules_template.accept" = "Wczytaj"
+nexus_leave = ["Opuścić {name}?", "Ten portal przestanie wybierać i odbierać przez sieć."]
+"nexus_leave.accept" = "Opuść"
+
+[menu.native.feedback]
+refreshed = "Menu się zmieniło i zostało odświeżone."
+unavailable = "Ta opcja jest teraz niedostępna."
+invalid_value = "Ta wartość jest niedozwolona."
+save_failed = "Nie udało się zapisać zmiany."
+timeout = "Serwer zbyt długo nie odpowiadał."
+
+[menu.native.placeholder]
+name = "Nazwa portalu"
+code = "Kod zaproszenia"
+block_state = "Stan bloku, na przykład minecraft:glass"
+amount = "Kwota"
+player = "Nazwa gracza"
+key = "Klucz uprawnień"
+group = "Nazwa grupy"
+network = "Nazwa sieci"
+address = "Adres"
+rule_id = "Identyfikator zasady"
+line = "Wiersz zasady"
+factor = "Współczynnik"
+sound = "Identyfikator dźwięku"
+ticks = "Ticki"
+scale = "Skala"
+search = "Szukaj"
+
+[menu.native.transit]
+factor = "Współczynnik pędu"
+threshold_effect = "Efekt progu"
+arrival_sound = "Dźwięk przybycia"
+mask_ticks = "Tiki maski"
+scale_min = "Skala minimalna"
+scale_max = "Skala maksymalna"
+
+[menu.native.nexus]
+comparator = "Wyjście komparatora"
+
+[menu.native.list]
+page = ["&b&lStrona {page}/{pages}&r", "&7Liczba wpisów: {count}"]
+# ---- end lane:menu ----

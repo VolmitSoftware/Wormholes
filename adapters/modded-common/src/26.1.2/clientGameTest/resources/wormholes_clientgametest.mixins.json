@@ -6,6 +6,7 @@
   "compatibilityLevel": "JAVA_21",
   "client": [
     "TravelConnectionTap",
+    "QaReplyTap",
     "TravelFrameTap",
     "GravityOverlayRenderTap",
     "TravelPacketTap",
@@ -88,7 +89,9 @@
     "FrameHitchFrameTap",
     "FrameHitchFrameTap$Limiter",
     "FrameHitchFrameTap$Views",
-    "FrameHitchFrameTap$Shaded"
+    "FrameHitchFrameTap$Shaded",
+    "NativeMenuSendTap",
+    "NativeMenuMouseAccess"
   ],
   "injectors": {
     "defaultRequire": 1

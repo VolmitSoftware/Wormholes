@@ -4,6 +4,7 @@ import art.arcane.volmlib.util.localization.MessageArgs;
 import art.arcane.volmlib.util.localization.TextKey;
 import art.arcane.wormholes.atlas.AtlasModel;
 import art.arcane.wormholes.localization.AtlasMessages;
+import art.arcane.wormholes.menu.atlas.AtlasRoutes;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
@@ -105,9 +106,9 @@ final class MinecraftAtlasCommand {
         }
         ServerPlayer player = Objects.requireNonNull(source.getPlayer(), "player");
         switch (parse(args)) {
-            case OPEN -> service.open(player, AtlasModel.Filter.ALL);
-            case FAVORITES -> service.open(player, AtlasModel.Filter.FAVORITES);
-            case RECENTS -> service.open(player, AtlasModel.Filter.RECENTS);
+            case OPEN -> open(player, AtlasModel.Filter.ALL);
+            case FAVORITES -> open(player, AtlasModel.Filter.FAVORITES);
+            case RECENTS -> open(player, AtlasModel.Filter.RECENTS);
             case GUIDE -> guide(player, guideTarget(args));
             case GUIDE_OFF -> service.withState(player, state -> {
                 service.setGuideTarget(player, state, null);
@@ -120,6 +121,10 @@ final class MinecraftAtlasCommand {
             }
         }
         return 1;
+    }
+
+    private void open(ServerPlayer player, AtlasModel.Filter filter) {
+        service.withState(player, state -> runtime.menus().open(player.getUUID(), AtlasRoutes.list(filter)));
     }
 
     private TextKey refusal(CommandSourceStack source) {

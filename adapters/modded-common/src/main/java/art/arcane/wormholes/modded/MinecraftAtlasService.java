@@ -32,7 +32,6 @@ public final class MinecraftAtlasService implements AutoCloseable {
     private static final Logger LOGGER = LoggerFactory.getLogger("Wormholes");
 
     private final WormholesModRuntime runtime;
-    private final MinecraftAtlasMenu menu;
     private final AtlasProximityIndex<String> index = new AtlasProximityIndex<>();
     private final Map<UUID, CompletableFuture<AtlasPlayerState>> loading = new HashMap<>();
     private AtlasPlayerStore store;
@@ -41,7 +40,6 @@ public final class MinecraftAtlasService implements AutoCloseable {
 
     public MinecraftAtlasService(WormholesModRuntime runtime) {
         this.runtime = runtime;
-        menu = new MinecraftAtlasMenu(runtime, this);
     }
 
     public void start() {
@@ -127,10 +125,6 @@ public final class MinecraftAtlasService implements AutoCloseable {
         return running && settings().enabled;
     }
 
-    void open(ServerPlayer player, AtlasModel.Filter filter) {
-        withState(player, state -> menu.open(player, state, filter));
-    }
-
     void withState(ServerPlayer player, Consumer<AtlasPlayerState> action) {
         if (!running) {
             return;
@@ -144,18 +138,18 @@ public final class MinecraftAtlasService implements AutoCloseable {
         }));
     }
 
-    AtlasPlayerState.FavoriteResult toggleFavorite(AtlasPlayerState state, UUID portalId) {
+    public AtlasPlayerState.FavoriteResult toggleFavorite(AtlasPlayerState state, UUID portalId) {
         return state.toggleFavorite(portalId, settings().favoritesLimit);
     }
 
-    void setGuideTarget(ServerPlayer player, AtlasPlayerState state, UUID portalId) {
+    public void setGuideTarget(ServerPlayer player, AtlasPlayerState state, UUID portalId) {
         state.setGuideTarget(portalId);
         if (portalId == null) {
             MinecraftMenuText.notice(player, Component.empty());
         }
     }
 
-    List<AtlasModel.Row> candidates(ServerPlayer player) {
+    public List<AtlasModel.Row> candidates(ServerPlayer player) {
         List<AtlasModel.Row> rows = new ArrayList<>();
         for (MinecraftPortal portal : runtime.portals().snapshot()) {
             if (portal.isManaged() || !runtime.portals().canDepart(player, portal)) {
@@ -166,8 +160,20 @@ public final class MinecraftAtlasService implements AutoCloseable {
         return rows;
     }
 
-    AtlasConfig settings() {
+    public AtlasConfig settings() {
         return runtime.configuration().settings().getAtlas();
+    }
+
+    public AtlasPlayerState state(ServerPlayer player) {
+        if (!running) {
+            return null;
+        }
+        AtlasPlayerState state = store.cached(player.getUUID());
+        if (state != null) {
+            return state;
+        }
+        load(player);
+        return store.cached(player.getUUID());
     }
 
     void send(ServerPlayer player, TextKey key, MessageArgs arguments) {
@@ -193,18 +199,6 @@ public final class MinecraftAtlasService implements AutoCloseable {
         MinecraftPortal destination = portal.getDestinationId() == null ? null : runtime.portals().get(portal.getDestinationId());
         return new AtlasModel.Row(portal.getId(), portal.getName(), portal.getWorldKey(),
             destination == null ? "" : destination.getName(), address, distance, portal.isOpen() && runtime.effects().ready(portal), false, listed);
-    }
-
-    private AtlasPlayerState state(ServerPlayer player) {
-        if (!running) {
-            return null;
-        }
-        AtlasPlayerState state = store.cached(player.getUUID());
-        if (state != null) {
-            return state;
-        }
-        load(player);
-        return store.cached(player.getUUID());
     }
 
     private CompletableFuture<AtlasPlayerState> load(ServerPlayer player) {

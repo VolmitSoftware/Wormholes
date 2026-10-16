@@ -1,24 +1,29 @@
 package art.arcane.wormholes.access;
 
+import art.arcane.wormholes.PortalManager;
+import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.hook.WormholesHooks;
 import art.arcane.wormholes.hook.WormholesRegistrar;
 import art.arcane.wormholes.localization.WormholesLocalization;
+import art.arcane.wormholes.menu.access.AccessRoutes;
+import art.arcane.wormholes.menu.portal.MenuExtensionEntry;
 import art.arcane.wormholes.portal.LocalPortal;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
-import org.bukkit.Material;
 import org.bukkit.World;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 final class AccessMenuModelTest {
     private World world;
@@ -46,59 +51,32 @@ final class AccessMenuModelTest {
     }
 
     @Test
-    void everyRoleHasItsOwnIcon() {
-        Set<Material> icons = new HashSet<>();
-        for (PortalRole role : PortalRole.values()) {
-            icons.add(AccessMenu.roleIcon(role));
-        }
-
-        assertEquals(PortalRole.values().length, icons.size());
-    }
-
-    @Test
-    void addingAPlayerReportsWhyItWasRefused() {
-        LocalPortal portal = AccessTestPortals.portal(world);
-        UUID ownerId = UUID.randomUUID();
-        UUID listed = UUID.randomUUID();
-        portal.setOwner(ownerId);
-        AccessPortalExtension access = portal.extension(AccessPortalExtension.class);
-        access.setRole(listed, PortalRole.USER);
-
-        assertSame(AccessMenu.AddResolution.NOT_FOUND, AccessMenu.resolveAddition(portal, access, null));
-        assertSame(AccessMenu.AddResolution.OWNER, AccessMenu.resolveAddition(portal, access, ownerId));
-        assertSame(AccessMenu.AddResolution.ALREADY_LISTED, AccessMenu.resolveAddition(portal, access, listed));
-        assertSame(AccessMenu.AddResolution.ADD, AccessMenu.resolveAddition(portal, access, UUID.randomUUID()));
-    }
-
-    @Test
-    void theWindowGrowsWithTheRoleListAndStopsAtSixRows() {
-        assertEquals(1, AccessMenu.viewportHeight(0));
-        assertEquals(2, AccessMenu.viewportHeight(1));
-        assertEquals(2, AccessMenu.viewportHeight(9));
-        assertEquals(3, AccessMenu.viewportHeight(10));
-        assertEquals(6, AccessMenu.viewportHeight(900));
-    }
-
-    @Test
-    void roleEntriesFillLeftToRightUnderTheHeader() {
-        assertEquals(1, AccessMenu.entryRow(0));
-        assertEquals(1, AccessMenu.entryRow(8));
-        assertEquals(2, AccessMenu.entryRow(9));
-        assertEquals(-4, AccessMenu.entryPosition(0));
-        assertEquals(4, AccessMenu.entryPosition(8));
-        assertEquals(-4, AccessMenu.entryPosition(9));
-    }
-
-    @Test
     void theMenuEntryIsTheAccessTagInTheMoreSettingsGrid() {
-        AccessMenuEntry entry = new AccessMenuEntry();
         LocalPortal portal = AccessTestPortals.portal(world);
+        PortalManager previous = Wormholes.portalManager;
+        PortalManager portals = mock(PortalManager.class);
+        when(portals.getLocalPortal(portal.getId())).thenReturn(portal);
+        Wormholes.portalManager = portals;
+        try {
+            WormholesRegistrar registrar = new WormholesRegistrar();
+            new AccessSubsystem().register(registrar);
+            WormholesHooks.install(registrar);
+            MenuExtensionEntry entry = WormholesHooks.portalMenuEntries().getFirst();
 
-        assertEquals("access", entry.id());
-        assertSame(Material.NAME_TAG, entry.icon());
-        List<Component> lines = new WormholesLocalization().components(entry.label(), entry.arguments(portal, null));
-        assertEquals(2, lines.size());
-        assertEquals("Access", PlainTextComponentSerializer.plainText().serialize(lines.getFirst()));
-        assertEquals("Roles, groups, and the permission key.", PlainTextComponentSerializer.plainText().serialize(lines.get(1)));
+            assertEquals("access", entry.id());
+            assertEquals("minecraft:name_tag", entry.chestItemId());
+            assertEquals("access", entry.nativeSprite());
+            assertEquals(AccessRoutes.roles(portal.getId()), entry.route().apply(portal.getId()));
+            assertTrue(entry.visible().test(null, portal.getId()));
+            assertFalse(entry.enchanted().test(null, portal.getId()));
+            portal.extension(AccessPortalExtension.class).setRole(UUID.randomUUID(), PortalRole.USER);
+            assertTrue(entry.enchanted().test(null, portal.getId()));
+            List<Component> lines = new WormholesLocalization().components(entry.label(), entry.arguments().apply(portal.getId()));
+            assertEquals(2, lines.size());
+            assertEquals("Access", PlainTextComponentSerializer.plainText().serialize(lines.getFirst()));
+            assertEquals("Roles, groups, and the permission key.", PlainTextComponentSerializer.plainText().serialize(lines.get(1)));
+        } finally {
+            Wormholes.portalManager = previous;
+        }
     }
 }

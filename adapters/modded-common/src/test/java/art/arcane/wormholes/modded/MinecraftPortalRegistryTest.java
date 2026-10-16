@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded;
 
+import art.arcane.wormholes.menu.MenuService;
 import art.arcane.optics.crossing.GravityFrame;
 import art.arcane.optics.crossing.ScaleRule;
 
@@ -392,7 +393,7 @@ public class MinecraftPortalRegistryTest extends MinecraftTestBase {
     private Fixture fixture() {
         WormholesModRuntime runtime = mock(WormholesModRuntime.class);
         when(runtime.nexus()).thenReturn(mock(MinecraftNexus.class));
-        when(runtime.menus()).thenReturn(mock(MinecraftPortalMenus.class));
+        when(runtime.menus()).thenReturn(mock(MenuService.class));
         when(runtime.doors()).thenReturn(mock(MinecraftDoorService.class));
         doCallRealMethod().when(runtime).travelArrived(any(Entity.class));
         MinecraftNetworkService network = mock(MinecraftNetworkService.class);

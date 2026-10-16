@@ -111,7 +111,7 @@ public final class MinecraftDoorGameTest {
             .thenWaitUntil(() -> placed(0, source))
             .thenExecute(() -> place(1, destination))
             .thenWaitUntil(() -> placed(1, destination))
-            .thenExecute(() -> doorMenu = MinecraftDoorMenuGameTest.verify(new MinecraftDoorMenuGameTest.Options(helper, runtime, player, channel,
+            .thenExecute(() -> doorMenu = MinecraftDoorMenuGameTest.verify(new MinecraftDoorMenuGameTest.Options(helper, runtime, player,
                 runtime.doors().state().findEndpointByItem(identity(0)).orElseThrow())))
             .thenWaitUntil(() -> helper.assertTrue(WormholesGameTests.completed(helper, doorMenu, "door_menu"), "Door menu verification did not complete"))
             .thenExecute(() -> atlasMenu = MinecraftAtlasMenuGameTest.verify(helper, runtime))

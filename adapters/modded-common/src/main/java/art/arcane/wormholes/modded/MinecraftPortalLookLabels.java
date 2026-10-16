@@ -164,7 +164,7 @@ final class MinecraftPortalLookLabels implements AutoCloseable {
     }
 
     private void scanLookingPortals(ServerPlayer player, List<MinecraftPortal> portals, boolean holdingPortalTool) {
-        if (runtime.menus().choosingDirection(player)) {
+        if (runtime.portalMenuHost().choosingDirection(player)) {
             return;
         }
         Vec3 position = player.position();
@@ -182,9 +182,9 @@ final class MinecraftPortalLookLabels implements AutoCloseable {
 
     private void onLooking(ServerPlayer player, MinecraftPortal portal, boolean holdingWand) {
         if (holdingWand) {
-            runtime.menus().shortTitles().send(player, portal.getId(), MinecraftPortalText.router(runtime, portal, false));
+            runtime.portalMenuHost().shortTitles().send(player, portal.getId(), MinecraftPortalText.router(runtime, portal, false));
         } else if (portal.isPublicLookLabel()) {
-            runtime.menus().shortTitles().send(player, portal.getId(), GOLD_BOLD + portal.getName());
+            runtime.portalMenuHost().shortTitles().send(player, portal.getId(), GOLD_BOLD + portal.getName());
         }
     }
 

@@ -1,10 +1,19 @@
 package art.arcane.wormholes.modded;
 
 import art.arcane.wormholes.config.WormholesSettings;
+import art.arcane.wormholes.menu.MenuCapability;
+import art.arcane.wormholes.menu.MenuService;
+import art.arcane.wormholes.menu.protocol.MenuClientMessage;
+import art.arcane.wormholes.menu.protocol.MenuCodec;
+import art.arcane.wormholes.menu.protocol.MenuProtocolException;
+import art.arcane.wormholes.modded.mixin.ServerConnectionAccess;
 import com.mojang.brigadier.CommandDispatcher;
 import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.network.Connection;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.network.ServerGamePacketListenerImpl;
 import net.minecraft.server.permissions.LevelBasedPermissionSet;
 import net.minecraft.server.players.PlayerList;
 import net.minecraft.world.item.crafting.RecipeManager;
@@ -18,6 +27,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -28,6 +39,7 @@ import java.util.function.Supplier;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -35,6 +47,7 @@ import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.withSettings;
 
 public class WormholesModRuntimeTest extends MinecraftTestBase {
     @Rule
@@ -60,6 +73,87 @@ public class WormholesModRuntimeTest extends MinecraftTestBase {
             for (String name : List.of("wormholes", "wh", "wormhole")) {
                 assertTrue(dispatcher.getRoot().getChild(name).canUse(source));
             }
+        } finally {
+            runtime.stop();
+        }
+    }
+
+    @Test
+    public void menuServiceLivesForOneRuntimeStart() {
+        MinecraftServer server = server();
+        WormholesModRuntime runtime = new WormholesModRuntime();
+        runtime.start(server);
+        MenuService first = runtime.menus();
+        runtime.tick();
+        runtime.stop();
+        runtime.start(server);
+        try {
+            assertNotSame(first, runtime.menus());
+        } finally {
+            runtime.stop();
+        }
+    }
+
+    @Test
+    public void joiningClearsMenuStateLeftByThePreviousConnection() throws MenuProtocolException {
+        WormholesModRuntime runtime = new WormholesModRuntime();
+        runtime.start(server());
+        UUID viewer = UUID.fromString("c1b2c3d4-0000-4000-8000-000000000001");
+        ServerPlayer player = mock(ServerPlayer.class);
+        when(player.getUUID()).thenReturn(viewer);
+        try {
+            runtime.menus().receive(viewer, MenuCodec.encodeClient(new MenuClientMessage.Hello(1)));
+            assertEquals(Optional.of(new MenuCapability(1)), runtime.menus().capabilities().capability(viewer));
+
+            runtime.playerJoined(player);
+
+            assertEquals(Optional.empty(), runtime.menus().capabilities().capability(viewer));
+        } finally {
+            runtime.stop();
+        }
+    }
+
+    @Test
+    public void deferredDisconnectKeepsTheNewerConnectionsMenuCapability() throws MenuProtocolException {
+        MinecraftServer server = server();
+        List<Runnable> deferred = new ArrayList<>();
+        doAnswer(invocation -> deferred.add(invocation.getArgument(0, Runnable.class))).when(server).execute(any(Runnable.class));
+        WormholesModRuntime runtime = new WormholesModRuntime();
+        runtime.start(server);
+        UUID viewer = UUID.fromString("c1b2c3d4-0000-4000-8000-000000000002");
+        ServerPlayer previous = menuPlayer(viewer);
+        ServerPlayer current = menuPlayer(viewer);
+        try {
+            when(server.isSameThread()).thenReturn(false);
+            runtime.playerDisconnected(previous);
+            when(server.isSameThread()).thenReturn(true);
+            when(server.getPlayerList().getPlayer(viewer)).thenReturn(current);
+            runtime.playerJoined(current);
+            runtime.menus().receive(viewer, MenuCodec.encodeClient(new MenuClientMessage.Hello(1)));
+
+            for (Runnable task : deferred) {
+                task.run();
+            }
+
+            assertEquals(1, deferred.size());
+            assertEquals(Optional.of(new MenuCapability(1)), runtime.menus().capabilities().capability(viewer));
+        } finally {
+            runtime.stop();
+        }
+    }
+
+    @Test
+    public void disconnectClearsTheLeavingConnectionsMenuCapability() throws MenuProtocolException {
+        WormholesModRuntime runtime = new WormholesModRuntime();
+        runtime.start(server());
+        UUID viewer = UUID.fromString("c1b2c3d4-0000-4000-8000-000000000003");
+        ServerPlayer player = menuPlayer(viewer);
+        try {
+            runtime.menus().receive(viewer, MenuCodec.encodeClient(new MenuClientMessage.Hello(1)));
+
+            runtime.playerDisconnected(player);
+
+            assertEquals(Optional.empty(), runtime.menus().capabilities().capability(viewer));
         } finally {
             runtime.stop();
         }
@@ -121,6 +215,7 @@ public class WormholesModRuntimeTest extends MinecraftTestBase {
         assertThrows(IllegalStateException.class, runtime::tick);
         assertThrows(IllegalStateException.class, runtime::leases);
         assertThrows(IllegalStateException.class, runtime::preSend);
+        assertThrows(IllegalStateException.class, runtime::menus);
         when(server.isSameThread()).thenReturn(true);
         runtime.stop();
     }
@@ -265,6 +360,14 @@ public class WormholesModRuntimeTest extends MinecraftTestBase {
         runtime.start(server);
         assertEquals(MinecraftStorePaths.singleplayer(game, save, true), runtime.stores());
         runtime.stop();
+    }
+
+    private static ServerPlayer menuPlayer(UUID viewer) {
+        ServerPlayer player = mock(ServerPlayer.class);
+        player.connection = mock(ServerGamePacketListenerImpl.class, withSettings().extraInterfaces(ServerConnectionAccess.class));
+        when(((ServerConnectionAccess) player.connection).wormholesConnection()).thenReturn(mock(Connection.class));
+        when(player.getUUID()).thenReturn(viewer);
+        return player;
     }
 
     private MinecraftServer singleplayer(Path save) {

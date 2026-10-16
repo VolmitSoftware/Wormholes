@@ -13,6 +13,7 @@ import art.arcane.wormholes.api.traversal.TraversalKind;
 import art.arcane.wormholes.api.traversal.TraversalRefundReason;
 import art.arcane.wormholes.door.DoorProjectionState;
 import art.arcane.wormholes.localization.WormholesMessages;
+import art.arcane.wormholes.menu.door.DoorRoutes;
 import art.arcane.wormholes.door.view.DoorApertureFrames;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.crossing.PlaneCrossing;
@@ -128,7 +129,6 @@ public final class MinecraftDoorService implements AutoCloseable {
     private static final long TRANSIT_COOLDOWN_MILLIS = 1_000L;
 
     private final WormholesModRuntime runtime;
-    private final MinecraftDoorAccessMenu accessMenu;
     private Options options;
     private ExecutorService storage;
     private MinecraftServer server;
@@ -158,7 +158,6 @@ public final class MinecraftDoorService implements AutoCloseable {
 
     public MinecraftDoorService(WormholesModRuntime runtime) {
         this.runtime = Objects.requireNonNull(runtime);
-        accessMenu = new MinecraftDoorAccessMenu(runtime, this);
     }
 
     public void load(Options options) throws IOException {
@@ -377,7 +376,7 @@ public final class MinecraftDoorService implements AutoCloseable {
             clickedBlock.getY(), clickedBlock.getZ()).orElse(null);
         if (clicked != null && hand == InteractionHand.MAIN_HAND && player.isShiftKeyDown() && held.isEmpty()
             && canManage(player, clicked.identity().itemId())) {
-            accessMenu.open(player, clicked);
+            runtime.menus().open(player.getUUID(), DoorRoutes.access(clicked.identity().itemId()));
             return true;
         }
         if (clicked != null && !canAccess(player, clicked)) {
@@ -1439,11 +1438,7 @@ public final class MinecraftDoorService implements AutoCloseable {
             }
             store.findEndpointByItem(itemId).ifPresent(endpoint -> doors.put(itemId, new ActiveDoor(endpoint)));
             return changed;
-        }, server).whenComplete((changed, failure) -> {
-            if (failure != null) {
-                LOGGER.error("Could not edit dimensional door {}", itemId, failure);
-            }
-        });
+        }, server);
     }
 
     public record AccessChange(UUID playerId, DoorAccessState state) {

@@ -3,6 +3,8 @@ package art.arcane.wormholes.modded;
 import art.arcane.volmlib.util.localization.LinesKey;
 import art.arcane.volmlib.util.localization.MessageArgs;
 import art.arcane.volmlib.util.localization.TextKey;
+import art.arcane.wormholes.menu.portal.MenuExtensionEntry;
+import art.arcane.wormholes.modded.menu.MinecraftMenuViewer;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.network.chat.Component;
@@ -96,5 +98,18 @@ final class MinecraftSubsystemMenuProbe {
 
     static void assertClosed(GameTestHelper helper, ServerPlayer player, String context) {
         helper.assertTrue(player.containerMenu == player.inventoryMenu, context + ": the window stayed open");
+    }
+
+    static MenuExtensionEntry extensionEntry(WormholesModRuntime runtime, String id) {
+        for (MenuExtensionEntry entry : MinecraftExtensionEntries.create(runtime)) {
+            if (entry.id().equals(id)) {
+                return entry;
+            }
+        }
+        throw new IllegalStateException("No built-in extension entry " + id);
+    }
+
+    static boolean glows(WormholesModRuntime runtime, MenuExtensionEntry entry, ServerPlayer player, MinecraftPortal portal) {
+        return entry.enchanted().test(new MinecraftMenuViewer(runtime, player), portal.getId());
     }
 }

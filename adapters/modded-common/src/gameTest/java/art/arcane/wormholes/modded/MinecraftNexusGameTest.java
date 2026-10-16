@@ -15,6 +15,8 @@ import net.minecraft.core.BlockPos;
 import art.arcane.volmlib.util.localization.MessageArgs;
 import art.arcane.wormholes.localization.NexusMessages;
 import art.arcane.wormholes.localization.WormholesMessages;
+import art.arcane.wormholes.menu.nexus.NexusRoutes;
+import art.arcane.wormholes.menu.portal.MenuExtensionEntry;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.gametest.framework.GameTestSequence;
 import net.minecraft.server.level.ServerPlayer;
@@ -83,8 +85,7 @@ public final class MinecraftNexusGameTest {
             NetworkRegistry loaded = new NetworkRegistry(nexus.networks().directory(), MinecraftJsonDocuments.INSTANCE);
             loaded.load();
             assertThat(loaded.byId(network.id()).members().size() == 3, "Native network members did not persist");
-            dialLayout(projected, destination);
-            menus();
+            menus(projected);
         } catch (Throwable failure) {
             finish(failure);
         }
@@ -168,9 +169,8 @@ public final class MinecraftNexusGameTest {
         }
     }
 
-    private void dialLayout(MinecraftPortal projected, MinecraftPortal destination) {
+    private void dialLayout(MinecraftPortal projected) {
         ServerPlayer viewer = actor.player();
-        runtime.nexus().menus().open(viewer, source);
         MinecraftSubsystemMenuProbe.assertWindow(helper, viewer, MinecraftPortalText.router(runtime, source, true), 6,
             MinecraftDyedItems.pane(DyeColor.CYAN), MinecraftSubsystemMenuProbe.slot(-4, 5), "Dial window");
         MinecraftSubsystemMenuProbe.assertElement(helper, viewer, -4, 0, Items.ENDER_PEARL, dialEntry(viewer, "BBBB", projected), true, "Dialed address");
@@ -186,18 +186,22 @@ public final class MinecraftNexusGameTest {
             MinecraftSubsystemMenuProbe.text(viewer, WormholesMessages.LABEL_OPEN, MessageArgs.empty())));
     }
 
-    private void menus() {
+    private void menus(MinecraftPortal projected) {
         ServerPlayer viewer = actor.player();
         MinecraftPortal menuSource = portal(20);
         MinecraftPortal menuPeer = portal(26);
         String name = "menu-" + UUID.randomUUID();
-        MinecraftNetworkMenuEntry entry = new MinecraftNetworkMenuEntry(runtime);
+        MenuExtensionEntry entry = MinecraftSubsystemMenuProbe.extensionEntry(runtime, "nexus-network");
         GameTestSequence sequence = helper.startSequence();
-        step(sequence, () -> {
-            assertThat(entry.id().equals("nexus-network") && entry.icon() == Items.COMPASS && entry.label() == NexusMessages.MENU_ENTRY,
+        step(sequence, () -> runtime.menus().open(viewer.getUUID(), NexusRoutes.dial(source.getId())));
+        idle(sequence, 2, () -> {
+            dialLayout(projected);
+            assertThat(entry.chestItemId().equals("minecraft:compass") && entry.label() == NexusMessages.MENU_ENTRY,
                 "Network entry identity differs from Bukkit");
-            assertThat(!entry.enchanted(menuSource, viewer), "Network entry glowed off network");
-            entry.onLeftClick(menuSource, viewer, new MinecraftWindow(runtime, viewer));
+            assertThat(!MinecraftSubsystemMenuProbe.glows(runtime, entry, viewer, menuSource), "Network entry glowed off network");
+        });
+        idle(sequence, 2, () -> runtime.menus().open(viewer.getUUID(), NexusRoutes.network(menuSource.getId())));
+        idle(sequence, 2, () -> {
             assertJoinLayout(viewer, menuSource);
             MinecraftSubsystemMenuProbe.left(viewer, 1, 1);
         });
@@ -208,11 +212,13 @@ public final class MinecraftNexusGameTest {
         idle(sequence, 2, () -> {
             menuNetwork = runtime.nexus().networks().byName(name);
             assertThat(menuNetwork != null && menuNetwork.member(menuSource.getId()) != null, "Network create prompt did not create and join");
-            assertThat(entry.enchanted(menuSource, viewer), "Network entry did not glow on a network");
+            assertThat(MinecraftSubsystemMenuProbe.glows(runtime, entry, viewer, menuSource), "Network entry did not glow on a network");
             assertThat(MinecraftSubsystemMenuProbe.messaged(actor.messages(), MinecraftSubsystemMenuProbe.text(viewer, NexusMessages.CREATED,
                 MinecraftPortalText.arguments("name", name))), "Network create notice was not sent");
             MinecraftSubsystemMenuProbe.assertClosed(helper, viewer, "Network create completion");
-            runtime.nexus().menus().openManagement(viewer, menuSource);
+            runtime.menus().open(viewer.getUUID(), NexusRoutes.network(menuSource.getId()));
+        });
+        idle(sequence, 2, () -> {
             assertNetworkLayout(viewer, menuSource, "false", "SINGLE", "NONE/NONE");
             MinecraftSubsystemMenuProbe.left(viewer, -3, 2);
         });
@@ -246,15 +252,15 @@ public final class MinecraftNexusGameTest {
             assertThat("ZZZZ".equals(menuSource.setting("nexus.address")), "Network address prompt did not apply");
             assertThat(MinecraftSubsystemMenuProbe.messaged(actor.messages(), MinecraftSubsystemMenuProbe.text(viewer, NexusMessages.ADDRESS_SET,
                 MinecraftPortalText.arguments("portal", menuSource.getName(), "address", "ZZZZ"))), "Network address notice was not sent");
-            runtime.nexus().menus().openManagement(viewer, menuPeer);
-            MinecraftSubsystemMenuProbe.left(viewer, -1, 1);
+            runtime.menus().open(viewer.getUUID(), NexusRoutes.network(menuPeer.getId()));
         });
+        idle(sequence, 2, () -> MinecraftSubsystemMenuProbe.left(viewer, -1, 1));
         idle(sequence, 3, () -> assertThat(MinecraftChatInput.chat(viewer, name), "Network join prompt did not consume chat"));
         idle(sequence, 2, () -> {
             assertThat(runtime.nexus().networks().byName(name).member(menuPeer.getId()) != null, "Network join prompt did not join");
-            runtime.nexus().menus().openManagement(viewer, menuSource);
-            MinecraftSubsystemMenuProbe.left(viewer, 3, 1);
+            runtime.menus().open(viewer.getUUID(), NexusRoutes.network(menuSource.getId()));
         });
+        idle(sequence, 2, () -> MinecraftSubsystemMenuProbe.left(viewer, 3, 1));
         idle(sequence, 3, () -> {
             MinecraftSubsystemMenuProbe.assertWindow(helper, viewer, MinecraftPortalText.router(runtime, menuSource, true), 6,
                 MinecraftDyedItems.pane(DyeColor.CYAN), MinecraftSubsystemMenuProbe.slot(4, 4), "Network dial window");
@@ -266,9 +272,9 @@ public final class MinecraftNexusGameTest {
         idle(sequence, 3, () -> {
             MinecraftSubsystemMenuProbe.assertClosed(helper, viewer, "Network dial");
             assertThat(menuPeer.getId().equals(menuSource.getDestinationId()), "Network dial click did not link the portal");
-            runtime.nexus().menus().openManagement(viewer, menuSource);
-            MinecraftSubsystemMenuProbe.left(viewer, 3, 2);
+            runtime.menus().open(viewer.getUUID(), NexusRoutes.network(menuSource.getId()));
         });
+        idle(sequence, 2, () -> MinecraftSubsystemMenuProbe.left(viewer, 3, 2));
         idle(sequence, 3, () -> {
             assertThat(menuSource.setting("nexus.networkId") == null, "Network leave did not clear the portal");
             assertJoinLayout(viewer, menuSource);

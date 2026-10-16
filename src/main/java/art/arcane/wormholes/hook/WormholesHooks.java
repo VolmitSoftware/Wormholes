@@ -1,5 +1,6 @@
 package art.arcane.wormholes.hook;
 
+import art.arcane.wormholes.menu.portal.MenuExtensionEntry;
 import art.arcane.wormholes.network.WireMessageHandlers;
 
 import java.util.List;
@@ -15,7 +16,7 @@ public final class WormholesHooks {
     private static volatile List<TraversalObserver> traversalObservers = List.of();
     private static volatile List<PortalExtensionFactory<?>> portalExtensionFactories = List.of();
     private static volatile List<ProjectionSource> projectionSources = List.of();
-    private static volatile List<PortalMenuEntry> portalMenuEntries = List.of();
+    private static volatile List<MenuExtensionEntry> portalMenuEntries = List.of();
 
     private WormholesHooks() {
     }
@@ -60,7 +61,7 @@ public final class WormholesHooks {
         return projectionSources;
     }
 
-    public static List<PortalMenuEntry> portalMenuEntries() {
+    public static List<MenuExtensionEntry> portalMenuEntries() {
         return portalMenuEntries;
     }
 }

@@ -19,10 +19,14 @@ import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.util.Vector;
 
+import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.hook.PortalExtension;
+import art.arcane.wormholes.localization.WormholesMessages;
+import art.arcane.wormholes.menu.MenuScope;
+import art.arcane.wormholes.menu.MenuService;
+import art.arcane.wormholes.menu.portal.PortalRoutes;
 import art.arcane.wormholes.util.BukkitGeometry;
 import art.arcane.wormholes.portal.rtp.RtpSettings;
-import art.arcane.volmlib.util.inventorygui.Window;
 import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Face;
 import art.arcane.wormholes.api.traversal.internal.TraversalCostGateway;
@@ -43,7 +47,8 @@ public class LocalPortal extends Portal implements ILocalPortal, Listener, Porta
 	private final LocalPortalRtp rtp = new LocalPortalRtp(this);
 	private final LocalPortalDepartureHold departureHold = new LocalPortalDepartureHold(this);
 	private final LocalPortalPrompts prompts = new LocalPortalPrompts(this);
-	private final LocalPortalMenus menus = new LocalPortalMenus(this);
+	private final LocalPortalText text = new LocalPortalText(this);
+	private final LocalPortalAccess access = new LocalPortalAccess(this);
 	private final PortalExtensions extensions = new PortalExtensions(this);
 	private PortalStructure structure;
 	private volatile PortalType type;
@@ -100,6 +105,16 @@ public class LocalPortal extends Portal implements ILocalPortal, Listener, Porta
 	LocalPortalLinking linking()
 	{
 		return linking;
+	}
+
+	LocalPortalText text()
+	{
+		return text;
+	}
+
+	LocalPortalAccess access()
+	{
+		return access;
 	}
 
 	/** Lane-owned per-portal state. Null when the extension type is not registered. */
@@ -181,6 +196,31 @@ public class LocalPortal extends Portal implements ILocalPortal, Listener, Porta
 	public void setRtpSettings(RtpSettings settings)
 	{
 		rtp.setRtpSettings(settings);
+	}
+
+	public long getRtpRevision()
+	{
+		return rtp.revision();
+	}
+
+	public void applyRtpSettings(RtpSettings settings)
+	{
+		rtp.applyRtpSettings(settings);
+	}
+
+	public RtpSettings defaultRtpSettings()
+	{
+		return rtp.defaultRtpSettings();
+	}
+
+	public World resolveRtpWorld(String worldKey)
+	{
+		return rtp.resolveRtpWorld(worldKey);
+	}
+
+	public boolean runRtpSourceTask(Runnable task)
+	{
+		return rtp.runSourceTask(task);
 	}
 
 	public PortalTravelCost getTravelCost()
@@ -289,7 +329,7 @@ public class LocalPortal extends Portal implements ILocalPortal, Listener, Porta
 	@Override
 	public void onWanded(Player p)
 	{
-		uiOpenPortalMenu(p);
+		Wormholes.openMenu(p.getUniqueId(), PortalRoutes.home(getId()));
 	}
 
 	@Override
@@ -585,34 +625,29 @@ public class LocalPortal extends Portal implements ILocalPortal, Listener, Porta
 		linking.setDimensionalPortalKind(kind);
 	}
 
-	@Override
-	public void uiOpenPortalMenu(Player p)
+	public PortalTravelMode getTravelMode()
 	{
-		menus.uiOpenPortalMenu(p);
+		return settings.getTravelMode();
 	}
 
-	@Override
-	public Window uiCreatePortalMenu(Player p)
+	public void setTravelMode(PortalTravelMode mode)
 	{
-		return menus.uiCreatePortalMenu(p);
+		settings.setTravelMode(mode);
 	}
 
-	@Override
-	public void uiChooseMode(Player p)
+	public NetworkViewQuality getNetworkViewQuality()
 	{
-		menus.uiChooseMode(p);
+		return settings.getNetworkViewQuality();
 	}
 
-	@Override
-	public void uiChooseDestination(Player p)
+	public void setNetworkViewQuality(NetworkViewQuality quality)
 	{
-		menus.uiChooseDestination(p);
+		settings.setNetworkViewQuality(quality);
 	}
 
-	@Override
-	public void uiChangeName(Player p)
+	public boolean canManage(UUID playerId, boolean administrator)
 	{
-		menus.uiChangeName(p);
+		return access.canManage(playerId, administrator);
 	}
 
 	@Override
@@ -621,14 +656,31 @@ public class LocalPortal extends Portal implements ILocalPortal, Listener, Porta
 		prompts.uiChangeDirection(p);
 	}
 
-	public void refreshOpenMenus()
+	public void invalidateMenus()
 	{
-		menus.refreshOpenMenus();
+		MenuService menus = Wormholes.menus;
+		if(menus != null)
+		{
+			menus.invalidate(new MenuScope.Portal(getId()));
+		}
 	}
 
 	public boolean applySurfaceSkinFromInteraction(Player player, String skin)
 	{
-		return menus.cosmetics().applySurfaceSkinFromInteraction(player, skin);
+		if(!access().ensureCanEditSurfaceSkin(player))
+		{
+			return false;
+		}
+		String previous = getSurfaceSkin();
+		setSurfaceSkin(skin);
+		String current = getSurfaceSkin();
+		if(!previous.equals(current))
+		{
+			text().notifySetting(player, WormholesMessages.PORTAL_NETWORK_VALUE_CHANGED,
+					LocalPortalText.arguments("label", LocalPortalText.localized(WormholesMessages.PORTAL_NETWORK_LABEL_SURFACE_SKIN),
+							"value", current.isEmpty() ? LocalPortalText.localized(WormholesMessages.PORTAL_LABEL_SKIN_NONE) : current));
+		}
+		return true;
 	}
 
 	@EventHandler
@@ -646,7 +698,7 @@ public class LocalPortal extends Portal implements ILocalPortal, Listener, Porta
 	@Override
 	public String getRouter(boolean dark, IPortal source)
 	{
-		return menus.text().router(dark, source);
+		return text.router(dark, source);
 	}
 
 	@Override

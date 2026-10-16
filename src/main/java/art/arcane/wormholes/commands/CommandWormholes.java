@@ -72,7 +72,7 @@ public class CommandWormholes {
 
     @Director(name = "language", sync = true, descriptionKey = "command.help.language", description = "Choose your language or the server default")
     public void language(@Param(name = "sender", contextual = true) CommandSender sender) {
-        plugin.getLanguageSwitcher().open(sender);
+        plugin.language(sender, new String[0]);
     }
 
     @Director(name = "wand", sync = true, descriptionKey = "command.help.wand", description = "Give yourself the portal wand and a wormhole rune")

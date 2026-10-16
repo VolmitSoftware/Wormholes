@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "wormholes:native_menu_protocol_runtime",
+  "environment": "wormholes:native_menu_protocol_runtime",
+  "structure": "wormholes:empty",
+  "max_ticks": 600,
+  "setup_ticks": 5,
+  "sky_access": true
+}

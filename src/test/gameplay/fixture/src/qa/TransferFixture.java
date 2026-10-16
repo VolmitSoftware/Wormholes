@@ -3,6 +3,7 @@ package qa;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.access.AccessPortalExtension;
+import art.arcane.wormholes.menu.portal.PortalRoutes;
 import art.arcane.wormholes.network.TraversalService;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.LocalPortal;
@@ -31,6 +32,7 @@ import java.util.concurrent.ConcurrentMap;
 public final class TransferFixture extends JavaPlugin {
     private final ConcurrentMap<UUID, PermissionAttachment> permissionAttachments = new ConcurrentHashMap<>();
     private final GatewayScaleFixture scaleFixture = new GatewayScaleFixture(this);
+    private final NativeMenuFixture nativeMenuFixture = new NativeMenuFixture(this);
 
     @Override
     public void onEnable() {
@@ -40,7 +42,7 @@ public final class TransferFixture extends JavaPlugin {
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-        if (!(sender instanceof Player player) || !player.isOp() || args.length == 0) {
+        if (!(sender instanceof Player player) || !player.hasPermission(NativeMenuFixture.USE_PERMISSION) || args.length == 0) {
             return true;
         }
         switch (args[0]) {
@@ -55,10 +57,19 @@ public final class TransferFixture extends JavaPlugin {
             case "horizontal" -> HorizontalProjectionFixture.execute(this, player, args);
             case "setup", "reentry" -> {
                 SetupRequest request = new SetupRequest(player.getWorld(), player.getUniqueId(), player, args[0].equals("reentry"));
-                getServer().getRegionScheduler().execute(this, request.world(), 0, 0, () -> setup(request));
+                FixtureScheduler.region(this, request.world(), 0, 0, () -> setup(request));
             }
-            case "stage" -> player.teleportAsync(new Location(player.getWorld(), 8.5, 101, 12.5, 180, 0)).thenAccept(done -> player.sendMessage("FIXTURE staged " + done));
-            case "menu" -> ((LocalPortal) Wormholes.portalManager.getLocalPortal(portalId())).uiOpenPortalMenu(player);
+            case "stage" -> FixtureScheduler.teleport(player, new Location(player.getWorld(), 8.5, 101, 12.5, 180, 0)).thenAccept(done -> player.sendMessage("FIXTURE staged " + done));
+            case "menu" -> {
+                if (args.length == 2) {
+                    nativeMenuFixture.menu(player, args[1]);
+                } else {
+                    Wormholes.menus.open(player.getUniqueId(), PortalRoutes.home(portalId()));
+                }
+            }
+            case "native" -> nativeMenuFixture.capability(player);
+            case "portal" -> portal(player, args);
+            case "perm" -> PortalQueryFixture.permission(player, args);
             case "where" -> player.sendMessage("FIXTURE server=" + Wormholes.networkManager.getLocalName() + " uuid=" + player.getUniqueId() + " transferred=" + player.isTransferred() + " position=" + player.getLocation().toVector());
             case "stats" -> {
                 TraversalService.Stats stats = Wormholes.traversalService.statsSnapshot();
@@ -119,6 +130,16 @@ public final class TransferFixture extends JavaPlugin {
             default -> player.sendMessage("FIXTURE unknown command");
         }
         return true;
+    }
+
+    private void portal(Player player, String[] args) {
+        String action = args.length > 1 ? args[1] : "";
+        switch (action) {
+            case "create" -> nativeMenuFixture.create(player, args);
+            case "revoke" -> nativeMenuFixture.revoke(player, args);
+            case "restore" -> nativeMenuFixture.restore(player, args);
+            default -> PortalQueryFixture.portal(player, args);
+        }
     }
 
     private void setup(SetupRequest request) {

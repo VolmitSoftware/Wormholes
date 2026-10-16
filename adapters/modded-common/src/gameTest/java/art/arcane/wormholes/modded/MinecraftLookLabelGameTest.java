@@ -1,5 +1,7 @@
 package art.arcane.wormholes.modded;
 
+import art.arcane.wormholes.modded.menu.MinecraftMenuViewer;
+import art.arcane.wormholes.modded.menu.host.MinecraftPortalMenuHost;
 import art.arcane.wormholes.portal.PortalType;
 import com.google.gson.JsonElement;
 import com.mojang.serialization.JsonOps;
@@ -85,12 +87,12 @@ public final class MinecraftLookLabelGameTest {
             drain();
             helper.assertTrue(subtitles.isEmpty(), "Wand holder beyond eight blocks still received a look label");
             place(front, 0.0F);
-            runtime.menus().uiChangeDirection(player, portal);
+            runtime.portalMenuHost().beginDirectionPrompt(new MinecraftMenuViewer(runtime, player), portal.getId());
         }).thenIdle(4).thenExecute(this::settle).thenIdle(12).thenExecute(() -> {
             drain();
             helper.assertTrue(!subtitles.contains(json(MinecraftPortalText.router(runtime, portal, false))),
                 "Wand holder choosing the portal direction still received the router subtitle");
-            MinecraftPortalMenus.directionInput(player, true);
+            MinecraftPortalMenuHost.directionInput(player, true);
             player.setItemInHand(InteractionHand.MAIN_HAND, ItemStack.EMPTY);
         }).thenIdle(4).thenExecute(this::settle).thenIdle(50).thenExecute(() -> {
             drain();

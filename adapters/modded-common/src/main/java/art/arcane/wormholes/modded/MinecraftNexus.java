@@ -1,6 +1,7 @@
 package art.arcane.wormholes.modded;
 
 import art.arcane.wormholes.config.toml.NexusConfig;
+import art.arcane.wormholes.menu.nexus.NexusRoutes;
 import art.arcane.wormholes.nexus.AddressAllocator;
 import art.arcane.wormholes.nexus.DestinationEntry;
 import art.arcane.wormholes.nexus.DestinationMode;
@@ -41,7 +42,6 @@ public final class MinecraftNexus implements AutoCloseable {
     private static final Map<MinecraftServer, MinecraftNexus> SERVICES = new HashMap<>();
 
     private final WormholesModRuntime runtime;
-    private final MinecraftNexusMenus menus;
     private final RedstoneIoIndex controls = new RedstoneIoIndex();
     private final Map<UUID, State> states = new LinkedHashMap<>();
     private final Map<UUID, ReturnAddress> returns = new HashMap<>();
@@ -53,7 +53,6 @@ public final class MinecraftNexus implements AutoCloseable {
 
     public MinecraftNexus(WormholesModRuntime runtime) {
         this.runtime = runtime;
-        menus = new MinecraftNexusMenus(runtime);
     }
 
     public void start() {
@@ -68,10 +67,6 @@ public final class MinecraftNexus implements AutoCloseable {
 
     public static MinecraftNexus forServer(MinecraftServer server) {
         return SERVICES.get(server);
-    }
-
-    public MinecraftNexusMenus menus() {
-        return menus;
     }
 
     public NetworkRegistry networks() {
@@ -360,7 +355,7 @@ public final class MinecraftNexus implements AutoCloseable {
         if (portal == null) {
             return false;
         }
-        menus.open(player, portal);
+        runtime.menus().open(player.getUUID(), NexusRoutes.dial(portal.getId()));
         return true;
     }
 

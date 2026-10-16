@@ -5,6 +5,7 @@ import art.arcane.volmlib.util.localization.TextKey;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.config.toml.AtlasConfig;
 import art.arcane.wormholes.localization.AtlasMessages;
+import art.arcane.wormholes.menu.atlas.AtlasRoutes;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -29,11 +30,9 @@ public final class CommandAtlas implements CommandExecutor, TabCompleter {
     private static final List<String> SUBCOMMANDS = List.of("favorites", "recents", "guide");
 
     private final AtlasService service;
-    private final AtlasMenu menu;
 
-    public CommandAtlas(AtlasService service, AtlasMenu menu) {
+    public CommandAtlas(AtlasService service) {
         this.service = Objects.requireNonNull(service, "service");
-        this.menu = Objects.requireNonNull(menu, "menu");
     }
 
     public enum Subcommand {
@@ -65,9 +64,9 @@ public final class CommandAtlas implements CommandExecutor, TabCompleter {
 
     private void executeLoaded(Player player, String[] args) {
         switch (parse(args)) {
-            case OPEN -> menu.open(player, AtlasModel.Filter.ALL);
-            case FAVORITES -> menu.open(player, AtlasModel.Filter.FAVORITES);
-            case RECENTS -> menu.open(player, AtlasModel.Filter.RECENTS);
+            case OPEN -> Wormholes.openMenu(player.getUniqueId(), AtlasRoutes.list(AtlasModel.Filter.ALL));
+            case FAVORITES -> Wormholes.openMenu(player.getUniqueId(), AtlasRoutes.list(AtlasModel.Filter.FAVORITES));
+            case RECENTS -> Wormholes.openMenu(player.getUniqueId(), AtlasRoutes.list(AtlasModel.Filter.RECENTS));
             case GUIDE -> guide(player, guideTarget(args));
             case GUIDE_OFF -> {
                 service.setGuideTarget(player, null);

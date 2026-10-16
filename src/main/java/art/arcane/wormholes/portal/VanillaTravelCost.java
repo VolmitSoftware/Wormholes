@@ -97,7 +97,12 @@ public final class VanillaTravelCost implements PortalTravelCost
 
 	public String getItemLabel()
 	{
-		String[] words = template.getType().name().toLowerCase(Locale.ROOT).split("_");
+		return itemLabel(template.getType());
+	}
+
+	public static String itemLabel(Material material)
+	{
+		String[] words = material.name().toLowerCase(Locale.ROOT).split("_");
 		StringBuilder label = new StringBuilder();
 		for(String word : words)
 		{

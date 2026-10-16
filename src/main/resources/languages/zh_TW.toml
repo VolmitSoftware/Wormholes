@@ -1574,3 +1574,121 @@ off = "讓所有 ClientView 玩家恢復原版投影"
 reset = "重新啟動某位玩家的 ClientView 串流"
 "reset.player" = "線上玩家名稱"
 # ---- end lane:clientview ----
+
+# ---- lane:menu (menu.*) ----
+[menu.native.title]
+portal = "傳送門"
+mode = "傳送門模式"
+orientation = "朝向"
+gateway = "閘道配對"
+settings = "設定"
+advanced = "進階資料流調整"
+blackout = "遮蔽顏色"
+ambient = "環境顏色"
+skin = "表面外觀"
+cost = "通行費用"
+extensions = "更多設定"
+destinations = "目的地"
+select = "選擇傳送門"
+rtp = "隨機傳送"
+rtp_destination = "隨機目的地"
+rtp_biome = "目標生態域"
+rtp_landing = "落點"
+rtp_routing = "路由"
+rtp_effects = "效果"
+network = "網路"
+dial = "撥號"
+rules = "規則"
+rules_list = "規則清單"
+rule = "規則"
+templates = "規則範本"
+access = "存取"
+transit = "通行"
+fidelity = "保真度"
+atlas = "圖鑑"
+door = "維度門存取"
+language = "語言"
+
+[menu.native.context]
+portal = "{portal} - {type}"
+door = "{kind}維度門"
+network = "{name}"
+
+[menu.native.chrome]
+back = "返回"
+close = "關閉"
+apply = "套用"
+confirm = "確認"
+cancel = "取消"
+previous_page = "上一頁"
+next_page = "下一頁"
+page = "第 {page} / {pages} 頁"
+use_held_item = "使用手持物品"
+aim = "瞄準"
+timeout = "伺服器沒有回應。"
+
+[menu.native.action]
+rotate = "旋轉"
+rotate_clockwise = "順時針旋轉"
+rotate_counterclockwise = "逆時針旋轉"
+reset = "重設"
+clear = "清除"
+colors = "顏色"
+advanced = "進階"
+reroll = "重新抽取"
+remove = "移除"
+favorite = "收藏"
+guide = "指引"
+whitelist = "白名單"
+blacklist = "黑名單"
+use_default = "使用伺服器預設值"
+
+[menu.native.confirm]
+delete_portal = ["刪除 {portal}？", "這會移除該傳送門，並解除通往它的傳送門的連結。", "此操作無法復原。"]
+"delete_portal.accept" = "刪除"
+rtp_reset = ["重設 {portal}？", "所有隨機傳送設定都會恢復為預設值。"]
+"rtp_reset.accept" = "重設"
+rules_template = ["載入 {name}？", "範本會取代此傳送門的所有規則。"]
+"rules_template.accept" = "載入"
+nexus_leave = ["退出 {name}？", "此傳送門將停止透過網路撥號與接收。"]
+"nexus_leave.accept" = "退出"
+
+[menu.native.feedback]
+refreshed = "選單已變更並已重新整理。"
+unavailable = "該選項目前無法使用。"
+invalid_value = "不允許該值。"
+save_failed = "無法儲存變更。"
+timeout = "伺服器回應時間過長。"
+
+[menu.native.placeholder]
+name = "傳送門名稱"
+code = "邀請碼"
+block_state = "方塊狀態，例如 minecraft:glass"
+amount = "金額"
+player = "玩家名稱"
+key = "權限鍵"
+group = "群組名稱"
+network = "網路名稱"
+address = "位址"
+rule_id = "規則 ID"
+line = "規則行"
+factor = "係數"
+sound = "聲音 ID"
+ticks = "刻"
+scale = "縮放"
+search = "搜尋"
+
+[menu.native.transit]
+factor = "動量係數"
+threshold_effect = "臨界效果"
+arrival_sound = "抵達音效"
+mask_ticks = "遮罩刻數"
+scale_min = "最小縮放"
+scale_max = "最大縮放"
+
+[menu.native.nexus]
+comparator = "比較器輸出"
+
+[menu.native.list]
+page = ["&b&l第 {page}/{pages} 頁&r", "&7{count} 個項目"]
+# ---- end lane:menu ----

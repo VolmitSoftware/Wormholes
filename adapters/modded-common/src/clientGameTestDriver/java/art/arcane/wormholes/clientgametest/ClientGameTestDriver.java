@@ -57,13 +57,6 @@ public final class ClientGameTestDriver {
         }
     }
 
-    public static void systemMessage(String text) {
-        DriverClient current = driver;
-        if (current != null) {
-            current.systemMessage(text);
-        }
-    }
-
     private static boolean run(DriverClient client) {
         List<String> passed = new ArrayList<>();
         try {
@@ -128,6 +121,7 @@ public final class ClientGameTestDriver {
                 new Pass("held-chunk-singleplayer", label -> SeamlessHeldChunk.run(client, server, label)),
                 new Pass("portal-clip-singleplayer", label -> NativePortalClipAcceptance.run(client, label)),
                 new Pass("stencil-resize-singleplayer", label -> PortalStencilResize.run(client, server, label)),
+                new Pass("native-menu-home-singleplayer", label -> NativeMenuDriverPass.home(client, server, label)),
                 new Pass("end-portal-floor-singleplayer", label -> EndPortalFloor.run(client, server, label, EndPortalFloor.Travel.TWO_WAY)),
                 new Pass("end-portal-floor-one-way-singleplayer", label -> EndPortalFloor.run(client, server, label, EndPortalFloor.Travel.ONE_WAY)),
                 new Pass("horizontal-portal-crossing-singleplayer", label -> HorizontalPortalCrossing.run(client, server, label)),

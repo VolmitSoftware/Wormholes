@@ -10,6 +10,7 @@ import art.arcane.wormholes.config.toml.DimensionalConfig;
 import art.arcane.wormholes.config.toml.DoorsConfig;
 import art.arcane.wormholes.config.toml.LodConfig;
 import art.arcane.wormholes.config.toml.MainConfig;
+import art.arcane.wormholes.config.toml.MenuConfig;
 import art.arcane.wormholes.config.toml.NetworkConfig;
 import art.arcane.wormholes.config.toml.NexusConfig;
 import art.arcane.wormholes.config.toml.OpsConfig;
@@ -79,7 +80,7 @@ public final class WormholesSettings {
                                   NexusConfig nexus, AtlasConfig atlas, TransitConfig transit,
                                   AtmosphereConfig atmosphere, AcousticsConfig acoustics, LodConfig lod,
                                   BedrockConfig bedrock, OpsConfig ops, DimensionalConfig dimensional,
-                                  ClientViewConfig clientView) {
+                                  ClientViewConfig clientView, MenuConfig menus) {
         public FeatureSections {
             doors = doors == null ? new DoorsConfig() : doors;
             pockets = pockets == null ? new PocketsConfig() : pockets;
@@ -96,15 +97,16 @@ public final class WormholesSettings {
             dimensional = dimensional == null ? new DimensionalConfig() : dimensional;
             clientView = clientView == null ? new ClientViewConfig() : clientView;
             clientView.normalizeRuntimeBounds();
+            menus = menus == null ? new MenuConfig() : menus;
         }
 
         public static FeatureSections defaults() {
-            return new FeatureSections(null, null, null, null, null, null, null, null, null, null, null, null, null, null);
+            return new FeatureSections(null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
         }
 
         static FeatureSections fromFile(WormholesConfigFile file) {
             return new FeatureSections(file.doors, file.pockets, file.rules, file.access, file.nexus, file.atlas,
-                file.transit, file.atmosphere, file.acoustics, file.lod, file.bedrock, file.ops, file.dimensional, file.clientView);
+                file.transit, file.atmosphere, file.acoustics, file.lod, file.bedrock, file.ops, file.dimensional, file.clientView, file.menus);
         }
 
         void applyTo(WormholesConfigFile file) {
@@ -122,6 +124,7 @@ public final class WormholesSettings {
             file.ops = ops;
             file.dimensional = dimensional;
             file.clientView = clientView;
+            file.menus = menus;
         }
     }
 
@@ -271,6 +274,10 @@ public final class WormholesSettings {
 
     public ClientViewConfig getClientView() {
         return features.clientView();
+    }
+
+    public MenuConfig getMenus() {
+        return features.menus();
     }
 
     public VisualQualityProfile getVisualQualityProfile() {

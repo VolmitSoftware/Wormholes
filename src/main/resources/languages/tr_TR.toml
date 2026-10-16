@@ -1574,3 +1574,121 @@ off = "Tüm ClientView oyuncularını vanilla projeksiyona döndür"
 reset = "Bir oyuncunun ClientView akışını yeniden başlat"
 "reset.player" = "Çevrimiçi oyuncu adı"
 # ---- end lane:clientview ----
+
+# ---- lane:menu (menu.*) ----
+[menu.native.title]
+portal = "Portal"
+mode = "Portal modu"
+orientation = "Yön"
+gateway = "Geçit eşleştirmesi"
+settings = "Ayarlar"
+advanced = "Gelişmiş akış ayarı"
+blackout = "Karartma rengi"
+ambient = "Ortam rengi"
+skin = "Yüzey görünümü"
+cost = "Seyahat maliyeti"
+extensions = "Diğer ayarlar"
+destinations = "Hedefler"
+select = "Bir portal seç"
+rtp = "Rastgele ışınlanma"
+rtp_destination = "Rastgele hedef"
+rtp_biome = "Hedef biyom"
+rtp_landing = "İniş"
+rtp_routing = "Yönlendirme"
+rtp_effects = "Efektler"
+network = "Ağ"
+dial = "Çevir"
+rules = "Kurallar"
+rules_list = "Kural listesi"
+rule = "Kural"
+templates = "Kural şablonları"
+access = "Erişim"
+transit = "Geçiş"
+fidelity = "Sadakat"
+atlas = "Atlas"
+door = "Kapı erişimi"
+language = "Dil"
+
+[menu.native.context]
+portal = "{portal} - {type}"
+door = "{kind} kapı"
+network = "{name}"
+
+[menu.native.chrome]
+back = "Geri"
+close = "Kapat"
+apply = "Uygula"
+confirm = "Onayla"
+cancel = "İptal"
+previous_page = "Önceki sayfa"
+next_page = "Sonraki sayfa"
+page = "Sayfa {page} / {pages}"
+use_held_item = "Eldeki eşyayı kullan"
+aim = "Nişan al"
+timeout = "Sunucu yanıt vermedi."
+
+[menu.native.action]
+rotate = "Döndür"
+rotate_clockwise = "Saat yönünde döndür"
+rotate_counterclockwise = "Saat yönünün tersine döndür"
+reset = "Sıfırla"
+clear = "Temizle"
+colors = "Renkler"
+advanced = "Gelişmiş"
+reroll = "Yeniden çek"
+remove = "Kaldır"
+favorite = "Favori"
+guide = "Rehber"
+whitelist = "Beyaz liste"
+blacklist = "Kara liste"
+use_default = "Sunucu varsayılanını kullan"
+
+[menu.native.confirm]
+delete_portal = ["{portal} silinsin mi?", "Bu işlem portalı kaldırır ve ona giden portalların bağlantısını keser.", "Bu işlem geri alınamaz."]
+"delete_portal.accept" = "Sil"
+rtp_reset = ["{portal} sıfırlansın mı?", "Tüm rastgele ışınlanma ayarları varsayılan değerlerine döner."]
+"rtp_reset.accept" = "Sıfırla"
+rules_template = ["{name} yüklensin mi?", "Şablon bu portalın tüm kurallarının yerini alır."]
+"rules_template.accept" = "Yükle"
+nexus_leave = ["{name} ağından çıkılsın mı?", "Bu portal ağ üzerinden çevirmeyi ve almayı bırakır."]
+"nexus_leave.accept" = "Çık"
+
+[menu.native.feedback]
+refreshed = "Menü değişti ve yenilendi."
+unavailable = "Bu seçenek şu anda kullanılamıyor."
+invalid_value = "Bu değere izin verilmiyor."
+save_failed = "Değişiklik kaydedilemedi."
+timeout = "Sunucunun yanıt vermesi çok uzun sürdü."
+
+[menu.native.placeholder]
+name = "Portal adı"
+code = "Davet kodu"
+block_state = "Blok durumu, örneğin minecraft:glass"
+amount = "Tutar"
+player = "Oyuncu adı"
+key = "İzin anahtarı"
+group = "Grup adı"
+network = "Ağ adı"
+address = "Adres"
+rule_id = "Kural kimliği"
+line = "Kural satırı"
+factor = "Çarpan"
+sound = "Ses kimliği"
+ticks = "Tik"
+scale = "Ölçek"
+search = "Ara"
+
+[menu.native.transit]
+factor = "Momentum çarpanı"
+threshold_effect = "Eşik efekti"
+arrival_sound = "Varış sesi"
+mask_ticks = "Maske tikleri"
+scale_min = "En küçük ölçek"
+scale_max = "En büyük ölçek"
+
+[menu.native.nexus]
+comparator = "Karşılaştırıcı çıkışı"
+
+[menu.native.list]
+page = ["&b&lSayfa {page}/{pages}&r", "&7{count} kayıt"]
+# ---- end lane:menu ----

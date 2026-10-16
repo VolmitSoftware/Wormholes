@@ -1,6 +1,7 @@
 package art.arcane.wormholes.modded;
 
 import art.arcane.optics.aperture.ApertureDescriptor;
+import art.arcane.wormholes.menu.MenuScope;
 import art.arcane.optics.aperture.SizeRatio;
 import art.arcane.optics.crossing.Pose;
 import art.arcane.optics.crossing.GravityFrame;
@@ -735,7 +736,7 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
         if (!destination.isSettingsSyncEnabled()) {
             destination.setSettingsSyncEnabled(true);
             PortalSyncService.applyRemote(() -> save(destination));
-            runtime.menus().refresh(destination.getId());
+            runtime.menus().invalidate(new MenuScope.Portal(destination.getId()));
         }
     }
 
