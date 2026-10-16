@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded;
 
+import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.crossing.PlaneCrossing;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.plate.ChunkLease;
@@ -14,6 +15,8 @@ import art.arcane.optics.aperture.ApertureCells;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.portal.ProjectionMode;
 import art.arcane.optics.math.Face;
+import art.arcane.optics.shape.ShapeDescriptor;
+import art.arcane.wormholes.portal.ApertureKind;
 import art.arcane.wormholes.portal.rtp.MinecraftRtpRuntime;
 import art.arcane.wormholes.rules.RuleDocument;
 import net.minecraft.core.BlockPos;
@@ -22,12 +25,14 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.players.PlayerList;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityDimensions;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.phys.shapes.Shapes;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -46,6 +51,7 @@ import java.util.stream.Stream;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
@@ -196,7 +202,7 @@ public class MinecraftEndPortalTest extends MinecraftTestBase {
         try (MinecraftPortalRegistry registry = fixture.registry()) {
             MinecraftPortal source = fixture.endPair(registry, DimensionalPortalKind.END_SOURCE);
             ServerPlayer player = fixture.entity(worldGravity(mock(ServerPlayer.class)), 11.5D, FLOOR, 11.5D);
-            when(fixture.views().seamlessEye(player.getUUID(), source.getId())).thenReturn(true);
+            when(fixture.views().seamlessGeometry(player.getUUID(), source.getId())).thenReturn(Registry.armed(ApertureKind.VANILLA_REPLACEMENT));
 
             registry.tick();
 
@@ -206,16 +212,82 @@ public class MinecraftEndPortalTest extends MinecraftTestBase {
     }
 
     @Test
-    public void anArmedPlayerStandingOnTheFloorOfAFrameFloorPortalStillWaitsForItsEye() {
+    public void anArmedPlayerInsideAFrameFloorPortalOverAirWaitsForItsEye() {
         Registry fixture = new Registry();
         try (MinecraftPortalRegistry registry = fixture.registry()) {
             MinecraftPortal source = fixture.endPair(registry, DimensionalPortalKind.NONE);
             ServerPlayer player = fixture.entity(worldGravity(mock(ServerPlayer.class)), 11.5D, FLOOR, 11.5D);
-            when(fixture.views().seamlessEye(player.getUUID(), source.getId())).thenReturn(true);
+            when(fixture.views().seamlessGeometry(player.getUUID(), source.getId())).thenReturn(Registry.armed(ApertureKind.FRAME));
 
             registry.tick();
 
             verify(fixture.leases(), never()).retain(any(), any(), anyInt(), anyInt());
+        }
+    }
+
+    @Test
+    public void anArmedPlayerRestingOnTheBlockUnderAFrameFloorPortalIsSentFromJustPastThePlane() {
+        Registry fixture = new Registry();
+        try (MinecraftPortalRegistry registry = fixture.registry()) {
+            MinecraftPortal source = fixture.endPair(registry, DimensionalPortalKind.NONE);
+            ServerPlayer player = fixture.entity(worldGravity(mock(ServerPlayer.class)), 11.5D, FLOOR, 11.5D);
+            when(fixture.views().seamlessGeometry(player.getUUID(), source.getId())).thenReturn(Registry.armed(ApertureKind.FRAME));
+            fixture.backing(FLOOR);
+
+            registry.tick();
+
+            verify(fixture.leases(), times(1)).retain(any(), any(), anyInt(), anyInt());
+            PlaneCrossing crossing = fixture.crossing(source, player);
+            assertFalse(crossing.frontSide());
+            assertEquals(FLOOR + 0.5D - 1.0E-3D, crossing.point().y() + 1.62D, 1.0E-6D);
+            assertEquals(11.5D, crossing.point().x(), 0.0D);
+            assertEquals(ARRIVAL + 0.5D - 1.0E-3D, fixture.arrival(source, crossing).y() + 1.62D, 1.0E-6D);
+        }
+    }
+
+    @Test
+    public void anUnarmedEntityStandingInsideAFrameFloorPortalIsNotSent() {
+        Registry fixture = new Registry();
+        try (MinecraftPortalRegistry registry = fixture.registry()) {
+            fixture.endPair(registry, DimensionalPortalKind.NONE);
+            fixture.entity(mock(Entity.class), 11.5D, FLOOR, 11.5D);
+            fixture.backing(FLOOR);
+
+            registry.tick();
+
+            verify(fixture.leases(), never()).retain(any(), any(), anyInt(), anyInt());
+        }
+    }
+
+    @Test
+    public void anArrivalInsideTheBlockUnderAFloorDestinationIsLiftedAboveItsCells() {
+        Registry fixture = new Registry();
+        try (MinecraftPortalRegistry registry = fixture.registry()) {
+            MinecraftPortal source = fixture.endPair(registry, DimensionalPortalKind.NONE);
+            Entity entity = fixture.entity(mock(Entity.class), 11.5D, FLOOR - 1.0D, 11.5D);
+            when(fixture.level.noCollision(any(), any(AABB.class))).thenAnswer(invocation -> ((AABB) invocation.getArgument(1)).minY >= ARRIVAL);
+            PlaneCrossing upward = new PlaneCrossing(source.getFrame().view(true), source.getOrigin(), new Vec3d(11.5D, FLOOR + 0.501D - 1.62D, 11.5D),
+                new Vec3d(0.0D, 0.2D, 0.0D), new Vec3d(0.0D, 1.0D, 0.0D), true);
+
+            PlaneCrossing cleared = MinecraftPortalRegistry.cleared(entity, source, fixture.arrivalPortal(), fixture.level, upward);
+
+            assertEquals(ARRIVAL + 1.0D + 1.0E-3D, fixture.arrival(source, cleared).y(), 1.0E-9D);
+            assertEquals(11.5D, cleared.point().x(), 0.0D);
+            assertEquals(upward.frontSide(), cleared.frontSide());
+        }
+    }
+
+    @Test
+    public void aClearArrivalKeepsItsCrossingPoint() {
+        Registry fixture = new Registry();
+        try (MinecraftPortalRegistry registry = fixture.registry()) {
+            MinecraftPortal source = fixture.endPair(registry, DimensionalPortalKind.NONE);
+            Entity entity = fixture.entity(mock(Entity.class), 11.5D, FLOOR, 11.5D);
+            when(fixture.level.noCollision(any(), any(AABB.class))).thenReturn(true);
+            PlaneCrossing downward = new PlaneCrossing(source.getFrame().view(false), source.getOrigin(), new Vec3d(11.5D, FLOOR - 1.121D, 11.5D),
+                new Vec3d(0.0D, -0.5D, 0.0D), new Vec3d(0.0D, -1.0D, 0.0D), false);
+
+            assertSame(downward, MinecraftPortalRegistry.cleared(entity, source, fixture.arrivalPortal(), fixture.level, downward));
         }
     }
 
@@ -321,8 +393,20 @@ public class MinecraftEndPortalTest extends MinecraftTestBase {
             return source;
         }
 
+        private static ApertureDescriptor armed(int kind) {
+            return new ApertureDescriptor(10, FLOOR, 10, Face.D.ordinal(), false, 0, false, 3, 3, new long[]{511L}, ShapeDescriptor.FULL,
+                0, 0, 1, 64, 0, 0, 0, 0, 0, 0, kind, 0.0D, 0, 1, List.of());
+        }
+
+        private void backing(int cellY) {
+            when(level.getBlockCollisions(any(), any(AABB.class))).thenAnswer(invocation ->
+                ((AABB) invocation.getArgument(1)).minY < cellY ? List.of(Shapes.block().move(10, cellY - 1, 10)) : List.of());
+        }
+
         private <T extends Entity> T entity(T entity, double x, double feet, double z) {
+            worldGravity(entity);
             when(entity.getUUID()).thenReturn(UUID.randomUUID());
+            when(entity.getDimensions(any())).thenReturn(EntityDimensions.scalable(0.6F, 1.8F));
             when(entity.getRootVehicle()).thenReturn(entity);
             when(entity.level()).thenReturn(level);
             when(entity.position()).thenReturn(new Vec3(x, feet, z));

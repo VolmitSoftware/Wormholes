@@ -6,10 +6,12 @@ import art.arcane.optics.crossing.GravityFrame;
 import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.network.client.TravelMessage;
+import art.arcane.wormholes.portal.OpeningRest;
 import art.arcane.wormholes.portal.vanilla.EndPortalContact;
 
 import java.util.Arrays;
 import java.util.Objects;
+import java.util.function.Predicate;
 
 public final class SeamlessCrossCheck {
     private static final double BASE_TOLERANCE = 4.0D;
@@ -61,6 +63,22 @@ public final class SeamlessCrossCheck {
         if (EndPortalContact.contactArm(geometry, arm.world().dimension())) {
             return contact(cross, arm, server) == null ? Refusal.NO_CONTACT : Refusal.NONE;
         }
+        Refusal plane = plane(cross, geometry);
+        return plane == Refusal.NONE || rest(cross, arm, server) == null ? plane : Refusal.NONE;
+    }
+
+    public static Vec3d crossingPoint(TravelMessage.TravelCross cross, TravelMessage.TravelBegin arm, Server server) {
+        TravelMessage.TravelPose claimed = cross.sourcePose();
+        Vec3d feet = new Vec3d(claimed.x(), claimed.y(), claimed.z());
+        EndPortalContact.Hit hit = contact(cross, arm, server);
+        if (hit != null) {
+            return hit.exit();
+        }
+        OpeningRest.Rest rest = rest(cross, arm, server);
+        return rest == null ? feet : rest.exit(feet);
+    }
+
+    private static Refusal plane(TravelMessage.TravelCross cross, ApertureDescriptor geometry) {
         double side = geometry.frontSide() ? 1.0D : -1.0D;
         double before = geometry.signedDistance(cross.previousEye().x(), cross.previousEye().y(), cross.previousEye().z()) * side;
         double after = geometry.signedDistance(cross.currentEye().x(), cross.currentEye().y(), cross.currentEye().z()) * side;
@@ -74,18 +92,28 @@ public final class SeamlessCrossCheck {
         return geometry.containsPoint(intersection.x(), intersection.y(), intersection.z()) ? Refusal.NONE : Refusal.OUTSIDE_APERTURE;
     }
 
-    public static EndPortalContact.Hit contact(TravelMessage.TravelCross cross, TravelMessage.TravelBegin arm, Server server) {
+    private static EndPortalContact.Hit contact(TravelMessage.TravelCross cross, TravelMessage.TravelBegin arm, Server server) {
         if (!EndPortalContact.contactArm(arm.sourceGeometry(), arm.world().dimension())) {
             return null;
         }
+        return EndPortalContact.contact(arm.sourceGeometry(), arm.world().dimension(), claimedBounds(cross, server));
+    }
+
+    private static OpeningRest.Rest rest(TravelMessage.TravelCross cross, TravelMessage.TravelBegin arm, Server server) {
+        if (!OpeningRest.applies(arm.sourceGeometry())) {
+            return null;
+        }
+        return OpeningRest.rest(arm.sourceGeometry(), claimedBounds(cross, server), cross.currentEye(), server.obstructed());
+    }
+
+    private static Box claimedBounds(TravelMessage.TravelCross cross, Server server) {
         TravelMessage.TravelPose claimed = cross.sourcePose();
         TravelMessage.TravelPose observed = server.pose();
         double x = claimed.x() - observed.x();
         double y = claimed.y() - observed.y();
         double z = claimed.z() - observed.z();
         Box bounds = server.bounds();
-        return EndPortalContact.contact(arm.sourceGeometry(), arm.world().dimension(), new Box(bounds.getXa() + x, bounds.getXb() + x,
-            bounds.getYa() + y, bounds.getYb() + y, bounds.getZa() + z, bounds.getZb() + z));
+        return new Box(bounds.getXa() + x, bounds.getXb() + x, bounds.getYa() + y, bounds.getYb() + y, bounds.getZa() + z, bounds.getZb() + z);
     }
 
     public static boolean sameSurface(ApertureDescriptor armed, ApertureDescriptor current) {
@@ -102,13 +130,14 @@ public final class SeamlessCrossCheck {
     }
 
     public record Server(String world, ApertureDescriptor geometry, TravelMessage.TravelPose pose, Vec3d velocity, double eyeHeight, Box bounds,
-                         GravityFrame gravity, boolean awaitingTeleport, boolean changingDimension) {
+                         GravityFrame gravity, boolean awaitingTeleport, boolean changingDimension, Predicate<Box> obstructed) {
         public Server {
             Objects.requireNonNull(world, "world");
             Objects.requireNonNull(gravity, "gravity");
             Objects.requireNonNull(pose, "pose");
             Objects.requireNonNull(velocity, "velocity");
             Objects.requireNonNull(bounds, "bounds");
+            Objects.requireNonNull(obstructed, "obstructed");
             if (!Double.isFinite(eyeHeight) || eyeHeight <= 0.0D || eyeHeight > MAX_EYE_HEIGHT || !Double.isFinite(velocity.x())
                 || !Double.isFinite(velocity.y()) || !Double.isFinite(velocity.z())) {
                 throw new IllegalArgumentException("Seamless crossing authority");

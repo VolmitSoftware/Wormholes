@@ -16,6 +16,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.UUID;
+import java.util.function.Predicate;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -28,7 +29,11 @@ class SeamlessCrossCheckTest {
         new long[]{511}, ShapeDescriptor.FULL, 0, 0, 1, 64, 0, 0, 0, 0, 0, 0, ApertureKind.FRAME, 0.0D, 0, 1, List.of());
     private static final ApertureDescriptor END = new ApertureDescriptor(10, 64, 10, Face.D.ordinal(), false, 0, false, 3, 3,
         new long[]{511}, ShapeDescriptor.FULL, 0, 0, 1, 64, 0, 0, 0, 0, 0, 0, ApertureKind.VANILLA_REPLACEMENT, 0.0D, 0, 1, List.of());
+    private static final ApertureDescriptor FLOOR_OPENING = new ApertureDescriptor(0, 64, 0, Face.D.ordinal(), false, 0, false, 3, 3,
+        new long[]{511}, ShapeDescriptor.FULL, 0, 0, 1, 64, 0, 0, 0, 0, 0, 0, ApertureKind.FRAME, 0.0D, 0, 1, List.of());
     private static final double EYE = 1.62D;
+    private static final Predicate<Box> OPEN = box -> false;
+    private static final Predicate<Box> BACKING = box -> box.getYa() < 64.0D;
 
     @Test
     void walkingThroughTheApertureFromTheArmedSideIsAccepted() {
@@ -49,7 +54,7 @@ class SeamlessCrossCheckTest {
         TravelMessage.TravelCross fall = new TravelMessage.TravelCross(UUID.randomUUID(), 1L, 1L, claimed,
             new Vec3d(1.5D, 60.6D, 1.5D), new Vec3d(1.5D, 58.4D + EYE, 1.5D));
         SeamlessCrossCheck.Server server = new SeamlessCrossCheck.Server("minecraft:the_nether", FLOOR,
-            new TravelMessage.TravelPose(1.5D, 61.9D, 1.5D, 0.0F, 90.0F), new Vec3d(0.0D, -3.92D, 0.0D), EYE, bounds(1.5D, 61.9D, 1.5D), GravityFrame.WORLD, false, false);
+            new TravelMessage.TravelPose(1.5D, 61.9D, 1.5D, 0.0F, 90.0F), new Vec3d(0.0D, -3.92D, 0.0D), EYE, bounds(1.5D, 61.9D, 1.5D), GravityFrame.WORLD, false, false, OPEN);
         assertEquals(SeamlessCrossCheck.Refusal.NONE, SeamlessCrossCheck.check(fall, arm(FLOOR), server));
     }
 
@@ -82,13 +87,13 @@ class SeamlessCrossCheckTest {
     void passingBesideTheApertureIsRefused() {
         assertEquals(SeamlessCrossCheck.Refusal.OUTSIDE_APERTURE,
             SeamlessCrossCheck.check(walk(5.5D), arm(GEOMETRY), new SeamlessCrossCheck.Server("minecraft:the_nether", GEOMETRY,
-                new TravelMessage.TravelPose(5.5D, 64.0D, 0.55D, 0.0F, 0.0F), new Vec3d(0, 0, 0), EYE, bounds(5.5D, 64.0D, 0.55D), GravityFrame.WORLD, false, false)));
+                new TravelMessage.TravelPose(5.5D, 64.0D, 0.55D, 0.0F, 0.0F), new Vec3d(0, 0, 0), EYE, bounds(5.5D, 64.0D, 0.55D), GravityFrame.WORLD, false, false, OPEN)));
     }
 
     @Test
     void aVanillaTeleportInFlightRefusesTheCrossing() {
         SeamlessCrossCheck.Server awaiting = new SeamlessCrossCheck.Server("minecraft:the_nether", GEOMETRY,
-            new TravelMessage.TravelPose(0.5D, 64.0D, 0.55D, 0.0F, 0.0F), new Vec3d(0, 0, 0), EYE, bounds(0.5D, 64.0D, 0.55D), GravityFrame.WORLD, true, false);
+            new TravelMessage.TravelPose(0.5D, 64.0D, 0.55D, 0.0F, 0.0F), new Vec3d(0, 0, 0), EYE, bounds(0.5D, 64.0D, 0.55D), GravityFrame.WORLD, true, false, OPEN);
         assertEquals(SeamlessCrossCheck.Refusal.AWAITING_TELEPORT, SeamlessCrossCheck.check(walk(0.5D), arm(GEOMETRY), awaiting));
     }
 
@@ -129,10 +134,62 @@ class SeamlessCrossCheckTest {
 
     @Test
     void theEndPortalContactPointIsJustBelowThePlaneOrAtTheClaimedFeet() {
-        assertEquals(64.0D, SeamlessCrossCheck.contact(stand(11.5D, 64.0D), arm(END, EndPortalContact.END), standing(END, 11.5D, 64.2D))
-            .exit().y(), 1.0E-9D);
-        assertEquals(64.499D, SeamlessCrossCheck.contact(stand(11.5D, 64.7D), arm(END, EndPortalContact.END), standing(END, 11.5D, 64.8125D))
-            .exit().y(), 1.0E-9D);
+        assertEquals(64.0D, SeamlessCrossCheck.crossingPoint(stand(11.5D, 64.0D), arm(END, EndPortalContact.END), standing(END, 11.5D, 64.2D))
+            .y(), 1.0E-9D);
+        assertEquals(64.499D, SeamlessCrossCheck.crossingPoint(stand(11.5D, 64.7D), arm(END, EndPortalContact.END), standing(END, 11.5D, 64.8125D))
+            .y(), 1.0E-9D);
+    }
+
+    @Test
+    void standingOnTheBlockUnderAFloorFrameOpeningIsAcceptedFromJustPastThePlane() {
+        TravelMessage.TravelCross claim = rest(1.5D, 64.0D);
+        SeamlessCrossCheck.Server server = resting(1.5D, 64.0D, BACKING);
+
+        assertEquals(SeamlessCrossCheck.Refusal.NONE, SeamlessCrossCheck.check(claim, arm(FLOOR_OPENING), server));
+        Vec3d point = SeamlessCrossCheck.crossingPoint(claim, arm(FLOOR_OPENING), server);
+        assertEquals(64.5D - 1.0E-3D, point.y() + EYE, 1.0E-9D);
+        assertEquals(1.5D, point.x(), 0.0D);
+    }
+
+    @Test
+    void aFloorFrameOpeningOverAirStillNeedsTheEyeToCrossItsPlane() {
+        TravelMessage.TravelCross claim = rest(1.5D, 64.0D);
+        SeamlessCrossCheck.Server server = resting(1.5D, 64.0D, OPEN);
+
+        assertEquals(SeamlessCrossCheck.Refusal.NO_CROSSING, SeamlessCrossCheck.check(claim, arm(FLOOR_OPENING), server));
+        assertEquals(64.0D, SeamlessCrossCheck.crossingPoint(claim, arm(FLOOR_OPENING), server).y(), 0.0D);
+    }
+
+    @Test
+    void aRestingClaimBesideTheFloorFrameOpeningIsRefused() {
+        assertEquals(SeamlessCrossCheck.Refusal.NO_CROSSING, SeamlessCrossCheck.check(rest(4.5D, 64.0D), arm(FLOOR_OPENING),
+            resting(4.5D, 64.0D, BACKING)));
+    }
+
+    @Test
+    void aRestingClaimOnTopOfSolidSelectedCellsIsRefused() {
+        assertEquals(SeamlessCrossCheck.Refusal.NO_CROSSING, SeamlessCrossCheck.check(rest(1.5D, 65.0D), arm(FLOOR_OPENING),
+            resting(1.5D, 65.0D, box -> box.getYa() < 65.0D)));
+    }
+
+    @Test
+    void anEyeCrossingThroughAFloorFrameOpeningKeepsItsClaimedFeet() {
+        TravelMessage.TravelCross fall = new TravelMessage.TravelCross(UUID.randomUUID(), 1L, 1L, new TravelMessage.TravelPose(1.5D, 62.8D, 1.5D, 0.0F, 90.0F),
+            new Vec3d(1.5D, 64.7D, 1.5D), new Vec3d(1.5D, 62.8D + EYE, 1.5D));
+        SeamlessCrossCheck.Server server = resting(1.5D, 62.8D, box -> box.getYa() < 62.8D);
+
+        assertEquals(SeamlessCrossCheck.Refusal.NONE, SeamlessCrossCheck.check(fall, arm(FLOOR_OPENING), server));
+        assertEquals(62.8D, SeamlessCrossCheck.crossingPoint(fall, arm(FLOOR_OPENING), server).y(), 0.0D);
+    }
+
+    private static TravelMessage.TravelCross rest(double x, double feet) {
+        return new TravelMessage.TravelCross(UUID.randomUUID(), 1L, 1L, new TravelMessage.TravelPose(x, feet, 1.5D, 0.0F, 40.0F),
+            new Vec3d(x, feet + EYE, 1.5D), new Vec3d(x, feet + EYE, 1.5D));
+    }
+
+    private static SeamlessCrossCheck.Server resting(double x, double feet, Predicate<Box> obstructed) {
+        return new SeamlessCrossCheck.Server("minecraft:the_nether", FLOOR_OPENING, new TravelMessage.TravelPose(x, feet, 1.5D, 0.0F, 40.0F),
+            new Vec3d(0.0D, 0.0D, 0.0D), EYE, bounds(x, feet, 1.5D), GravityFrame.WORLD, false, false, obstructed);
     }
 
     @Test
@@ -148,7 +205,7 @@ class SeamlessCrossCheckTest {
 
     private static SeamlessCrossCheck.Server standing(ApertureDescriptor geometry, double x, double feet) {
         return new SeamlessCrossCheck.Server("minecraft:overworld", geometry, new TravelMessage.TravelPose(x, feet, 11.5D, 0.0F, 40.0F),
-            new Vec3d(0.0D, 0.0D, 0.0D), EYE, bounds(x, feet, 11.5D), GravityFrame.WORLD, false, false);
+            new Vec3d(0.0D, 0.0D, 0.0D), EYE, bounds(x, feet, 11.5D), GravityFrame.WORLD, false, false, OPEN);
     }
 
     private static Box bounds(double x, double feet, double z) {
@@ -162,7 +219,7 @@ class SeamlessCrossCheckTest {
 
     private static SeamlessCrossCheck.Server server(ApertureDescriptor geometry, double z, double speed) {
         return new SeamlessCrossCheck.Server("minecraft:the_nether", geometry, new TravelMessage.TravelPose(0.5D, 64.0D, z, 0.0F, 0.0F),
-            new Vec3d(0.0D, 0.0D, -speed), EYE, bounds(0.5D, 64.0D, z), GravityFrame.WORLD, false, false);
+            new Vec3d(0.0D, 0.0D, -speed), EYE, bounds(0.5D, 64.0D, z), GravityFrame.WORLD, false, false, OPEN);
     }
 
     private static TravelMessage.TravelBegin arm(ApertureDescriptor geometry) {

@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded.clientview;
 
+import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.crossing.PlaneCrossing;
 import art.arcane.optics.crossing.GravityFrame;
 import art.arcane.wormholes.modded.gravity.MinecraftGravity;
@@ -284,9 +285,9 @@ public final class MinecraftClientViewService implements AutoCloseable {
         return travel != null && travel.seamlessSelected() && seamlessTravel.crossing(traveler);
     }
 
-    public boolean seamlessEye(UUID traveler, UUID source) {
+    public ApertureDescriptor seamlessGeometry(UUID traveler, UUID source) {
         ClientViewTravel<MinecraftClientViewPeer> travel = travel(traveler);
-        return travel != null && travel.seamlessSelected() && seamlessTravel.armed(traveler, source);
+        return travel != null && travel.seamlessSelected() ? seamlessTravel.armedGeometry(traveler, source) : null;
     }
 
     public boolean deferTravel(UUID traveler, UUID source) {

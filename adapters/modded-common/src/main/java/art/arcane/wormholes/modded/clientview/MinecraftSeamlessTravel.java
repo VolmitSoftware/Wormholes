@@ -24,12 +24,12 @@ import art.arcane.wormholes.modded.mixin.SeamlessListenerAccess;
 import art.arcane.wormholes.modded.seamless.MinecraftSeamlessMove;
 import art.arcane.wormholes.modded.seamless.RemoteRoute;
 import art.arcane.wormholes.modded.seamless.RemoteRoutes;
+import art.arcane.wormholes.modded.seamless.StraddleCollision;
 import art.arcane.wormholes.network.MinecraftGatewayPolicies;
 import art.arcane.wormholes.network.client.TravelMessage;
 import art.arcane.wormholes.nexus.NetworkMember;
 import art.arcane.wormholes.portal.ApertureKind;
 import art.arcane.wormholes.portal.PortalType;
-import art.arcane.wormholes.portal.vanilla.EndPortalContact;
 import art.arcane.wormholes.render.client.session.ClientViewTravel;
 import art.arcane.wormholes.render.client.session.SeamlessCrossCheck;
 import net.minecraft.server.level.ServerLevel;
@@ -115,8 +115,19 @@ final class MinecraftSeamlessTravel {
     }
 
     boolean armed(UUID player, UUID source) {
+        return armedGeometry(player, source) != null;
+    }
+
+    ApertureDescriptor armedGeometry(UUID player, UUID source) {
         Traveler traveler = travelers.get(player);
-        return traveler != null && (traveler.arms.containsKey(source) || traveler.flight != null && traveler.flight.arm.source().getId().equals(source));
+        if (traveler == null) {
+            return null;
+        }
+        Arm arm = traveler.arms.get(source);
+        if (arm != null) {
+            return arm.begin().sourceGeometry();
+        }
+        return traveler.flight != null && traveler.flight.arm.source().getId().equals(source) ? traveler.flight.arm.begin().sourceGeometry() : null;
     }
 
     boolean crossing(UUID player) {
@@ -231,7 +242,8 @@ final class MinecraftSeamlessTravel {
         return new SeamlessCrossCheck.Server(player.level().dimension().identifier().toString(), geometry,
             new TravelMessage.TravelPose(player.getX(), player.getY(), player.getZ(), player.getYRot(), player.getXRot()), velocity,
             player.getEyeHeight(), new Box(bounds.minX, bounds.maxX, bounds.minY, bounds.maxY, bounds.minZ, bounds.maxZ), MinecraftGravity.frame(player),
-            ((SeamlessListenerAccess) player.connection).wormholesAwaitingPosition() != null, player.isChangingDimension());
+            ((SeamlessListenerAccess) player.connection).wormholesAwaitingPosition() != null, player.isChangingDimension(),
+            box -> StraddleCollision.obstructed(player.level(), player, box));
     }
 
     static boolean residentArrival(RemoteRoute route, ServerPlayer player, Vec3d arrival) {
@@ -444,8 +456,7 @@ final class MinecraftSeamlessTravel {
         }
         boolean front = arm.begin().sourceGeometry().frontSide();
         Vec3 look = Vec3.directionFromRotation(request.sourcePose().pitch(), request.sourcePose().yaw());
-        EndPortalContact.Hit contact = SeamlessCrossCheck.contact(request, arm.begin(), authority);
-        Vec3d point = contact == null ? new Vec3d(request.sourcePose().x(), request.sourcePose().y(), request.sourcePose().z()) : contact.exit();
+        Vec3d point = SeamlessCrossCheck.crossingPoint(request, arm.begin(), authority);
         PlaneCrossing crossing = new PlaneCrossing(arm.source().getFrame().view(front), arm.source().getOrigin(), point, velocity,
             new Vec3d(look.x, look.y, look.z), front);
         if (!residentArrival(route, player, MinecraftPortalRegistry.passage(arm.source(), arm.destination(), crossing).toward().point(crossing.point()))) {

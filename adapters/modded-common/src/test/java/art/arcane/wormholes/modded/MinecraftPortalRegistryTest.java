@@ -21,6 +21,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.players.PlayerList;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityDimensions;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.portal.TeleportTransition;
 import net.minecraft.world.phys.AABB;
@@ -290,6 +291,7 @@ public class MinecraftPortalRegistryTest extends MinecraftTestBase {
         when(player.getSelfAndPassengers()).thenAnswer(ignored -> Stream.of(player));
         when(player.getInterpolation()).thenReturn(MinecraftTestAccess.idleInterpolation());
         when(player.getBoundingBox()).thenReturn(new AABB(0, 64, 0, 0.5D, 65, 0.5D));
+        when(player.getDimensions(any())).thenReturn(EntityDimensions.scalable(0.6F, 1.8F));
         player.xo = 1;
         player.yo = 64.2D;
         player.zo = 0.2D;
@@ -438,6 +440,7 @@ public class MinecraftPortalRegistryTest extends MinecraftTestBase {
         when(entity.getSelfAndPassengers()).thenAnswer(ignored -> Stream.of(entity));
         when(entity.getInterpolation()).thenReturn(MinecraftTestAccess.idleInterpolation());
         when(entity.getBoundingBox()).thenReturn(new AABB(0, 64, 0, 0.5, 65, 0.5));
+        when(entity.getDimensions(any())).thenReturn(EntityDimensions.scalable(0.6F, 1.8F));
         entity.xo = 1;
         entity.yo = 64.2;
         entity.zo = 0.2;

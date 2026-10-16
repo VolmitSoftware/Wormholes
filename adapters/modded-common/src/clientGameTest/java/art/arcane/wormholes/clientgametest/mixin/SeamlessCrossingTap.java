@@ -42,6 +42,11 @@ public abstract class SeamlessCrossingTap {
         return result;
     }
 
+    @Inject(method = "rollback", at = @At("HEAD"))
+    private void wormholesTest$rollback(CallbackInfo callback) {
+        TravelTap.rolledBack();
+    }
+
     @Inject(method = "serverCrossing", at = @At("RETURN"))
     private void wormholesTest$serverCrossing(TravelMessage.TravelAccept accept, CallbackInfo callback) {
         ArrivalPlacementTap.arrived(Minecraft.getInstance(), "server");

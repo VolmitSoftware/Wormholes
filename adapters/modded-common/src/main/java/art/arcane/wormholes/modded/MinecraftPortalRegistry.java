@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded;
 
+import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.aperture.SizeRatio;
 import art.arcane.optics.crossing.Pose;
 import art.arcane.optics.crossing.GravityFrame;
@@ -21,6 +22,8 @@ import art.arcane.optics.plate.ChunkLease;
 import art.arcane.wormholes.chunk.presend.ChunkPreSendTicket;
 import art.arcane.wormholes.config.toml.TransitConfig;
 import art.arcane.wormholes.portal.Portal;
+import art.arcane.wormholes.portal.ArrivalClearance;
+import art.arcane.wormholes.portal.OpeningRest;
 import art.arcane.wormholes.portal.PortalConstruction;
 import art.arcane.optics.crossing.PlaneCrossing;
 import art.arcane.optics.frame.Frame;
@@ -33,6 +36,7 @@ import art.arcane.wormholes.transit.MomentumPolicy;
 import art.arcane.wormholes.transit.OrientationPolicy;
 import art.arcane.wormholes.transit.TravellerScale;
 import art.arcane.wormholes.modded.clientview.MinecraftClientViewService;
+import art.arcane.wormholes.modded.seamless.StraddleCollision;
 import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Face;
 import com.google.gson.Gson;
@@ -513,16 +517,34 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
             return false;
         }
         ServerLevel targetLevel = resolveLevel(destination);
-        Passage passage = passage(source, destination, crossing);
-        Vec3d target = passage.toward().point(crossing.point());
-        if (targetLevel == null || !targetLevel.noCollision(player, arrivalBounds(player, source, passage, target))
-            || !MinecraftTransit.depart(runtime, source, player, crossing)) {
+        if (targetLevel == null) {
+            return false;
+        }
+        PlaneCrossing clear = cleared(player, source, destination, targetLevel, crossing);
+        Passage passage = passage(source, destination, clear);
+        Vec3d target = passage.toward().point(clear.point());
+        if (!targetLevel.noCollision(player, arrivalBounds(player, source, passage, target)) || !MinecraftTransit.depart(runtime, source, player, clear)) {
             return false;
         }
         deferredCrossings.remove(player.getUUID());
         visited.add(player.getUUID());
-        depart(player, source, destination, crossing);
+        depart(player, source, destination, clear);
         return true;
+    }
+
+    static PlaneCrossing cleared(Entity entity, MinecraftPortal source, MinecraftPortal destination, ServerLevel targetLevel, PlaneCrossing crossing) {
+        Passage passage = passage(source, destination, crossing);
+        AABB bounds = arrivalBounds(entity, source, passage, passage.toward().point(crossing.point()));
+        if (targetLevel.noCollision(entity, bounds)) {
+            return crossing;
+        }
+        double lift = ArrivalClearance.lift(passage.toward(), crossing.origin(), crossing.frame().getNormal(), box(bounds));
+        if (lift == 0.0D) {
+            return crossing;
+        }
+        Vec3d point = crossing.point().add(passage.toward().inverse().vector(new Vec3d(0.0D, lift, 0.0D)));
+        PlaneCrossing lifted = new PlaneCrossing(crossing.frame(), crossing.origin(), point, crossing.velocity(), crossing.look(), crossing.frontSide());
+        return targetLevel.noCollision(entity, arrivalBounds(entity, source, passage, passage.toward().point(point))) ? lifted : crossing;
     }
 
     private List<Entity> captureEntities(MinecraftPortal source, ServerLevel level, AABB search) {
@@ -540,17 +562,16 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
     }
 
     private PlaneCrossing contactCrossing(MinecraftPortal source, Entity root, Vec3d start) {
-        AABB bounds = root.getBoundingBox();
         EndPortalContact.Hit hit = EndPortalContact.contact(source.getDimensionalKind(), source.getFrame().getNormal(), source.getGeometry(),
-            new Box(bounds.minX, bounds.maxX, bounds.minY, bounds.maxY, bounds.minZ, bounds.maxZ));
+            box(root.getBoundingBox()));
         return hit == null ? null : PlaneCrossing.create(source.getFrame(), source.getOrigin(),
             new PlaneCrossing.Motion(hit.entry(), hit.exit(), velocity(root, start), vector(root.getLookAngle())));
     }
 
     private PlaneCrossing planeCrossing(MinecraftPortal source, Entity root, Vec3d start, boolean random, long now) {
         Vec3d end = vector(root.position());
-        Vec3d lift = !random && root instanceof ServerPlayer eyed && runtime.clientViews().seamlessEye(eyed.getUUID(), source.getId())
-            ? new Vec3d(0.0D, root.getEyeHeight(), 0.0D) : new Vec3d(0.0D, 0.0D, 0.0D);
+        ApertureDescriptor armed = !random && root instanceof ServerPlayer eyed ? runtime.clientViews().seamlessGeometry(eyed.getUUID(), source.getId()) : null;
+        Vec3d lift = armed != null ? new Vec3d(0.0D, root.getEyeHeight(), 0.0D) : new Vec3d(0.0D, 0.0D, 0.0D);
         Vec3d detectStart = start.add(lift);
         Vec3d detectEnd = end.add(lift);
         Vec3d intersection = PlaneCrossing.intersection(source.getFrame(), source.getOrigin(), detectStart, detectEnd);
@@ -558,11 +579,14 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
         boolean retained = deferred != null && deferred.source() == source && retainedCrossing(deferred, now) && deferred.crossing().frame().getNormal().x() * (detectEnd.x() - source.getOrigin().x())
                 + deferred.crossing().frame().getNormal().y() * (detectEnd.y() - source.getOrigin().y())
                 + deferred.crossing().frame().getNormal().z() * (detectEnd.z() - source.getOrigin().z()) <= 0.0D;
-        if (!retained && (intersection == null || !source.admits(intersection, lift.y() > 0.0D ? 0.0D : root.getEyeHeight()))) {
-            return null;
-        }
         Vec3d velocity = velocity(root, start);
         Vec3d look = vector(root.getLookAngle());
+        if (!retained && (intersection == null || !source.admits(intersection, lift.y() > 0.0D ? 0.0D : root.getEyeHeight()))) {
+            OpeningRest.Rest rest = armed == null ? null : OpeningRest.rest(armed, box(root.getBoundingBox()), detectEnd,
+                box -> StraddleCollision.obstructed(root.level(), root, box));
+            return rest == null ? null : PlaneCrossing.create(source.getFrame(), source.getOrigin(),
+                new PlaneCrossing.Motion(detectStart, rest.exit(end), velocity, look));
+        }
         if (!retained) {
             return PlaneCrossing.create(source.getFrame(), source.getOrigin(), new PlaneCrossing.Motion(detectStart, end, velocity, look));
         }
@@ -724,11 +748,12 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
         }
     }
 
-    private void depart(Entity entity, MinecraftPortal source, MinecraftPortal destination, PlaneCrossing crossing) {
+    private void depart(Entity entity, MinecraftPortal source, MinecraftPortal destination, PlaneCrossing passed) {
         ServerLevel targetLevel = resolveLevel(destination);
         if (targetLevel == null || destination.getType() == PortalType.RTP || !admit(entity, source, destination)) {
             return;
         }
+        PlaneCrossing crossing = cleared(entity, source, destination, targetLevel, passed);
         for (Entity member : entity.getSelfAndPassengers().toList()) {
             if (!runtime.rules().depart(member, source, () -> depart(entity, source, destination, crossing))) {
                 return;
@@ -1051,6 +1076,10 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
     private static boolean overlaps(MinecraftPortal portal, Entity entity) {
         Box area = portal.getGeometry().getArea();
         return entity.getBoundingBox().intersects(area.getXa(), area.getYa(), area.getZa(), area.getXb(), area.getYb(), area.getZb());
+    }
+
+    private static Box box(AABB bounds) {
+        return new Box(bounds.minX, bounds.maxX, bounds.minY, bounds.maxY, bounds.minZ, bounds.maxZ);
     }
 
     private static Vec3d vector(Vec3 vector) {

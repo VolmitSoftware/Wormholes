@@ -104,6 +104,15 @@ public final class StraddleCollision {
         return level.noEntityCollision(entity, front) && level.noBorderCollision(entity, front);
     }
 
+    public static boolean obstructed(Level level, Entity entity, Box box) {
+        for (VoxelShape shape : level.getBlockCollisions(entity, aabb(box))) {
+            if (!shape.isEmpty()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public static boolean arrivalClear(Level level, Entity entity, AABB bounds, TravelMessage.DoorCollisionTarget door) {
         if (door == null) {
             return level.noCollision(entity, bounds);

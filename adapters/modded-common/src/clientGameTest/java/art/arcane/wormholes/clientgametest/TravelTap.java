@@ -39,6 +39,7 @@ public final class TravelTap {
     private static final Set<UUID> RESIDENT_REMOVED = new HashSet<>();
     private static final AtomicInteger ACCEPTS = new AtomicInteger();
     private static final AtomicInteger CROSSING_ATTEMPTS = new AtomicInteger();
+    private static final AtomicInteger ROLLBACKS = new AtomicInteger();
     private static final IntList RESPAWN_FRAMES = new IntArrayList();
     private static final IntList POSITION_FRAMES = new IntArrayList();
     private static final List<ScalePacket> SCALE_PACKETS = new ArrayList<>();
@@ -68,6 +69,7 @@ public final class TravelTap {
         SCALE_PACKETS.clear();
         ACCEPTS.set(0);
         CROSSING_ATTEMPTS.set(0);
+        ROLLBACKS.set(0);
         respawns = 0;
         positions = 0;
         loadingScreen = false;
@@ -113,6 +115,10 @@ public final class TravelTap {
 
     public static void crossingAttempted() {
         CROSSING_ATTEMPTS.incrementAndGet();
+    }
+
+    public static void rolledBack() {
+        ROLLBACKS.incrementAndGet();
     }
 
     public static void gameTick() {
@@ -269,6 +275,10 @@ public final class TravelTap {
 
     public static int crossingAttempts() {
         return CROSSING_ATTEMPTS.get();
+    }
+
+    public static int rollbacks() {
+        return ROLLBACKS.get();
     }
 
     public static synchronized boolean loadingScreenShown() {

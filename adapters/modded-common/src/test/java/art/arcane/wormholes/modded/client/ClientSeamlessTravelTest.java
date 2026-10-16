@@ -26,6 +26,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityDimensions;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.phys.shapes.Shapes;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
@@ -140,6 +141,51 @@ public class ClientSeamlessTravelTest extends MinecraftTestBase {
             assertTrue(crossing.travel.pending());
             assertSame(crossing.nether, crossing.scope.minecraft.level);
             assertTrue(crossing.scope.sent.stream().anyMatch(TravelMessage.TravelCross.class::isInstance));
+        }
+    }
+
+    @Test
+    public void aFrameFloorArmIsPredictedWhenTheTravellerRestsOnTheBlockUnderItsOpening() throws ReflectiveOperationException {
+        try (Crossing crossing = new Crossing(false, floor(ApertureKind.FRAME))) {
+            when(crossing.source.getBlockCollisions(any(), any(AABB.class))).thenAnswer(invocation ->
+                ((AABB) invocation.getArgument(1)).minY < 0.0D ? List.of(Shapes.block().move(1, -1, 1)) : List.of());
+            stepIntoTheFloorPortal(crossing, 0.0D);
+            assertTrue(crossing.travel.pending());
+            assertSame(crossing.nether, crossing.scope.minecraft.level);
+            TravelMessage.TravelCross claim = (TravelMessage.TravelCross) crossing.scope.sent.stream()
+                .filter(TravelMessage.TravelCross.class::isInstance).findFirst().orElseThrow();
+            assertEquals(0.0D, claim.sourcePose().y(), 1.0E-9D);
+            ArgumentCaptor<Vec3> position = ArgumentCaptor.forClass(Vec3.class);
+            verify(crossing.player, atLeastOnce()).setPos(position.capture());
+            assertEquals(101.5D, position.getValue().x, 1.0E-9D);
+            assertEquals(64.5D - 1.0E-3D - 1.62D, position.getValue().y, 1.0E-9D);
+            assertEquals(101.5D, position.getValue().z, 1.0E-9D);
+        }
+    }
+
+    @Test
+    public void aFrameFloorArmOverAirIsNotPredictedWhileTheTravellerStandsInItsOpening() throws ReflectiveOperationException {
+        try (Crossing crossing = new Crossing(false, floor(ApertureKind.FRAME))) {
+            stepIntoTheFloorPortal(crossing, 0.0D);
+            assertFalse(crossing.travel.pending());
+            assertSame(crossing.source, crossing.scope.minecraft.level);
+            assertTrue(crossing.scope.sent.stream().noneMatch(TravelMessage.TravelCross.class::isInstance));
+        }
+    }
+
+    @Test
+    public void anArrivalWithItsHeadInSolidCeilingCellsIsPredictedBelowThem() throws ReflectiveOperationException {
+        try (Crossing crossing = new Crossing(false, floor(ApertureKind.FRAME))) {
+            when(crossing.nether.noCollision(any(Entity.class), any(AABB.class))).thenAnswer(invocation ->
+                ((AABB) invocation.getArgument(1)).maxY <= 64.0D);
+            dropThroughTheFloorPlane(crossing);
+            assertTrue(crossing.travel.pending());
+            TravelMessage.TravelCross claim = (TravelMessage.TravelCross) crossing.scope.sent.stream()
+                .filter(TravelMessage.TravelCross.class::isInstance).findFirst().orElseThrow();
+            assertEquals(-1.32D, claim.sourcePose().y(), 1.0E-9D);
+            ArgumentCaptor<Vec3> position = ArgumentCaptor.forClass(Vec3.class);
+            verify(crossing.player, atLeastOnce()).setPos(position.capture());
+            assertEquals(64.0D - 1.0E-3D, position.getValue().y + 1.8D, 1.0E-6D);
         }
     }
 

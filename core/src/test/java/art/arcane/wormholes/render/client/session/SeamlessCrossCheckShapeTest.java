@@ -60,7 +60,7 @@ final class SeamlessCrossCheckShapeTest {
 
     private static SeamlessCrossCheck.Server server(ApertureDescriptor geometry, double x, double eyeY) {
         return new SeamlessCrossCheck.Server("minecraft:the_nether", geometry, new TravelMessage.TravelPose(x, eyeY - EYE, 0.45D, 0.0F, 0.0F),
-            new Vec3d(0.0D, 0.0D, 0.0D), EYE, new Box(x - 0.3D, x + 0.3D, eyeY - EYE, eyeY - EYE + 1.8D, 0.15D, 0.75D), GravityFrame.WORLD, false, false);
+            new Vec3d(0.0D, 0.0D, 0.0D), EYE, new Box(x - 0.3D, x + 0.3D, eyeY - EYE, eyeY - EYE + 1.8D, 0.15D, 0.75D), GravityFrame.WORLD, false, false, box -> false);
     }
 
     private static TravelMessage.TravelBegin arm(ApertureDescriptor geometry) {

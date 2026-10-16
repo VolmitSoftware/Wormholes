@@ -19,6 +19,8 @@ import art.arcane.wormholes.modded.MinecraftScaleAccess;
 import art.arcane.wormholes.modded.seamless.StraddleCollision;
 import art.arcane.wormholes.modded.seamless.StraddleTracker;
 import art.arcane.wormholes.network.client.TravelMessage;
+import art.arcane.wormholes.portal.ArrivalClearance;
+import art.arcane.wormholes.portal.OpeningRest;
 import art.arcane.wormholes.portal.vanilla.EndPortalContact;
 import art.arcane.wormholes.transit.TravellerScale;
 import net.minecraft.client.Camera;
@@ -316,7 +318,7 @@ public final class ClientSeamlessTravel {
                 if (EndPortalContact.contact(geometry, arm.world().dimension(), traveller) == null) {
                     continue;
                 }
-            } else if (!crossed(geometry, previous, eye)) {
+            } else if (!crossed(geometry, previous, eye) && rest(level, player, partial, geometry, eye) == null) {
                 continue;
             }
             double distance = Math.abs(geometry.signedDistance(previous.x, previous.y, previous.z));
@@ -336,8 +338,10 @@ public final class ClientSeamlessTravel {
         Vec3d feet = new Vec3d(crossingPose.x(), crossingPose.y(), crossingPose.z());
         EndPortalContact.Hit hit = EndPortalContact.contactAperture(arm.sourceGeometry())
             ? EndPortalContact.contact(arm.sourceGeometry(), arm.world().dimension(), traveller(player, partial)) : null;
-        Vec3d crossingFeet = hit == null ? feet : hit.exit();
-        Pose departing = hit == null ? before : before.moved(crossingFeet.subtract(feet));
+        OpeningRest.Rest rest = hit == null && !crossed(arm.sourceGeometry(), previous, eye) ? rest(source, player, partial, arm.sourceGeometry(), eye) : null;
+        Vec3d entry = hit != null ? hit.exit() : rest != null ? rest.exit(feet) : feet;
+        Vec3d crossingFeet = target == null ? entry : cleared(target, player, arm, entry);
+        Pose departing = before.moved(crossingFeet.subtract(feet));
         Pose after = ClientTravelMotion.arrive(arm, departing, crossingFeet, MinecraftGravity.frame(player));
         String refusal = target == null ? "resident level " + arm.levelHandle() + " is not open"
             : !arrivalLoaded(target, after.position()) ? "arrival terrain not received"
@@ -395,7 +399,28 @@ public final class ClientSeamlessTravel {
         } else {
             StraddleTracker.clear(player);
         }
-        return hit == null ? checkpoint(arm, toward, previous, eye) : player.getEyePosition(partial);
+        return crossingFeet.equals(feet) ? checkpoint(arm, toward, previous, eye) : player.getEyePosition(partial);
+    }
+
+    static OpeningRest.Rest rest(ClientLevel level, LocalPlayer player, float partial, ApertureDescriptor geometry, Vec3 eye) {
+        return OpeningRest.applies(geometry) ? OpeningRest.rest(geometry, traveller(player, partial), ClientTravelMotion.vector(eye),
+            box -> StraddleCollision.obstructed(level, player, box)) : null;
+    }
+
+    static Vec3d cleared(ClientLevel target, LocalPlayer player, TravelMessage.TravelBegin arm, Vec3d entry) {
+        Similarity toward = arm.sourceToDestination();
+        Vec3d arrival = toward.point(entry);
+        if (arm.doorCollision() != null || !arrivalLoaded(target, arrival) || arrivalClear(target, player, arm, arrival)) {
+            return entry;
+        }
+        ApertureDescriptor geometry = arm.sourceGeometry();
+        double lift = ArrivalClearance.lift(toward, planePoint(geometry), geometry.frame().view(geometry.frontSide()).getNormal(),
+            box(arrivalBounds(player, arm, arrival)));
+        if (lift == 0.0D) {
+            return entry;
+        }
+        Vec3d lifted = entry.add(toward.inverse().vector(new Vec3d(0.0D, lift, 0.0D)));
+        return arrivalClear(target, player, arm, toward.point(lifted)) ? lifted : entry;
     }
 
     private void accept(TravelMessage.TravelAccept accept) {
@@ -652,13 +677,16 @@ public final class ClientSeamlessTravel {
     }
 
     static boolean arrivalClear(ClientLevel target, LocalPlayer player, TravelMessage.TravelBegin arm, Vec3d feet) {
+        return StraddleCollision.arrivalClear(target, player, arrivalBounds(player, arm, feet), arm.doorCollision());
+    }
+
+    private static AABB arrivalBounds(LocalPlayer player, TravelMessage.TravelBegin arm, Vec3d feet) {
         GravityFrame gravity = MinecraftGravity.frame(player);
         if (arm.rules().rotateGravity()) {
             gravity = gravity.transformed(arm.sourceToDestination().rigid().permutation());
         }
         double scale = arm.rules().scale().entityFactor(TRAVELLER_SCALE.factor(player), new SizeRatio(arm.scale(), true));
-        return StraddleCollision.arrivalClear(target, player, MinecraftGravity.arrivalBounds(player, new Vec3(feet.x(), feet.y(), feet.z()), gravity, scale),
-            arm.doorCollision());
+        return MinecraftGravity.arrivalBounds(player, new Vec3(feet.x(), feet.y(), feet.z()), gravity, scale);
     }
 
     private static boolean arrivalLoaded(ClientLevel level, Vec3d feet) {

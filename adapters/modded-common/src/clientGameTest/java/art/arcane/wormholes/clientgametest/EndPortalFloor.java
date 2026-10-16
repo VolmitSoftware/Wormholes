@@ -540,7 +540,7 @@ final class EndPortalFloor {
         if (player == null) {
             return new ServerSample("absent", Vec3.ZERO, false, false, server.getTickCount());
         }
-        boolean eye = portal != null && runtime(server).clientViews().seamlessEye(playerId, portal);
+        boolean eye = portal != null && runtime(server).clientViews().seamlessGeometry(playerId, portal) != null;
         return new ServerSample(player.level().dimension().identifier().toString(), player.position(), player.onGround(), eye, server.getTickCount());
     }
 

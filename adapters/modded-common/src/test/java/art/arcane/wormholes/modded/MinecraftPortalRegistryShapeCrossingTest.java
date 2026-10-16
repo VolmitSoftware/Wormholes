@@ -15,6 +15,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.players.PlayerList;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityDimensions;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -133,7 +134,7 @@ public class MinecraftPortalRegistryShapeCrossingTest extends MinecraftTestBase 
         MinecraftServer server = mock(MinecraftServer.class);
         ServerLevel level = mock(ServerLevel.class);
         ServerPlayer actor = mock(ServerPlayer.class);
-        Entity entity = mock(Entity.class);
+        Entity entity = worldGravity(mock(Entity.class));
         PlayerList players = mock(PlayerList.class);
         WormholesModConfiguration configuration = mock(WormholesModConfiguration.class);
         ChunkLeaseRegistry<ServerLevel> leases = mock(ChunkLeaseRegistry.class);
@@ -161,6 +162,7 @@ public class MinecraftPortalRegistryShapeCrossingTest extends MinecraftTestBase 
         when(entity.getSelfAndPassengers()).thenAnswer(ignored -> Stream.of(entity));
         when(entity.getInterpolation()).thenReturn(MinecraftTestAccess.idleInterpolation());
         when(entity.getBoundingBox()).thenReturn(new AABB(-0.2D, 64.0D, z - 0.3D, 0.4D, 65.8D, z + 0.3D));
+        when(entity.getDimensions(any())).thenReturn(EntityDimensions.scalable(0.6F, 1.8F));
         entity.xo = 1.0D;
         entity.yo = 64.0D;
         entity.zo = z;
