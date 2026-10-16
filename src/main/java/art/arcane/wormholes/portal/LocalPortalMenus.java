@@ -10,6 +10,7 @@ import java.util.function.Function;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 
+import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.access.AccessPortalExtension;
 import art.arcane.wormholes.access.PortalRole;
@@ -526,7 +527,7 @@ final class LocalPortalMenus
 		element.onLeftClick((e) ->
 		{
 			ProjectionMode previous = portal.getProjectionMode();
-			if(portal.getDimensionalPortalKind().isReceiverOnly())
+			if(portal.getDimensionalPortalKind().isReceiverOnly(Settings.TWO_WAY_END_PORTALS))
 			{
 				text.notifySetting(viewer, WormholesMessages.PORTAL_PROJECTION_RECEIVER_INACTIVE);
 				return;

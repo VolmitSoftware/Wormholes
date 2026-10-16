@@ -132,6 +132,15 @@ public class MinecraftSeamlessTravelTest extends MinecraftTestBase {
     }
 
     @Test
+    public void anEndArrivalIsAlwaysArmedFromItsUndersideWhileOtherPortalsKeepTheTravellersSide() {
+        assertTrue(MinecraftSeamlessTravel.armedFront(DimensionalPortalKind.END_ARRIVAL, Face.D, false));
+        assertFalse(MinecraftSeamlessTravel.armedFront(DimensionalPortalKind.END_ARRIVAL, Face.U, true));
+        assertTrue(MinecraftSeamlessTravel.armedFront(DimensionalPortalKind.NONE, Face.D, true));
+        assertFalse(MinecraftSeamlessTravel.armedFront(DimensionalPortalKind.END_SOURCE, Face.D, false));
+        assertFalse(MinecraftSeamlessTravel.armedFront(DimensionalPortalKind.NETHER, Face.N, false));
+    }
+
+    @Test
     public void aServerDetectedFrameFloorCrossingStillWaitsForTheClientClaim() throws ReflectiveOperationException {
         Fixture fixture = new Fixture();
         MinecraftPortal source = floor(DimensionalPortalKind.NONE, 64);

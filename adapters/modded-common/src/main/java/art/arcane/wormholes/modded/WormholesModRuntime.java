@@ -107,6 +107,7 @@ public final class WormholesModRuntime {
             }
             nexus.start();
             construction.load();
+            construction.vanilla().applyEndTravel();
             rules.start();
             costs.start();
             rtp.start();
@@ -568,6 +569,7 @@ public final class WormholesModRuntime {
             FidelitySettings.refresh(settings);
             MinecraftClientProfiles.clear();
             recipeBook.refresh();
+            construction.vanilla().applyEndTravel();
             try {
                 network.reload();
             } catch (RuntimeException reloadError) {

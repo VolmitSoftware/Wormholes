@@ -5,6 +5,7 @@ import art.arcane.optics.crossing.PlaneCrossing;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.plate.ChunkLease;
 import art.arcane.optics.plate.ChunkLeaseRegistry;
+import art.arcane.wormholes.config.WormholesSettings;
 import art.arcane.wormholes.modded.clientview.MinecraftClientViewService;
 import art.arcane.wormholes.network.MinecraftEntityTransfers;
 import art.arcane.wormholes.network.MinecraftPlayerHandoffs;
@@ -106,43 +107,68 @@ public class MinecraftEndPortalTest extends MinecraftTestBase {
     }
 
     @Test
-    public void endEntryLinksItsReceiverWithoutAReverseDestination() throws Exception {
-        WormholesModRuntime runtime = mock(WormholesModRuntime.class);
-        MinecraftPortalRegistry registry = mock(MinecraftPortalRegistry.class);
-        MinecraftAccessService access = mock(MinecraftAccessService.class);
-        ServerLevel sourceLevel = mock(ServerLevel.class);
-        ServerLevel end = mock(ServerLevel.class);
-        when(runtime.portals()).thenReturn(registry);
-        when(runtime.access()).thenReturn(access);
-        when(access.canPlace(any())).thenReturn(true);
-        when(sourceLevel.dimension()).thenReturn(Level.OVERWORLD);
-        when(end.dimension()).thenReturn(Level.END);
-        when(sourceLevel.hasChunk(anyInt(), anyInt())).thenReturn(true);
-        when(sourceLevel.getBlockState(any(BlockPos.class))).thenAnswer(invocation -> {
-            BlockPos position = invocation.getArgument(0);
-            return position.getY() == 64 && position.getX() >= 10 && position.getX() <= 12
-                && position.getZ() >= 10 && position.getZ() <= 12 ? Blocks.END_PORTAL.defaultBlockState() : Blocks.AIR.defaultBlockState();
-        });
-        MinecraftPortal source = portal("minecraft:overworld", 11, 64, 11);
-        MinecraftPortal arrival = portal("minecraft:the_end", 12, 74, 9);
-        arrival.setDimensionalKind(DimensionalPortalKind.END_ARRIVAL);
-        when(registry.snapshot()).thenReturn(List.of(arrival));
-        when(registry.create(eq(null), eq(sourceLevel), any(), eq(PortalType.PORTAL), any())).thenReturn(source);
-        Object shape = shape(sourceLevel, new BlockPos(10, 64, 10));
-        Method pair = MinecraftVanillaPortals.class.getDeclaredMethod("pair", ServerPlayer.class, ServerLevel.class,
-            ServerLevel.class, shape.getClass(), BlockPos.class);
-        pair.setAccessible(true);
-        assertEquals(true, pair.invoke(new MinecraftVanillaPortals(runtime), mock(ServerPlayer.class), sourceLevel,
-            end, shape, new BlockPos(12, 74, 9)));
-        assertEquals(arrival.getId(), source.getDestinationId());
-        assertNull(arrival.getDestinationId());
-        assertTrue(source.isOutgoingTraversalsEnabled());
-        assertFalse(source.isIncomingTraversalsEnabled());
-        assertFalse(arrival.isOutgoingTraversalsEnabled());
-        assertTrue(arrival.isIncomingTraversalsEnabled());
-        assertEquals(ProjectionMode.OFF, arrival.getProjectionMode());
-        arrival.setOutgoingTraversalsEnabled(true);
-        assertFalse(arrival.isOutgoingTraversalsEnabled());
+    public void oneWayEndEntryLinksItsReceiverWithoutAReverseDestination() throws Exception {
+        Pairing pairing = new Pairing(false);
+
+        assertTrue(pairing.pair());
+
+        assertEquals(pairing.arrival.getId(), pairing.source.getDestinationId());
+        assertNull(pairing.arrival.getDestinationId());
+        assertTrue(pairing.source.isOutgoingTraversalsEnabled());
+        assertFalse(pairing.source.isIncomingTraversalsEnabled());
+        assertFalse(pairing.arrival.isOutgoingTraversalsEnabled());
+        assertTrue(pairing.arrival.isIncomingTraversalsEnabled());
+        assertEquals(ProjectionMode.OFF, pairing.arrival.getProjectionMode());
+        pairing.arrival.setOutgoingTraversalsEnabled(true);
+        pairing.arrival.setProjectionMode(ProjectionMode.ON);
+        when(pairing.registry.snapshot()).thenReturn(List.of(pairing.source, pairing.arrival));
+        pairing.vanilla.applyEndTravel();
+        assertFalse(pairing.arrival.isOutgoingTraversalsEnabled());
+        assertEquals(ProjectionMode.OFF, pairing.arrival.getProjectionMode());
+    }
+
+    @Test
+    public void twoWayEndEntryLinksTheArrivalBackToItsSourceWithBothViewsOn() throws Exception {
+        Pairing pairing = new Pairing(true);
+
+        assertTrue(pairing.pair());
+
+        assertEquals(pairing.arrival.getId(), pairing.source.getDestinationId());
+        assertEquals(pairing.source.getId(), pairing.arrival.getDestinationId());
+        assertEquals("DIMENSIONAL", pairing.arrival.getTunnelType());
+        assertEquals(pairing.source.getId(), pairing.arrival.getCounterpartId());
+        assertTrue(pairing.source.isOutgoingTraversalsEnabled());
+        assertTrue(pairing.source.isIncomingTraversalsEnabled());
+        assertTrue(pairing.arrival.isOutgoingTraversalsEnabled());
+        assertTrue(pairing.arrival.isIncomingTraversalsEnabled());
+        assertEquals(ProjectionMode.ON, pairing.source.getProjectionMode());
+        assertEquals(ProjectionMode.ON, pairing.arrival.getProjectionMode());
+    }
+
+    @Test
+    public void reloadingTheEndTravelSettingConvertsExistingPairsBothWays() throws Exception {
+        Pairing pairing = new Pairing(true);
+        assertTrue(pairing.pair());
+        when(pairing.registry.snapshot()).thenReturn(List.of(pairing.source, pairing.arrival));
+
+        pairing.settings.getMain().twoWayEndPortals = false;
+        pairing.vanilla.applyEndTravel();
+
+        assertNull(pairing.arrival.getDestinationId());
+        assertEquals(pairing.source.getId(), pairing.arrival.getCounterpartId());
+        assertFalse(pairing.arrival.isOutgoingTraversalsEnabled());
+        assertFalse(pairing.source.isIncomingTraversalsEnabled());
+        assertEquals(ProjectionMode.OFF, pairing.arrival.getProjectionMode());
+        verify(pairing.registry, times(2)).save(pairing.arrival);
+
+        pairing.settings.getMain().twoWayEndPortals = true;
+        pairing.vanilla.applyEndTravel();
+
+        assertEquals(pairing.source.getId(), pairing.arrival.getDestinationId());
+        assertTrue(pairing.arrival.isOutgoingTraversalsEnabled());
+        assertTrue(pairing.source.isIncomingTraversalsEnabled());
+        assertEquals(ProjectionMode.ON, pairing.arrival.getProjectionMode());
+        assertEquals(pairing.arrival.getId(), pairing.source.getDestinationId());
     }
 
     @Test
@@ -291,6 +317,107 @@ public class MinecraftEndPortalTest extends MinecraftTestBase {
         }
     }
 
+    @Test
+    public void aRisingEntityCrossesATwoWayEndArrivalAndLandsOnTheEndPortalFrame() {
+        Registry fixture = new Registry();
+        try (MinecraftPortalRegistry registry = fixture.registry()) {
+            MinecraftPortal source = fixture.twoWayPair(registry);
+            MinecraftPortal arrival = fixture.arrivalPortal();
+            Entity entity = fixture.entity(mock(Entity.class), 30.4D, ARRIVAL + 0.7D, 31.5D);
+            entity.yo = ARRIVAL + 0.3D;
+            when(fixture.level.noCollision(any(), any(AABB.class))).thenReturn(true);
+
+            registry.tick();
+
+            verify(fixture.leases(), times(1)).retain(any(), any(), anyInt(), anyInt());
+            PlaneCrossing crossing = fixture.crossing(arrival, entity);
+            assertTrue(crossing.frontSide());
+            PlaneCrossing landed = MinecraftPortalRegistry.cleared(entity, arrival, source, fixture.level, crossing);
+            Vec3d feet = MinecraftPortalRegistry.passage(arrival, source, landed).toward().point(landed.point());
+            assertEquals(FLOOR + 1.0D, feet.y(), 1.0E-9D);
+            assertEquals(9.5D, feet.x(), 1.0E-9D);
+            assertEquals(11.5D, feet.z(), 1.0E-9D);
+        }
+    }
+
+    @Test
+    public void anObstructedFrameRowSendsTheReturningTravellerToTheNextNearestRow() {
+        Registry fixture = new Registry();
+        try (MinecraftPortalRegistry registry = fixture.registry()) {
+            MinecraftPortal source = fixture.twoWayPair(registry);
+            MinecraftPortal arrival = fixture.arrivalPortal();
+            Entity entity = fixture.entity(mock(Entity.class), 30.4D, ARRIVAL + 0.7D, 31.5D);
+            when(fixture.level.noCollision(any(), any(AABB.class))).thenAnswer(invocation -> ((AABB) invocation.getArgument(1)).maxX > 10.0D);
+            PlaneCrossing rising = new PlaneCrossing(arrival.getFrame().view(true), arrival.getOrigin(), new Vec3d(30.4D, ARRIVAL + 0.501D, 31.5D),
+                new Vec3d(0.0D, 0.3D, 0.0D), new Vec3d(0.0D, 1.0D, 0.0D), true);
+
+            PlaneCrossing landed = MinecraftPortalRegistry.cleared(entity, arrival, source, fixture.level, rising);
+            Vec3d feet = MinecraftPortalRegistry.passage(arrival, source, landed).toward().point(landed.point());
+
+            assertEquals(FLOOR + 1.0D, feet.y(), 1.0E-9D);
+            assertEquals(10.4D, feet.x(), 1.0E-9D);
+            assertEquals(9.5D, feet.z(), 1.0E-9D);
+        }
+    }
+
+    @Test
+    public void anEntityFallingThroughATwoWayEndArrivalIsNotSentBack() {
+        Registry fixture = new Registry();
+        try (MinecraftPortalRegistry registry = fixture.registry()) {
+            fixture.twoWayPair(registry);
+            Entity entity = fixture.entity(mock(Entity.class), 30.4D, ARRIVAL + 0.3D, 31.5D);
+            entity.yo = ARRIVAL + 0.7D;
+
+            registry.tick();
+
+            verify(fixture.leases(), never()).retain(any(), any(), anyInt(), anyInt());
+        }
+    }
+
+    @Test
+    public void aOneWayEndArrivalNeverSendsARisingEntity() {
+        Registry fixture = new Registry();
+        try (MinecraftPortalRegistry registry = fixture.registry()) {
+            fixture.settings().getMain().twoWayEndPortals = false;
+            fixture.endPair(registry, DimensionalPortalKind.END_SOURCE);
+            Entity entity = fixture.entity(mock(Entity.class), 30.4D, ARRIVAL + 0.7D, 31.5D);
+            entity.yo = ARRIVAL + 0.3D;
+
+            registry.tick();
+
+            verify(fixture.leases(), never()).retain(any(), any(), anyInt(), anyInt());
+        }
+    }
+
+    @Test
+    public void anEnderDragonOrItsPartTouchingAnEndPortalNeverTravels() {
+        Registry fixture = new Registry();
+        try (MinecraftPortalRegistry registry = fixture.registry()) {
+            fixture.twoWayPair(registry);
+            Entity dragon = fixture.entity(mock(Entity.class), 11.5D, FLOOR, 11.5D);
+            when(dragon.getType()).thenAnswer(ignored -> MinecraftEntityTypes.ENDER_DRAGON);
+            Entity rising = fixture.entity(mock(Entity.class), 30.4D, ARRIVAL + 0.7D, 31.5D);
+            rising.yo = ARRIVAL + 0.3D;
+            when(rising.getType()).thenAnswer(ignored -> MinecraftEntityTypes.ENDER_DRAGON);
+
+            registry.tick();
+
+            verify(fixture.leases(), never()).retain(any(), any(), anyInt(), anyInt());
+        }
+    }
+
+    @Test
+    public void theEndExitFountainIsNeverAWormholesDepartureEvenForAdministrators() {
+        Registry fixture = new Registry();
+        try (MinecraftPortalRegistry registry = fixture.registry()) {
+            MinecraftPortal exit = registry.create(null, fixture.level, Registry.floor(50, FLOOR, 50), PortalType.PORTAL, new Vec3(0, 1, 0));
+            exit.setDimensionalKind(DimensionalPortalKind.END_EXIT);
+            ServerPlayer player = fixture.entity(worldGravity(mock(ServerPlayer.class)), 51.5D, FLOOR + 2.0D, 51.5D);
+
+            assertFalse(registry.canDepart(player, exit));
+        }
+    }
+
     static MinecraftPortal portal(String world, int x, int y, int z) {
         List<Vec3d> cells = new ArrayList<>(9);
         for (int dx = -1; dx <= 1; dx++) {
@@ -309,6 +436,51 @@ public class MinecraftEndPortalTest extends MinecraftTestBase {
         Method shape = MinecraftVanillaPortals.class.getDeclaredMethod("shape", ServerLevel.class, BlockPos.class);
         shape.setAccessible(true);
         return shape.invoke(null, level, anchor);
+    }
+
+    private static final class Pairing {
+        private final WormholesModRuntime runtime = mock(WormholesModRuntime.class);
+        private final MinecraftPortalRegistry registry = mock(MinecraftPortalRegistry.class);
+        private final ServerLevel sourceLevel = mock(ServerLevel.class);
+        private final ServerLevel end = mock(ServerLevel.class);
+        private final WormholesSettings settings = MinecraftTestSettings.defaults();
+        private final MinecraftPortal source = portal("minecraft:overworld", 11, 64, 11);
+        private final MinecraftPortal arrival = portal("minecraft:the_end", 12, 74, 9);
+        private final MinecraftVanillaPortals vanilla = new MinecraftVanillaPortals(runtime);
+
+        private Pairing(boolean twoWay) {
+            MinecraftAccessService access = mock(MinecraftAccessService.class);
+            WormholesModConfiguration configuration = mock(WormholesModConfiguration.class);
+            settings.getMain().twoWayEndPortals = twoWay;
+            when(runtime.portals()).thenReturn(registry);
+            when(runtime.access()).thenReturn(access);
+            when(runtime.configuration()).thenReturn(configuration);
+            when(configuration.settings()).thenReturn(settings);
+            when(access.canPlace(any())).thenReturn(true);
+            when(sourceLevel.dimension()).thenReturn(Level.OVERWORLD);
+            when(end.dimension()).thenReturn(Level.END);
+            when(sourceLevel.hasChunk(anyInt(), anyInt())).thenReturn(true);
+            when(sourceLevel.getBlockState(any(BlockPos.class))).thenAnswer(invocation -> {
+                BlockPos position = invocation.getArgument(0);
+                return position.getY() == 64 && position.getX() >= 10 && position.getX() <= 12
+                    && position.getZ() >= 10 && position.getZ() <= 12 ? Blocks.END_PORTAL.defaultBlockState() : Blocks.AIR.defaultBlockState();
+            });
+            arrival.setDimensionalKind(DimensionalPortalKind.END_ARRIVAL);
+            arrival.setOutgoingTraversalsEnabled(false);
+            arrival.setProjectionMode(ProjectionMode.OFF);
+            when(registry.snapshot()).thenReturn(List.of(arrival));
+            when(registry.get(source.getId())).thenReturn(source);
+            when(registry.get(arrival.getId())).thenReturn(arrival);
+            when(registry.create(eq(null), eq(sourceLevel), any(), eq(PortalType.PORTAL), any())).thenReturn(source);
+        }
+
+        private boolean pair() throws Exception {
+            Object shape = shape(sourceLevel, new BlockPos(10, 64, 10));
+            Method pair = MinecraftVanillaPortals.class.getDeclaredMethod("pair", ServerPlayer.class, ServerLevel.class,
+                ServerLevel.class, shape.getClass(), BlockPos.class);
+            pair.setAccessible(true);
+            return (boolean) pair.invoke(vanilla, mock(ServerPlayer.class), sourceLevel, end, shape, new BlockPos(12, 74, 9));
+        }
     }
 
     private final class Registry {
@@ -377,6 +549,21 @@ public class MinecraftEndPortalTest extends MinecraftTestBase {
                 }));
             when(runtime.portals()).thenReturn(registry);
             return registry;
+        }
+
+        private MinecraftPortal twoWayPair(MinecraftPortalRegistry registry) {
+            MinecraftPortal source = endPair(registry, DimensionalPortalKind.END_SOURCE);
+            arrival.link(source);
+            source.setIncomingTraversalsEnabled(true);
+            arrival.setOutgoingTraversalsEnabled(true);
+            arrival.setProjectionMode(ProjectionMode.ON);
+            source.setCounterpartId(arrival.getId());
+            arrival.setCounterpartId(source.getId());
+            return source;
+        }
+
+        private WormholesSettings settings() {
+            return runtime.configuration().settings();
         }
 
         private MinecraftPortal endPair(MinecraftPortalRegistry registry, DimensionalPortalKind kind) {

@@ -296,6 +296,8 @@ def execute(args: argparse.Namespace) -> int:
                 raise AssertionError("Missing successful native portal clip image assertion; inspect " + str(log))
             if not dh_acceptance and args.filter in "end-portal-floor-singleplayer" and "WORMHOLES_END_PORTAL_FLOOR_PASS fixture=end-portal-floor-singleplayer" not in text:
                 raise AssertionError("Missing successful native End portal floor assertion; inspect " + str(log))
+            if not dh_acceptance and args.filter in "end-portal-floor-one-way-singleplayer" and "WORMHOLES_END_PORTAL_FLOOR_PASS fixture=end-portal-floor-one-way-singleplayer" not in text:
+                raise AssertionError("Missing successful native one-way End portal floor assertion; inspect " + str(log))
             if dh_acceptance:
                 required: list[str] = ["WORMHOLES_DH_ACCEPTANCE_PASS shaders=" + str(shader is not None).lower()
                     + " native=true fixture=dh-acceptance-singleplayer", "WORMHOLES_DH_CLIP_SCOPE_PASS",

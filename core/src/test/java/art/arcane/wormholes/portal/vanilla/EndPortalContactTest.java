@@ -193,6 +193,83 @@ final class EndPortalContactTest {
         assertNull(EndPortalContact.contact(descriptor(Face.D, false, ApertureKind.VANILLA_REPLACEMENT), EndPortalContact.END, null));
     }
 
+    @Test
+    void aTravellerLandingAtTheEndPortalStandsOnTheNearestFrameRowAboveTheContactBand() {
+        Vec3d offset = EndPortalContact.landing(window().getArea(), player(10.4D, FLOOR - 1.12D, 11.5D), box -> false);
+
+        assertNotNull(offset);
+        Box landed = shifted(player(10.4D, FLOOR - 1.12D, 11.5D), offset);
+        assertEquals(9.5D, (landed.getXa() + landed.getXb()) * 0.5D, 1.0E-9D);
+        assertEquals(11.5D, (landed.getZa() + landed.getZb()) * 0.5D, 1.0E-9D);
+        assertEquals(FLOOR + 1.0D, landed.getYa(), 1.0E-9D);
+        assertNull(contact(window(), landed));
+    }
+
+    @Test
+    void theLandingKeepsTheTravellerOverItsFrameRowAlongTheOtherAxis() {
+        Box landed = shifted(player(12.95D, FLOOR + 0.6D, 12.85D), EndPortalContact.landing(window().getArea(), player(12.95D, FLOOR + 0.6D, 12.85D),
+            box -> false));
+
+        assertEquals(13.5D, (landed.getXa() + landed.getXb()) * 0.5D, 1.0E-9D);
+        assertEquals(12.7D, (landed.getZa() + landed.getZb()) * 0.5D, 1.0E-9D);
+        assertTrue(landed.getXa() >= 13.0D);
+        assertNull(contact(window(), landed));
+    }
+
+    @Test
+    void anObstructedFrameRowFallsBackToTheNextNearestRow() {
+        Box traveller = player(10.4D, FLOOR - 1.12D, 11.5D);
+
+        Vec3d offset = EndPortalContact.landing(window().getArea(), traveller, box -> box.getXb() <= 10.0D);
+
+        assertNotNull(offset);
+        Box landed = shifted(traveller, offset);
+        assertEquals(10.4D, (landed.getXa() + landed.getXb()) * 0.5D, 1.0E-9D);
+        assertEquals(9.5D, (landed.getZa() + landed.getZb()) * 0.5D, 1.0E-9D);
+        assertNull(EndPortalContact.landing(window().getArea(), traveller, box -> true));
+    }
+
+    @Test
+    void theLandingMatchesForCellAreasAndMappedApertureAreas() {
+        Box traveller = player(11.2D, FLOOR - 1.12D, 10.3D);
+        Box cells = window().getArea();
+        Box aperture = descriptor(Face.U, ApertureKind.VANILLA_REPLACEMENT).apertureArea();
+
+        Vec3d fromCells = EndPortalContact.landing(cells, traveller, box -> false);
+        Vec3d fromAperture = EndPortalContact.landing(aperture, traveller, box -> false);
+
+        assertVec(fromCells, fromAperture);
+        assertEquals(9.5D, shifted(traveller, fromCells).getZa() + HALF_WIDTH, 1.0E-9D);
+    }
+
+    @Test
+    void theEndArrivalIsOnlyEnteredWhileRisingThroughItsPlane() {
+        for (Face normal : new Face[] {Face.U, Face.D}) {
+            boolean below = normal == Face.D;
+            assertTrue(EndPortalContact.admitsCrossing(DimensionalPortalKind.END_ARRIVAL, normal, below));
+            assertFalse(EndPortalContact.admitsCrossing(DimensionalPortalKind.END_ARRIVAL, normal, !below));
+            assertEquals(below, EndPortalContact.underside(normal));
+            for (DimensionalPortalKind kind : DimensionalPortalKind.values()) {
+                if (kind != DimensionalPortalKind.END_ARRIVAL) {
+                    assertTrue(EndPortalContact.admitsCrossing(kind, normal, true));
+                    assertTrue(EndPortalContact.admitsCrossing(kind, normal, false));
+                }
+            }
+        }
+        assertTrue(EndPortalContact.admitsCrossing(DimensionalPortalKind.END_ARRIVAL, Face.N, true));
+        assertTrue(EndPortalContact.admitsCrossing(DimensionalPortalKind.END_ARRIVAL, Face.N, false));
+    }
+
+    @Test
+    void onlyArmsOutOfTheEndThroughAHorizontalVanillaApertureAreEndReturns() {
+        assertTrue(EndPortalContact.returnArm(descriptor(Face.D, ApertureKind.VANILLA_REPLACEMENT), "minecraft:overworld"));
+        assertTrue(EndPortalContact.returnArm(descriptor(Face.U, ApertureKind.VANILLA_REPLACEMENT), "minecraft:overworld"));
+        assertFalse(EndPortalContact.returnArm(descriptor(Face.D, ApertureKind.VANILLA_REPLACEMENT), EndPortalContact.END));
+        assertFalse(EndPortalContact.returnArm(descriptor(Face.D, ApertureKind.FRAME), "minecraft:overworld"));
+        assertFalse(EndPortalContact.returnArm(descriptor(Face.N, ApertureKind.VANILLA_REPLACEMENT), "minecraft:overworld"));
+        assertFalse(EndPortalContact.returnArm(null, "minecraft:overworld"));
+    }
+
     private static ApertureDescriptor descriptor(Face facing, int kind) {
         return descriptor(facing, false, kind);
     }
@@ -220,6 +297,11 @@ final class EndPortalContactTest {
 
     private static Box player(double x, double feet, double z) {
         return new Box(x - HALF_WIDTH, x + HALF_WIDTH, feet, feet + HEIGHT, z - HALF_WIDTH, z + HALF_WIDTH);
+    }
+
+    private static Box shifted(Box box, Vec3d offset) {
+        return new Box(box.getXa() + offset.x(), box.getXb() + offset.x(), box.getYa() + offset.y(), box.getYb() + offset.y(),
+            box.getZa() + offset.z(), box.getZb() + offset.z());
     }
 
     private static void assertVec(Vec3d expected, Vec3d actual) {

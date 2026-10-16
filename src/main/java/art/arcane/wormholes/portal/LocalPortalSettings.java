@@ -183,16 +183,8 @@ final class LocalPortalSettings
 
 	void setProjectionMode(ProjectionMode mode)
 	{
-		ProjectionMode normalized = mode == null ? ProjectionMode.ON : mode;
-		DimensionalPortalKind kind = portal.getDimensionalPortalKind();
-		if(kind == DimensionalPortalKind.END_SOURCE || kind == DimensionalPortalKind.END_EXIT)
-		{
-			normalized = ProjectionMode.ON;
-		}
-		else if(kind.isReceiverOnly())
-		{
-			normalized = ProjectionMode.OFF;
-		}
+		ProjectionMode managed = portal.getDimensionalPortalKind().managedProjection(Settings.TWO_WAY_END_PORTALS);
+		ProjectionMode normalized = managed != null ? managed : mode == null ? ProjectionMode.ON : mode;
 		if(this.projectionMode == normalized)
 		{
 			return;
@@ -328,9 +320,7 @@ final class LocalPortalSettings
 	void setOutgoingTraversalsEnabled(boolean enabled)
 	{
 		DimensionalPortalKind kind = portal.getDimensionalPortalKind();
-		boolean normalized = kind.isNetherPortal()
-				|| kind == DimensionalPortalKind.END_SOURCE
-				|| (!kind.isReceiverOnly() && kind != DimensionalPortalKind.END_EXIT && enabled);
+		boolean normalized = kind.isManagedPortal() ? kind.managedTravel(Settings.TWO_WAY_END_PORTALS).allowsOutgoing() : enabled;
 		if(outgoingTraversalsEnabled == normalized)
 		{
 			return;
@@ -397,9 +387,7 @@ final class LocalPortalSettings
 	void setIncomingTraversalsEnabled(boolean enabled)
 	{
 		DimensionalPortalKind kind = portal.getDimensionalPortalKind();
-		boolean normalized = kind.isNetherPortal()
-				|| kind.isReceiverOnly()
-				|| (kind != DimensionalPortalKind.END_SOURCE && kind != DimensionalPortalKind.END_EXIT && enabled);
+		boolean normalized = kind.isManagedPortal() ? kind.managedTravel(Settings.TWO_WAY_END_PORTALS).allowsIncoming() : enabled;
 		if(incomingTraversalsEnabled == normalized)
 		{
 			return;

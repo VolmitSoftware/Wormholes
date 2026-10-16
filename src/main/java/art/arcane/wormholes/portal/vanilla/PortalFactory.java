@@ -5,6 +5,7 @@ import java.util.UUID;
 
 import org.bukkit.block.Block;
 
+import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.LocalPortal;
@@ -106,6 +107,11 @@ public final class PortalFactory
 		a.unlink();
 		b.unlink();
 		return false;
+	}
+
+	public static boolean linkEnd(ILocalPortal source, ILocalPortal arrival)
+	{
+		return Settings.TWO_WAY_END_PORTALS ? linkBidirectional(source, arrival) : linkOneWay(source, arrival);
 	}
 
 	public static synchronized boolean linkOneWay(ILocalPortal source, ILocalPortal destination)

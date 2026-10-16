@@ -18,11 +18,14 @@ import art.arcane.wormholes.hook.WormholesHooks;
 import art.arcane.wormholes.hook.WormholesRegistrar;
 import art.arcane.wormholes.transit.ScaleRuleSettings;
 import art.arcane.wormholes.transit.TransitPortalExtension;
+import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.Wormholes;
+import art.arcane.wormholes.portal.DimensionalPortalKind;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.LocalPortal;
 import art.arcane.wormholes.portal.PortalStructure;
 import art.arcane.wormholes.portal.PortalType;
+import art.arcane.wormholes.portal.ProjectionMode;
 import art.arcane.wormholes.util.Cuboid;
 
 public final class LocalPairSettingsSyncTest {
@@ -117,6 +120,52 @@ public final class LocalPairSettingsSyncTest {
             body.run();
         } finally {
             Wormholes.portalSyncService = previous;
+        }
+    }
+
+    @Test
+    public void aTwoWayEndPairSyncsSettingsInBothDirectionsAndKeepsBothViewsOn() {
+        LocalPortal source = localPortal(0);
+        LocalPortal arrival = localPortal(64);
+        source.setDimensionalPortalKind(DimensionalPortalKind.END_SOURCE);
+        arrival.setDimensionalPortalKind(DimensionalPortalKind.END_ARRIVAL);
+        source.setSettingsSyncEnabled(true);
+        arrival.setSettingsSyncEnabled(true);
+
+        withService(List.of(source, arrival), () -> {
+            source.setDimensionalCounterpartId(arrival.getId());
+            arrival.setDimensionalCounterpartId(source.getId());
+            source.setNetworkViewDepth(96);
+            assertEquals(96, arrival.getNetworkViewDepth());
+            arrival.setNetworkViewDepth(40);
+            assertEquals(40, source.getNetworkViewDepth());
+            assertEquals(ProjectionMode.ON, source.getProjectionMode());
+            assertEquals(ProjectionMode.ON, arrival.getProjectionMode());
+        });
+    }
+
+    @Test
+    public void aOneWayEndArrivalNeverReceivesItsSourceSettings() {
+        Settings.TWO_WAY_END_PORTALS = false;
+        try {
+            LocalPortal source = localPortal(0);
+            LocalPortal arrival = localPortal(64);
+            source.setDimensionalPortalKind(DimensionalPortalKind.END_SOURCE);
+            arrival.setDimensionalPortalKind(DimensionalPortalKind.END_ARRIVAL);
+            source.setSettingsSyncEnabled(true);
+            arrival.setSettingsSyncEnabled(true);
+            arrival.setNetworkViewDepth(32);
+
+            withService(List.of(source, arrival), () -> {
+                source.setDimensionalCounterpartId(arrival.getId());
+                arrival.setDimensionalCounterpartId(source.getId());
+                source.setNetworkViewDepth(96);
+
+                assertEquals(32, arrival.getNetworkViewDepth());
+                assertEquals(ProjectionMode.OFF, arrival.getProjectionMode());
+            });
+        } finally {
+            Settings.TWO_WAY_END_PORTALS = true;
         }
     }
 

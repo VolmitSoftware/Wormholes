@@ -9,12 +9,18 @@ import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.portal.ApertureKind;
 import art.arcane.wormholes.portal.DimensionalPortalKind;
 
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.function.Predicate;
+
 public final class EndPortalContact {
     public static final String END = "minecraft:the_end";
     public static final double PORTAL_HEIGHT = 0.75D;
     public static final double PLANE_HEIGHT = 0.5D;
     private static final double ENTRY_HEIGHT = 1.0D;
     private static final double EXIT_CLEARANCE = 1.0E-3D;
+    private static final double RIM_CENTRE = 0.5D;
 
     private EndPortalContact() {
     }
@@ -29,6 +35,49 @@ public final class EndPortalContact {
 
     public static boolean contactArm(ApertureDescriptor geometry, String destination) {
         return contactAperture(geometry) && END.equals(destination);
+    }
+
+    public static boolean returnArm(ApertureDescriptor geometry, String destination) {
+        return contactAperture(geometry) && !END.equals(destination);
+    }
+
+    public static boolean admitsCrossing(DimensionalPortalKind kind, Face normal, boolean frontSide) {
+        return kind != DimensionalPortalKind.END_ARRIVAL || normal == null || normal.axisIndex() != 1
+            || (frontSide ? normal.y() : -normal.y()) < 0;
+    }
+
+    public static boolean underside(Face normal) {
+        return normal.y() < 0;
+    }
+
+    public static Vec3d landing(Box area, Box traveller, Predicate<Box> obstructed) {
+        if (area == null || traveller == null) {
+            return null;
+        }
+        double minX = Math.round(area.getXa());
+        double maxX = Math.round(area.getXb());
+        double minZ = Math.round(area.getZa());
+        double maxZ = Math.round(area.getZb());
+        double halfX = (traveller.getXb() - traveller.getXa()) * 0.5D;
+        double halfZ = (traveller.getZb() - traveller.getZa()) * 0.5D;
+        double centreX = (traveller.getXa() + traveller.getXb()) * 0.5D;
+        double centreZ = (traveller.getZa() + traveller.getZb()) * 0.5D;
+        double rise = Math.round(area.getYa()) + ENTRY_HEIGHT - traveller.getYa();
+        double alongX = rowCentre(centreX, minX, maxX, halfX) - centreX;
+        double alongZ = rowCentre(centreZ, minZ, maxZ, halfZ) - centreZ;
+        List<Vec3d> offsets = new ArrayList<>(4);
+        offsets.add(new Vec3d(minX - Math.max(halfX, RIM_CENTRE) - centreX, rise, alongZ));
+        offsets.add(new Vec3d(maxX + Math.max(halfX, RIM_CENTRE) - centreX, rise, alongZ));
+        offsets.add(new Vec3d(alongX, rise, minZ - Math.max(halfZ, RIM_CENTRE) - centreZ));
+        offsets.add(new Vec3d(alongX, rise, maxZ + Math.max(halfZ, RIM_CENTRE) - centreZ));
+        offsets.sort(Comparator.comparingDouble(offset -> offset.x() * offset.x() + offset.z() * offset.z()));
+        for (Vec3d offset : offsets) {
+            if (!obstructed.test(new Box(traveller.getXa() + offset.x(), traveller.getXb() + offset.x(), traveller.getYa() + offset.y(),
+                traveller.getYb() + offset.y(), traveller.getZa() + offset.z(), traveller.getZb() + offset.z()))) {
+                return offset;
+            }
+        }
+        return null;
     }
 
     public static Hit contact(DimensionalPortalKind kind, Face normal, CellAperture aperture, Box traveller) {
@@ -92,6 +141,10 @@ public final class EndPortalContact {
             return null;
         }
         return new Hit(hitX, cellY, hitZ, new Vec3d(insideCell(centreX, hitX), traveller.getYa(), insideCell(centreZ, hitZ)));
+    }
+
+    private static double rowCentre(double centre, double minimum, double maximum, double half) {
+        return maximum - minimum < half * 2.0D ? (minimum + maximum) * 0.5D : Math.clamp(centre, minimum + half, maximum - half);
     }
 
     private static double insideCell(double value, int cell) {

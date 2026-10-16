@@ -99,6 +99,16 @@ public class ClientSeamlessTravelTest extends MinecraftTestBase {
     }
 
     @Test
+    public void aCrossingIntoTheEndThatLeadsBackHoldsNoReturnStraddleUnderTheArrivalPortal() throws ReflectiveOperationException {
+        try (Crossing crossing = new Crossing(false, floor(ApertureKind.VANILLA_REPLACEMENT, END, false, true))) {
+            StraddleTracker.Straddle[] held = crossing.holdStraddles();
+            stepIntoTheFloorPortal(crossing, 0.7D);
+            assertTrue(crossing.travel.pending());
+            assertNull(held[0]);
+        }
+    }
+
+    @Test
     public void anArmIntoTheEndIsNotPredictedWhileTheTravellerStandsOnTheFrameRing() throws ReflectiveOperationException {
         try (Crossing crossing = new Crossing(false, floor(ApertureKind.VANILLA_REPLACEMENT, END))) {
             stepIntoTheFloorPortal(crossing, 0.8125D);
@@ -109,7 +119,7 @@ public class ClientSeamlessTravelTest extends MinecraftTestBase {
     }
 
     @Test
-    public void theEndExitIsLeftToVanillaTravelOnContact() throws ReflectiveOperationException {
+    public void anEndReturnArmIsNeitherCrossedOnContactNorWhileFallingThroughItsPlane() throws ReflectiveOperationException {
         try (Crossing crossing = new Crossing(false, floor(ApertureKind.VANILLA_REPLACEMENT, ResidentTestFixtures.OVERWORLD))) {
             stepIntoTheFloorPortal(crossing, 0.0D);
             dropThroughTheFloorPlane(crossing);
@@ -117,6 +127,20 @@ public class ClientSeamlessTravelTest extends MinecraftTestBase {
             assertSame(crossing.source, crossing.scope.minecraft.level);
             assertTrue(crossing.scope.sent.stream().noneMatch(TravelMessage.TravelCross.class::isInstance));
             verify(crossing.portalViews, never()).crossed(any(), any(), any(), anyBoolean());
+        }
+    }
+
+    @Test
+    public void anEndReturnArmIsCrossedRisingThroughItsPlaneAndLandsOnTheEndPortalFrame() throws ReflectiveOperationException {
+        try (Crossing crossing = new Crossing(false, floor(ApertureKind.VANILLA_REPLACEMENT, ResidentTestFixtures.OVERWORLD, true))) {
+            riseThroughTheFloorPlane(crossing);
+            assertTrue(crossing.travel.pending());
+            assertSame(crossing.nether, crossing.scope.minecraft.level);
+            ArgumentCaptor<Vec3> position = ArgumentCaptor.forClass(Vec3.class);
+            verify(crossing.player, atLeastOnce()).setPos(position.capture());
+            assertEquals(99.5D, position.getValue().x, 1.0E-9D);
+            assertEquals(65.0D, position.getValue().y, 1.0E-9D);
+            assertEquals(101.5D, position.getValue().z, 1.0E-9D);
         }
     }
 
@@ -417,17 +441,38 @@ public class ClientSeamlessTravelTest extends MinecraftTestBase {
         crossing.travel.afterTick();
     }
 
+    private static void riseThroughTheFloorPlane(Crossing crossing) {
+        when(crossing.scope.minecraft.getCameraEntity()).thenReturn(crossing.player);
+        when(crossing.player.getEyePosition(0.0F)).thenReturn(new Vec3(1.5D, 0.3D, 1.5D));
+        when(crossing.player.getPosition(0.0F)).thenReturn(new Vec3(1.5D, -1.32D, 1.5D));
+        when(crossing.player.position()).thenReturn(new Vec3(1.5D, -1.32D, 1.5D));
+        crossing.travel.afterTick();
+        when(crossing.player.getEyePosition(0.0F)).thenReturn(new Vec3(1.5D, 0.7D, 1.5D));
+        when(crossing.player.getPosition(0.0F)).thenReturn(new Vec3(1.5D, -0.92D, 1.5D));
+        when(crossing.player.position()).thenReturn(new Vec3(1.5D, -0.92D, 1.5D));
+        when(crossing.player.getEyePosition()).thenReturn(new Vec3(1.5D, 0.7D, 1.5D));
+        crossing.travel.afterTick();
+    }
+
     private static TravelMessage.TravelBegin floor(int kind) {
         return floor(kind, ResidentTestFixtures.NETHER);
     }
 
     private static TravelMessage.TravelBegin floor(int kind, TravelMessage.TravelWorld destination) {
-        ApertureDescriptor geometry = new ApertureDescriptor(0, 0, 0, Face.D.ordinal(), false, 0, false, 3, 3, new long[] {511L},
+        return floor(kind, destination, false);
+    }
+
+    private static TravelMessage.TravelBegin floor(int kind, TravelMessage.TravelWorld destination, boolean underside) {
+        return floor(kind, destination, underside, kind == ApertureKind.FRAME);
+    }
+
+    private static TravelMessage.TravelBegin floor(int kind, TravelMessage.TravelWorld destination, boolean underside, boolean returnTraversable) {
+        ApertureDescriptor geometry = new ApertureDescriptor(0, 0, 0, Face.D.ordinal(), underside, 0, false, 3, 3, new long[] {511L},
             ShapeDescriptor.FULL, 0.0F, 0.0F, 1.0F, 64, 0, 0, 0, 0, 0, 0, kind, 0.0D, 0, 11L, List.of());
         return new TravelMessage.TravelBegin(SeamlessTravelFixtures.TOKEN, SeamlessTravelFixtures.GENERATION, new UUID(1, 3), "minecraft:overworld",
             geometry, OpticTransform.translation(-100, -64, -100), 1.0F, destination,
             new TravelMessage.TravelPose(101.5, 64, 101.5, 180, 10), ResidentTestFixtures.environment(destination),
-            TravelMessage.ArrivalRules.FRAME, true, 3, null, kind == ApertureKind.FRAME);
+            TravelMessage.ArrivalRules.FRAME, true, 3, null, returnTraversable);
     }
 
     private static void assertPosition(LocalPlayer player, double x, double z) {

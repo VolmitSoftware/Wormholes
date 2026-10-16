@@ -163,7 +163,7 @@ public final class PortalSyncService<P extends IPortal> {
             if (!candidateId.equals(forwardId) && !candidateId.equals(counterpartId)) {
                 continue;
             }
-            if (access.rtp(local) || !access.settingsSyncEnabled(local)) {
+            if (access.rtp(local) || access.receiverOnly(local) || !access.settingsSyncEnabled(local)) {
                 continue;
             }
             if (!containsPortal(counterparts, candidateId)) {

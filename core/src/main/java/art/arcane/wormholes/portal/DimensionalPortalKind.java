@@ -26,9 +26,30 @@ public enum DimensionalPortalKind
 		return this != NONE;
 	}
 
-	public boolean isReceiverOnly()
+	public boolean isReceiverOnly(boolean twoWayEnd)
 	{
-		return this == END_ARRIVAL;
+		return this == END_ARRIVAL && !twoWayEnd;
+	}
+
+	public PortalTravelMode managedTravel(boolean twoWayEnd)
+	{
+		return switch(this)
+		{
+			case NONE, NETHER, SHAPED_NETHER -> PortalTravelMode.BOTH;
+			case END_SOURCE -> twoWayEnd ? PortalTravelMode.BOTH : PortalTravelMode.OUTBOUND;
+			case END_ARRIVAL -> twoWayEnd ? PortalTravelMode.BOTH : PortalTravelMode.INBOUND;
+			case END_EXIT -> PortalTravelMode.LOCKED;
+		};
+	}
+
+	public ProjectionMode managedProjection(boolean twoWayEnd)
+	{
+		return switch(this)
+		{
+			case END_SOURCE, END_EXIT -> ProjectionMode.ON;
+			case END_ARRIVAL -> twoWayEnd ? ProjectionMode.ON : ProjectionMode.OFF;
+			case NONE, NETHER, SHAPED_NETHER -> null;
+		};
 	}
 
 	public boolean isGenericDestination()

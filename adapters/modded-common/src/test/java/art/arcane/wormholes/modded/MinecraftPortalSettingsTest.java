@@ -17,6 +17,11 @@ import art.arcane.wormholes.transit.MomentumPolicy;
 import art.arcane.wormholes.transit.OrientationPolicy;
 import art.arcane.wormholes.transit.TransitionProfile;
 import art.arcane.optics.math.Face;
+import art.arcane.wormholes.config.WormholesSettings;
+import art.arcane.wormholes.network.PortalSettingsApplyQueue;
+import art.arcane.wormholes.network.PortalSyncService;
+import art.arcane.wormholes.portal.DimensionalPortalKind;
+import art.arcane.wormholes.portal.ProjectionMode;
 import org.junit.Test;
 
 import java.util.List;
@@ -48,6 +53,32 @@ public class MinecraftPortalSettingsTest extends MinecraftTestBase {
         sync.applySettings(destination, sync.collectSettings(source));
         assertFalse(destination.isGravityRotationEnabled());
         assertEquals(destinationFrame, destination.getFrame());
+    }
+
+    @Test
+    public void aOneWayEndArrivalKeepsItsProjectionOffWhenItsSourceSettingsSync() {
+        Sync fixture = new Sync(false);
+
+        fixture.sync.syncLinkedLocals(fixture.source);
+
+        assertEquals(ProjectionMode.ON, fixture.source.getProjectionMode());
+        assertEquals(ProjectionMode.OFF, fixture.arrival.getProjectionMode());
+        assertEquals(64, fixture.arrival.getNetworkViewDepth());
+    }
+
+    @Test
+    public void aTwoWayEndPairSyncsSettingsBothWays() {
+        Sync fixture = new Sync(true);
+        fixture.arrival.setProjectionMode(ProjectionMode.ON);
+
+        fixture.sync.syncLinkedLocals(fixture.source);
+        assertEquals(96, fixture.arrival.getNetworkViewDepth());
+        fixture.arrival.setNetworkViewDepth(40);
+        fixture.sync.syncLinkedLocals(fixture.arrival);
+
+        assertEquals(40, fixture.source.getNetworkViewDepth());
+        assertEquals(ProjectionMode.ON, fixture.source.getProjectionMode());
+        assertEquals(ProjectionMode.ON, fixture.arrival.getProjectionMode());
     }
 
     @Test
@@ -181,6 +212,42 @@ public class MinecraftPortalSettingsTest extends MinecraftTestBase {
         assertEquals(80.0D, mapped.y(), 0.0D);
         assertEquals(feet, OpticTransform.between(frame, target.getOrigin(), frame, source.getOrigin()).point(mapped));
         assertEquals(205.999D, source.getGeometry().getArea().getYb(), 0.0D);
+    }
+
+    private static final class Sync {
+        private final MinecraftPortal source = portal();
+        private final MinecraftPortal arrival = portal();
+        private final PortalSyncService<MinecraftPortal> sync;
+
+        private Sync(boolean twoWay) {
+            WormholesModRuntime runtime = mock(WormholesModRuntime.class);
+            WormholesModConfiguration configuration = mock(WormholesModConfiguration.class);
+            WormholesSettings settings = MinecraftTestSettings.defaults();
+            settings.getMain().twoWayEndPortals = twoWay;
+            when(runtime.portals()).thenReturn(mock(MinecraftPortalRegistry.class));
+            when(runtime.menus()).thenReturn(mock(MinecraftPortalMenus.class));
+            when(runtime.configuration()).thenReturn(configuration);
+            when(configuration.settings()).thenReturn(settings);
+            MinecraftPortalSyncAccess access = new MinecraftPortalSyncAccess(runtime);
+            source.setDimensionalKind(DimensionalPortalKind.END_SOURCE);
+            arrival.setDimensionalKind(DimensionalPortalKind.END_ARRIVAL);
+            source.setCounterpartId(arrival.getId());
+            arrival.setCounterpartId(source.getId());
+            source.setSettingsSyncEnabled(true);
+            arrival.setSettingsSyncEnabled(true);
+            source.setProjectionMode(ProjectionMode.ON);
+            arrival.setProjectionMode(ProjectionMode.OFF);
+            source.setNetworkViewDepth(96);
+            arrival.setNetworkViewDepth(64);
+            PortalSettingsApplyQueue<MinecraftPortal> queue = new PortalSettingsApplyQueue<>(access, new PortalSettingsApplyQueue.Dispatch<>(
+                (target, task, retired) -> {
+                    task.run();
+                    return true;
+                }, (task, delayTicks) -> task.run(), (reason, target, failure) -> {
+                }));
+            sync = new PortalSyncService<>(null, new PortalSyncService.Options<>(() -> List.of(source, arrival), Runnable::run, () -> null,
+                access, queue));
+        }
     }
 
     private static MinecraftPortal portal() {

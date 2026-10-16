@@ -211,7 +211,7 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
 
     public boolean canDepart(ServerPlayer actor, MinecraftPortal portal) {
         runtime.requireServerThread();
-        return portal != null && !portal.isMirrorMode()
+        return portal != null && !portal.isMirrorMode() && portal.getDimensionalKind() != DimensionalPortalKind.END_EXIT
             && (options.access().administrator(actor) || portal.isOutgoingTraversalsEnabled())
             && portal.allows(actor.getUUID(), options.access().administrator(actor),
                 node -> options.access().permission(actor, node), options.access().nameAlias());
@@ -354,9 +354,10 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
         MinecraftWormholesApi api = runtime.api();
         boolean resolving = api != null && api.hasResolvers();
         double radius = runtime.configuration().settings().getRender().captureZoneRadius;
+        boolean twoWayEnd = runtime.configuration().settings().getMain().twoWayEndPortals;
         for (MinecraftPortal source : portals.values()) {
             boolean random = source.getType() == PortalType.RTP;
-            if (source.getDimensionalKind().isReceiverOnly() || source.getDimensionalKind() == DimensionalPortalKind.END_EXIT
+            if (source.getDimensionalKind().isReceiverOnly(twoWayEnd) || source.getDimensionalKind() == DimensionalPortalKind.END_EXIT
                 || !source.isOpen() || source.isMirrorMode() || !random && !resolving && !runtime.nexus().perTraveler(source) && !MinecraftGatewayPolicies.active(source) && (source.getDestinationId() == null
                 || !(source.getTunnelType().equals("LOCAL") || source.getTunnelType().equals("DIMENSIONAL")
                     || source.getTunnelType().equals("UNIVERSAL")))) {
@@ -373,14 +374,14 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
             boolean contact = EndPortalContact.applies(source.getDimensionalKind(), source.getFrame().getNormal());
             for (Entity entity : captureEntities(source, level, search)) {
                 Entity root = entity.getRootVehicle();
-                if (pending.containsKey(root.getUUID()) || visited.contains(root.getUUID()) || runtime.doors().travelling(root.getUUID()) || runtime.network().handoffs().locked(root.getUUID()) || runtime.network().entityTransfers().locked(root.getUUID()) || runtime.rtp().locked(root.getUUID())) {
+                if (pending.containsKey(root.getUUID()) || visited.contains(root.getUUID()) || !MinecraftTransit.admits(root) || runtime.doors().travelling(root.getUUID()) || runtime.network().handoffs().locked(root.getUUID()) || runtime.network().entityTransfers().locked(root.getUUID()) || runtime.rtp().locked(root.getUUID())) {
                     continue;
                 }
                 Position previous = previousPositions.get(root.getUUID());
                 Vec3d start = previous != null && previous.level() == level
                     ? vector(previous.point()) : new Vec3d(root.xo, root.yo, root.zo);
                 PlaneCrossing crossing = contact ? contactCrossing(source, root, start) : planeCrossing(source, root, start, random, now);
-                if (crossing == null) {
+                if (crossing == null || !EndPortalContact.admitsCrossing(source.getDimensionalKind(), source.getFrame().getNormal(), crossing.frontSide())) {
                     continue;
                 }
                 Arrival arrival = arrivals.get(root.getUUID());
@@ -535,6 +536,12 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
     static PlaneCrossing cleared(Entity entity, MinecraftPortal source, MinecraftPortal destination, ServerLevel targetLevel, PlaneCrossing crossing) {
         Passage passage = passage(source, destination, crossing);
         AABB bounds = arrivalBounds(entity, source, passage, passage.toward().point(crossing.point()));
+        Vec3d landing = EndPortalContact.applies(destination.getDimensionalKind(), destination.getFrame().getNormal())
+            ? EndPortalContact.landing(destination.getGeometry().getArea(), box(bounds), box -> !targetLevel.noCollision(entity, aabb(box))) : null;
+        if (landing != null) {
+            return new PlaneCrossing(crossing.frame(), crossing.origin(), crossing.point().add(passage.toward().inverse().vector(landing)),
+                crossing.velocity(), crossing.look(), crossing.frontSide());
+        }
         if (targetLevel.noCollision(entity, bounds)) {
             return crossing;
         }
@@ -717,8 +724,11 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
 
     private void requireTransitPairSync(MinecraftPortal source, MinecraftPortal destination) {
         if (destination == null || destination == source || destination.isMirrorMode() || destination.getType() == PortalType.RTP
-            || source.getDimensionalKind().isReceiverOnly() || destination.getDimensionalKind().isReceiverOnly()
             || !requiresTransitSync(source) && !requiresTransitSync(destination)) {
+            return;
+        }
+        boolean twoWayEnd = runtime.configuration().settings().getMain().twoWayEndPortals;
+        if (source.getDimensionalKind().isReceiverOnly(twoWayEnd) || destination.getDimensionalKind().isReceiverOnly(twoWayEnd)) {
             return;
         }
         source.setSettingsSyncEnabled(true);
@@ -1080,6 +1090,10 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
 
     private static Box box(AABB bounds) {
         return new Box(bounds.minX, bounds.maxX, bounds.minY, bounds.maxY, bounds.minZ, bounds.maxZ);
+    }
+
+    private static AABB aabb(Box box) {
+        return new AABB(box.getXa(), box.getYa(), box.getZa(), box.getXb(), box.getYb(), box.getZb());
     }
 
     private static Vec3d vector(Vec3 vector) {

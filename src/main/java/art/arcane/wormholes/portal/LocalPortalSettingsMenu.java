@@ -198,20 +198,21 @@ final class LocalPortalSettingsMenu
 		DimensionalPortalKind kind = portal.getDimensionalPortalKind();
 		if(kind.isManagedPortal())
 		{
-			boolean receiver = kind.isReceiverOnly();
-			String direction = kind.isNetherPortal()
+			PortalTravelMode managed = kind.managedTravel(Settings.TWO_WAY_END_PORTALS);
+			boolean both = managed == PortalTravelMode.BOTH;
+			String direction = both
 					? LocalPortalText.localized(WormholesMessages.PORTAL_LABEL_BOTH_WAYS)
-					: receiver
+					: managed == PortalTravelMode.INBOUND
 							? LocalPortalText.localized(WormholesMessages.PORTAL_LABEL_ARRIVAL_ONLY)
 							: LocalPortalText.localized(WormholesMessages.PORTAL_LABEL_DEPARTURE_ONLY);
-			String detail = kind.isNetherPortal()
+			String detail = both
 					? LocalPortalText.localized(WormholesMessages.PORTAL_LABEL_DIMENSIONAL_BOTH_ACTIVE)
 					: LocalPortalText.localized(WormholesMessages.PORTAL_LABEL_DIMENSIONAL_RETURN_DISABLED);
 			Wormholes.text().apply(element, WormholesMessages.PORTAL_MENU_TRAVEL_MANAGED,
 					LocalPortalText.arguments("direction", direction, "detail", detail));
 			element.setEnchanted(true);
 			element.setMaterial(new MaterialBlock(kind.isNetherPortal() ? Material.OBSIDIAN
-					: receiver ? Material.ENDER_EYE : Material.ENDER_PEARL));
+					: managed == PortalTravelMode.INBOUND ? Material.ENDER_EYE : Material.ENDER_PEARL));
 			return;
 		}
 		if(portal.isMirrorMode())

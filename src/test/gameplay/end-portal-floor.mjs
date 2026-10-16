@@ -1,4 +1,4 @@
-import { open, readFile, stat } from 'node:fs/promises'
+import { open, readFile, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { publicPlayer } from './support/public-player.mjs'
 import { storedPortals } from './support/portal-storage.mjs'
@@ -6,6 +6,12 @@ import { storedPortals } from './support/portal-storage.mjs'
 const FRAME_TOP = 0.8125
 const ENTER_TIMEOUT_MS = 10000
 const RETURN_TIMEOUT_MS = 15000
+const RISE_TIMEOUT_MS = 15000
+const STAY_MS = 3000
+const DRAGON_MS = 5000
+const RELOAD_TIMEOUT_MS = 20000
+const SAVE_TIMEOUT_MS = 15000
+const TRAVELLER_HALF_WIDTH = 0.3
 const SITES = [
   { phase: 'floor-drop', label: 'floor', x: 2, y: 200, z: 2, pit: 0, inside: false },
   { phase: 'elevated-enter', label: 'elevated', x: 22, y: 200, z: 2, pit: 3, inside: false },
@@ -13,14 +19,19 @@ const SITES = [
   { phase: 'floor-convert', label: 'converted-underfoot', x: 32, y: 200, z: 2, pit: 0, inside: true }
 ]
 
-export default {
-  name: 'wormholes-end-portal-floor',
-  description: 'Complete End portals on a floor and above a pit, enter them from the frame, from floor level inside the ring and while standing in them as they convert, and leave the End through the exit fountain.',
+export function endPortalFloor(travel) {
+  const twoWay = travel === 'two-way'
+  return {
+  name: twoWay ? 'wormholes-end-portal-floor' : 'wormholes-end-portal-floor-one-way',
+  description: twoWay
+    ? 'Complete End portals on a floor and above a pit, enter them from the frame, from floor level inside the ring and while standing in them as they convert, fly back up through the End arrival onto the Overworld End portal frame, keep a summoned ender dragon out of the End portal, leave the End through the exit fountain and switch existing pairs to one-way travel by hot reload.'
+    : 'With two-way-end-portals set to false by hot reload, complete End portals on a floor and above a pit, enter them, check that flying up through the receive-only End arrival keeps the player in the End, keep a summoned ender dragon out of the End portal and leave the End through the exit fountain.',
   async run(context) {
     const p = publicPlayer(context)
     const bot = p.bot
     const portalDirectory = path.join(context.server.directory, 'plugins/Wormholes/portals')
-    const evidence = { sites: [], walks: [], fountain: null, winGame: [], dimensions: [], failures: [], skipped: [], log: [] }
+    const configPath = path.join(context.server.directory, 'plugins/Wormholes/wormholes.toml')
+    const evidence = { travel, sites: [], walks: [], fountain: null, winGame: [], dimensions: [], failures: [], skipped: [], log: [] }
     context.report.endPortalFloor = evidence
     const failures = []
     const logPath = context.server.logPath
@@ -262,6 +273,158 @@ export default {
       walk.settled = position()
     }
 
+    async function appendedLog() {
+      if (!logPath) return ''
+      const handle = await open(logPath, 'r')
+      try {
+        const size = (await handle.stat()).size
+        const buffer = Buffer.alloc(Math.max(0, size - logOffset))
+        await handle.read(buffer, 0, buffer.length, logOffset)
+        return buffer.toString('utf8').replace(/\u001b\[[0-9;]*[A-Za-z]/g, '')
+      } finally {
+        await handle.close()
+      }
+    }
+
+    async function setEndTravel(enabled) {
+      const before = ((await appendedLog()).match(/Configuration hot-reloaded/g) ?? []).length
+      const toml = await readFile(configPath, 'utf8')
+      context.expect(/^two-way-end-portals\s*=\s*(true|false)\s*$/m.test(toml), 'wormholes.toml must contain two-way-end-portals')
+      await writeFile(configPath, toml.replace(/^two-way-end-portals\s*=\s*(true|false)\s*$/m, `two-way-end-portals = ${enabled}`), 'utf8')
+      await p.wait(async () => ((await appendedLog()).match(/Configuration hot-reloaded/g) ?? []).length > before,
+        `two-way-end-portals = ${enabled} hot-reloads`, RELOAD_TIMEOUT_MS)
+      evidence.setting = { twoWayEndPortals: enabled, at: new Date().toISOString() }
+    }
+
+    async function arrivalState(record) {
+      const portals = await storedPortals(portalDirectory)
+      const arrival = portals.find(portal => portal.id === record.arrival.id)
+      const source = portals.find(portal => portal.id === record.source.id)
+      return {
+        projection: arrival?.data?.projectionMode ?? null,
+        destination: arrival?.data?.tunnel?.destination ?? null,
+        outgoing: arrival?.data?.outgoingTraversalsEnabled ?? null,
+        sourceIncoming: source?.data?.incomingTraversalsEnabled ?? null
+      }
+    }
+
+    function linkedBack(state, record) {
+      return state.projection === 'ON' && state.destination === record.source.id && state.outgoing === true && state.sourceIncoming === true
+    }
+
+    function receiveOnly(state) {
+      return state.projection === 'OFF' && state.destination === null && state.outgoing === false && state.sourceIncoming === false
+    }
+
+    async function riseThroughArrival(record, walk, returns) {
+      const arrival = record.arrival.centre
+      const planeY = arrival.y
+      walk.arrivalWindow = arrival
+      walk.state = await arrivalState(record)
+      context.expect(bot.game.dimension === 'the_end', `${walk.phase}: player is not in the End below the END_ARRIVAL window`, { dimension: bot.game.dimension })
+      bot.creative.startFlying()
+      await stageIn('the_end', arrival.x, planeY - 3, arrival.z, 0)
+      walk.start = position()
+      let forced = 0
+      const onForced = () => {
+        forced++
+        if (!walk.teleported && bot.game.dimension !== 'the_end') walk.teleported = { dimension: bot.game.dimension, ...position() }
+      }
+      bot.on('forcedMove', onForced)
+      const started = Date.now()
+      const sampler = setInterval(() => {
+        if (walk.samples.length >= 400) return
+        walk.samples.push({ t: Date.now() - started, dimension: bot.game.dimension, onGround: bot.entity.onGround, ...position() })
+      }, 50)
+      try {
+        while (bot.game.dimension === 'the_end' && bot.entity.position.y <= planeY + 2.5 && Date.now() - started < RISE_TIMEOUT_MS) {
+          bot.entity.velocity.set(0, 0, 0)
+          bot.entity.position.y += 0.2
+          await context.sleep(50)
+        }
+        await p.wait(() => bot.game.dimension !== 'the_end' || bot.entity.position.y > planeY + 2.5,
+          `${walk.phase}: flying up through the END_ARRIVAL window`, 2000)
+      } finally {
+        bot.creative.stopFlying()
+        walk.elapsedMs = Date.now() - started
+      }
+      walk.crossed = { dimension: bot.game.dimension, position: position(), forcedMoves: forced }
+      if (!returns) {
+        await context.sleep(STAY_MS)
+        clearInterval(sampler)
+        bot.removeListener('forcedMove', onForced)
+        walk.settled = { dimension: bot.game.dimension, position: position() }
+        context.expect(walk.crossed.dimension === 'the_end' && bot.game.dimension === 'the_end',
+          `${walk.phase}: flying up through the receive-only END_ARRIVAL window left the End`, walk.settled)
+        context.expect(walk.crossed.position.y > planeY + 2.0, `${walk.phase}: the player never rose above the END_ARRIVAL plane y=${planeY}`, walk.crossed)
+        return
+      }
+      try {
+        context.expect(bot.game.dimension === 'overworld', `${walk.phase}: flying up through the END_ARRIVAL window (plane y=${planeY}) rose above it without reaching the overworld`,
+          { crossed: walk.crossed, server: await serverPosition() })
+        await p.wait(() => walk.teleported && bot.blockAt(bot.entity.position.floored()), `${walk.phase}: overworld arrival position and chunk arrive`, 10000)
+        const landing = walk.teleported
+        walk.landing = landing
+        await context.sleep(STAY_MS)
+        walk.settled = { dimension: bot.game.dimension, position: position(), onGround: bot.entity.onGround, server: await serverPosition() }
+        const { x, y, z } = record.centre
+        const outside = landing.x + TRAVELLER_HALF_WIDTH <= x - 1 || landing.x - TRAVELLER_HALF_WIDTH >= x + 2
+          || landing.z + TRAVELLER_HALF_WIDTH <= z - 1 || landing.z - TRAVELLER_HALF_WIDTH >= z + 2
+        context.expect(outside && Math.abs(landing.y - (y + 1)) < 0.1,
+          `${walk.phase}: arrival in the overworld at ${landing.x.toFixed(3)},${landing.y.toFixed(3)},${landing.z.toFixed(3)} is not on the End portal frame at y=${y + 1} outside the portal cells around ${x},${z}`, walk)
+        context.expect(bot.game.dimension === 'overworld' && evidence.dimensions.filter(entry => entry.dimension === 'the_end').length === walk.endVisits,
+          `${walk.phase}: the player left the overworld again after landing on the End portal frame`, walk.settled)
+        context.expect(bot.entity.position.y >= y + FRAME_TOP - 0.01, `${walk.phase}: the player fell off the End portal frame into the portal`, walk.settled)
+      } finally {
+        clearInterval(sampler)
+        bot.removeListener('forcedMove', onForced)
+      }
+    }
+
+    async function endArrivalReturn(record) {
+      const walk = { phase: 'end-arrival-return', site: record.label, samples: [] }
+      evidence.walks.push(walk)
+      context.expect(linkedBack(await arrivalState(record), record), 'end-arrival-return: the END_ARRIVAL does not link back to its END_SOURCE with its view on',
+        await arrivalState(record))
+      walk.endVisits = evidence.dimensions.filter(entry => entry.dimension === 'the_end').length
+      await riseThroughArrival(record, walk, true)
+    }
+
+    async function endArrivalOneWay(record) {
+      const walk = { phase: 'end-arrival-one-way', site: record.label, samples: [] }
+      evidence.walks.push(walk)
+      context.expect(receiveOnly(await arrivalState(record)), 'end-arrival-one-way: the END_ARRIVAL is not receive-only with its view off',
+        await arrivalState(record))
+      await riseThroughArrival(record, walk, false)
+    }
+
+    async function dragonStaysOut(site, record) {
+      const check = { phase: 'dragon', site: site.label }
+      evidence.dragon = check
+      context.expect(record?.source, 'dragon: the floor End portal was never converted')
+      await stageIn('overworld', site.x + 0.5, site.y + 1, site.z + 3.5, 180)
+      const tag = `qa_dragon_${Date.now()}`
+      const controlTag = `qa_control_${Date.now()}`
+      await context.command(`/summon minecraft:ender_dragon ${site.x + 0.5} ${site.y} ${site.z + 0.5} {NoAI:1b,Tags:["${tag}"]}`, /Summoned/i)
+      await context.command(`/summon minecraft:item ${site.x - 0.5} ${site.y + 0.05} ${site.z - 0.5} {Item:{id:"minecraft:stone",count:1},NoGravity:1b,PickupDelay:32767,Age:-32768,Tags:["${controlTag}"]}`, /Summoned/i)
+      const present = async entityTag => {
+        const marker = `QA_TAG_${entityTag}`
+        try {
+          await context.command(`/execute if entity @e[tag=${entityTag},distance=..64] run tellraw ${bot.username} ${JSON.stringify({ text: marker })}`, new RegExp(marker), 1000)
+          return true
+        } catch {
+          return false
+        }
+      }
+      const started = Date.now()
+      await p.wait(async () => !(await present(controlTag)), 'dragon: the control item touching the End portal leaves the overworld', DRAGON_MS * 2)
+      check.controlLeftAfterMs = Date.now() - started
+      await context.sleep(DRAGON_MS)
+      check.dragonInOverworld = await present(tag)
+      await context.command(`/kill @e[tag=${tag}]`, /Killed|No entity/i).catch(() => null)
+      context.expect(check.dragonInOverworld, 'dragon: an ender dragon touching the overworld End portal left the overworld', check)
+    }
+
     async function endReturn() {
       const walk = { phase: 'end-return', site: 'fountain', samples: [] }
       evidence.walks.push(walk)
@@ -313,6 +476,7 @@ export default {
         evidence.serverType = /^type=(\S+)\s*$/m.exec(source)?.[1] ?? 'unknown'
         evidence.gameMode = bot.game.gameMode
         evidence.version = bot.version
+        if (!twoWay) await setEndTravel(false)
       })
       const records = new Map()
       for (const site of SITES.filter(candidate => !candidate.inside)) {
@@ -321,9 +485,16 @@ export default {
         })
       }
       await phase('floor-drop', 'walk off the frame onto the End portal built on a solid floor', () => enter(SITES[0], records.get('floor')))
+      if (bot.game.dimension === 'the_end' && twoWay) {
+        await phase('end-arrival-return', 'fly up through the End arrival back onto the overworld End portal frame', () => endArrivalReturn(records.get('floor')))
+      }
+      if (bot.game.dimension === 'the_end' && !twoWay) {
+        await phase('end-arrival-one-way', 'fly up through the receive-only End arrival and stay in the End', () => endArrivalOneWay(records.get('floor')))
+      }
       if (bot.game.dimension === 'the_end') {
         await phase('end-return', 'walk from the fountain rim into the End exit portal', endReturn)
       }
+      await phase('dragon', 'summon an ender dragon in the floor End portal beside a control item', () => dragonStaysOut(SITES[0], records.get('floor')))
       await phase('floor-enter', 'stand still at floor level inside the floor End portal completed from outside the ring', () => enter(SITES[2], records.get('floor-level')))
       await phase('floor-convert', 'complete the floor End portal while standing inside it beside an armor stand, then walk across it at floor level', async () => {
         const site = SITES[3]
@@ -371,7 +542,23 @@ export default {
           evidence.failures.push({ phase: 'end-return', message: 'not exercised because no End entry succeeded' })
         }
       }
+      if (twoWay) {
+        await phase('reload-one-way', 'hot-reload two-way-end-portals = false and check the existing pair becomes one-way', async () => {
+          const record = records.get('floor')
+          context.expect(record?.arrival, 'reload-one-way: the floor End portal was never converted')
+          await setEndTravel(false)
+          let state
+          await p.wait(async () => {
+            state = await arrivalState(record)
+            return receiveOnly(state)
+          }, 'reload-one-way: the existing END_ARRIVAL is saved receive-only with its view off', SAVE_TIMEOUT_MS)
+          evidence.reloadedOneWay = state
+        })
+      }
     } finally {
+      if (!twoWay || evidence.setting?.twoWayEndPortals === false) {
+        await setEndTravel(true).catch(error => evidence.failures.push({ phase: 'restore', message: error.message }))
+      }
       bot.clearControlStates()
       if (bot.currentWindow) bot.closeWindow(bot.currentWindow)
       if (logPath) {
@@ -389,4 +576,7 @@ export default {
     }
     context.expect(failures.length === 0, failures.join('; '), evidence.failures)
   }
+  }
 }
+
+export default endPortalFloor('two-way')

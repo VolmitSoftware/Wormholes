@@ -4,6 +4,7 @@ import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.plate.ChunkLease;
 import art.arcane.wormholes.config.toml.DimensionalConfig;
 import art.arcane.wormholes.portal.DimensionalPortalKind;
+import art.arcane.wormholes.portal.PortalTravelMode;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.portal.ProjectionMode;
 import art.arcane.wormholes.portal.vanilla.DimensionalRouting;
@@ -34,6 +35,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.OptionalInt;
 import java.util.Set;
 import java.util.UUID;
@@ -166,6 +168,23 @@ public final class MinecraftVanillaPortals implements AutoCloseable {
         }
     }
 
+    public void applyEndTravel() {
+        runtime.requireServerThread();
+        boolean twoWay = twoWay();
+        for (MinecraftPortal source : runtime.portals().snapshot()) {
+            if (source.getDimensionalKind() != DimensionalPortalKind.END_SOURCE || source.getCounterpartId() == null) {
+                continue;
+            }
+            MinecraftPortal arrival = runtime.portals().get(source.getCounterpartId());
+            if (arrival == null || arrival.getDimensionalKind() != DimensionalPortalKind.END_ARRIVAL
+                || !source.getId().equals(arrival.getCounterpartId()) || !endTravel(source, arrival, twoWay)) {
+                continue;
+            }
+            runtime.portals().save(source);
+            runtime.portals().save(arrival);
+        }
+    }
+
     @Override
     public void close() {
         generation++;
@@ -206,11 +225,7 @@ public final class MinecraftVanillaPortals implements AutoCloseable {
             origin.setCounterpartId(destination.getId());
             destination.setCounterpartId(origin.getId());
             if (shape.end()) {
-                origin.setIncomingTraversalsEnabled(false);
-                destination.unlink();
-                destination.setOutgoingTraversalsEnabled(false);
-                destination.setIncomingTraversalsEnabled(true);
-                destination.setProjectionMode(ProjectionMode.OFF);
+                endTravel(origin, destination, twoWay());
             }
             runtime.portals().save(origin);
             runtime.portals().save(destination);
@@ -238,6 +253,35 @@ public final class MinecraftVanillaPortals implements AutoCloseable {
             }
             throw failure;
         }
+    }
+
+    private static boolean endTravel(MinecraftPortal source, MinecraftPortal arrival, boolean twoWay) {
+        boolean sourceChanged = managedState(source, twoWay);
+        boolean arrivalChanged = managedState(arrival, twoWay);
+        UUID back = twoWay ? source.getId() : null;
+        if (Objects.equals(arrival.getDestinationId(), back)) {
+            return sourceChanged || arrivalChanged;
+        }
+        if (twoWay) {
+            arrival.link(source);
+        } else {
+            arrival.unlink();
+        }
+        return true;
+    }
+
+    private static boolean managedState(MinecraftPortal portal, boolean twoWay) {
+        DimensionalPortalKind kind = portal.getDimensionalKind();
+        PortalTravelMode travel = kind.managedTravel(twoWay);
+        ProjectionMode projection = kind.managedProjection(twoWay);
+        boolean changed = portal.isOutgoingTraversalsEnabled() != travel.allowsOutgoing() || portal.isIncomingTraversalsEnabled() != travel.allowsIncoming()
+            || projection != null && portal.getProjectionMode() != projection;
+        portal.setOutgoingTraversalsEnabled(travel.allowsOutgoing());
+        portal.setIncomingTraversalsEnabled(travel.allowsIncoming());
+        if (projection != null) {
+            portal.setProjectionMode(projection);
+        }
+        return changed;
     }
 
     private Shape physical(ServerLevel target, BlockPos center) {
@@ -441,6 +485,10 @@ public final class MinecraftVanillaPortals implements AutoCloseable {
 
     private boolean enabled() {
         return runtime.running() && runtime.configuration().settings().getMain().replaceNetherAndEndPortals;
+    }
+
+    private boolean twoWay() {
+        return runtime.configuration().settings().getMain().twoWayEndPortals;
     }
 
     private boolean unoccupied(ServerLevel level, List<BlockPos> cells) {

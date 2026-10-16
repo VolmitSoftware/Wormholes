@@ -22,6 +22,18 @@ import java.util.Map;
 public final class MinecraftTransit {
     private MinecraftTransit() { }
 
+    public static boolean admits(Entity traveler) {
+        if (traveler.getType() == MinecraftEntityTypes.ENDER_DRAGON) {
+            return false;
+        }
+        for (Entity passenger : traveler.getPassengers()) {
+            if (!admits(passenger)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     public static boolean depart(WormholesModRuntime runtime, MinecraftPortal portal, Entity traveler, PlaneCrossing crossing) {
         boolean bounce = Boolean.TRUE.equals(portal.setting("transit.bounce"));
         boolean membrane = Boolean.TRUE.equals(portal.setting("transit.membrane")) && !crossing.frontSide();

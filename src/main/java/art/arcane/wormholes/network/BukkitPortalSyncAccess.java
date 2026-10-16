@@ -1,6 +1,7 @@
 package art.arcane.wormholes.network;
 
 import art.arcane.volmlib.util.bukkit.WorldIdentity;
+import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.ITunnel;
@@ -46,7 +47,7 @@ public enum BukkitPortalSyncAccess implements PortalSyncAccess<ILocalPortal> {
 
     @Override
     public boolean receiverOnly(ILocalPortal portal) {
-        return ((LocalPortal) portal).getDimensionalPortalKind().isReceiverOnly();
+        return ((LocalPortal) portal).getDimensionalPortalKind().isReceiverOnly(Settings.TWO_WAY_END_PORTALS);
     }
 
     @Override

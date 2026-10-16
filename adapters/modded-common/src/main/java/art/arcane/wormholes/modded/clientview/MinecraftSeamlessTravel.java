@@ -29,7 +29,9 @@ import art.arcane.wormholes.network.MinecraftGatewayPolicies;
 import art.arcane.wormholes.network.client.TravelMessage;
 import art.arcane.wormholes.nexus.NetworkMember;
 import art.arcane.wormholes.portal.ApertureKind;
+import art.arcane.wormholes.portal.DimensionalPortalKind;
 import art.arcane.wormholes.portal.PortalType;
+import art.arcane.wormholes.portal.vanilla.EndPortalContact;
 import art.arcane.wormholes.render.client.session.ClientViewTravel;
 import art.arcane.wormholes.render.client.session.SeamlessCrossCheck;
 import net.minecraft.server.level.ServerLevel;
@@ -296,8 +298,8 @@ final class MinecraftSeamlessTravel {
             boolean unchanged = current != null && current.geometryMatches(source, destination);
             Vec3 eye = player.getEyePosition();
             boolean withinAperture = unchanged && projectsIntoAperture(current.begin().sourceGeometry(), new Vec3d(eye.x, eye.y, eye.z));
-            boolean front = traveler.sides.front(unchanged, unchanged && current.front(), planeDistance(eye, source), speed,
-                withinAperture);
+            boolean front = armedFront(source.getDimensionalKind(), source.getFrame().getNormal(),
+                traveler.sides.front(unchanged, unchanged && current.front(), planeDistance(eye, source), speed, withinAperture));
             long identity = peer.portals().routeIdentity(source);
             TravelMessage.DoorCollisionTarget doorCollision = collisionTarget(peer, source, destination);
             boolean returnTraversable = returnTraversable(peer, player, source, destination);
@@ -338,6 +340,10 @@ final class MinecraftSeamlessTravel {
 
     static boolean armedWith(TravelMessage.ArrivalRules armed, float armedScale, TravelMessage.ArrivalRules rules, double travelScale) {
         return armed.equals(rules) && armedScale == (float) travelScale;
+    }
+
+    static boolean armedFront(DimensionalPortalKind kind, Face normal, boolean front) {
+        return kind == DimensionalPortalKind.END_ARRIVAL && normal.axisIndex() == 1 ? EndPortalContact.underside(normal) : front;
     }
 
     static boolean keepsSide(double distance, double speed) {

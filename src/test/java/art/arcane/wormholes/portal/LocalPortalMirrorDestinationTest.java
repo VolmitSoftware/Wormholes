@@ -38,6 +38,7 @@ import org.mockito.MockedStatic;
 import io.papermc.paper.registry.RegistryAccess;
 import io.papermc.paper.registry.RegistryKey;
 
+import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.localization.WormholesMessages;
 import art.arcane.wormholes.util.Cuboid;
 import art.arcane.volmlib.util.inventorygui.UIWindow;
@@ -116,6 +117,7 @@ public final class LocalPortalMirrorDestinationTest
 		mirror.setMirrorMode(true);
 		LocalPortal rtp = LocalPortalTestSupport.portal(world, PortalType.RTP);
 		LocalPortal managed = LocalPortalTestSupport.portal(world, PortalType.PORTAL);
+		managed.setDimensionalCounterpartId(UUID.randomUUID());
 		managed.setDimensionalPortalKind(DimensionalPortalKind.END_ARRIVAL);
 		LocalPortal linkable = LocalPortalTestSupport.portal(world, PortalType.PORTAL);
 
@@ -123,6 +125,17 @@ public final class LocalPortalMirrorDestinationTest
 		assertFalse(rtp.setDestination(destination));
 		assertFalse(managed.setDestination(destination));
 		assertTrue(linkable.setDestination(destination));
+		Settings.TWO_WAY_END_PORTALS = false;
+		try
+		{
+			LocalPortal receiver = LocalPortalTestSupport.portal(world, PortalType.PORTAL);
+			receiver.setDimensionalPortalKind(DimensionalPortalKind.END_ARRIVAL);
+			assertFalse(receiver.setDestination(destination));
+		}
+		finally
+		{
+			Settings.TWO_WAY_END_PORTALS = true;
+		}
 
 		assertFalse(mirror.linkRemote("beta", UUID.randomUUID()));
 		assertFalse(rtp.linkRemote("beta", UUID.randomUUID()));

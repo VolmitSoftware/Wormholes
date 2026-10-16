@@ -8,6 +8,9 @@ import art.arcane.wormholes.util.Cuboid;
 import art.arcane.optics.math.Face;
 import org.bukkit.Location;
 import org.bukkit.World;
+import org.bukkit.entity.EnderDragon;
+import org.bukkit.entity.EnderDragonPart;
+import org.bukkit.entity.Entity;
 import org.bukkit.event.entity.EntityTeleportEvent;
 import org.bukkit.util.Vector;
 import org.junit.jupiter.api.AfterEach;
@@ -18,6 +21,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -286,6 +290,62 @@ class LocalPortalCrossingTest {
         LocalPortal wall = wall(world, DimensionalPortalKind.END_SOURCE);
         LocalPortalTestSupport.FakeEntity standing = LocalPortalTestSupport.FakeEntity.player("wall", new Location(world, 11.5D, SOURCE_FLOOR, 10.5D));
         assertNull(wall.traversal().rayTeleport(standing.entity(), null));
+    }
+
+    @Test
+    void theEndArrivalIsCrossedRisingThroughItsPlaneButNotFallingThroughIt() {
+        World world = LocalPortalTestSupport.world("end-arrival-rising");
+        LocalPortal arrival = window(world, 10, ARRIVAL_FLOOR, 10, Face.U, DimensionalPortalKind.END_ARRIVAL);
+        LocalPortalTestSupport.FakeEntity riser = LocalPortalTestSupport.FakeEntity.entity("riser", new Location(world, 11.5D, ARRIVAL_FLOOR + 0.7D, 11.5D));
+        riser.entity().setVelocity(new Vector(0.0D, 0.4D, 0.0D));
+
+        Traversive rising = arrival.traversal().rayTeleport(riser.entity(), new Location(world, 11.5D, ARRIVAL_FLOOR + 0.3D, 11.5D));
+
+        assertNotNull(rising);
+        assertFalse(rising.isFrontSide());
+        LocalPortalTestSupport.FakeEntity faller = LocalPortalTestSupport.FakeEntity.entity("faller", new Location(world, 11.5D, ARRIVAL_FLOOR + 0.3D, 11.5D));
+        faller.entity().setVelocity(new Vector(0.0D, -0.4D, 0.0D));
+        assertNull(arrival.traversal().rayTeleport(faller.entity(), new Location(world, 11.5D, ARRIVAL_FLOOR + 0.7D, 11.5D)));
+    }
+
+    @Test
+    void anEnderDragonAndItsPartsAreNeverAdmittedThroughAnyPortal() {
+        World world = LocalPortalTestSupport.world("dragon-admission");
+        LocalPortal source = window(world, 10, SOURCE_FLOOR, 10, Face.U, DimensionalPortalKind.END_SOURCE);
+        LocalPortal arrival = window(world, 10, ARRIVAL_FLOOR, 10, Face.U, DimensionalPortalKind.END_ARRIVAL);
+        LocalPortal frame = portal(world, Face.E);
+        for (Class<? extends Entity> type : List.of(EnderDragon.class, EnderDragonPart.class)) {
+            LocalPortalTestSupport.FakeEntity standing = LocalPortalTestSupport.FakeEntity.typed("dragon", new Location(world, 11.5D, SOURCE_FLOOR, 11.5D), type);
+            assertNull(source.traversal().rayTeleport(standing.entity(), null), type.getSimpleName());
+            LocalPortalTestSupport.FakeEntity rising = LocalPortalTestSupport.FakeEntity.typed("dragon", new Location(world, 11.5D, ARRIVAL_FLOOR + 0.7D, 11.5D), type);
+            rising.entity().setVelocity(new Vector(0.0D, 0.4D, 0.0D));
+            assertNull(arrival.traversal().rayTeleport(rising.entity(), new Location(world, 11.5D, ARRIVAL_FLOOR + 0.3D, 11.5D)), type.getSimpleName());
+            Vector start = BukkitGeometry.bukkit(frame.getOrigin()).add(new Vector(0.2D, 0.0D, 0.0D));
+            LocalPortalTestSupport.FakeEntity walking = LocalPortalTestSupport.FakeEntity.typed("dragon", start.clone().add(new Vector(-0.4D, 0.0D, 0.0D)).toLocation(world), type);
+            walking.entity().setVelocity(new Vector(-0.4D, 0.0D, 0.0D));
+            assertNull(frame.traversal().rayTeleport(walking.entity(), start.toLocation(world)), type.getSimpleName());
+        }
+        LocalPortalTestSupport.FakeEntity control = LocalPortalTestSupport.FakeEntity.entity("control", new Location(world, 11.5D, SOURCE_FLOOR, 11.5D));
+        assertNotNull(source.traversal().rayTeleport(control.entity(), null));
+    }
+
+    @Test
+    void aTravellerComingBackThroughTheEndArrivalLandsOnTheEndPortalFrame() {
+        World world = LocalPortalTestSupport.world("end-arrival-landing");
+        LocalPortal arrival = window(world, 100, ARRIVAL_FLOOR, 200, Face.U, DimensionalPortalKind.END_ARRIVAL);
+        LocalPortal source = window(world, 10, SOURCE_FLOOR, 10, Face.U, DimensionalPortalKind.END_SOURCE);
+        LocalPortalTestSupport.FakeEntity riser = LocalPortalTestSupport.FakeEntity.entity("riser", new Location(world, 100.4D, ARRIVAL_FLOOR + 0.7D, 201.5D));
+        riser.entity().setVelocity(new Vector(0.0D, 0.4D, 0.0D));
+
+        Traversive crossing = arrival.traversal().rayTeleport(riser.entity(), new Location(world, 100.4D, ARRIVAL_FLOOR + 0.3D, 201.5D));
+        Location exit = source.computeExitTarget(crossing);
+
+        assertNotNull(crossing);
+        assertEquals(SOURCE_FLOOR + 1.0D, exit.getY(), 1.0E-9D);
+        assertEquals(9.5D, exit.getX(), 1.0E-9D);
+        assertEquals(11.5D, exit.getZ(), 1.0E-9D);
+        LocalPortalTestSupport.FakeEntity landed = LocalPortalTestSupport.FakeEntity.entity("landed", exit);
+        assertNull(source.traversal().rayTeleport(landed.entity(), null));
     }
 
     private static LocalPortal portal(World world, Face normal) {

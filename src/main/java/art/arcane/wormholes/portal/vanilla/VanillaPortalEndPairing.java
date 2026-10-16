@@ -10,6 +10,7 @@ import org.bukkit.World;
 import org.bukkit.block.Block;
 
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
+import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.platform.WormholesPlatform;
 import art.arcane.wormholes.portal.DimensionalPortalKind;
@@ -72,7 +73,7 @@ final class VanillaPortalEndPairing
 			{
 				return;
 			}
-			Wormholes.v(() -> "[vanilla-portal] end portal formed @ " + ccx + "," + fy + "," + ccz + "; resolving one-way arrival");
+			Wormholes.v(() -> "[vanilla-portal] end portal formed @ " + ccx + "," + fy + "," + ccz + "; resolving End arrival");
 			World end = WorldPairing.pairedEnd(world);
 			if(end == null)
 			{
@@ -83,10 +84,10 @@ final class VanillaPortalEndPairing
 			ILocalPortal existing = index.findReusableEndArrival(end);
 			if(existing != null)
 			{
-				if(PortalFactory.linkOneWay(sourcePortal, existing))
+				if(PortalFactory.linkEnd(sourcePortal, existing))
 				{
 					VanillaPortalCleanup.clearCells(endPortalBlocks, Material.END_PORTAL);
-					Wormholes.v(() -> "[vanilla-portal] reused existing End arrival, linked one way");
+					Wormholes.v(() -> "[vanilla-portal] reused existing End arrival, linked " + endTravel());
 					return;
 				}
 			}
@@ -128,10 +129,10 @@ final class VanillaPortalEndPairing
 							}
 							counterpart = PortalFactory.createReceiverFromCells(built, Frame.canonical(Face.U), PortalType.PORTAL, VanillaPortalIndex.END_TAG, DimensionalPortalKind.END_ARRIVAL);
 						}
-						if(counterpart != null && PortalFactory.linkOneWay(sourcePortal, counterpart))
+						if(counterpart != null && PortalFactory.linkEnd(sourcePortal, counterpart))
 						{
 							VanillaPortalCleanup.clearCells(endPortalBlocks, Material.END_PORTAL);
-							Wormholes.v(() -> "[vanilla-portal] End arrival placed " + VanillaPortalEndSites.COUNTERPART_RISE + " blocks above safe ground at " + target.x() + "," + target.z() + " + linked one way");
+							Wormholes.v(() -> "[vanilla-portal] End arrival placed " + VanillaPortalEndSites.COUNTERPART_RISE + " blocks above safe ground at " + target.x() + "," + target.z() + " + linked " + endTravel());
 						}
 						else
 						{
@@ -163,6 +164,11 @@ final class VanillaPortalEndPairing
 		{
 			Wormholes.instance.getLogger().log(Level.WARNING, "[vanilla-portal] end pair build failed", ex);
 		}
+	}
+
+	private static String endTravel()
+	{
+		return Settings.TWO_WAY_END_PORTALS ? "both ways" : "one way";
 	}
 
 	private static int scanEndSurface(World world, int x, int z)

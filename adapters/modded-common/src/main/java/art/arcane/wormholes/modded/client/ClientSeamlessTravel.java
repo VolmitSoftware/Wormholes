@@ -313,12 +313,14 @@ public final class ClientSeamlessTravel {
             if (!arm.sourceWorld().equals(dimension)) {
                 continue;
             }
-            if (EndPortalContact.contactAperture(geometry)) {
+            String destination = arm.world().dimension();
+            if (EndPortalContact.contactArm(geometry, destination)) {
                 traveller = traveller == null ? traveller(player, partial) : traveller;
-                if (EndPortalContact.contact(geometry, arm.world().dimension(), traveller) == null) {
+                if (EndPortalContact.contact(geometry, destination, traveller) == null) {
                     continue;
                 }
-            } else if (!crossed(geometry, previous, eye) && rest(level, player, partial, geometry, eye) == null) {
+            } else if (EndPortalContact.returnArm(geometry, destination) && geometry.frontSide() != EndPortalContact.underside(geometry.facingDirection())
+                || !crossed(geometry, previous, eye) && rest(level, player, partial, geometry, eye) == null) {
                 continue;
             }
             double distance = Math.abs(geometry.signedDistance(previous.x, previous.y, previous.z));
@@ -336,7 +338,7 @@ public final class ClientSeamlessTravel {
         Pose before = ClientTravelMotion.capture(player);
         TravelMessage.TravelPose crossingPose = crossingPose(player, partial);
         Vec3d feet = new Vec3d(crossingPose.x(), crossingPose.y(), crossingPose.z());
-        EndPortalContact.Hit hit = EndPortalContact.contactAperture(arm.sourceGeometry())
+        EndPortalContact.Hit hit = EndPortalContact.contactArm(arm.sourceGeometry(), arm.world().dimension())
             ? EndPortalContact.contact(arm.sourceGeometry(), arm.world().dimension(), traveller(player, partial)) : null;
         OpeningRest.Rest rest = hit == null && !crossed(arm.sourceGeometry(), previous, eye) ? rest(source, player, partial, arm.sourceGeometry(), eye) : null;
         Vec3d entry = hit != null ? hit.exit() : rest != null ? rest.exit(feet) : feet;
@@ -391,7 +393,8 @@ public final class ClientSeamlessTravel {
         pending.addLast(new Crossing(arm, source, target, before, carry, after, expected, now + ACCEPT_TIMEOUT_MILLIS, scaleBefore, gravityBefore));
         residents.crossing(pending.peekFirst().source() == pending.peekFirst().target() ? null : pending.peekFirst().source());
         declined = null;
-        returning = arm.returnTraversable() ? StraddleTracker.create(destinationEndpoint(arm), sourceEndpoint(arm, arm.sourceGeometry().aperture()),
+        returning = arm.returnTraversable() && !EndPortalContact.contactAperture(arm.sourceGeometry())
+            ? StraddleTracker.create(destinationEndpoint(arm), sourceEndpoint(arm, arm.sourceGeometry().aperture()),
             source, ClientTravelMotion.vector(player.getEyePosition()), 1.0D / arm.scale()) : null;
         straddling = returning != null;
         if (straddling) {
@@ -410,6 +413,14 @@ public final class ClientSeamlessTravel {
     static Vec3d cleared(ClientLevel target, LocalPlayer player, TravelMessage.TravelBegin arm, Vec3d entry) {
         Similarity toward = arm.sourceToDestination();
         Vec3d arrival = toward.point(entry);
+        if (EndPortalContact.returnArm(arm.sourceGeometry(), arm.world().dimension()) && arrivalLoaded(target, arrival)) {
+            Vec3d landing = EndPortalContact.landing(toward.box(arm.sourceGeometry().apertureArea()), box(arrivalBounds(player, arm, arrival)),
+                box -> !StraddleCollision.arrivalClear(target, player, new AABB(box.getXa(), box.getYa(), box.getZa(), box.getXb(), box.getYb(),
+                    box.getZb()), arm.doorCollision()));
+            if (landing != null) {
+                return entry.add(toward.inverse().vector(landing));
+            }
+        }
         if (arm.doorCollision() != null || !arrivalLoaded(target, arrival) || arrivalClear(target, player, arm, arrival)) {
             return entry;
         }

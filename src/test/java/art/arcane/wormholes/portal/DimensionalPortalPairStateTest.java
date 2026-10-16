@@ -8,19 +8,34 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.reflect.Proxy;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
 import org.bukkit.World;
 import org.bukkit.NamespacedKey;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
+import art.arcane.wormholes.Settings;
+import art.arcane.wormholes.config.WormholesSettings;
+import art.arcane.wormholes.config.toml.MainConfig;
+import art.arcane.wormholes.config.toml.NetworkConfig;
+import art.arcane.wormholes.config.toml.ProjectionConfig;
+import art.arcane.wormholes.config.toml.RenderConfig;
 import art.arcane.wormholes.util.Cuboid;
 import art.arcane.volmlib.util.json.JSONObject;
 import art.arcane.wormholes.portal.vanilla.PortalFactory;
+import art.arcane.wormholes.portal.vanilla.VanillaPortalEndTravel;
 
 public final class DimensionalPortalPairStateTest
 {
+	@AfterEach
+	void restoreEndTravel()
+	{
+		Settings.TWO_WAY_END_PORTALS = true;
+	}
+
 	@Test
 	public void mirrorAndProjectionStatePersistIndependently()
 	{
@@ -80,8 +95,9 @@ public final class DimensionalPortalPairStateTest
 	}
 
 	@Test
-	public void endArrivalNormalizesTamperedStateForPersistence()
+	public void oneWayEndArrivalNormalizesTamperedStateForPersistence()
 	{
+		Settings.TWO_WAY_END_PORTALS = false;
 		World world = world();
 		LocalPortal arrival = portal(PortalType.GATEWAY, world);
 		LocalPortal unrelated = portal(PortalType.PORTAL, world);
@@ -139,8 +155,9 @@ public final class DimensionalPortalPairStateTest
 	}
 
 	@Test
-	public void endArrivalRejectsOutboundAndRelinkingMutations()
+	public void oneWayEndArrivalRejectsOutboundAndRelinkingMutations()
 	{
+		Settings.TWO_WAY_END_PORTALS = false;
 		World world = world();
 		LocalPortal arrival = portal(PortalType.PORTAL, world);
 		LocalPortal unrelated = portal(PortalType.PORTAL, world);
@@ -165,8 +182,9 @@ public final class DimensionalPortalPairStateTest
 	}
 
 	@Test
-	public void endArrivalRecoversCounterpartIdentityBeforeRemovingReturnTunnel()
+	public void oneWayEndArrivalRecoversCounterpartIdentityBeforeRemovingReturnTunnel()
 	{
+		Settings.TWO_WAY_END_PORTALS = false;
 		LocalPortal arrival = portal(PortalType.PORTAL, world());
 		LocalPortal source = portal(PortalType.PORTAL, world());
 		arrival.setDestination(source);
@@ -180,6 +198,7 @@ public final class DimensionalPortalPairStateTest
 	@Test
 	public void oneWayFactoryKeepsManagedEndPairFunctional()
 	{
+		Settings.TWO_WAY_END_PORTALS = false;
 		World world = world();
 		LocalPortal source = portal(PortalType.PORTAL, world);
 		LocalPortal arrival = portal(PortalType.PORTAL, world);
@@ -206,6 +225,111 @@ public final class DimensionalPortalPairStateTest
 		assertFalse(source.isMirrorMode());
 		assertTrue(source.isOutgoingTraversalsEnabled());
 		assertFalse(source.isIncomingTraversalsEnabled());
+	}
+
+	@Test
+	public void twoWayEndPairLinksTheArrivalBackToItsSourceAndShowsBothViews()
+	{
+		LocalPortal source = portal(PortalType.PORTAL, world());
+		LocalPortal arrival = portal(PortalType.PORTAL, world());
+		source.setDimensionalPortalKind(DimensionalPortalKind.END_SOURCE);
+		arrival.setDimensionalPortalKind(DimensionalPortalKind.END_ARRIVAL);
+
+		assertTrue(PortalFactory.linkEnd(source, arrival));
+
+		assertSame(arrival, source.getTunnel().getDestination());
+		assertSame(source, arrival.getTunnel().getDestination());
+		assertEquals(arrival.getId(), source.getDimensionalCounterpartId());
+		assertEquals(source.getId(), arrival.getDimensionalCounterpartId());
+		assertTrue(source.isOutgoingTraversalsEnabled());
+		assertTrue(source.isIncomingTraversalsEnabled());
+		assertTrue(arrival.isOutgoingTraversalsEnabled());
+		assertTrue(arrival.isIncomingTraversalsEnabled());
+		assertEquals(ProjectionMode.ON, source.getProjectionMode());
+		assertEquals(ProjectionMode.ON, arrival.getProjectionMode());
+		arrival.setProjectionMode(ProjectionMode.OFF);
+		arrival.setOutgoingTraversalsEnabled(false);
+		assertEquals(ProjectionMode.ON, arrival.getProjectionMode());
+		assertTrue(arrival.isOutgoingTraversalsEnabled());
+	}
+
+	@Test
+	public void changingTheEndTravelSettingRenormalizesAnExistingPairBothWays()
+	{
+		LocalPortal source = portal(PortalType.PORTAL, world());
+		LocalPortal arrival = portal(PortalType.PORTAL, world());
+		source.setDimensionalPortalKind(DimensionalPortalKind.END_SOURCE);
+		arrival.setDimensionalPortalKind(DimensionalPortalKind.END_ARRIVAL);
+		assertTrue(PortalFactory.linkEnd(source, arrival));
+
+		Settings.TWO_WAY_END_PORTALS = false;
+		source.setDimensionalPortalKind(DimensionalPortalKind.END_SOURCE);
+		arrival.setDimensionalPortalKind(DimensionalPortalKind.END_ARRIVAL);
+
+		assertNull(arrival.getTunnel());
+		assertEquals(source.getId(), arrival.getDimensionalCounterpartId());
+		assertEquals(ProjectionMode.OFF, arrival.getProjectionMode());
+		assertFalse(arrival.isOutgoingTraversalsEnabled());
+		assertFalse(source.isIncomingTraversalsEnabled());
+		assertSame(arrival, source.getTunnel().getDestination());
+
+		Settings.TWO_WAY_END_PORTALS = true;
+		source.setDimensionalPortalKind(DimensionalPortalKind.END_SOURCE);
+		arrival.setDimensionalPortalKind(DimensionalPortalKind.END_ARRIVAL);
+
+		assertEquals(source.getId(), arrival.getTunnel().getDestinationId());
+		assertEquals(TunnelType.DIMENSIONAL, arrival.getTunnel().getTunnelType());
+		assertEquals(ProjectionMode.ON, arrival.getProjectionMode());
+		assertTrue(arrival.isOutgoingTraversalsEnabled());
+		assertTrue(source.isIncomingTraversalsEnabled());
+		JSONObject stored = arrival.toJSON();
+		assertEquals(source.getId().toString(), stored.getJSONObject("tunnel").getString("destination"));
+	}
+
+	@Test
+	public void reloadingTheEndTravelSettingConvertsExistingPairs()
+	{
+		LocalPortal source = portal(PortalType.PORTAL, world());
+		LocalPortal arrival = portal(PortalType.PORTAL, world());
+		source.setDimensionalPortalKind(DimensionalPortalKind.END_SOURCE);
+		arrival.setDimensionalPortalKind(DimensionalPortalKind.END_ARRIVAL);
+		assertTrue(PortalFactory.linkEnd(source, arrival));
+		assertSame(source, arrival.getTunnel().getDestination());
+
+		refreshEndTravel(false);
+		VanillaPortalEndTravel.apply(List.<ILocalPortal>of(source, arrival));
+
+		assertFalse(Settings.TWO_WAY_END_PORTALS);
+		assertNull(arrival.getTunnel());
+		assertEquals(ProjectionMode.OFF, arrival.getProjectionMode());
+		assertFalse(arrival.isOutgoingTraversalsEnabled());
+		assertFalse(source.isIncomingTraversalsEnabled());
+
+		refreshEndTravel(true);
+		VanillaPortalEndTravel.apply(List.<ILocalPortal>of(source, arrival));
+
+		assertEquals(source.getId(), arrival.getTunnel().getDestinationId());
+		assertEquals(ProjectionMode.ON, arrival.getProjectionMode());
+		assertTrue(arrival.isOutgoingTraversalsEnabled());
+		assertTrue(source.isIncomingTraversalsEnabled());
+	}
+
+	@Test
+	public void oneWayEndPairStillLinksOnlyTowardTheArrival()
+	{
+		Settings.TWO_WAY_END_PORTALS = false;
+		LocalPortal source = portal(PortalType.PORTAL, world());
+		LocalPortal arrival = portal(PortalType.PORTAL, world());
+		source.setDimensionalPortalKind(DimensionalPortalKind.END_SOURCE);
+		arrival.setDimensionalPortalKind(DimensionalPortalKind.END_ARRIVAL);
+
+		assertTrue(PortalFactory.linkEnd(source, arrival));
+
+		assertSame(arrival, source.getTunnel().getDestination());
+		assertNull(arrival.getTunnel());
+		assertFalse(source.isIncomingTraversalsEnabled());
+		assertFalse(arrival.isOutgoingTraversalsEnabled());
+		assertEquals(ProjectionMode.OFF, arrival.getProjectionMode());
 	}
 
 	@Test
@@ -253,6 +377,13 @@ public final class DimensionalPortalPairStateTest
 		source.update();
 
 		assertTrue(source.isOpen());
+	}
+
+	private static void refreshEndTravel(boolean twoWay)
+	{
+		MainConfig main = new MainConfig();
+		main.twoWayEndPortals = twoWay;
+		Settings.refresh(new WormholesSettings(main, new ProjectionConfig(), new RenderConfig(), new NetworkConfig()));
 	}
 
 	private static LocalPortal portal()

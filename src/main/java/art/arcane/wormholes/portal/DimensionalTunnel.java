@@ -1,5 +1,7 @@
 package art.arcane.wormholes.portal;
 
+import java.util.UUID;
+
 import art.arcane.wormholes.Wormholes;
 
 public class DimensionalTunnel extends Tunnel
@@ -7,6 +9,13 @@ public class DimensionalTunnel extends Tunnel
 	public DimensionalTunnel(ILocalPortal portal)
 	{
 		super(portal, TunnelType.DIMENSIONAL);
+	}
+
+	static DimensionalTunnel pending(UUID destinationId)
+	{
+		DimensionalTunnel tunnel = new DimensionalTunnel(null);
+		tunnel.pendingDestinationId = destinationId;
+		return tunnel;
 	}
 
 	@Override

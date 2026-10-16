@@ -248,7 +248,7 @@ final class LocalPortalTestSupport
 		private Vector velocity;
 		private boolean valid;
 
-		private FakeEntity(String name, Location location, boolean player)
+		private FakeEntity(String name, Location location, Class<? extends Entity> type)
 		{
 			this.id = UUID.randomUUID();
 			this.name = name;
@@ -258,18 +258,23 @@ final class LocalPortalTestSupport
 			this.teleports = new ArrayList<Location>();
 			this.proxy = (Entity) Proxy.newProxyInstance(
 					LocalPortalTestSupport.class.getClassLoader(),
-					new Class<?>[] {player ? Player.class : Entity.class},
+					new Class<?>[] {type},
 					this);
 		}
 
 		static FakeEntity entity(String name, Location location)
 		{
-			return new FakeEntity(name, location, false);
+			return new FakeEntity(name, location, Entity.class);
 		}
 
 		static FakeEntity player(String name, Location location)
 		{
-			return new FakeEntity(name, location, true);
+			return new FakeEntity(name, location, Player.class);
+		}
+
+		static FakeEntity typed(String name, Location location, Class<? extends Entity> type)
+		{
+			return new FakeEntity(name, location, type);
 		}
 
 		Entity entity()

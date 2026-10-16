@@ -157,16 +157,17 @@ final class MinecraftPortalSettingsMenu {
     private void applyTravelDirectionElement(ServerPlayer viewer, MinecraftElement element, MinecraftPortal portal) {
         DimensionalPortalKind kind = portal.getDimensionalKind();
         if (kind.isManagedPortal()) {
-            boolean receiver = kind.isReceiverOnly();
-            String direction = MinecraftPortalText.localized(viewer, kind.isNetherPortal()
+            PortalTravelMode managed = kind.managedTravel(runtime.configuration().settings().getMain().twoWayEndPortals);
+            boolean both = managed == PortalTravelMode.BOTH;
+            String direction = MinecraftPortalText.localized(viewer, both
                 ? WormholesMessages.PORTAL_LABEL_BOTH_WAYS
-                : receiver ? WormholesMessages.PORTAL_LABEL_ARRIVAL_ONLY : WormholesMessages.PORTAL_LABEL_DEPARTURE_ONLY);
-            String detail = MinecraftPortalText.localized(viewer, kind.isNetherPortal()
+                : managed == PortalTravelMode.INBOUND ? WormholesMessages.PORTAL_LABEL_ARRIVAL_ONLY : WormholesMessages.PORTAL_LABEL_DEPARTURE_ONLY);
+            String detail = MinecraftPortalText.localized(viewer, both
                 ? WormholesMessages.PORTAL_LABEL_DIMENSIONAL_BOTH_ACTIVE : WormholesMessages.PORTAL_LABEL_DIMENSIONAL_RETURN_DISABLED);
             MinecraftLegacyText.apply(viewer, element, WormholesMessages.PORTAL_MENU_TRAVEL_MANAGED,
                 MinecraftPortalText.arguments("direction", direction, "detail", detail));
             element.setEnchanted(true);
-            element.setMaterial(kind.isNetherPortal() ? Items.OBSIDIAN : receiver ? Items.ENDER_EYE : Items.ENDER_PEARL);
+            element.setMaterial(kind.isNetherPortal() ? Items.OBSIDIAN : managed == PortalTravelMode.INBOUND ? Items.ENDER_EYE : Items.ENDER_PEARL);
             return;
         }
         if (portal.isMirrorMode()) {

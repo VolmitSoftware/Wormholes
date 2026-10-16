@@ -12,6 +12,7 @@ import art.arcane.wormholes.door.DimensionalDoorRepository;
 import art.arcane.wormholes.door.DoorStoreSnapshot;
 import art.arcane.wormholes.localization.WormholesLocalization;
 import art.arcane.wormholes.network.NetworkManager;
+import art.arcane.wormholes.portal.vanilla.VanillaPortalEndTravel;
 import art.arcane.wormholes.service.WormholesCommandService;
 import art.arcane.wormholes.service.MetricsRuntime;
 import art.arcane.wormholes.util.project.config.HotloadManager;
@@ -331,6 +332,10 @@ final class WormholesReloadCoordinator {
 
     private void applyReloadedManagers(WormholesSettings reloaded) {
         doors.applySetting(reloaded);
+        PortalManager activePortals = Wormholes.portalManager;
+        if (activePortals != null) {
+            VanillaPortalEndTravel.apply(activePortals.getLocalPortals());
+        }
         refreshLanguageConsumers();
         ProjectionManager activeProjection = Wormholes.projectionManager;
         if (activeProjection != null) {

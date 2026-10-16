@@ -19,6 +19,8 @@ import java.util.logging.Level;
 import org.bukkit.Location;
 import org.bukkit.Sound;
 import org.bukkit.World;
+import org.bukkit.entity.EnderDragon;
+import org.bukkit.entity.EnderDragonPart;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
@@ -171,7 +173,7 @@ final class LocalPortalTraversal
 
 	void updateCaptures(ITunnel activeTunnel, boolean tunnelPresent)
 	{
-		if(portal.getDimensionalPortalKind().isReceiverOnly() || portal.getDimensionalPortalKind() == DimensionalPortalKind.END_EXIT)
+		if(portal.getDimensionalPortalKind().isReceiverOnly(Settings.TWO_WAY_END_PORTALS) || portal.getDimensionalPortalKind() == DimensionalPortalKind.END_EXIT)
 		{
 			captureHistory.clear();
 			return;
@@ -705,7 +707,7 @@ final class LocalPortalTraversal
 	Traversive rayTeleport(Entity i, Location sweepStart)
 	{
 		World world = i.getWorld();
-		if(world == null || !world.equals(portal.getStructure().getWorld()))
+		if(world == null || !world.equals(portal.getStructure().getWorld()) || i instanceof EnderDragon || i instanceof EnderDragonPart)
 		{
 			return null;
 		}
@@ -751,7 +753,8 @@ final class LocalPortalTraversal
         if(intersection == null || !portal.getStructure().admits(BukkitGeometry.location(intersection, start.getWorld()), i)) {
             return null;
         }
-		return buildCrossing(i, start, end.toVector(), velocity);
+		Traversive crossing = buildCrossing(i, start, end.toVector(), velocity);
+		return EndPortalContact.admitsCrossing(portal.getDimensionalPortalKind(), portal.getFrame().getNormal(), crossing.isFrontSide()) ? crossing : null;
 	}
 
 	private Traversive buildCrossing(Entity i, Location start, Vector inPoint, Vector velocity)
@@ -801,11 +804,26 @@ final class LocalPortalTraversal
 		TravelMessage.ArrivalRules rules = TravelMessage.ArrivalRules.of(orientation, momentum, transit.gravityFlipEnabled, transit.momentumMaxSpeed, scale);
 		Pose arrived = TransitOrientation.arrive(departurePose(t), crossing, toward, frame, rules.orientation(), rules.gravityFlip(), rules.momentum(),
 			rules.momentum().maxSpeed());
-		Location exit = BukkitGeometry.bukkit(arrived.position()).toLocation(portal.getStructure().getWorld());
+		Location exit = BukkitGeometry.bukkit(endPortalLanding(t, arrived.position())).toLocation(portal.getStructure().getWorld());
 		Location target = exit.clone();
 		target.setYaw(arrived.yaw());
 		target.setPitch(arrived.pitch());
 		return new ExitPlacement(target, exit, BukkitGeometry.bukkit(arrived.velocity()), arrived.bodyYaw(), scale, ratio);
+	}
+
+	private Vec3d endPortalLanding(Traversive t, Vec3d arrived)
+	{
+		if(!EndPortalContact.applies(portal.getDimensionalPortalKind(), portal.getFrame().getNormal()) || !(t.getObject() instanceof Entity entity))
+		{
+			return arrived;
+		}
+		BoundingBox bounds = entity.getBoundingBox();
+		double halfX = bounds.getWidthX() * 0.5D;
+		double halfZ = bounds.getWidthZ() * 0.5D;
+		Box traveller = new Box(arrived.x() - halfX, arrived.x() + halfX, arrived.y(), arrived.y() + bounds.getHeight(), arrived.z() - halfZ,
+			arrived.z() + halfZ);
+		Vec3d offset = EndPortalContact.landing(portal.getStructure().geometry().getArea(), traveller, box -> false);
+		return offset == null ? arrived : arrived.add(offset);
 	}
 
 	private SizeRatio sizeRatio(Traversive t, Frame frame)

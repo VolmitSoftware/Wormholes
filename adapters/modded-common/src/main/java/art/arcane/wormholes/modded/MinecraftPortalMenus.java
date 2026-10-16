@@ -546,11 +546,13 @@ public final class MinecraftPortalMenus implements AutoCloseable {
         element.onLeftClick(clicked -> {
             ProjectionMode previous = portal.getProjectionMode();
             DimensionalPortalKind kind = portal.getDimensionalKind();
-            if (kind.isReceiverOnly()) {
+            boolean twoWayEnd = runtime.configuration().settings().getMain().twoWayEndPortals;
+            if (kind.isReceiverOnly(twoWayEnd)) {
                 MinecraftPortalText.notifySetting(viewer, portal, WormholesMessages.PORTAL_PROJECTION_RECEIVER_INACTIVE);
                 return;
             }
-            ProjectionMode next = kind == DimensionalPortalKind.END_SOURCE || kind == DimensionalPortalKind.END_EXIT ? ProjectionMode.ON : previous.next();
+            ProjectionMode managed = kind.managedProjection(twoWayEnd);
+            ProjectionMode next = managed != null ? managed : previous.next();
             update(viewer, portal, target -> target.setProjectionMode(next));
             applyProjectionMode(viewer, element, portal);
             window.updateInventory();

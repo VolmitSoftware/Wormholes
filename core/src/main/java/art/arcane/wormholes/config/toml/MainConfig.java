@@ -12,6 +12,8 @@ public class MainConfig {
 
     @ConfigDescription("Replace vanilla Nether and End portals with auto-linking Wormholes portals.")
     public boolean replaceNetherAndEndPortals = true;
+    @ConfigDescription("Let players and entities travel back up through the End arrival portal to the Overworld End portal it was converted from, and show the Overworld through it. False keeps End travel one way: the arrival portal only receives and the vanilla exit fountain is the way back. The End exit fountain stays vanilla either way.")
+    public boolean twoWayEndPortals = true;
 
     @ConfigDescription("Enable the complete Dimensional Doors survival feature set.")
     public boolean dimensionalDoorsEnabled = true;

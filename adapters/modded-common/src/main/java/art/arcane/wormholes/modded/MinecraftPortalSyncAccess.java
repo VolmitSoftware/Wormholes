@@ -55,7 +55,7 @@ public final class MinecraftPortalSyncAccess implements PortalSyncAccess<Minecra
 
     @Override
     public boolean receiverOnly(MinecraftPortal portal) {
-        return "END_ARRIVAL".equals(portal.setting("dimensionalPortalKind"));
+        return portal.getDimensionalKind().isReceiverOnly(runtime.configuration().settings().getMain().twoWayEndPortals);
     }
 
     @Override

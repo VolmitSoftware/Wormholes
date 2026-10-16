@@ -82,6 +82,7 @@ public final class Settings {
     public static volatile double CHUNK_SEND_RATE_TARGET = 1000.0D;
     public static volatile double CHUNK_LOAD_RATE_TARGET = 1000.0D;
     public static volatile boolean REPLACE_NETHER_AND_END_PORTALS = true;
+    public static volatile boolean TWO_WAY_END_PORTALS = true;
     public static volatile boolean DIMENSIONAL_DOORS_ENABLED = true;
     /** Shape newly created pockets take. Existing pockets carry their own stored shell. */
     public static volatile PocketShell POCKET_SHELL = PocketShell.defaults();
@@ -127,6 +128,7 @@ public final class Settings {
         CHUNK_SEND_RATE_TARGET = unlimitedOrClampedChunkRate(main.chunkSendRateTarget);
         CHUNK_LOAD_RATE_TARGET = unlimitedOrClampedChunkRate(main.chunkLoadRateTarget);
         REPLACE_NETHER_AND_END_PORTALS = main.replaceNetherAndEndPortals;
+        TWO_WAY_END_PORTALS = main.twoWayEndPortals;
         DIMENSIONAL_DOORS_ENABLED = main.dimensionalDoorsEnabled;
         POCKET_SHELL = pocketShell(main);
         DOOR_RECIPES = DoorRecipeSettings.from(src.getRecipes(), (product, rejected) ->

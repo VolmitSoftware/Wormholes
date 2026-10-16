@@ -3,6 +3,7 @@ package art.arcane.wormholes.clientgametest;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.stream.EnvironmentState;
+import art.arcane.wormholes.modded.MinecraftEntityTypes;
 import art.arcane.wormholes.modded.MinecraftPortal;
 import art.arcane.wormholes.modded.WormholesModRuntime;
 import art.arcane.wormholes.modded.client.ClientPortal;
@@ -13,6 +14,7 @@ import art.arcane.wormholes.modded.client.WormholesClient;
 import art.arcane.wormholes.modded.client.render.stencil.PortalView;
 import art.arcane.wormholes.modded.seamless.StraddleTracker;
 import art.arcane.wormholes.portal.DimensionalPortalKind;
+import art.arcane.wormholes.portal.vanilla.EndPortalContact;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
@@ -28,7 +30,10 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.GameType;
@@ -63,6 +68,7 @@ final class EndPortalFloor {
     private static final Site ELEVATED = new Site("elevated-enter", new BlockPos(40, 70, 88), 2);
     private static final String RETURN_PHASE = "end-return";
     private static final String EXIT_PHASE = "end-exit";
+    private static final String DRAGON_PHASE = "dragon";
     private static final String DIRECTORY = "end-portal-floor";
     private static final String NONE = "none";
     private static final float WALK_PITCH = 40.0F;
@@ -82,6 +88,11 @@ final class EndPortalFloor {
     private static final int ABSENCE_TICKS = 40;
     private static final int RETURN_JUMP_TIMEOUT_TICKS = 160;
     private static final int EXIT_WALK_TIMEOUT_TICKS = 600;
+    private static final int STAY_TICKS = 60;
+    private static final int DRAGON_TICKS = 100;
+    private static final double FRAME_LANDING = 1.0D;
+    private static final double TRAVELLER_HALF_WIDTH = 0.3D;
+    private static final double CLIENT_TICK_RISE = 0.5D;
     private static final int PERCH_DEPTH = 3;
     private static final int RIM_DISTANCE = 3;
     private static final int[][] RIM_DIRECTIONS = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
@@ -89,7 +100,7 @@ final class EndPortalFloor {
     private EndPortalFloor() {
     }
 
-    static void run(SeamlessClient client, SeamlessServer server, String label) {
+    static void run(SeamlessClient client, SeamlessServer server, String label, Travel travel) {
         SeamlessScenario.join(client);
         SeamlessScenario.assertSeamlessNegotiated(client);
         UUID playerId = client.computeOnClient(minecraft -> minecraft.player.getUUID());
@@ -97,10 +108,13 @@ final class EndPortalFloor {
         createDirectories(directory);
         JsonObject evidence = new JsonObject();
         evidence.addProperty("label", label);
+        evidence.addProperty("travel", travel.name());
         JsonArray phases = new JsonArray();
         evidence.add("phases", phases);
         List<String> failures = new ArrayList<>();
         try {
+            String setting = server.computeOnServer(minecraftServer -> endTravel(minecraftServer, travel == Travel.TWO_WAY));
+            evidence.addProperty("setting", setting);
             Entry entry = enter(client, server, playerId, FLOOR, label, phases, failures);
             boolean elevatedTried = false;
             if (entry == null) {
@@ -112,14 +126,20 @@ final class EndPortalFloor {
                 phases.add(skipped);
                 skipped.addProperty("phase", RETURN_PHASE);
                 fail(skipped, failures, RETURN_PHASE + ": the End was never reached through the floor or elevated End portal, so its arrival portal could not be tried");
+            } else if (travel == Travel.TWO_WAY) {
+                returnThroughTwoWayArrival(client, server, playerId, entry, label, phases, failures);
             } else {
                 returnThroughArrival(client, server, playerId, entry, label, phases, failures);
             }
             exitThroughFountain(client, server, playerId, label, phases, failures);
+            if (entry != null) {
+                dragonStaysOut(client, server, playerId, entry, label, phases, failures);
+            }
             if (!elevatedTried) {
                 enter(client, server, playerId, ELEVATED, label, phases, failures);
             }
         } finally {
+            server.computeOnServer(minecraftServer -> endTravel(minecraftServer, true));
             client.restoreDefaultGameOptions();
             JsonArray failed = new JsonArray();
             for (String failure : failures) {
@@ -340,6 +360,247 @@ final class EndPortalFloor {
         }
         phase.addProperty("passed", true);
         LOGGER.info("WORMHOLES_END_PORTAL_FLOOR_PHASE_PASS {} {} stayed in the End {}", label, RETURN_PHASE, jump.samples().getLast());
+    }
+
+    private static void returnThroughTwoWayArrival(SeamlessClient client, SeamlessServer server, UUID playerId, Entry entry, String label,
+                                                   JsonArray phases, List<String> failures) {
+        JsonObject phase = new JsonObject();
+        phases.add(phase);
+        phase.addProperty("phase", RETURN_PHASE);
+        Conversion conversion = entry.conversion();
+        Vec3d plane = conversion.arrivalOrigin();
+        phase.addProperty("arrivalPortal", conversion.describeArrival());
+        phase.addProperty("arrival", entry.landing().toString());
+        phase.addProperty("arrivalEyeBelowPlane", plane.y() - entry.landing().client().eye());
+        client.lookAt(0.0F, LOOK_UP_PITCH);
+        int arrivalView = ticksUntil(client, minecraft -> overworldView(minecraft, conversion), VIEW_TIMEOUT_TICKS);
+        String viewAtArrival = client.computeOnClient(minecraft -> viewState(minecraft, conversion.arrivalOpenings()));
+        phase.addProperty("viewTicksAtArrival", arrivalView);
+        phase.addProperty("viewAtArrival", viewAtArrival);
+        phase.addProperty("travelAtArrival", client.computeOnClient(EndPortalFloor::travelState));
+        screenshot(client, label + "-" + RETURN_PHASE + "-arrival");
+        boolean clean = true;
+        if (arrivalView < 0) {
+            clean = fail(phase, failures, RETURN_PHASE + ": from the End landing spot " + format(plane.y() - entry.landing().client().eye())
+                + " blocks below the End arrival portal (" + conversion.describeArrivalFlags() + "), the client drew no view of the Overworld through it within "
+                + VIEW_TIMEOUT_TICKS + " ticks: " + viewAtArrival);
+        }
+        Vec3 perch = server.computeOnServer(minecraftServer -> perch(minecraftServer, playerId, conversion));
+        phase.addProperty("perch", vector(perch));
+        if (ticksUntil(client, minecraft -> at(minecraft, Level.END, perch), PLACE_TIMEOUT_TICKS) < 0) {
+            fail(phase, failures, RETURN_PHASE + ": the player never stood on the perch under the End arrival portal at " + perch + ": "
+                + client.computeOnClient(EndPortalFloor::describeClient));
+            return;
+        }
+        client.lookAt(0.0F, LOOK_UP_PITCH);
+        int armedTicks = ticksUntil(client, minecraft -> armed(conversion.arrival()), ARM_TIMEOUT_TICKS);
+        int perchView = ticksUntil(client, minecraft -> overworldView(minecraft, conversion), VIEW_TIMEOUT_TICKS);
+        String viewAtPerch = client.computeOnClient(minecraft -> viewState(minecraft, conversion.arrivalOpenings()));
+        phase.addProperty("armedTicksAtPerch", armedTicks);
+        phase.addProperty("viewTicksAtPerch", perchView);
+        phase.addProperty("viewAtPerch", viewAtPerch);
+        phase.addProperty("travelAtPerch", client.computeOnClient(EndPortalFloor::travelState));
+        screenshot(client, label + "-" + RETURN_PHASE + "-perch");
+        if (armedTicks < 0) {
+            clean = fail(phase, failures, RETURN_PHASE + ": standing " + PERCH_DEPTH + " blocks under the End arrival portal, the client was never armed to "
+                + "cross back through it within " + ARM_TIMEOUT_TICKS + " ticks: " + client.computeOnClient(EndPortalFloor::travelState));
+        }
+        if (perchView < 0) {
+            clean = fail(phase, failures, RETURN_PHASE + ": standing " + PERCH_DEPTH + " blocks under the End arrival portal, the client drew no view of "
+                + "the Overworld through it within " + VIEW_TIMEOUT_TICKS + " ticks: " + viewAtPerch);
+        }
+        Walk jump = move(client, server, playerId, conversion.arrival(), Level.OVERWORLD, Motion.JUMP, RETURN_JUMP_TIMEOUT_TICKS);
+        server.computeOnServer(minecraftServer -> unperch(minecraftServer, conversion));
+        record(phase, jump);
+        phase.addProperty("highestEye", jump.highestEye());
+        screenshot(client, label + "-" + RETURN_PHASE + (jump.arrived() >= 0 ? "-returned" : "-stuck"));
+        LOGGER.info("[{}] {} jump: returned at tick {}, highest eye {} against plane y {}, {}", label, RETURN_PHASE, jump.arrived(),
+            format(jump.highestEye()), format(plane.y()), jump.summary(plane.y()));
+        if (jump.arrived() < 0) {
+            fail(phase, failures, RETURN_PHASE + ": jumping up from the perch into the End arrival portal (plane y=" + format(plane.y())
+                + ", highest eye y " + format(jump.highestEye()) + ") never reached the Overworld within " + RETURN_JUMP_TIMEOUT_TICKS + " ticks; "
+                + jump.summary(plane.y()));
+            return;
+        }
+        if (jump.respawns() > 0 || jump.positions() > 0 || jump.loading() || jump.replaced()) {
+            clean = fail(phase, failures, RETURN_PHASE + ": crossing back up through the End arrival portal was not seamless: respawn packets "
+                + jump.respawns() + ", position packets " + jump.positions() + ", loading screen " + jump.loading() + ", player replaced "
+                + jump.replaced() + "; " + jump.summary(plane.y()));
+        }
+        if (!landedOnFrame(phase, failures, conversion, jump)) {
+            clean = false;
+        }
+        List<Sample> stay = new ArrayList<>(STAY_TICKS + 1);
+        for (int tick = 0; tick <= STAY_TICKS; tick++) {
+            stay.add(sample(client, server, playerId, conversion.source(), tick));
+            client.waitTicks(1);
+        }
+        Sample settled = stay.getLast();
+        String overworld = Level.OVERWORLD.identifier().toString();
+        phase.addProperty("settled", settled.toString());
+        screenshot(client, label + "-" + RETURN_PHASE + "-settled");
+        for (Sample sample : stay) {
+            if (!sample.client().level().equals(overworld) || !sample.server().level().equals(overworld)) {
+                clean = fail(phase, failures, RETURN_PHASE + ": after landing on the End portal frame the player left the Overworld again within "
+                    + STAY_TICKS + " ticks: " + sample);
+                break;
+            }
+        }
+        double frameTop = conversion.planeY() - EndPortalContact.PLANE_HEIGHT + FRAME_TOP;
+        if (!settled.client().ground() || !settled.server().ground() || settled.client().feet().y < frameTop - 1.0E-3D
+            || settled.server().feet().y < frameTop - 1.0E-3D) {
+            clean = fail(phase, failures, RETURN_PHASE + ": " + STAY_TICKS + " ticks after crossing back the player was not standing on the End portal "
+                + "frame (top y " + format(frameTop) + "): " + settled);
+        }
+        if (!clean) {
+            return;
+        }
+        phase.addProperty("passed", true);
+        LOGGER.info("WORMHOLES_END_PORTAL_FLOOR_PHASE_PASS {} {} returned to the Overworld frame {}", label, RETURN_PHASE, settled);
+    }
+
+    private static boolean landedOnFrame(JsonObject phase, List<String> failures, Conversion conversion, Walk walk) {
+        ArrivalPlacementTap.Placement placement = walk.placement();
+        ArrivalPlacementTap.Arrival arrival = walk.arrival();
+        double landing = conversion.planeY() - EndPortalContact.PLANE_HEIGHT + FRAME_LANDING;
+        boolean clean = true;
+        if (placement == null) {
+            clean = fail(phase, failures, RETURN_PHASE + ": the server never placed the player in the Overworld through its seamless move");
+        } else if (!onFrame(conversion, placement.feet(), 0.05D)) {
+            clean = fail(phase, failures, RETURN_PHASE + ": the server placed the player with feet " + vector(placement.feet()) + " instead of on the End "
+                + "portal frame at y " + format(landing) + " outside the portal cells from " + conversion.sourceMinimum().toShortString() + ": " + placement);
+        }
+        if (arrival == null) {
+            clean = fail(phase, failures, RETURN_PHASE + ": the client never crossed into the Overworld through a seamless crossing");
+        } else if (!onFrame(conversion, arrival.feet(), CLIENT_TICK_RISE)) {
+            clean = fail(phase, failures, RETURN_PHASE + ": the client arrived with feet " + vector(arrival.feet()) + " instead of on the End portal "
+                + "frame at y " + format(landing) + " (within one tick of rising motion) outside the portal cells from "
+                + conversion.sourceMinimum().toShortString() + ": " + arrival);
+        }
+        if (placement != null && arrival != null && placement.feet().distanceTo(arrival.feet()) > 1.0D) {
+            clean = fail(phase, failures, RETURN_PHASE + ": the client arrival and the server placement disagree by "
+                + format(placement.feet().distanceTo(arrival.feet())) + " blocks: " + arrival + "; " + placement);
+        }
+        if (placement != null) {
+            phase.addProperty("serverPlacementOnFrame", vector(placement.feet()));
+        }
+        if (arrival != null) {
+            phase.addProperty("clientArrivalOnFrame", vector(arrival.feet()));
+        }
+        return clean;
+    }
+
+    private static boolean onFrame(Conversion conversion, Vec3 feet, double rise) {
+        BlockPos minimum = conversion.sourceMinimum();
+        double landing = minimum.getY() + FRAME_LANDING;
+        boolean outside = feet.x + TRAVELLER_HALF_WIDTH <= minimum.getX() || feet.x - TRAVELLER_HALF_WIDTH >= minimum.getX() + 3.0D
+            || feet.z + TRAVELLER_HALF_WIDTH <= minimum.getZ() || feet.z - TRAVELLER_HALF_WIDTH >= minimum.getZ() + 3.0D;
+        return outside && feet.y > landing - 0.05D && feet.y < landing + rise;
+    }
+
+    private static void dragonStaysOut(SeamlessClient client, SeamlessServer server, UUID playerId, Entry entry, String label, JsonArray phases,
+                                       List<String> failures) {
+        JsonObject phase = new JsonObject();
+        phases.add(phase);
+        phase.addProperty("phase", DRAGON_PHASE);
+        Conversion conversion = entry.conversion();
+        Vec3 stand = server.computeOnServer(minecraftServer -> standBeside(minecraftServer, playerId, conversion));
+        phase.addProperty("stand", vector(stand));
+        if (ticksUntil(client, minecraft -> at(minecraft, Level.OVERWORLD, stand), PLACE_TIMEOUT_TICKS) < 0) {
+            fail(phase, failures, DRAGON_PHASE + ": the player never stood beside the Overworld End portal at " + stand + ": "
+                + client.computeOnClient(EndPortalFloor::describeClient));
+            return;
+        }
+        client.waitForChunksDownload();
+        Summoned summoned = server.computeOnServer(minecraftServer -> summon(minecraftServer, conversion));
+        phase.addProperty("summoned", summoned.describe());
+        Polled<String> control = poll(client, server, minecraftServer -> controlArrived(minecraftServer, summoned), DRAGON_TICKS);
+        client.waitTicks(DRAGON_TICKS);
+        String dragon = server.computeOnServer(minecraftServer -> dragonState(minecraftServer, summoned));
+        phase.addProperty("controlTicks", control.ticks());
+        phase.addProperty("control", control.value() == null ? server.computeOnServer(minecraftServer -> controlState(minecraftServer, summoned)) : control.value());
+        phase.addProperty("dragon", dragon);
+        screenshot(client, label + "-" + DRAGON_PHASE);
+        server.computeOnServer(minecraftServer -> discard(minecraftServer, summoned));
+        LOGGER.info("[{}] {} control {} after {} ticks; dragon {}", label, DRAGON_PHASE, control.value(), control.ticks(), dragon);
+        boolean clean = true;
+        if (control.value() == null) {
+            clean = fail(phase, failures, DRAGON_PHASE + ": the control item touching the Overworld End portal never reached the End within "
+                + DRAGON_TICKS + " ticks, so the portal did not send entities at all: " + phase.get("control").getAsString());
+        }
+        if (!dragon.startsWith("overworld")) {
+            clean = fail(phase, failures, DRAGON_PHASE + ": an ender dragon touching the Overworld End portal did not stay in the Overworld: " + dragon);
+        }
+        if (!clean) {
+            return;
+        }
+        phase.addProperty("passed", true);
+        LOGGER.info("WORMHOLES_END_PORTAL_FLOOR_PHASE_PASS {} {} dragon stayed {}", label, DRAGON_PHASE, dragon);
+    }
+
+    private static String endTravel(MinecraftServer server, boolean twoWay) {
+        WormholesModRuntime runtime = runtime(server);
+        runtime.configuration().settings().getMain().twoWayEndPortals = twoWay;
+        runtime.construction().vanilla().applyEndTravel();
+        return "two-way-end-portals=" + twoWay;
+    }
+
+    private static Vec3 standBeside(MinecraftServer server, UUID playerId, Conversion conversion) {
+        ServerPlayer player = player(server, playerId);
+        BlockPos minimum = conversion.sourceMinimum();
+        Vec3 stand = new Vec3(minimum.getX() + 1.5D, minimum.getY() + FRAME_LANDING, minimum.getZ() + 3.5D);
+        player.teleportTo(server.overworld(), stand.x, stand.y, stand.z, Set.of(), 180.0F, WALK_PITCH, false);
+        player.setDeltaMovement(Vec3.ZERO);
+        return stand;
+    }
+
+    private static Summoned summon(MinecraftServer server, Conversion conversion) {
+        ServerLevel level = server.overworld();
+        BlockPos minimum = conversion.sourceMinimum();
+        EnderDragon dragon = Objects.requireNonNull(MinecraftEntityTypes.ENDER_DRAGON.create(level, EntitySpawnReason.COMMAND), "ender dragon");
+        dragon.setNoAi(true);
+        dragon.snapTo(minimum.getX() + 1.5D, minimum.getY(), minimum.getZ() + 1.5D, 0.0F, 0.0F);
+        level.addFreshEntity(dragon);
+        ItemEntity control = new ItemEntity(level, minimum.getX() + 0.5D, minimum.getY() + 0.05D, minimum.getZ() + 0.5D, new ItemStack(Items.STONE));
+        control.setDeltaMovement(Vec3.ZERO);
+        control.setNeverPickUp();
+        control.setUnlimitedLifetime();
+        control.setNoGravity(true);
+        level.addFreshEntity(control);
+        return new Summoned(dragon.getUUID(), dragon.getBoundingBox().toString(), control.getUUID());
+    }
+
+    private static String controlArrived(MinecraftServer server, Summoned summoned) {
+        ServerLevel end = server.getLevel(Level.END);
+        Entity control = end == null ? null : end.getEntity(summoned.control());
+        return control == null ? null : "control item in the End at " + vector(control.position());
+    }
+
+    private static String controlState(MinecraftServer server, Summoned summoned) {
+        Entity control = server.overworld().getEntity(summoned.control());
+        return control == null ? "control item in neither world" : "control item still in the Overworld at " + vector(control.position());
+    }
+
+    private static String dragonState(MinecraftServer server, Summoned summoned) {
+        Entity overworld = server.overworld().getEntity(summoned.dragon());
+        ServerLevel end = server.getLevel(Level.END);
+        Entity elsewhere = end == null ? null : end.getEntity(summoned.dragon());
+        if (overworld != null && elsewhere == null) {
+            return "overworld at " + vector(overworld.position()) + " travelling " + runtime(server).portals().travelling(summoned.dragon());
+        }
+        return elsewhere != null ? "end at " + vector(elsewhere.position()) : "removed from the Overworld";
+    }
+
+    private static boolean discard(MinecraftServer server, Summoned summoned) {
+        for (ServerLevel level : server.getAllLevels()) {
+            for (UUID id : List.of(summoned.dragon(), summoned.control())) {
+                Entity entity = level.getEntity(id);
+                if (entity != null) {
+                    entity.discard();
+                }
+            }
+        }
+        return true;
     }
 
     private static void exitThroughFountain(SeamlessClient client, SeamlessServer server, UUID playerId, String label, JsonArray phases,
@@ -771,6 +1032,11 @@ final class EndPortalFloor {
             && minecraft.player.position().distanceTo(position) < 0.25D;
     }
 
+    private static boolean overworldView(Minecraft minecraft, Conversion conversion) {
+        String view = view(minecraft, conversion.arrivalOpenings());
+        return view != null && view.endsWith(Level.OVERWORLD.identifier().toString());
+    }
+
     private static boolean armed(UUID source) {
         WormholesClient wormholes = WormholesClient.instance();
         return wormholes != null && wormholes.seamlessTravel().armed(source) && !wormholes.seamlessTravel().pending();
@@ -996,6 +1262,27 @@ final class EndPortalFloor {
         String describeArrivalFlags() {
             return arrivalFlags;
         }
+
+        BlockPos sourceMinimum() {
+            int x = Integer.MAX_VALUE;
+            int z = Integer.MAX_VALUE;
+            for (Vec3d opening : openings) {
+                x = Math.min(x, (int) Math.floor(opening.x()));
+                z = Math.min(z, (int) Math.floor(opening.z()));
+            }
+            return new BlockPos(x, (int) Math.floor(sourceOrigin.y()), z);
+        }
+    }
+
+    private record Summoned(UUID dragon, String dragonBox, UUID control) {
+        String describe() {
+            return "ender dragon " + dragon + " box " + dragonBox + ", control item " + control;
+        }
+    }
+
+    enum Travel {
+        TWO_WAY,
+        ONE_WAY
     }
 
     private record Exit(UUID id, Vec3d origin, int y, int centerX, int centerZ, List<Vec3d> openings, String projection, boolean outgoing) {

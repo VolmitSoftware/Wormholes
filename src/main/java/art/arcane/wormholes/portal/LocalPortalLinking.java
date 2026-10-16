@@ -9,6 +9,7 @@ import org.bukkit.Location;
 import org.bukkit.World;
 
 import art.arcane.wormholes.PortalManager;
+import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.access.AccessGuards;
 import art.arcane.wormholes.access.PlacementKind;
@@ -146,7 +147,7 @@ final class LocalPortalLinking
 		{
 			return false;
 		}
-		if(dimensionalPortalKind.isReceiverOnly()
+		if(dimensionalPortalKind.isReceiverOnly(Settings.TWO_WAY_END_PORTALS)
 				|| (dimensionalPortalKind.isManagedPortal() && dimensionalCounterpartId != null))
 		{
 			return false;
@@ -473,6 +474,7 @@ final class LocalPortalLinking
 			return false;
 		}
 		LocalPortalSettings settings = portal.settings();
+		boolean twoWayEnd = Settings.TWO_WAY_END_PORTALS;
 		boolean changed = false;
 		if(portal.getType() != PortalType.PORTAL)
 		{
@@ -484,83 +486,54 @@ final class LocalPortalLinking
 			settings.assignMirrorMode(false);
 			changed = true;
 		}
-		if(dimensionalPortalKind.isNetherPortal())
+		PortalTravelMode travel = dimensionalPortalKind.managedTravel(twoWayEnd);
+		if(settings.isOutgoingTraversalsEnabled() != travel.allowsOutgoing())
 		{
-			if(!settings.isOutgoingTraversalsEnabled())
-			{
-				settings.assignOutgoingTraversalsEnabled(true);
-				changed = true;
-			}
-			if(!settings.isIncomingTraversalsEnabled())
-			{
-				settings.assignIncomingTraversalsEnabled(true);
-				changed = true;
-			}
-			return changed;
+			settings.assignOutgoingTraversalsEnabled(travel.allowsOutgoing());
+			changed = true;
 		}
-		if(dimensionalPortalKind == DimensionalPortalKind.END_EXIT)
+		if(settings.isIncomingTraversalsEnabled() != travel.allowsIncoming())
 		{
-			if(settings.getProjectionMode() != ProjectionMode.ON)
-			{
-				settings.assignProjectionMode(ProjectionMode.ON);
-				changed = true;
-			}
-			if(settings.isOutgoingTraversalsEnabled())
-			{
-				settings.assignOutgoingTraversalsEnabled(false);
-				changed = true;
-			}
-			if(settings.isIncomingTraversalsEnabled())
-			{
-				settings.assignIncomingTraversalsEnabled(false);
-				changed = true;
-			}
-			return changed;
+			settings.assignIncomingTraversalsEnabled(travel.allowsIncoming());
+			changed = true;
 		}
-		if(dimensionalPortalKind == DimensionalPortalKind.END_SOURCE)
+		ProjectionMode projection = dimensionalPortalKind.managedProjection(twoWayEnd);
+		if(projection != null && settings.getProjectionMode() != projection)
 		{
-			if(settings.getProjectionMode() != ProjectionMode.ON)
-			{
-				settings.assignProjectionMode(ProjectionMode.ON);
-				changed = true;
-			}
-			if(!settings.isOutgoingTraversalsEnabled())
-			{
-				settings.assignOutgoingTraversalsEnabled(true);
-				changed = true;
-			}
-			if(settings.isIncomingTraversalsEnabled())
-			{
-				settings.assignIncomingTraversalsEnabled(false);
-				changed = true;
-			}
-			return changed;
+			settings.assignProjectionMode(projection);
+			changed = true;
 		}
+		if(dimensionalPortalKind == DimensionalPortalKind.END_ARRIVAL && normalizeArrivalTunnel(twoWayEnd))
+		{
+			changed = true;
+		}
+		return changed;
+	}
+
+	private boolean normalizeArrivalTunnel(boolean twoWayEnd)
+	{
+		boolean changed = false;
 		if(dimensionalCounterpartId == null && tunnel instanceof DimensionalTunnel dimensionalTunnel)
 		{
 			dimensionalCounterpartId = dimensionalTunnel.getDestinationId();
 			changed = dimensionalCounterpartId != null;
 		}
-		if(tunnel != null)
+		UUID counterpartId = dimensionalCounterpartId;
+		if(!twoWayEnd || counterpartId == null)
 		{
-			tunnel = null;
-			changed = true;
+			if(tunnel != null)
+			{
+				tunnel = null;
+				changed = true;
+			}
+			return changed;
 		}
-		if(settings.getProjectionMode() != ProjectionMode.OFF)
+		if(tunnel instanceof DimensionalTunnel && counterpartId.equals(tunnel.getDestinationId()))
 		{
-			settings.assignProjectionMode(ProjectionMode.OFF);
-			changed = true;
+			return changed;
 		}
-		if(settings.isOutgoingTraversalsEnabled())
-		{
-			settings.assignOutgoingTraversalsEnabled(false);
-			changed = true;
-		}
-		if(!settings.isIncomingTraversalsEnabled())
-		{
-			settings.assignIncomingTraversalsEnabled(true);
-			changed = true;
-		}
-		return changed;
+		ILocalPortal counterpart = Wormholes.portalManager == null ? null : Wormholes.portalManager.getLocalPortal(counterpartId);
+		tunnel = counterpart == null ? DimensionalTunnel.pending(counterpartId) : new DimensionalTunnel(counterpart);
+		return true;
 	}
 }

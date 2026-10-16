@@ -2,6 +2,7 @@ package art.arcane.wormholes.modded;
 
 import art.arcane.wormholes.portal.DimensionalPortalKind;
 import art.arcane.wormholes.portal.PortalType;
+import art.arcane.wormholes.portal.ProjectionMode;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -50,7 +51,7 @@ public final class MinecraftConstructionGameTest {
             runes(player);
             return nether(player).thenComposeAsync(ignored -> end(player), runtime.server())
                 .thenApplyAsync(ignored -> {
-                    LoggerFactory.getLogger("WormholesGameTest").info("WORMHOLES_GAME_TEST_PASS construction rune_placement rune_claim_guard rune_build vanilla_ignition nether_pair frame_cleanup end_one_way");
+                    LoggerFactory.getLogger("WormholesGameTest").info("WORMHOLES_GAME_TEST_PASS construction rune_placement rune_claim_guard rune_build vanilla_ignition nether_pair frame_cleanup end_two_way end_one_way");
                     return true;
                 }, runtime.server()).whenCompleteAsync((result, failure) -> close(), runtime.server());
         } catch (Throwable failure) {
@@ -132,13 +133,25 @@ public final class MinecraftConstructionGameTest {
             MinecraftPortal target = runtime.portals().get(source.getCounterpartId());
             helper.assertTrue(source.getDimensionalKind() == DimensionalPortalKind.END_SOURCE && target != null
                 && target.getDimensionalKind() == DimensionalPortalKind.END_ARRIVAL, "End pair kinds were lost");
-            helper.assertTrue(target.getId().equals(source.getDestinationId()) && target.getDestinationId() == null,
-                "End entry did not link only to its arrival");
-            helper.assertTrue(source.isOutgoingTraversalsEnabled() && !source.isIncomingTraversalsEnabled()
-                && !target.isOutgoingTraversalsEnabled() && target.isIncomingTraversalsEnabled(),
-                "End entry and arrival did not enforce one-way travel");
             created.add(source.getId());
             created.add(target.getId());
+            helper.assertTrue(target.getId().equals(source.getDestinationId()) && source.getId().equals(target.getDestinationId()),
+                "Two-way End entry and arrival did not link to each other");
+            helper.assertTrue(source.isOutgoingTraversalsEnabled() && source.isIncomingTraversalsEnabled()
+                && target.isOutgoingTraversalsEnabled() && target.isIncomingTraversalsEnabled()
+                && target.getProjectionMode() == ProjectionMode.ON, "Two-way End entry and arrival did not allow travel both ways");
+            runtime.configuration().settings().getMain().twoWayEndPortals = false;
+            try {
+                runtime.construction().vanilla().applyEndTravel();
+                helper.assertTrue(target.getId().equals(source.getDestinationId()) && target.getDestinationId() == null,
+                    "One-way End entry did not link only to its arrival");
+                helper.assertTrue(source.isOutgoingTraversalsEnabled() && !source.isIncomingTraversalsEnabled()
+                    && !target.isOutgoingTraversalsEnabled() && target.isIncomingTraversalsEnabled()
+                    && target.getProjectionMode() == ProjectionMode.OFF, "One-way End entry and arrival did not enforce one-way travel");
+            } finally {
+                runtime.configuration().settings().getMain().twoWayEndPortals = true;
+                runtime.construction().vanilla().applyEndTravel();
+            }
             return true;
         }, runtime.server());
     }

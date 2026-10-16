@@ -137,6 +137,20 @@ class WormholesSettingsTest {
     }
 
     @Test
+    void twoWayEndPortalsDefaultOnAndAreEmittedBesideTheVanillaPortalKey() {
+        WormholesSettings defaults = WormholesSettings.loadSnapshot("schema = 3\n".getBytes(StandardCharsets.UTF_8));
+        String canonical = new String(defaults.canonicalSnapshot(), StandardCharsets.UTF_8);
+        assertTrue(defaults.getMain().twoWayEndPortals);
+        assertTrue(canonical.contains("two-way-end-portals = true"));
+        assertTrue(canonical.indexOf("two-way-end-portals") > canonical.indexOf("replace-nether-and-end-portals"));
+        assertTrue(canonical.indexOf("two-way-end-portals") < canonical.indexOf("dimensional-doors-enabled"));
+
+        WormholesSettings oneWay = WormholesSettings.loadSnapshot("schema = 3\n[main]\ntwo-way-end-portals = false\n"
+            .getBytes(StandardCharsets.UTF_8));
+        assertFalse(oneWay.getMain().twoWayEndPortals);
+    }
+
+    @Test
     void clientViewValuesAreClampedAtLoad() {
         String source = "schema = 3\n[client-view]\nhello-grace-millis = -5\nmax-frame-kb = 9000\nack-window-frames = 900\n";
         WormholesSettings settings = WormholesSettings.loadSnapshot(source.getBytes(StandardCharsets.UTF_8));

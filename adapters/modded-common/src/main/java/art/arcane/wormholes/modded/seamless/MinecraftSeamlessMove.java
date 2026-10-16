@@ -184,13 +184,17 @@ public final class MinecraftSeamlessMove implements SeamlessMove.Steps {
             context.sink().test(new TravelMessage.RemoteLevelClose(context.accept().levelHandle()));
         }
         RemoteRoutes.Return back = context.back();
-        if (back == null || !returnAdopted || !back.traversable()) {
+        if (!straddles(back, returnAdopted)) {
             StraddleTracker.clear(player);
             return;
         }
         Vec3 eye = player.getEyePosition();
         StraddleTracker.register(player, StraddleTracker.create(RemoteRoutes.endpoint(back.source(), null), RemoteRoutes.endpoint(back.destination(), null),
             origin, new Vec3d(eye.x, eye.y, eye.z), MinecraftPortalRegistry.travelScale(back.source(), back.destination())));
+    }
+
+    static boolean straddles(RemoteRoutes.Return back, boolean adopted) {
+        return back != null && adopted && back.traversable() && !back.source().getDimensionalKind().isManagedEndPortal();
     }
 
     public record Context(WormholesModRuntime runtime, ServerPlayer player, ServerLevel destination, PositionMoveRotation pose,

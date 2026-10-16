@@ -5,6 +5,7 @@ import art.arcane.wormholes.portal.ILocalPortal;
 import com.github.retrooper.packetevents.protocol.player.ClientVersion;
 import art.arcane.wormholes.util.BukkitJsonDocuments;
 import art.arcane.wormholes.PortalManager;
+import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.config.toml.NetworkConfig;
 import art.arcane.wormholes.portal.AmbientParticleStyle;
@@ -101,21 +102,28 @@ class PortalSettingsSyncTest {
     }
 
     @Test
-    void endArrivalNeverOverwritesItsVisibleSourceSettings() {
-        World world = world();
-        LocalPortal source = localPortal(world);
-        LocalPortal arrival = localPortal(world);
-        source.setDimensionalPortalKind(DimensionalPortalKind.END_SOURCE);
-        arrival.setDimensionalPortalKind(DimensionalPortalKind.END_ARRIVAL);
-        assertTrue(PortalFactory.linkOneWay(source, arrival));
-        source.setAmbientColor(0x123456);
+    void oneWayEndArrivalNeverOverwritesItsVisibleSourceSettings() {
+        Settings.TWO_WAY_END_PORTALS = false;
+        try {
+            World world = world();
+            LocalPortal source = localPortal(world);
+            LocalPortal arrival = localPortal(world);
+            source.setDimensionalPortalKind(DimensionalPortalKind.END_SOURCE);
+            arrival.setDimensionalPortalKind(DimensionalPortalKind.END_ARRIVAL);
+            assertTrue(PortalFactory.linkEnd(source, arrival));
+            source.setAmbientColor(0x123456);
 
-        PortalSyncService<ILocalPortal> sync = BukkitPortalSyncAccess.create(null, () -> List.of(source, arrival), Runnable::run);
-        sync.syncLinkedLocals(arrival);
+            PortalSyncService<ILocalPortal> sync = BukkitPortalSyncAccess.create(null, () -> List.of(source, arrival), Runnable::run);
+            sync.syncLinkedLocals(arrival);
+            sync.syncLinkedLocals(source);
 
-        assertEquals(ProjectionMode.ON, source.getProjectionMode());
-        assertEquals(0x123456, source.getAmbientColor());
-        assertEquals(ProjectionMode.OFF, arrival.getProjectionMode());
+            assertEquals(ProjectionMode.ON, source.getProjectionMode());
+            assertEquals(0x123456, source.getAmbientColor());
+            assertEquals(ProjectionMode.OFF, arrival.getProjectionMode());
+            assertFalse(arrival.getAmbientColor() == 0x123456);
+        } finally {
+            Settings.TWO_WAY_END_PORTALS = true;
+        }
     }
 
     @Test
