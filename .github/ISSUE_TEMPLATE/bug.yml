@@ -1,0 +1,75 @@
+name: Bug report
+description: Something in Wormholes isn't working.
+labels: [bug]
+type: Bug
+assignees: [SwiftSwamp]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Make sure you're on the [latest release](https://github.com/VolmitSoftware/Wormholes/releases/latest) and that it hasn't [already been reported](https://github.com/VolmitSoftware/Wormholes/issues?q=is%3Aissue).
+
+        The Wormholes plugin supports Minecraft 26.1.2 through 26.3 on Paper, Purpur, and Folia, with Java 25. Fabric, Forge, and NeoForge builds and their versions are listed on the [installation page](https://docs.volmitsoftware.com/wormholes/01-installation-configuration). If you use the client mod, say so under What happened.
+  - type: textarea
+    id: issue
+    attributes:
+      label: What issue are you having?
+      description: Include any error message you saw.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Start a server with Wormholes installed
+        2. Change ... in the config
+        3. Run /wormholes ...
+        4. ... happens instead of ...
+    validations:
+      required: true
+  - type: input
+    id: diagnostics
+    attributes:
+      label: Debug dump or latest log file
+      description: Run `/wormholes debug dump upload=true` (`/wh debug dump` on Fabric, Forge, and NeoForge) and paste the link. If Wormholes won't start, upload `logs/latest.log` to [mclo.gs](https://mclo.gs) and paste that link instead.
+      placeholder: https://mclo.gs/...
+    validations:
+      required: true
+  - type: input
+    id: plugin-version
+    attributes:
+      label: "Wormholes version"
+      description: Run `/wormholes debug version` (`/wh version` on Fabric, Forge, and NeoForge).
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Server software
+      options:
+        - "Paper"
+        - "Purpur"
+        - "Folia"
+        - "Fabric"
+        - "Forge"
+        - "NeoForge"
+        - Other (unsupported)
+    validations:
+      required: true
+  - type: dropdown
+    id: minecraft
+    attributes:
+      label: Minecraft version
+      options:
+        - "26.3"
+        - "26.2"
+        - "26.1.2"
+        - Other (unsupported)
+    validations:
+      required: true
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else?
+      description: Other plugins involved, screenshots, or videos.
