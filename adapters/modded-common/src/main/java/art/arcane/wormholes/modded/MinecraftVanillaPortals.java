@@ -307,6 +307,9 @@ public final class MinecraftVanillaPortals implements AutoCloseable {
             for (int offset : new int[] {0, 8, -8, 16, -16}) {
                 int x = center.getX() + offset;
                 int z = center.getZ();
+                if (source.end() && columnTaken(target, x, z)) {
+                    continue;
+                }
                 int highest = source.end() ? Math.min(180, target.getMaxY() - 4) : Math.min(NetherSiteSearch.maximumBaseY(target.getMaxY(), source.height(), target.dimension() == Level.NETHER),
                     target.dimension() == Level.NETHER ? 120 : target.getMaxY());
                 int y = Math.max(target.getMinY() + 5, Math.min(highest, center.getY()));
@@ -373,6 +376,21 @@ public final class MinecraftVanillaPortals implements AutoCloseable {
             }
         }
         return null;
+    }
+
+    private boolean columnTaken(ServerLevel level, int x, int z) {
+        String world = level.dimension().identifier().toString();
+        for (MinecraftPortal portal : runtime.portals().snapshot()) {
+            if (!portal.getWorldKey().equals(world)) {
+                continue;
+            }
+            for (Vec3d position : portal.getBuiltGeometry().getBlockPositions()) {
+                if (Math.abs((int) position.x() - x) <= 1 && Math.abs((int) position.z() - z) <= 1) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private static NetherSiteSearch.Cell siteCell(ServerLevel level, int x, int y, int z) {

@@ -1,13 +1,25 @@
 package art.arcane.wormholes.portal.vanilla;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 
+import org.bukkit.Location;
+import org.bukkit.World;
 import org.junit.jupiter.api.Test;
+
+import art.arcane.wormholes.PortalManager;
+import art.arcane.wormholes.Wormholes;
+import art.arcane.wormholes.portal.DimensionalPortalKind;
+import art.arcane.wormholes.portal.ILocalPortal;
 
 public final class VanillaPortalReplacerEndPlanTest
 {
@@ -71,5 +83,32 @@ public final class VanillaPortalReplacerEndPlanTest
 		}
 		assertEquals(new VanillaPortalEndSites.EndTarget(36, 20),
 				VanillaPortalEndSites.nextEndFallbackTarget(new VanillaPortalEndSites.EndTarget(28, 20)));
+	}
+
+	@Test
+	public void reservationSkipsAColumnHoldingAnArrivalAtAnotherHeight()
+	{
+		PortalManager previous = Wormholes.portalManager;
+		World end = mock(World.class);
+		when(end.getUID()).thenReturn(UUID.randomUUID());
+		VanillaPortalEndSites.EndTarget first = VanillaPortalEndSites.primaryEndTargets().get(0);
+		ILocalPortal older = mock(ILocalPortal.class);
+		when(older.getDimensionalPortalKind()).thenReturn(DimensionalPortalKind.END_ARRIVAL);
+		when(older.getWorld()).thenReturn(end);
+		when(older.getCenter()).thenReturn(new Location(end, first.x() + 0.5D, 70.0D, first.z() + 0.5D));
+		PortalManager portals = mock(PortalManager.class);
+		when(portals.getLocalPortals()).thenReturn(List.of(older));
+		Wormholes.portalManager = portals;
+		try
+		{
+			VanillaPortalEndSites.BuildTarget reserved = new VanillaPortalEndSites(new VanillaPortalIndex()).reserve(end);
+
+			assertNotNull(reserved);
+			assertFalse(VanillaPortalEndSites.endWindowsOverlap(first, reserved.target()));
+		}
+		finally
+		{
+			Wormholes.portalManager = previous;
+		}
 	}
 }

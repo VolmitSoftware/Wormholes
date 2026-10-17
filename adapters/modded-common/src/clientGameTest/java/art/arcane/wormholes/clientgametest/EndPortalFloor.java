@@ -66,6 +66,8 @@ final class EndPortalFloor {
     private static final Logger LOGGER = LoggerFactory.getLogger("WormholesClientGameTest");
     private static final Site FLOOR = new Site("floor-enter", new BlockPos(40, 70, 40), 0);
     private static final Site ELEVATED = new Site("elevated-enter", new BlockPos(40, 70, 88), 2);
+    private static final Site STACKED = new Site("stacked-enter", new BlockPos(40, 70, 64), 0);
+    private static final String STACKED_PHASE = "stacked-arrival";
     private static final String RETURN_PHASE = "end-return";
     private static final String EXIT_PHASE = "end-exit";
     private static final String DRAGON_PHASE = "dragon";
@@ -140,6 +142,60 @@ final class EndPortalFloor {
             }
         } finally {
             server.computeOnServer(minecraftServer -> endTravel(minecraftServer, true));
+            client.restoreDefaultGameOptions();
+            JsonArray failed = new JsonArray();
+            for (String failure : failures) {
+                failed.add(failure);
+            }
+            evidence.add("failures", failed);
+            write(directory.resolve(label + ".json"), evidence);
+        }
+        LOGGER.info("WORMHOLES_END_PORTAL_FLOOR_RESULT fixture={} failures={} evidence={}", label, failures.size(), directory.resolve(label + ".json"));
+        SeamlessScenario.assertTrue(failures.isEmpty(), label + ": " + String.join("; ", failures));
+        LOGGER.info("WORMHOLES_END_PORTAL_FLOOR_PASS fixture={}", label);
+    }
+
+    static void stacked(SeamlessClient client, SeamlessServer server, String label) {
+        SeamlessScenario.join(client);
+        SeamlessScenario.assertSeamlessNegotiated(client);
+        UUID playerId = client.computeOnClient(minecraft -> minecraft.player.getUUID());
+        Path directory = client.computeOnClient(minecraft -> minecraft.gameDirectory.toPath().resolve("screenshots").resolve(DIRECTORY));
+        createDirectories(directory);
+        JsonObject evidence = new JsonObject();
+        evidence.addProperty("label", label);
+        JsonArray phases = new JsonArray();
+        evidence.add("phases", phases);
+        List<String> failures = new ArrayList<>();
+        try {
+            String setting = server.computeOnServer(minecraftServer -> endTravel(minecraftServer, true));
+            evidence.addProperty("setting", setting);
+            Entry older = enter(client, server, playerId, FLOOR, label, phases, failures);
+            JsonObject phase = new JsonObject();
+            phases.add(phase);
+            phase.addProperty("phase", STACKED_PHASE);
+            if (older == null) {
+                fail(phase, failures, STACKED_PHASE + ": the first End arrival was never reached, so a second arrival could not be placed beside it");
+            } else {
+                Vec3 perch = server.computeOnServer(minecraftServer -> perch(minecraftServer, playerId, older.conversion()));
+                phase.addProperty("perch", vector(perch));
+                phase.addProperty("olderArrival", older.conversion().describeArrival());
+                Entry newer = enter(client, server, playerId, STACKED, label, phases, failures);
+                if (newer == null) {
+                    fail(phase, failures, STACKED_PHASE + ": travelling through the second End portal did not land under its own arrival portal; "
+                        + "the older arrival is " + older.conversion().describeArrival() + " with a perch at " + vector(perch));
+                } else {
+                    String shared = server.computeOnServer(minecraftServer -> sharedColumns(minecraftServer, newer.conversion()));
+                    phase.addProperty("newerArrival", newer.conversion().describeArrival());
+                    phase.addProperty("sharedColumns", shared);
+                    if (!shared.equals(NONE)) {
+                        fail(phase, failures, STACKED_PHASE + ": the second End arrival " + newer.conversion().describeArrival()
+                            + " was stacked in the columns of " + shared);
+                    } else {
+                        phase.addProperty("passed", true);
+                    }
+                }
+            }
+        } finally {
             client.restoreDefaultGameOptions();
             JsonArray failed = new JsonArray();
             for (String failure : failures) {
@@ -907,6 +963,25 @@ final class EndPortalFloor {
         player.teleportTo(end, stand.x, stand.y, stand.z, Set.of(), 0.0F, LOOK_UP_PITCH, false);
         player.setDeltaMovement(Vec3.ZERO);
         return stand;
+    }
+
+    private static String sharedColumns(MinecraftServer server, Conversion conversion) {
+        BlockPos minimum = conversion.arrivalMinimum();
+        List<String> shared = new ArrayList<>();
+        for (MinecraftPortal portal : runtime(server).portals().snapshot()) {
+            if (portal.getId().equals(conversion.arrival()) || !portal.getWorldKey().equals(conversion.arrivalLevel())) {
+                continue;
+            }
+            for (Vec3d cell : portal.getBuiltGeometry().getBlockPositions()) {
+                int x = (int) cell.x() - minimum.getX();
+                int z = (int) cell.z() - minimum.getZ();
+                if (x >= 0 && x <= 2 && z >= 0 && z <= 2) {
+                    shared.add(portal.getDimensionalKind() + " " + portal.getId() + " at " + portal.getOrigin());
+                    break;
+                }
+            }
+        }
+        return shared.isEmpty() ? NONE : String.join(", ", shared);
     }
 
     private static BlockPos unperch(MinecraftServer server, Conversion conversion) {

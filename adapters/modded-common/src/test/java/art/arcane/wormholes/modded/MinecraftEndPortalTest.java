@@ -31,6 +31,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.border.WorldBorder;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.Shapes;
@@ -104,6 +105,39 @@ public class MinecraftEndPortalTest extends MinecraftTestBase {
         Method active = MinecraftVanillaPortals.class.getDeclaredMethod("exitActive", ServerLevel.class, List.class);
         active.setAccessible(true);
         assertEquals(false, active.invoke(null, level, cells));
+    }
+
+    @Test
+    public void aNewEndArrivalAvoidsTheColumnsOfAnArrivalStandingAboveAPerch() throws Exception {
+        Pairing pairing = new Pairing(true);
+        MinecraftPortal older = pairing.arrival;
+        when(pairing.end.hasChunk(anyInt(), anyInt())).thenReturn(true);
+        when(pairing.end.getMinY()).thenReturn(0);
+        when(pairing.end.getMaxY()).thenReturn(256);
+        when(pairing.end.getWorldBorder()).thenReturn(new WorldBorder());
+        when(pairing.end.getBlockState(any(BlockPos.class))).thenAnswer(invocation -> {
+            BlockPos position = invocation.getArgument(0);
+            boolean perch = position.getY() == 71 && Math.abs(position.getX() - 12) <= 2 && Math.abs(position.getZ() - 9) <= 2;
+            return perch || position.getY() <= 60 ? Blocks.END_STONE.defaultBlockState() : Blocks.AIR.defaultBlockState();
+        });
+        when(pairing.registry.at(eq(pairing.end), any(BlockPos.class))).thenAnswer(invocation -> {
+            BlockPos position = invocation.getArgument(1);
+            return position.getY() == 74 && Math.abs(position.getX() - 12) <= 1 && Math.abs(position.getZ() - 9) <= 1 ? older : null;
+        });
+        Object shape = shape(pairing.sourceLevel, new BlockPos(10, 64, 10));
+        Method build = MinecraftVanillaPortals.class.getDeclaredMethod("build", ServerLevel.class, shape.getClass(), BlockPos.class);
+        build.setAccessible(true);
+        Object planned = build.invoke(pairing.vanilla, pairing.end, shape, new BlockPos(12, 64, 9));
+        Method cellsMethod = planned.getClass().getDeclaredMethod("cells");
+        cellsMethod.setAccessible(true);
+        List<?> cells = (List<?>) cellsMethod.invoke(planned);
+
+        assertEquals(9, cells.size());
+        for (Object value : cells) {
+            BlockPos cell = (BlockPos) value;
+            assertFalse("new End arrival cell " + cell.toShortString() + " shares a column with the arrival at 12,74,9",
+                Math.abs(cell.getX() - 12) <= 1 && Math.abs(cell.getZ() - 9) <= 1);
+        }
     }
 
     @Test
