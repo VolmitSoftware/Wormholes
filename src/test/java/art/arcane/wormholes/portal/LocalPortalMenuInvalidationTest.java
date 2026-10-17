@@ -42,6 +42,7 @@ import art.arcane.wormholes.menu.host.BukkitPortalMenuHost;
 import art.arcane.wormholes.menu.portal.GatewayMenuHost;
 import art.arcane.wormholes.menu.portal.PortalMenuController;
 import art.arcane.wormholes.menu.portal.PortalRoutes;
+import art.arcane.wormholes.menu.protocol.MenuServerInfo;
 import art.arcane.wormholes.network.PortalSyncService;
 
 class LocalPortalMenuInvalidationTest {
@@ -208,6 +209,11 @@ class LocalPortalMenuInvalidationTest {
         @Override
         public boolean nativeScreensEnabled() {
             return false;
+        }
+
+        @Override
+        public MenuServerInfo serverInfo() {
+            return new MenuServerInfo("test-version", "Test 1.0", nativeScreensEnabled());
         }
 
         @Override

@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded;
 
+import art.arcane.wormholes.WormholesBuild;
 import art.arcane.wormholes.menu.MenuAction;
 import art.arcane.wormholes.menu.MenuCapability;
 import art.arcane.wormholes.menu.MenuInteraction;
@@ -116,17 +117,17 @@ public final class MinecraftNativeMenuProtocolGameTest {
     }
 
     private void offThreadHelloRunsOnTheServerThread() {
-        require(frames(silent).equals(List.of(new MenuServerMessage.Accept(1))), "rescheduled HELLO 7 was not answered with ACCEPT 1");
+        require(acceptedOnce(frames(silent)), "rescheduled HELLO 7 was not answered with ACCEPT 1");
         require(capability(silent).equals(Optional.of(new MenuCapability(1))), "rescheduled HELLO 7 did not negotiate version 1");
         checks.add("offthread-reschedule");
     }
 
     private void helloIsAccepted() {
         send(probe, encode(new MenuClientMessage.Hello(1)));
-        require(frames(probe).equals(List.of(new MenuServerMessage.Accept(1))), "HELLO 1 was not answered with ACCEPT 1");
+        require(acceptedOnce(frames(probe)), "HELLO 1 was not answered with ACCEPT 1");
         require(capability(probe).equals(Optional.of(new MenuCapability(1))), "HELLO 1 did not store capability version 1");
         send(probe, encode(new MenuClientMessage.Hello(1)));
-        require(frames(probe).equals(List.of(new MenuServerMessage.Accept(1))), "a repeated HELLO did not re-send ACCEPT");
+        require(acceptedOnce(frames(probe)), "a repeated HELLO did not re-send ACCEPT");
         checks.add("hello-accept");
     }
 
@@ -140,7 +141,7 @@ public final class MinecraftNativeMenuProtocolGameTest {
         require(probe.player().getUUID().equals(probeId), "the reconnecting probe changed identity");
         require(capability(probe).isEmpty(), "joining kept the stale connection's menu capability");
         send(probe, encode(new MenuClientMessage.Hello(1)));
-        require(frames(probe).equals(List.of(new MenuServerMessage.Accept(1))), "HELLO after the join was not accepted");
+        require(acceptedOnce(frames(probe)), "HELLO after the join was not accepted");
         checks.add("join-clears");
     }
 
@@ -213,7 +214,7 @@ public final class MinecraftNativeMenuProtocolGameTest {
         probe.drainPackets();
         require(capability(probe).isEmpty(), "a reconnect kept the previous connection's menu capability");
         send(probe, encode(new MenuClientMessage.Hello(1)));
-        require(frames(probe).equals(List.of(new MenuServerMessage.Accept(1))), "HELLO on a fresh connection was not accepted");
+        require(acceptedOnce(frames(probe)), "HELLO on a fresh connection was not accepted");
         silent.close();
         require(capability(silent).isEmpty(), "disconnect did not clear the menu capability");
         checks.add("reconnect-fresh");
@@ -301,6 +302,11 @@ public final class MinecraftNativeMenuProtocolGameTest {
         } finally {
             buffer.release();
         }
+    }
+
+    private static boolean acceptedOnce(List<MenuServerMessage> messages) {
+        return messages.size() == 1 && messages.getFirst() instanceof MenuServerMessage.Accept accept && accept.version() == 1
+            && accept.server().wormholesVersion().equals(WormholesBuild.version());
     }
 
     private static List<MenuServerMessage> frames(MinecraftGameTestPlayer connection) {

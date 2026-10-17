@@ -1,5 +1,7 @@
 package art.arcane.wormholes.modded.client;
 
+import art.arcane.wormholes.WormholesBuild;
+import art.arcane.wormholes.modded.client.menu.ClientMenus;
 import art.arcane.wormholes.modded.client.render.ClientPortalRenderer;
 import art.arcane.wormholes.modded.client.render.stencil.PortalStencilRenderer;
 import art.arcane.wormholes.modded.client.render.stencil.PortalViews;
@@ -28,10 +30,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Consumer;
 import art.arcane.wormholes.modded.clientview.MinecraftClientViewExtensions;
+import art.arcane.wormholes.network.client.ClientViewExtensions;
 import art.arcane.wormholes.network.client.TravelExtension;
 import art.arcane.wormholes.network.client.TravelMessage;
 import art.arcane.optics.aperture.ApertureDescriptor;
@@ -56,6 +60,8 @@ public final class WormholesClient {
     private ClientViewTick tick;
     private Object attachedLevel;
     private ClientLevelSurface attachedSurface;
+    private final WormholesDebugScreen debugScreen = new WormholesDebugScreen(this::debugStatus, this::detailLines);
+    private long ticks;
     private boolean debugRegistered;
     private boolean debugEnabled;
 
@@ -212,6 +218,7 @@ public final class WormholesClient {
     }
 
     public void tick(Minecraft minecraft) {
+        ticks++;
         outbound.flush();
         ClientPortalRenderer.instance().finishBuilds();
         seamlessTravel.tick();
@@ -248,19 +255,15 @@ public final class WormholesClient {
     }
 
     public String debugLine() {
-        ClientViewSession current = session;
-        ClientViewTick state = tick;
-        ProjectionOverlay overlay = state == null ? null : state.overlay();
-        return "Wormholes ClientView: " + current.state()
-            + " portals=" + current.portals().size() + " memoryUnavailable=" + current.unavailableMeshes()
-            + " overlay=" + (overlay == null ? 0 : overlay.size())
-            + " plates=" + current.memoryMb() + "MiB"
-            + " sweep=" + stats.sweepMicrosP50() + "us apply=" + stats.applyMicrosP50() + "us"
-            + " frames=" + stats.framesReceived() + " bytes=" + stats.bytesReceived()
-            + " unknown=" + current.palette().unknownStates()
-            + " entities=" + (state == null || state.entities() == null ? 0 : state.entities().spawned())
-            + " fx=" + (state == null || state.fx() == null ? 0 : state.fx().emitters())
-            + " " + ClientPortalRenderer.instance().debugLine() + " " + PortalStencilRenderer.instance().debugLine();
+        return String.join(" ", detailSections());
+    }
+
+    public List<String> debugSummary() {
+        return debugScreen.summary(ticks);
+    }
+
+    public List<String> debugDetail() {
+        return debugScreen.detail(ticks);
     }
 
     public WormholesClientConfig config() {
@@ -293,6 +296,38 @@ public final class WormholesClient {
 
     public ClientReflectionEntity reflections() {
         return reflections;
+    }
+
+    private WormholesDebugStatus debugStatus() {
+        ClientViewSession current = session;
+        WormholesDebugStatus.Protocols protocols = new WormholesDebugStatus.Protocols(current.offeredWire(), current.active(),
+            current.active() && current.has(ClientViewExtensions.SEAMLESS_TRAVEL), ClientMenus.version());
+        WormholesDebugStatus.Activity activity = new WormholesDebugStatus.Activity(seamlessTravel.armedCount(),
+            PortalStencilRenderer.instance().drawnViews() + ClientPortalRenderer.instance().drawnViews(), current.portals().size(),
+            seamlessTravel.residents().count(), seamlessTravel.travelState());
+        return new WormholesDebugStatus(current.connectionStatus(), WormholesBuild.version(), ClientMenus.server().orElse(null),
+            protocols, activity);
+    }
+
+    private List<String> detailLines() {
+        return WormholesDebugLines.wrap(detailSections());
+    }
+
+    private List<String> detailSections() {
+        ClientViewSession current = session;
+        ClientViewTick state = tick;
+        ProjectionOverlay overlay = state == null ? null : state.overlay();
+        String view = "ClientView: " + current.state()
+            + " plates=" + current.memoryMb() + "MiB memoryUnavailable=" + current.unavailableMeshes()
+            + " overlay=" + (overlay == null ? 0 : overlay.size()) + " outbound=" + outbound.pending();
+        String stream = "Stream: frames=" + stats.framesReceived() + " bytes=" + stats.bytesReceived()
+            + " sweep=" + stats.sweepMicrosP50() + "us apply=" + stats.applyMicrosP50() + "us"
+            + " unknown=" + current.palette().unknownStates()
+            + " entities=" + (state == null || state.entities() == null ? 0 : state.entities().spawned())
+            + " fx=" + (state == null || state.fx() == null ? 0 : state.fx().emitters());
+        String render = "Render: " + ClientPortalRenderer.instance().debugLine();
+        String stencil = PortalStencilRenderer.instance().debugLine() + " residentMiB=" + (seamlessTravel.residents().bytes() >> 20);
+        return List.of(view, stream, render, stencil);
     }
 
     private void detach() {
@@ -355,13 +390,12 @@ public final class WormholesClient {
         }
         debugRegistered = true;
         try {
-            DebugScreenEntriesAccessor.wormholesRegister(ClientViewDebugEntry.STATUS_ID,
-                new ClientViewDebugEntry(() -> session.connectionStatus().debugLine()));
+            DebugScreenEntriesAccessor.wormholesRegister(ClientViewDebugEntry.STATUS_ID, new ClientViewDebugEntry(this::debugSummary));
             minecraft.debugEntries.setStatus(ClientViewDebugEntry.STATUS_ID, DebugScreenEntryStatus.IN_OVERLAY);
-            DebugScreenEntriesAccessor.wormholesRegister(ClientViewDebugEntry.ID, new ClientViewDebugEntry(this::debugLine));
+            DebugScreenEntriesAccessor.wormholesRegister(ClientViewDebugEntry.DETAIL_ID, new ClientViewDebugEntry(this::debugDetail));
             if (config.showDebugOverlay && !debugEnabled) {
                 debugEnabled = true;
-                minecraft.debugEntries.setStatus(ClientViewDebugEntry.ID, DebugScreenEntryStatus.IN_OVERLAY);
+                minecraft.debugEntries.setStatus(ClientViewDebugEntry.DETAIL_ID, DebugScreenEntryStatus.IN_OVERLAY);
             }
         } catch (RuntimeException failure) {
             LOGGER.warn("Wormholes ClientView debug entry unavailable", failure);

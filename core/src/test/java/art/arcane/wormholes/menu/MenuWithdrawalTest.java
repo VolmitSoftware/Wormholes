@@ -53,7 +53,7 @@ final class MenuWithdrawalTest {
         service.open(VIEWER, TestController.main());
 
         assertTrue(service.capabilities().capability(VIEWER).isEmpty());
-        assertEquals(List.of(new MenuServerMessage.Accept(1)), host.serverMessages());
+        assertEquals(List.of(new MenuServerMessage.Accept(1, host.serverInfo())), host.serverMessages());
         assertTrue(host.chest.lastEvent().startsWith("open:test.main@"));
         service.quit(VIEWER);
         hello(1);

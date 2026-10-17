@@ -9,12 +9,14 @@ import art.arcane.wormholes.menu.protocol.MenuClientMessage;
 import art.arcane.wormholes.menu.protocol.MenuCodec;
 import art.arcane.wormholes.menu.protocol.MenuProtocol;
 import art.arcane.wormholes.menu.protocol.MenuProtocolException;
+import art.arcane.wormholes.menu.protocol.MenuServerInfo;
 import art.arcane.wormholes.menu.protocol.MenuServerMessage;
 import org.junit.Test;
 import org.slf4j.Logger;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -26,6 +28,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 public class ClientMenuSessionTest {
+    private static final MenuServerInfo SERVER = new MenuServerInfo("test-version", "Test 1.0", true);
     private static final byte[] MALFORMED = {(byte) 0xEE, 1, 2};
     private static final int THROTTLE_FRAMES = 20;
 
@@ -55,6 +58,17 @@ public class ClientMenuSessionTest {
     }
 
     @Test
+    public void acceptRecordsTheServerIdentityUntilDisconnect() throws MenuProtocolException {
+        assertEquals(Optional.empty(), session.server());
+        session.connected();
+        session.tick(() -> true);
+        session.receive(MenuCodec.encodeServer(new MenuServerMessage.Accept(1, SERVER)));
+        assertEquals(Optional.of(SERVER), session.server());
+        session.disconnected();
+        assertEquals(Optional.empty(), session.server());
+    }
+
+    @Test
     public void helloWaitsForALateChannelRegistration() throws MenuProtocolException {
         session.connected();
         for (int tick = 0; tick < 40; tick++) {
@@ -64,7 +78,7 @@ public class ClientMenuSessionTest {
         assertTrue(sent.isEmpty());
 
         session.tick(() -> true);
-        session.receive(MenuCodec.encodeServer(new MenuServerMessage.Accept(1)));
+        session.receive(MenuCodec.encodeServer(new MenuServerMessage.Accept(1, SERVER)));
 
         assertEquals(List.of(new MenuClientMessage.Hello(1)), decoded());
         assertEquals(1, session.version());
@@ -104,7 +118,7 @@ public class ClientMenuSessionTest {
         session.connected();
         assertEquals(0, session.version());
 
-        session.receive(MenuCodec.encodeServer(new MenuServerMessage.Accept(1)));
+        session.receive(MenuCodec.encodeServer(new MenuServerMessage.Accept(1, SERVER)));
 
         assertEquals(1, session.version());
     }
@@ -115,7 +129,7 @@ public class ClientMenuSessionTest {
         session.connected();
         session.tick(() -> true);
 
-        session.receive(MenuCodec.encodeServer(new MenuServerMessage.Accept(MenuProtocol.VERSION + 1)));
+        session.receive(MenuCodec.encodeServer(new MenuServerMessage.Accept(MenuProtocol.VERSION + 1, SERVER)));
         session.receive(MenuCodec.encodeServer(new MenuServerMessage.Open(screen("portal.home", 3L))));
 
         verify(logger, times(1)).warn(anyString(), any(Throwable.class));
@@ -180,7 +194,7 @@ public class ClientMenuSessionTest {
     @Test
     public void withoutAListenerTheSessionStillKeepsState() throws MenuProtocolException {
         session.connected();
-        session.receive(MenuCodec.encodeServer(new MenuServerMessage.Accept(1)));
+        session.receive(MenuCodec.encodeServer(new MenuServerMessage.Accept(1, SERVER)));
         MenuScreen home = screen("portal.home", 3L);
 
         session.receive(MenuCodec.encodeServer(new MenuServerMessage.Open(home)));
@@ -253,7 +267,7 @@ public class ClientMenuSessionTest {
 
         session.connected();
         session.tick(() -> true);
-        session.receive(MenuCodec.encodeServer(new MenuServerMessage.Accept(1)));
+        session.receive(MenuCodec.encodeServer(new MenuServerMessage.Accept(1, SERVER)));
         open(1L);
 
         assertEquals(1, session.version());
@@ -386,7 +400,7 @@ public class ClientMenuSessionTest {
         session.listener(listener);
         session.connected();
         session.tick(() -> true);
-        session.receive(MenuCodec.encodeServer(new MenuServerMessage.Accept(1)));
+        session.receive(MenuCodec.encodeServer(new MenuServerMessage.Accept(1, SERVER)));
     }
 
     private void open(long revision) throws MenuProtocolException {

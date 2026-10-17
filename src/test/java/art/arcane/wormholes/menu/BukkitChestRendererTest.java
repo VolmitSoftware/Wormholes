@@ -56,6 +56,7 @@ import art.arcane.volmlib.util.inventorygui.Window;
 import art.arcane.wormholes.EffectManager;
 import art.arcane.wormholes.TestRegistryAccess;
 import art.arcane.wormholes.Wormholes;
+import art.arcane.wormholes.menu.protocol.MenuServerInfo;
 import art.arcane.wormholes.service.WormholesHud;
 
 class BukkitChestRendererTest {
@@ -707,6 +708,11 @@ class BukkitChestRendererTest {
         @Override
         public boolean nativeScreensEnabled() {
             return false;
+        }
+
+        @Override
+        public MenuServerInfo serverInfo() {
+            return new MenuServerInfo("test-version", "Test 1.0", nativeScreensEnabled());
         }
 
         @Override

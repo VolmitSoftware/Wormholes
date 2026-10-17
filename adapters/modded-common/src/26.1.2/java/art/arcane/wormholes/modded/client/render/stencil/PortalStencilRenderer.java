@@ -125,6 +125,10 @@ public final class PortalStencilRenderer {
             + " backends=" + PortalBackends.describe();
     }
 
+    public int drawnViews() {
+        return claimed.size();
+    }
+
     public long skippedViews() {
         return skippedViews;
     }

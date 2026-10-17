@@ -151,6 +151,9 @@ public final class MenuCodec {
                 case MenuServerMessage.Accept accept -> {
                     out.u8(S2C_ACCEPT);
                     out.u8(accept.version());
+                    writeString(out, accept.server().wormholesVersion());
+                    writeString(out, accept.server().platform());
+                    out.u8(accept.server().nativeScreens() ? 1 : 0);
                 }
                 case MenuServerMessage.Open open -> {
                     out.u8(S2C_OPEN);
@@ -186,7 +189,7 @@ public final class MenuCodec {
         try {
             int id = in.u8();
             MenuServerMessage message = switch (id) {
-                case S2C_ACCEPT -> new MenuServerMessage.Accept(in.u8());
+                case S2C_ACCEPT -> new MenuServerMessage.Accept(in.u8(), new MenuServerInfo(readString(in), readString(in), readBoolean(in)));
                 case S2C_OPEN -> new MenuServerMessage.Open(readScreen(in));
                 case S2C_UPDATE -> new MenuServerMessage.Update(readScreen(in));
                 case S2C_CLOSE -> new MenuServerMessage.Close();

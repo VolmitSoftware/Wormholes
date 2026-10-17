@@ -72,7 +72,7 @@ final class MenuCapabilitiesTest {
         hello(2);
 
         assertEquals(new MenuCapability(MenuProtocol.VERSION), service.capabilities().capability(VIEWER).orElseThrow());
-        assertEquals(List.of(new MenuServerMessage.Accept(1), new MenuServerMessage.Accept(1)), host.serverMessages());
+        assertEquals(List.of(new MenuServerMessage.Accept(1, host.serverInfo()), new MenuServerMessage.Accept(1, host.serverInfo())), host.serverMessages());
     }
 
     @Test
@@ -121,7 +121,7 @@ final class MenuCapabilitiesTest {
         assertEquals("open:test.main@1", host.chest.lastEvent());
         assertTrue(failing.capabilities().capability(VIEWER).isPresent());
         assertEquals(List.of("open:test.main@1"), host.chest.events);
-        assertEquals(List.of(new MenuServerMessage.Accept(1)), host.serverMessages());
+        assertEquals(List.of(new MenuServerMessage.Accept(1, host.serverInfo())), host.serverMessages());
     }
 
     @Test
@@ -205,7 +205,7 @@ final class MenuCapabilitiesTest {
         hello(1);
 
         assertTrue(service.capabilities().capability(VIEWER).isEmpty());
-        assertEquals(List.of(new MenuServerMessage.Accept(1)), host.serverMessages());
+        assertEquals(List.of(new MenuServerMessage.Accept(1, host.serverInfo())), host.serverMessages());
         assertEquals(1, host.warnings.size());
         service.open(VIEWER, TestController.main());
         assertEquals("open:test.main@1", host.chest.lastEvent());
@@ -238,7 +238,7 @@ final class MenuCapabilitiesTest {
 
             codec.verify(() -> MenuCodec.decodeClient(ArgumentMatchers.any()), Mockito.never());
         }
-        assertEquals(List.of(new MenuServerMessage.Accept(1)), host.serverMessages());
+        assertEquals(List.of(new MenuServerMessage.Accept(1, host.serverInfo())), host.serverMessages());
     }
 
     @Test
@@ -259,7 +259,7 @@ final class MenuCapabilitiesTest {
             codec.verify(() -> MenuCodec.decodeClient(ArgumentMatchers.any()), Mockito.times(1));
         }
         assertTrue(service.capabilities().capability(VIEWER).isPresent());
-        assertEquals(List.of(new MenuServerMessage.Accept(1)), host.serverMessages());
+        assertEquals(List.of(new MenuServerMessage.Accept(1, host.serverInfo())), host.serverMessages());
         assertTrue(host.warnings.isEmpty());
     }
 

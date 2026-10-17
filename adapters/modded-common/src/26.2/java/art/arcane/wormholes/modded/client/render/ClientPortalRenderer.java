@@ -161,6 +161,10 @@ public final class ClientPortalRenderer {
             + " gpuKiB=" + (gpuBytes >> 10) + " targetKiB=" + (targets.bytes() >> 10) + " unavailable=" + failures;
     }
 
+    public int drawnViews() {
+        return visible.size();
+    }
+
     public NativeProof nativeProof() {
         int sections = 0;
         int unavailable = 0;

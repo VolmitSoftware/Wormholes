@@ -168,6 +168,10 @@ public final class ResidentLevels {
         acknowledge();
     }
 
+    public int count() {
+        return levels.size();
+    }
+
     public boolean has(int handle) {
         return handles.containsKey(handle);
     }

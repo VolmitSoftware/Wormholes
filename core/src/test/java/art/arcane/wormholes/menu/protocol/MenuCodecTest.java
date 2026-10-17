@@ -54,6 +54,7 @@ import art.arcane.wormholes.menu.ToggleElement;
 
 final class MenuCodecTest {
     private static final String GOLDEN = "/menu/golden-v1.hex";
+    private static final MenuServerInfo SERVER = new MenuServerInfo("3.1.0", "Test 1.0", true);
 
     @Test
     void everyClientMessageRoundTrips() throws MenuProtocolException {
@@ -79,7 +80,7 @@ final class MenuCodecTest {
     void everyServerMessageAndElementKindRoundTrips() throws MenuProtocolException {
         MenuScreen screen = goldenScreen();
         List<MenuServerMessage> messages = List.of(
-            new MenuServerMessage.Accept(1),
+            new MenuServerMessage.Accept(1, SERVER),
             new MenuServerMessage.Open(screen),
             new MenuServerMessage.Update(screen.withRevision(5L)),
             new MenuServerMessage.Close(),
@@ -146,7 +147,7 @@ final class MenuCodecTest {
         frames.put("hello", MenuCodec.encodeClient(new MenuClientMessage.Hello(1)));
         frames.put("action", MenuCodec.encodeClient(new MenuClientMessage.Action(new MenuAction(3L, "name", MenuInteraction.SET_TEXT,
             MenuValue.text("Arch")))));
-        frames.put("accept", MenuCodec.encodeServer(new MenuServerMessage.Accept(1)));
+        frames.put("accept", MenuCodec.encodeServer(new MenuServerMessage.Accept(1, SERVER)));
         frames.put("open", MenuCodec.encodeServer(new MenuServerMessage.Open(goldenScreen())));
         StringBuilder actual = new StringBuilder();
         for (Map.Entry<String, byte[]> entry : frames.entrySet()) {
@@ -159,7 +160,8 @@ final class MenuCodecTest {
         }
         assertEquals(expected, actual.toString());
         assertArrayEquals(new byte[] {(byte) MenuCodec.C2S_HELLO, 1}, frames.get("hello"));
-        assertArrayEquals(new byte[] {(byte) MenuCodec.S2C_ACCEPT, 1}, frames.get("accept"));
+        assertArrayEquals(new byte[] {(byte) MenuCodec.S2C_ACCEPT, 1, 5, '3', '.', '1', '.', '0', 8, 'T', 'e', 's', 't', ' ', '1', '.', '0', 1},
+            frames.get("accept"));
     }
 
     @Test
@@ -179,7 +181,7 @@ final class MenuCodecTest {
     @Test
     void trailingBytesAreRejected() throws MenuProtocolException {
         byte[] back = MenuCodec.encodeClient(new MenuClientMessage.Back(1L));
-        byte[] accept = MenuCodec.encodeServer(new MenuServerMessage.Accept(1));
+        byte[] accept = MenuCodec.encodeServer(new MenuServerMessage.Accept(1, SERVER));
 
         assertThrows(MenuProtocolException.class, () -> MenuCodec.decodeClient(Arrays.copyOf(back, back.length + 1)));
         assertThrows(MenuProtocolException.class, () -> MenuCodec.decodeServer(Arrays.copyOf(accept, accept.length + 3)));
@@ -199,7 +201,7 @@ final class MenuCodecTest {
     @Test
     void unknownAndWrongDirectionIdsAreRejected() throws MenuProtocolException {
         byte[] hello = MenuCodec.encodeClient(new MenuClientMessage.Hello(1));
-        byte[] accept = MenuCodec.encodeServer(new MenuServerMessage.Accept(1));
+        byte[] accept = MenuCodec.encodeServer(new MenuServerMessage.Accept(1, SERVER));
 
         assertThrows(MenuProtocolException.class, () -> MenuCodec.decodeClient(new byte[] {0}));
         assertThrows(MenuProtocolException.class, () -> MenuCodec.decodeClient(new byte[] {(byte) 200, 1}));
@@ -312,7 +314,7 @@ final class MenuCodecTest {
 
         assertThrows(MenuProtocolException.class, () -> MenuCodec.decodeServer(outOfRange));
         assertThrows(IllegalArgumentException.class, () -> new MenuClientMessage.Hello(256));
-        assertThrows(IllegalArgumentException.class, () -> new MenuServerMessage.Accept(0));
+        assertThrows(IllegalArgumentException.class, () -> new MenuServerMessage.Accept(0, SERVER));
     }
 
     @Test

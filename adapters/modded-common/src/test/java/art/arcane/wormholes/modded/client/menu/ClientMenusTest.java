@@ -4,6 +4,7 @@ import art.arcane.wormholes.menu.MenuScreen;
 import art.arcane.wormholes.menu.protocol.MenuClientMessage;
 import art.arcane.wormholes.menu.protocol.MenuCodec;
 import art.arcane.wormholes.menu.protocol.MenuProtocolException;
+import art.arcane.wormholes.menu.protocol.MenuServerInfo;
 import art.arcane.wormholes.menu.protocol.MenuServerMessage;
 import org.junit.Test;
 
@@ -26,7 +27,7 @@ public class ClientMenusTest {
         assertTrue(sent.isEmpty());
         channel.set(true);
         ClientMenus.tick();
-        ClientMenus.receive(MenuCodec.encodeServer(new MenuServerMessage.Accept(1)));
+        ClientMenus.receive(MenuCodec.encodeServer(new MenuServerMessage.Accept(1, new MenuServerInfo("test-version", "Test 1.0", true))));
         ClientMenus.receive(MenuCodec.encodeServer(new MenuServerMessage.Open(MenuScreen.builder("portal.home").title("Portal").revision(2L).build())));
         assertTrue(ClientMenus.session().back());
 

@@ -323,7 +323,7 @@ public final class MenuService implements MenuServiceApi {
         }
         limiters.computeIfAbsent(viewerId, ignored -> new MenuRateLimiter());
         try {
-            host.transport().send(viewerId, MenuCodec.encodeServer(new MenuServerMessage.Accept(capability.version())));
+            host.transport().send(viewerId, MenuCodec.encodeServer(new MenuServerMessage.Accept(capability.version(), host.serverInfo())));
         } catch (MenuProtocolException exception) {
             throw new IllegalStateException("menu accept could not be encoded", exception);
         }

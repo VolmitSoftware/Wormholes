@@ -7,11 +7,12 @@ import art.arcane.wormholes.menu.MenuScreen;
 
 public sealed interface MenuServerMessage permits MenuServerMessage.Accept, MenuServerMessage.Open, MenuServerMessage.Update,
     MenuServerMessage.Close, MenuServerMessage.Feedback {
-    record Accept(int version) implements MenuServerMessage {
+    record Accept(int version, MenuServerInfo server) implements MenuServerMessage {
         public Accept {
             if (version < 1 || version > 255) {
                 throw new IllegalArgumentException("accepted version " + version + " is outside 1..255");
             }
+            Objects.requireNonNull(server, "server");
         }
     }
 

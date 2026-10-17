@@ -1,10 +1,13 @@
 package art.arcane.wormholes.modded.menu;
 
+import art.arcane.wormholes.WormholesBuild;
 import art.arcane.wormholes.menu.MenuCaptures;
 import art.arcane.wormholes.menu.MenuHost;
 import art.arcane.wormholes.menu.MenuRenderer;
 import art.arcane.wormholes.menu.MenuViewer;
+import art.arcane.wormholes.menu.protocol.MenuServerInfo;
 import art.arcane.wormholes.modded.WormholesModRuntime;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -54,6 +57,12 @@ public final class MinecraftMenuHost implements MenuHost {
     @Override
     public boolean nativeScreensEnabled() {
         return runtime.running() && runtime.configuration().settings().getMenus().nativeScreens;
+    }
+
+    @Override
+    public MenuServerInfo serverInfo() {
+        MinecraftServer server = runtime.server();
+        return new MenuServerInfo(WormholesBuild.version(), server.getServerModName() + " " + server.getServerVersion(), nativeScreensEnabled());
     }
 
     @Override

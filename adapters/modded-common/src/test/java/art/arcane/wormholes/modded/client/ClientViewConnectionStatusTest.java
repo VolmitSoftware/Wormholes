@@ -9,6 +9,8 @@ import net.minecraft.client.gui.components.debug.DebugScreenDisplayer;
 import net.minecraft.core.registries.BuiltInRegistries;
 import org.junit.Test;
 
+import java.util.List;
+
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -72,9 +74,10 @@ public class ClientViewConnectionStatusTest extends MinecraftTestBase {
         assertLine(ClientViewSession.ConnectionStatus.MISMATCH, "Mismatch", ChatFormatting.YELLOW);
         assertLine(ClientViewSession.ConnectionStatus.DISCONNECTED, "Disconnected", ChatFormatting.RED);
         DebugScreenDisplayer displayer = mock(DebugScreenDisplayer.class);
-        ClientViewDebugEntry entry = new ClientViewDebugEntry(ClientViewSession.ConnectionStatus.CONNECTED::debugLine);
+        List<String> lines = List.of(ClientViewSession.ConnectionStatus.CONNECTED.debugLine(), "second");
+        ClientViewDebugEntry entry = new ClientViewDebugEntry(() -> lines);
         entry.display(displayer, null, null, null);
-        verify(displayer).addLine(ClientViewSession.ConnectionStatus.CONNECTED.debugLine());
+        verify(displayer).addToGroup(ClientViewDebugEntry.GROUP, lines);
     }
 
     private static void assertLine(ClientViewSession.ConnectionStatus status, String label, ChatFormatting color) {

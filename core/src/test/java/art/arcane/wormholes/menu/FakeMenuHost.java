@@ -10,6 +10,7 @@ import java.util.function.Consumer;
 
 import art.arcane.wormholes.menu.protocol.MenuCodec;
 import art.arcane.wormholes.menu.protocol.MenuProtocolException;
+import art.arcane.wormholes.menu.protocol.MenuServerInfo;
 import art.arcane.wormholes.menu.protocol.MenuServerMessage;
 
 public final class FakeMenuHost implements MenuHost {
@@ -48,6 +49,11 @@ public final class FakeMenuHost implements MenuHost {
             task.run();
         }
         return true;
+    }
+
+    @Override
+    public MenuServerInfo serverInfo() {
+        return new MenuServerInfo("test-version", "Test 1.0", nativeEnabled);
     }
 
     @Override

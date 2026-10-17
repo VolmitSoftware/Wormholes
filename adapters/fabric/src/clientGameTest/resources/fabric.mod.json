@@ -12,6 +12,7 @@
   "entrypoints": {
     "fabric-client-gametest": [
       "art.arcane.wormholes.clientgametest.PortalHorizonClientGameTest",
+      "art.arcane.wormholes.clientgametest.DebugScreenStatsClientGameTest",
       "art.arcane.wormholes.clientgametest.PortalRotationClientGameTest",
       "art.arcane.wormholes.clientgametest.AngledCrossingClientGameTest",
       "art.arcane.wormholes.clientgametest.EmbeddedFloorPortalClientGameTest",

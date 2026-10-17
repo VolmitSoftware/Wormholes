@@ -1,9 +1,11 @@
 package art.arcane.wormholes.modded.client.menu;
 
+import art.arcane.wormholes.menu.protocol.MenuServerInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 
@@ -53,6 +55,16 @@ public final class ClientMenus {
         if (current != null) {
             current.receive(frame);
         }
+    }
+
+    public static int version() {
+        ClientMenuSession current = session;
+        return current == null ? 0 : current.version();
+    }
+
+    public static Optional<MenuServerInfo> server() {
+        ClientMenuSession current = session;
+        return current == null ? Optional.empty() : current.server();
     }
 
     private static long monotonicMillis() {

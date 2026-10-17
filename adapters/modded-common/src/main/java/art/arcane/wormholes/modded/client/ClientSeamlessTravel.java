@@ -138,6 +138,20 @@ public final class ClientSeamlessTravel {
         return !arms.isEmpty();
     }
 
+    public int armedCount() {
+        return arms.size();
+    }
+
+    public WormholesDebugStatus.Travel travelState() {
+        if (view.crossing() != null) {
+            return WormholesDebugStatus.Travel.CROSSING;
+        }
+        if (!pending.isEmpty()) {
+            return WormholesDebugStatus.Travel.AWAITING;
+        }
+        return arms.isEmpty() ? WormholesDebugStatus.Travel.IDLE : WormholesDebugStatus.Travel.ARMED;
+    }
+
     public Collection<TravelMessage.TravelBegin> arms() {
         return Collections.unmodifiableCollection(arms.values());
     }

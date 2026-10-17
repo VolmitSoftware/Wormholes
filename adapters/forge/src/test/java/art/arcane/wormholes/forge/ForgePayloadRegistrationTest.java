@@ -3,6 +3,7 @@ package art.arcane.wormholes.forge;
 import art.arcane.wormholes.menu.MenuLimits;
 import art.arcane.wormholes.menu.protocol.MenuCodec;
 import art.arcane.wormholes.menu.protocol.MenuProtocolException;
+import art.arcane.wormholes.menu.protocol.MenuServerInfo;
 import art.arcane.wormholes.menu.protocol.MenuServerMessage;
 import art.arcane.wormholes.modded.WormholesModRuntime;
 import art.arcane.wormholes.modded.client.menu.ClientMenus;
@@ -86,7 +87,7 @@ public class ForgePayloadRegistrationTest {
             ClientMenus.initialize(bytes -> { }, () -> true);
             ClientMenus.connected();
 
-            registration.menuHandler().accept(new MenuPayload(MenuCodec.encodeServer(new MenuServerMessage.Accept(1))), context);
+            registration.menuHandler().accept(new MenuPayload(MenuCodec.encodeServer(new MenuServerMessage.Accept(1, new MenuServerInfo("test-version", "Test 1.0", true)))), context);
 
             assertEquals(1, ClientMenus.session().version());
             verify(context).setPacketHandled(true);

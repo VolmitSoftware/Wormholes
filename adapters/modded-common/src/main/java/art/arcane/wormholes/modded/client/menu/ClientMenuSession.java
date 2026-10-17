@@ -9,6 +9,7 @@ import art.arcane.wormholes.menu.protocol.MenuClientMessage;
 import art.arcane.wormholes.menu.protocol.MenuCodec;
 import art.arcane.wormholes.menu.protocol.MenuProtocol;
 import art.arcane.wormholes.menu.protocol.MenuProtocolException;
+import art.arcane.wormholes.menu.protocol.MenuServerInfo;
 import art.arcane.wormholes.menu.protocol.MenuServerMessage;
 import org.slf4j.Logger;
 
@@ -36,6 +37,7 @@ public final class ClientMenuSession {
     private boolean failed;
     private boolean pending;
     private int version;
+    private MenuServerInfo server;
     private MenuScreen screen;
 
     public ClientMenuSession(Consumer<byte[]> sender, LongSupplier clock, Logger logger) {
@@ -84,7 +86,7 @@ public final class ClientMenuSession {
             return;
         }
         switch (message) {
-            case MenuServerMessage.Accept accept -> accepted(accept.version());
+            case MenuServerMessage.Accept accept -> accepted(accept);
             case MenuServerMessage.Open open -> opened(open.screen());
             case MenuServerMessage.Update update -> updated(update.screen());
             case MenuServerMessage.Close ignored -> closedByServer();
@@ -117,6 +119,10 @@ public final class ClientMenuSession {
 
     public synchronized int version() {
         return version;
+    }
+
+    public synchronized Optional<MenuServerInfo> server() {
+        return Optional.ofNullable(server);
     }
 
     public synchronized Optional<MenuScreen> screen() {
@@ -159,12 +165,13 @@ public final class ClientMenuSession {
         return true;
     }
 
-    private void accepted(int negotiated) {
-        if (negotiated > MenuProtocol.VERSION) {
-            fail(new MenuProtocolException("server accepted menu protocol version " + negotiated + " above client version " + MenuProtocol.VERSION));
+    private void accepted(MenuServerMessage.Accept accept) {
+        if (accept.version() > MenuProtocol.VERSION) {
+            fail(new MenuProtocolException("server accepted menu protocol version " + accept.version() + " above client version " + MenuProtocol.VERSION));
             return;
         }
-        version = negotiated;
+        version = accept.version();
+        server = accept.server();
     }
 
     private void opened(MenuScreen next) {
@@ -204,6 +211,7 @@ public final class ClientMenuSession {
         helloDue = false;
         pending = false;
         version = 0;
+        server = null;
         withdrawalDue = helloSent && !transmit(new MenuClientMessage.Hello(WITHDRAWN_VERSION));
         closeScreen();
     }
@@ -225,6 +233,7 @@ public final class ClientMenuSession {
         failed = false;
         pending = false;
         version = 0;
+        server = null;
         resetThrottle();
         closeScreen();
     }

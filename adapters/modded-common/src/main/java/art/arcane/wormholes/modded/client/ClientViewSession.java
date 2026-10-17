@@ -339,6 +339,11 @@ public final class ClientViewSession {
         return false;
     }
 
+    public int offeredWire() {
+        ViewStreamMessage.Offer current = offer;
+        return current == null ? 0 : current.wire();
+    }
+
     public ConnectionStatus connectionStatus() {
         if (active()) {
             return ConnectionStatus.CONNECTED;

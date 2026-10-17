@@ -8,6 +8,7 @@ import art.arcane.wormholes.modded.menu.MenuPayload;
 import art.arcane.wormholes.modded.menu.MinecraftMenuTransport;
 import art.arcane.wormholes.menu.protocol.MenuCodec;
 import art.arcane.wormholes.menu.protocol.MenuProtocolException;
+import art.arcane.wormholes.menu.protocol.MenuServerInfo;
 import art.arcane.wormholes.menu.protocol.MenuServerMessage;
 import net.minecraft.SharedConstants;
 import net.minecraft.server.Bootstrap;
@@ -130,7 +131,7 @@ public class NeoForgePayloadRegistrationTest {
             ArgumentCaptor<IPayloadHandler<MenuPayload>> handlers = ArgumentCaptor.captor();
             verify(event).register(eq(MenuPayload.TYPE), handlers.capture());
             ClientMenus.connected();
-            handlers.getValue().handle(new MenuPayload(MenuCodec.encodeServer(new MenuServerMessage.Accept(1))), context);
+            handlers.getValue().handle(new MenuPayload(MenuCodec.encodeServer(new MenuServerMessage.Accept(1, new MenuServerInfo("test-version", "Test 1.0", true)))), context);
             assertEquals(1, ClientMenus.session().version());
             ClientMenus.disconnected();
         }

@@ -17,6 +17,7 @@ import org.bukkit.event.HandlerList;
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.wormholes.PortalManager;
 import art.arcane.wormholes.Wormholes;
+import art.arcane.wormholes.WormholesBuild;
 import art.arcane.wormholes.atlas.AtlasRuntime;
 import art.arcane.wormholes.atlas.AtlasService;
 import art.arcane.wormholes.menu.access.AccessMenuController;
@@ -49,12 +50,14 @@ import art.arcane.wormholes.menu.language.LanguageRoutes;
 import art.arcane.wormholes.menu.nexus.DialMenuController;
 import art.arcane.wormholes.menu.nexus.NetworkMenuController;
 import art.arcane.wormholes.menu.portal.PortalMenuController;
+import art.arcane.wormholes.menu.protocol.MenuServerInfo;
 import art.arcane.wormholes.menu.rtp.RtpMenuController;
 import art.arcane.wormholes.menu.rules.RulesMenuController;
 import art.arcane.wormholes.menu.settings.SettingsMenuController;
 import art.arcane.wormholes.menu.transit.TransitMenuController;
 import art.arcane.wormholes.nexus.NexusSubsystem;
 import art.arcane.wormholes.nexus.ReciprocalLinks;
+import art.arcane.wormholes.platform.WormholesPlatform;
 import art.arcane.wormholes.util.J;
 
 public final class BukkitMenuHost implements MenuHost {
@@ -174,6 +177,12 @@ public final class BukkitMenuHost implements MenuHost {
     @Override
     public boolean nativeScreensEnabled() {
         return nativeScreens.getAsBoolean();
+    }
+
+    @Override
+    public MenuServerInfo serverInfo() {
+        return new MenuServerInfo(WormholesBuild.version(), plugin.getServer().getName() + " " + WormholesPlatform.minecraftVersion(),
+            nativeScreensEnabled());
     }
 
     @Override

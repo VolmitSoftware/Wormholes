@@ -7,22 +7,24 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.chunk.LevelChunk;
 
+import java.util.List;
 import java.util.Objects;
 import java.util.function.Supplier;
 
 public final class ClientViewDebugEntry implements DebugScreenEntry {
-    public static final Identifier ID = Identifier.fromNamespaceAndPath("wormholes", "client_view");
-    public static final Identifier STATUS_ID = Identifier.fromNamespaceAndPath("wormholes", "connection_status");
+    public static final Identifier STATUS_ID = Identifier.fromNamespaceAndPath("wormholes", "status");
+    public static final Identifier DETAIL_ID = Identifier.fromNamespaceAndPath("wormholes", "status_detail");
+    public static final Identifier GROUP = STATUS_ID;
 
-    private final Supplier<String> line;
+    private final Supplier<List<String>> lines;
 
-    public ClientViewDebugEntry(Supplier<String> line) {
-        this.line = Objects.requireNonNull(line, "line");
+    public ClientViewDebugEntry(Supplier<List<String>> lines) {
+        this.lines = Objects.requireNonNull(lines, "lines");
     }
 
     @Override
     public void display(DebugScreenDisplayer displayer, Level level, LevelChunk clientChunk, LevelChunk serverChunk) {
-        displayer.addLine(line.get());
+        displayer.addToGroup(GROUP, lines.get());
     }
 
     @Override

@@ -64,6 +64,7 @@ import art.arcane.wormholes.menu.portal.PortalRoutes;
 import art.arcane.wormholes.menu.protocol.MenuClientMessage;
 import art.arcane.wormholes.menu.protocol.MenuCodec;
 import art.arcane.wormholes.menu.protocol.MenuProtocolException;
+import art.arcane.wormholes.menu.protocol.MenuServerInfo;
 import art.arcane.wormholes.menu.protocol.MenuServerMessage;
 import art.arcane.wormholes.service.WormholesAudience;
 import art.arcane.wormholes.util.Cuboid;
@@ -458,6 +459,11 @@ class LocalPortalMenuHostTest {
         @Override
         public boolean nativeScreensEnabled() {
             return nativeScreens;
+        }
+
+        @Override
+        public MenuServerInfo serverInfo() {
+            return new MenuServerInfo("test-version", "Test 1.0", nativeScreensEnabled());
         }
 
         @Override

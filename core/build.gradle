@@ -85,6 +85,12 @@ tasks.register('generateLanguageSourceManifest', WriteProperties) {
     }.sort().join(','))
 }
 
+tasks.register('generateBuildInfo', WriteProperties) {
+    destinationFile.set(layout.buildDirectory.file('generated/build-info/wormholes-build.properties'))
+    property('version', project.version.toString())
+}
+
 tasks.named('processResources').configure {
     from(tasks.named('generateLanguageSourceManifest'))
+    from(tasks.named('generateBuildInfo'))
 }

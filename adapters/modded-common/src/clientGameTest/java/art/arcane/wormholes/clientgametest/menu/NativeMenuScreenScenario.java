@@ -7,6 +7,7 @@ import art.arcane.wormholes.menu.MenuInteraction;
 import art.arcane.wormholes.menu.MenuValue;
 import art.arcane.wormholes.menu.protocol.MenuClientMessage;
 import art.arcane.wormholes.menu.protocol.MenuProtocol;
+import art.arcane.wormholes.menu.protocol.MenuServerInfo;
 import art.arcane.wormholes.menu.protocol.MenuServerMessage;
 import art.arcane.wormholes.modded.client.menu.ClientMenus;
 import art.arcane.wormholes.modded.client.menu.ClientScreens;
@@ -63,7 +64,7 @@ public final class NativeMenuScreenScenario {
         }
         if (version() < 1) {
             LOGGER.info("WORMHOLES_NATIVE_MENU_ACCEPT injected because the integrated server did not answer HELLO");
-            driver.send(new MenuServerMessage.Accept(MenuProtocol.VERSION));
+            driver.send(new MenuServerMessage.Accept(MenuProtocol.VERSION, new MenuServerInfo("test-version", "Test 1.0", true)));
             input.waitFor(minecraft -> ClientMenus.session().version() >= 1, 40);
         }
     }
