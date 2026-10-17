@@ -14,6 +14,7 @@ import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Predicate;
 import java.util.logging.Level;
 
 import org.bukkit.Location;
@@ -786,8 +787,29 @@ final class LocalPortalTraversal
                 TransitSubsystem.config().arrivalMaskMinTicks, Settings.ARRIVAL_TRANSITION_MASK_TICKS);
 	}
 
-	record ExitPlacement(Location target, Location exit, Vector outVelocity, float bodyYaw, ScaleRule scale, SizeRatio ratio)
+	record ExitPlacement(Location target, Location exit, Vector outVelocity, float bodyYaw, ScaleRule scale, SizeRatio ratio, double lift)
 	{
+		ExitPlacement cleared(BoundingBox body, Predicate<BoundingBox> obstructed)
+		{
+			if(lift == 0.0D || !obstructed.test(bodyAt(exit, body)))
+			{
+				return this;
+			}
+			Location liftedExit = exit.clone().add(0.0D, lift, 0.0D);
+			if(obstructed.test(bodyAt(liftedExit, body)))
+			{
+				return this;
+			}
+			return new ExitPlacement(target.clone().add(0.0D, lift, 0.0D), liftedExit, outVelocity, bodyYaw, scale, ratio, lift);
+		}
+
+		private static BoundingBox bodyAt(Location feet, BoundingBox body)
+		{
+			double halfX = body.getWidthX() * 0.5D;
+			double halfZ = body.getWidthZ() * 0.5D;
+			return new BoundingBox(feet.getX() - halfX, feet.getY(), feet.getZ() - halfZ, feet.getX() + halfX, feet.getY() + body.getHeight(),
+				feet.getZ() + halfZ);
+		}
 	}
 
 	ExitPlacement exitPlacement(Traversive t)
@@ -804,11 +826,61 @@ final class LocalPortalTraversal
 		TravelMessage.ArrivalRules rules = TravelMessage.ArrivalRules.of(orientation, momentum, transit.gravityFlipEnabled, transit.momentumMaxSpeed, scale);
 		Pose arrived = TransitOrientation.arrive(departurePose(t), crossing, toward, frame, rules.orientation(), rules.gravityFlip(), rules.momentum(),
 			rules.momentum().maxSpeed());
-		Location exit = BukkitGeometry.bukkit(endPortalLanding(t, arrived.position())).toLocation(portal.getStructure().getWorld());
+		Vec3d feet = endPortalLanding(t, arrived.position());
+		Location exit = BukkitGeometry.bukkit(feet).toLocation(portal.getStructure().getWorld());
 		Location target = exit.clone();
 		target.setYaw(arrived.yaw());
 		target.setPitch(arrived.pitch());
-		return new ExitPlacement(target, exit, BukkitGeometry.bukkit(arrived.velocity()), arrived.bodyYaw(), scale, ratio);
+		return new ExitPlacement(target, exit, BukkitGeometry.bukkit(arrived.velocity()), arrived.bodyYaw(), scale, ratio,
+			clearanceLift(t, toward, feet));
+	}
+
+	private static double clearanceLift(Traversive t, Similarity toward, Vec3d feet)
+	{
+		if(!(t.getObject() instanceof Entity entity))
+		{
+			return 0.0D;
+		}
+		BoundingBox bounds = entity.getBoundingBox();
+		double halfX = bounds.getWidthX() * 0.5D;
+		double halfZ = bounds.getWidthZ() * 0.5D;
+		Box body = new Box(feet.x() - halfX, feet.x() + halfX, feet.y(), feet.y() + bounds.getHeight(), feet.z() - halfZ, feet.z() + halfZ);
+		PlaneCrossing crossing = t.crossing();
+		return ArrivalClearance.lift(toward, crossing.origin(), crossing.frame().getNormal(), body);
+	}
+
+	private ExitPlacement clearedPlacement(Entity entity, ExitPlacement placement)
+	{
+		World world = placement.exit().getWorld();
+		if(placement.lift() == 0.0D || world == null || !FoliaScheduler.isOwnedByCurrentRegion(placement.exit()))
+		{
+			return placement;
+		}
+		return placement.cleared(entity.getBoundingBox(), box -> obstructed(world, box));
+	}
+
+	private static boolean obstructed(World world, BoundingBox box)
+	{
+		int minX = (int) Math.floor(box.getMinX());
+		int minY = (int) Math.floor(box.getMinY());
+		int minZ = (int) Math.floor(box.getMinZ());
+		int maxX = (int) Math.floor(box.getMaxX());
+		int maxY = (int) Math.floor(box.getMaxY());
+		int maxZ = (int) Math.floor(box.getMaxZ());
+		for(int x = minX; x <= maxX; x++)
+		{
+			for(int y = minY; y <= maxY; y++)
+			{
+				for(int z = minZ; z <= maxZ; z++)
+				{
+					if(world.getBlockAt(x, y, z).getCollisionShape().overlaps(box.clone().shift(-x, -y, -z)))
+					{
+						return true;
+					}
+				}
+			}
+		}
+		return false;
 	}
 
 	private Vec3d endPortalLanding(Traversive t, Vec3d arrived)
@@ -1144,8 +1216,9 @@ final class LocalPortalTraversal
 					{
 						if(destinationPending.compareAndSet(true, false))
 						{
-							dispatchPreparedTeleport(p, placement, t, reservation, traversalAdmission, entityId,
-								reloadExpected, capture, preSend(capture, p, target));
+							ExitPlacement cleared = clearedPlacement(p, placement);
+							dispatchPreparedTeleport(p, cleared, t, reservation, traversalAdmission, entityId,
+								reloadExpected, capture, preSend(capture, p, cleared.target()));
 						}
 					},
 					retired,
@@ -1157,7 +1230,7 @@ final class LocalPortalTraversal
 				retired.run();
 				return;
 			}
-			beginTeleport(p, placement, t, reservation, traversalAdmission, entityId,
+			beginTeleport(p, clearedPlacement(p, placement), t, reservation, traversalAdmission, entityId,
 				reloadExpected, null, null);
 			return;
 		}

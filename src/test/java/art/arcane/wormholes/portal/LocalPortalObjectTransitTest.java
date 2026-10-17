@@ -18,6 +18,7 @@ import org.bukkit.entity.Entity;
 import org.bukkit.entity.Item;
 import org.bukkit.entity.Projectile;
 import org.bukkit.projectiles.ProjectileSource;
+import org.bukkit.util.BoundingBox;
 import org.bukkit.util.Vector;
 import org.junit.jupiter.api.Test;
 
@@ -111,6 +112,7 @@ public final class LocalPortalObjectTransitTest {
                 case "isValid" -> Boolean.TRUE;
                 case "equals" -> Boolean.valueOf(proxy == arguments[0]);
                 case "hashCode" -> Integer.valueOf(System.identityHashCode(proxy));
+                case "getBoundingBox" -> new BoundingBox(0.25D, 65.0D, 0.75D, 0.75D, 65.5D, 1.25D);
                 case "toString" -> "projectile-" + id;
                 default -> LocalPortalTestSupport.defaultValue(method.getReturnType());
             });
@@ -131,6 +133,7 @@ public final class LocalPortalObjectTransitTest {
                 case "isValid" -> Boolean.TRUE;
                 case "equals" -> Boolean.valueOf(proxy == arguments[0]);
                 case "hashCode" -> Integer.valueOf(System.identityHashCode(proxy));
+                case "getBoundingBox" -> new BoundingBox(0.375D, 65.0D, 0.875D, 0.625D, 65.25D, 1.125D);
                 case "toString" -> "item-" + id;
                 default -> LocalPortalTestSupport.defaultValue(method.getReturnType());
             });

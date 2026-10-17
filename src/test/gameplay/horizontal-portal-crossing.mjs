@@ -3,10 +3,11 @@ import { crossWorldPortals, dimensionName, END, OVERWORLD } from './support/cros
 const ENTER_TIMEOUT_MS = 10000
 const SETTLE_TIMEOUT_MS = 6000
 const STAY_MS = 2500
+const BODY_HEIGHT = 1.8
 
 export default {
   name: 'wormholes-horizontal-portal-crossing',
-  description: 'Wand-build a floor portal with a solid block under its opening and a ceiling portal with a cleared opening, link them both ways, walk from the rim into the floor portal and jump up through the ceiling portal.',
+  description: 'Wand-build a floor portal with a solid block under its opening and a ceiling portal with a cleared opening, link them both ways, walk from the rim into the floor portal, jump up through the ceiling portal, then fill the space above the ceiling opening with stone and walk into the floor portal again.',
   async run(context) {
     const portals = crossWorldPortals(context)
     const { p, bot } = portals
@@ -145,6 +146,34 @@ export default {
         context.expect(inDimension(OVERWORLD), 'ceiling-enter keeps the traveller at the floor portal after arriving', record)
         await context.command('/effect clear @s', /Removed|No effect|Had no/i)
         await portals.standAt(floor)
+      })
+      await context.step('obstructed-ceiling-enter: walk into the floor portal while stone fills the space above the ceiling opening', async () => {
+        const record = { phase: 'obstructed-ceiling-enter' }
+        evidence.phases.push(record)
+        await context.command('/execute in minecraft:the_end run fill 24 203 -1 26 203 1 minecraft:stone', /filled|changed|blocks/i)
+        await portals.standAt(floor)
+        await context.sleep(1000)
+        let placed = null
+        const onPlaced = () => {
+          if (!placed && inDimension(END)) placed = position()
+        }
+        bot.on('forcedMove', onPlaced)
+        try {
+          await travel(record, END, 'obstructed-ceiling-enter', async () => {
+            await bot.look(0, 0, true)
+            bot.setControlState('forward', true)
+            await p.wait(() => bot.entity.position.z < 1.6, 'obstructed-ceiling-enter steps off the rim', ENTER_TIMEOUT_MS)
+            bot.clearControlStates()
+          })
+          await p.wait(() => placed, 'obstructed-ceiling-enter receives its End placement', ENTER_TIMEOUT_MS)
+        } finally {
+          bot.removeListener('forcedMove', onPlaced)
+        }
+        record.placed = placed
+        context.expect(placed.x >= 24 && placed.x <= 27 && placed.z >= -1 && placed.z <= 2 && placed.y + BODY_HEIGHT <= 202.0 + 1.0E-6,
+          'obstructed-ceiling-enter places the traveller below the ceiling opening, clear of the stone above it', record)
+        await settle(record, END, 'obstructed-ceiling-enter arrival under the ceiling portal', { x: 25.5, z: 0.5 })
+        await context.command('/execute in minecraft:the_end run fill 24 203 -1 26 203 1 minecraft:air', /filled|changed|blocks/i)
       })
       await context.step('delete the pair', () => portals.cleanup())
     } finally {

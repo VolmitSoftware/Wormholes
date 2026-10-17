@@ -32,6 +32,7 @@ import art.arcane.wormholes.config.toml.RenderConfig;
 import art.arcane.optics.fidelity.BlockEntitySample;
 import art.arcane.optics.fidelity.BlockEntityLayer;
 import art.arcane.wormholes.render.FidelitySettings;
+import art.arcane.wormholes.render.ProjectionCollisionStandIn;
 import art.arcane.optics.math.CellKeys;
 import art.arcane.optics.scan.BlockSlices;
 import art.arcane.optics.claim.ClaimSet;
@@ -46,6 +47,7 @@ import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.level.EmptyBlockGetter;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
@@ -72,6 +74,7 @@ public final class MinecraftProjectionService implements AutoCloseable {
     private final HashMap<UUID, Long> hurtEventTicks = new HashMap<>();
     private final MinecraftProjectorPortalAccess portals;
     private final MinecraftProjectionPackets packets;
+    private final ProjectionCollisionStandIn<BlockState> collisionStandIn;
     private final LocalOcclusionArbiter<ServerPlayer, Entity> entityVisibility;
     private final CandidateCache<ServerLevel, Entity> localEntityCandidates = new CandidateCache<>(MinecraftEntityVisualHost.FEED);
     private final Map<SceneKey, Scene> entityScenes = new HashMap<>();
@@ -96,6 +99,8 @@ public final class MinecraftProjectionService implements AutoCloseable {
         this.runtime = runtime;
         this.portals = new MinecraftProjectorPortalAccess(runtime);
         this.packets = new MinecraftProjectionPackets(runtime);
+        this.collisionStandIn = new ProjectionCollisionStandIn<>(BlockState::isAir,
+            state -> !state.getCollisionShape(EmptyBlockGetter.INSTANCE, BlockPos.ZERO).isEmpty(), Blocks.BARRIER.defaultBlockState());
         this.scheduler = new MinecraftOpticsScheduler(runtime, () -> tick);
         this.entityVisibility = new LocalOcclusionArbiter<>(MinecraftEntityVisualHost.FEED, new MinecraftEntityPackets(runtime), scheduler);
         this.platePipeline = new PlatePipeline<>(FidelitySettings.plateMaxBytes, scheduler,
@@ -702,6 +707,10 @@ public final class MinecraftProjectionService implements AutoCloseable {
                     block = chunk.getBlockState(position.set(x, y, z));
                 } else {
                     block = claim.getData();
+                    if (collisionStandIn.needsLocal(block)) {
+                        LevelChunk chunk = world.getChunkSource().getChunkNow(x >> 4, z >> 4);
+                        block = collisionStandIn.outgoing(block, chunk == null ? null : chunk.getBlockState(position.set(x, y, z)));
+                    }
                 }
                 changed.put(key, block);
                 long chunkKey = CellKeys.chunkKey(x >> 4, z >> 4);

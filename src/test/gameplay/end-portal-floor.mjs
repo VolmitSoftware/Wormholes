@@ -102,8 +102,16 @@ export function endPortalFloor(travel) {
     }
 
     function clientView(list, offsets) {
-      return list.flatMap(cell => offsets.map(dy => ({ x: cell.x, y: cell.y + dy, z: cell.z,
-        name: bot.blockAt(p.point(cell.x, cell.y + dy, cell.z))?.name ?? null })))
+      return list.flatMap(cell => offsets.map(dy => {
+        const block = bot.blockAt(p.point(cell.x, cell.y + dy, cell.z))
+        return { x: cell.x, y: cell.y + dy, z: cell.z, name: block?.name ?? null, solid: block?.boundingBox === 'block' }
+      }))
+    }
+
+    function expectSolidFloor(walk, view, floorY, label) {
+      const passable = view.filter(cell => cell.y === floorY && !cell.solid)
+      context.expect(passable.length === 0,
+        `${walk.phase}: the client sees passable blocks at y=${floorY} under the ${label} where the server keeps a solid floor`, { passable, view })
     }
 
     async function walkUntil(walk, yaw, predicate, timeoutMs, message, stopWhen = () => false) {
@@ -250,6 +258,7 @@ export function endPortalFloor(travel) {
         if (!site.inside) await stageIn('overworld', x + 0.5, y + FRAME_TOP, z + 2.5, 180)
         walk.start = position()
         walk.clientViewBefore = clientView(interior, [0, -1])
+        if (site.pit === 0) expectSolidFloor(walk, walk.clientViewBefore, y - 1, `${site.label} End portal`)
         let entered = null
         const approach = site.inside
           ? `standing in and walking across the ${site.label} End portal with feet on the floor at the portal cells (y=${y}, solid floor below)`
@@ -448,11 +457,13 @@ export function endPortalFloor(travel) {
       context.expect(fountain.length >= 9 && fountain.every(cell => cell.y === origin.y), 'end-return: exit fountain cells form one layer', evidence.fountain)
       await serverBlockIn('the_end', origin.x + 2, origin.y, origin.z, 'minecraft:end_portal')
       await serverBlockIn('the_end', origin.x + 3, origin.y, origin.z, 'minecraft:bedrock')
+      await serverBlockIn('the_end', origin.x + 1, origin.y - 1, origin.z, 'minecraft:bedrock')
       await serverBlockIn('the_end', origin.x + 2, origin.y - 1, origin.z, 'minecraft:bedrock')
       await stageIn('the_end', origin.x + 3.5, origin.y + 1, origin.z + 0.5, 90)
       walk.start = position()
       const row = [1, 2].map(dx => ({ x: origin.x + dx, y: origin.y, z: origin.z }))
       walk.clientViewBefore = clientView(row, [0, -1, 1])
+      expectSolidFloor(walk, walk.clientViewBefore, origin.y - 1, 'End exit fountain')
       let entered = null
       await walkUntil(walk, Math.PI / 2, () => {
         if (!entered && bot.entity.position.x < origin.x + 2.7 && bot.game.dimension === 'the_end') {

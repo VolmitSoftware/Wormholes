@@ -27,6 +27,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Player;
@@ -762,7 +763,15 @@ public final class ProjectionClaimArbiter {
                         }
                         observerClaims.blockRepair.takeReceipt(key);
                         BlockData sentData = observerClaims.sentBlocks.get(key);
-                        BlockData winnerData = winner.getData();
+                        BlockData claimData = winner.getData();
+                        BlockData winnerData = claimData;
+                        if (ProjectionWorldView.isAir(claimData.getMaterial())) {
+                            if (!localViewResolved) {
+                                localView = viewProvider.authoritativeView(localWorld);
+                                localViewResolved = true;
+                            }
+                            winnerData = CollisionStandIn.RULE.outgoing(claimData, localView == null ? null : localView.sampleBlockData(x, y, z));
+                        }
                         if (sentData != null && sentData.equals(winnerData)) {
                             continue;
                         }
@@ -779,7 +788,7 @@ public final class ProjectionClaimArbiter {
                         }
                         sentChunk.keys.add(key);
                         blockChanges.put(key, winnerData);
-                        int globalId = claimGlobalId(winner, winnerData);
+                        int globalId = winnerData == claimData ? claimGlobalId(winner, claimData) : resolveGlobalId(winnerData);
                         blockChangeIds.put(key, globalId);
                         observerClaims.blockRepair.claim(key, globalId);
                     }
@@ -1568,6 +1577,19 @@ public final class ProjectionClaimArbiter {
             this.localWorld = localWorld;
             this.allowLightingUpdate = allowLightingUpdate;
             this.affectedKeys = new LongOpenHashSet(256);
+        }
+    }
+
+    private static final class CollisionStandIn {
+        private static final ProjectionCollisionStandIn<BlockData> RULE = new ProjectionCollisionStandIn<BlockData>(
+            data -> ProjectionWorldView.isAir(data.getMaterial()), CollisionStandIn::collidable, Material.BARRIER.createBlockData());
+
+        private CollisionStandIn() {
+        }
+
+        private static boolean collidable(BlockData data) {
+            Material material = data.getMaterial();
+            return material != null && material.isBlock() && material.isSolid();
         }
     }
 }
