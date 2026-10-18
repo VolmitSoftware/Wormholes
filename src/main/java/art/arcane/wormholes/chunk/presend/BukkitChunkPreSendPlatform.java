@@ -94,6 +94,20 @@ public final class BukkitChunkPreSendPlatform implements ChunkPreSendPlatform<Wo
     }
 
     @Override
+    public ChunkPreparedPacket<Player> prepareChunk(World world, int chunkX, int chunkZ) {
+        return delivery.prepareChunk(world, chunkX, chunkZ);
+    }
+
+    @Override
+    public boolean scheduleForPlayer(Player player, Runnable command, Runnable retired, long delayTicks) {
+        if (delayTicks == 0L && WormholesPlatform.isOwnedByCurrentRegion(player)) {
+            command.run();
+            return true;
+        }
+        return WormholesPlatform.scheduleEntity(plugin, player, command, retired, delayTicks);
+    }
+
+    @Override
     public boolean scheduleForRegion(World world, int chunkX, int chunkZ, Runnable command, long delayTicks) {
         if (world == null || command == null) {
             return false;

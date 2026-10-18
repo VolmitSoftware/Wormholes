@@ -1,11 +1,13 @@
 package art.arcane.wormholes.portal;
 
 import art.arcane.wormholes.chunk.presend.RecordingBukkitChunkPreSend;
+import art.arcane.wormholes.chunk.arrival.BukkitArrivalPreparation;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.entity.Entity;
 import org.bukkit.util.Vector;
 import org.junit.jupiter.api.Test;
+import org.mockito.MockedStatic;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -17,12 +19,15 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.CALLS_REAL_METHODS;
+import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.never;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 
 public final class LocalPortalChunkPreSendTest {
     @Test
-    void successfulLocalMovementKeepsTheDestinationPreSend() {
+    void successfulLocalMovementKeepsTheDestinationPreSendWithoutStartingClientPreparation() {
         World world = LocalPortalTestSupport.world("chunk-presend-success");
         LocalPortal portal = spy(LocalPortalTestSupport.portal(world, PortalType.PORTAL));
         LocalPortalTestSupport.FakeEntity traveler = LocalPortalTestSupport.FakeEntity.player(
@@ -37,18 +42,20 @@ public final class LocalPortalChunkPreSendTest {
         AtomicReference<String> owner = new AtomicReference<String>("source");
         doNothing().when(portal).playEffect(eq(PortalEffect.PUSH), any(Location.class));
 
-        try (RecordingBukkitChunkPreSend recording = RecordingBukkitChunkPreSend.install(owner::get)) {
+        try (RecordingBukkitChunkPreSend recording = RecordingBukkitChunkPreSend.install(owner::get);
+             MockedStatic<BukkitArrivalPreparation> preparations = mockStatic(BukkitArrivalPreparation.class, CALLS_REAL_METHODS)) {
             new LocalPortalTraversal(portal, runtime(recording, true, owner)).receive(traversive);
 
             assertEquals(1, recording.announcements());
             assertEquals(1, recording.chunks());
-            assertEquals(List.of("destination"), recording.announcementOwners());
-            assertEquals(List.of("destination"), recording.chunkOwners());
+            assertEquals(List.of("traveler"), recording.announcementOwners());
+            assertEquals(List.of("traveler"), recording.chunkOwners());
+            preparations.verify(() -> BukkitArrivalPreparation.prepare(any(), any()), never());
         }
     }
 
     @Test
-    void failedLocalMovementRollsBackTheDestinationPreSendOnce() {
+    void failedLocalMovementPreservesTheSourceChunkWindow() {
         World world = LocalPortalTestSupport.world("chunk-presend-failure");
         LocalPortal portal = LocalPortalTestSupport.portal(world, PortalType.PORTAL);
         LocalPortalTestSupport.FakeEntity traveler = LocalPortalTestSupport.FakeEntity.player(
@@ -65,10 +72,10 @@ public final class LocalPortalChunkPreSendTest {
         try (RecordingBukkitChunkPreSend recording = RecordingBukkitChunkPreSend.install(owner::get)) {
             new LocalPortalTraversal(portal, runtime(recording, false, owner)).receive(traversive);
 
-            assertEquals(2, recording.announcements());
-            assertEquals(1, recording.chunks());
-            assertEquals(List.of("destination", "traveler"), recording.announcementOwners());
-            assertEquals(List.of("destination"), recording.chunkOwners());
+            assertEquals(0, recording.announcements());
+            assertEquals(0, recording.chunks());
+            assertEquals(List.of(), recording.announcementOwners());
+            assertEquals(List.of(), recording.chunkOwners());
         }
     }
 
@@ -207,7 +214,7 @@ public final class LocalPortalChunkPreSendTest {
         try (RecordingBukkitChunkPreSend recording = RecordingBukkitChunkPreSend.install(owner::get)) {
             new LocalPortalTraversal(portal, runtime).receive(traversive, reservation);
 
-            assertEquals(List.of("destination", "source"), recording.announcementOwners());
+            assertEquals(List.of(), recording.announcementOwners());
             assertEquals(0, teleports.get());
             assertEquals(1, refunds.get());
             assertEquals(new Vector(), traveler.velocity());
@@ -249,7 +256,10 @@ public final class LocalPortalChunkPreSendTest {
             @Override
             public CompletionStage<Boolean> teleport(Entity entity, Location target) {
                 assertEquals("traveler", owner.get());
-                assertEquals(1, recording.announcements());
+                assertEquals(0, recording.announcements());
+                if (succeeds) {
+                    entity.teleport(target);
+                }
                 return CompletableFuture.completedFuture(Boolean.valueOf(succeeds));
             }
         };

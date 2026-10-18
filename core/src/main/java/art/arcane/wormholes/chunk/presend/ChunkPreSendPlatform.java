@@ -28,5 +28,13 @@ public interface ChunkPreSendPlatform<W, P> {
 
     boolean scheduleForRegion(W world, int chunkX, int chunkZ, Runnable command, long delayTicks);
 
+    default ChunkPreparedPacket<P> prepareChunk(W world, int chunkX, int chunkZ) {
+        return null;
+    }
+
+    default boolean scheduleForPlayer(P player, Runnable command, Runnable retired, long delayTicks) {
+        return false;
+    }
+
     long nanoTime();
 }

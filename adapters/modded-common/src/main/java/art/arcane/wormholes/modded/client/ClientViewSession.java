@@ -82,7 +82,7 @@ public final class ClientViewSession {
 
     public long clientCapabilities() {
         if (config.rendererMode() == WormholesClientConfig.Renderer.BLOCK_PACKETS) {
-            return 0;
+            return ClientViewExtensions.ARRIVAL_PREPARATION;
         }
         long capabilities = ViewStreamCapability.of(ViewStreamCapability.PLATES, ViewStreamCapability.BRICK_CACHE, ViewStreamCapability.DEST_LIGHT,
             ViewStreamCapability.ENTITY_FRAMES, ViewStreamCapability.ENTITY_EVENTS, ViewStreamCapability.ATMOSPHERE, ViewStreamCapability.ZERO_COPY,
@@ -90,7 +90,7 @@ public final class ClientViewSession {
             ViewStreamCapability.LOCAL_MESH, ViewStreamCapability.MESH_REUSE, ViewStreamCapability.AFFINE_PORTALS)
             | ClientViewExtensions.FX_EMITTERS
             | ClientViewExtensions.REMOTE_VIEW | ClientViewExtensions.SEAMLESS_TRAVEL | ClientViewExtensions.ROOT_SOURCE
-            | ClientViewExtensions.LOCAL_DESTINATION;
+            | ClientViewExtensions.LOCAL_DESTINATION | ClientViewExtensions.ARRIVAL_PREPARATION;
         if (config.clientMirror) {
             capabilities |= ViewStreamCapability.CLIENT_MIRROR.mask();
         }
@@ -102,11 +102,6 @@ public final class ClientViewSession {
 
     public ViewStreamMessage.Hello offer(ViewStreamMessage.Offer received) {
         Objects.requireNonNull(received, "received");
-        if (config.rendererMode() == WormholesClientConfig.Renderer.BLOCK_PACKETS) {
-            nativeSelected = false;
-            state = State.VANILLA;
-            return null;
-        }
         offer = received;
         declineReason = null;
         state = State.OFFERED;
@@ -116,11 +111,6 @@ public final class ClientViewSession {
 
     public void accept(ViewStreamMessage.Accept received) {
         Objects.requireNonNull(received, "received");
-        if (config.rendererMode() == WormholesClientConfig.Renderer.BLOCK_PACKETS) {
-            nativeSelected = false;
-            state = State.VANILLA;
-            return;
-        }
         accept = received;
         declineReason = null;
         caps = ViewStreamCapability.intersection(received.caps(), clientCapabilities());

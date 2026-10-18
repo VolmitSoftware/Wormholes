@@ -152,6 +152,10 @@ public final class ClientPortalRenderer {
         return INSTANCE;
     }
 
+    static long retainedMeshBudget(long remainingNanos, int pendingBuilds) {
+        return pendingBuilds < 2 ? remainingNanos / 2 : remainingNanos;
+    }
+
     public String debugLine() {
         int sections = 0;
         int failures = 0;
@@ -298,6 +302,9 @@ public final class ClientPortalRenderer {
     public void invalidate(int portalKey, long sectionKey, boolean changed) {
         Portal portal = portals.get(portalKey);
         if (portal != null) {
+            if (changed && portal.failure == Failure.CONTENT) {
+                portal.active = true;
+            }
             portal.evicted.remove(sectionKey);
             Section displayed = portal.sections.get(sectionKey);
             if (displayed != null) {
@@ -1154,7 +1161,16 @@ public final class ClientPortalRenderer {
                 camera = portal.contentCamera;
                 portal.nextSection = resident ? portal.residentSection : portal.initialSection;
                 int before = pendingBuilds;
-                schedule(portal, portal.nextSection);
+                try {
+                    schedule(portal, portal.nextSection);
+                    if (portal.nextSection == portal.contentFailureSection) {
+                        recovered(portal, Failure.CONTENT);
+                    }
+                } catch (RuntimeException failure) {
+                    portal.contentFailureSection = portal.nextSection;
+                    fail(portal, Failure.CONTENT, failure);
+                    continue;
+                }
                 if (pendingBuilds != before) {
                     submissions++;
                 }
@@ -1951,7 +1967,11 @@ public final class ClientPortalRenderer {
             return;
         }
         if (portal.failure != kind) {
-            LOGGER.error("Native portal {} is unavailable after {} failure; retrying native rendering in five seconds", portal.key, kind, failure);
+            if (kind == Failure.CONTENT) {
+                LOGGER.error("Native portal {} has invalid section content; waiting for updated content", portal.key, failure);
+            } else {
+                LOGGER.error("Native portal {} is unavailable after {} failure; retrying native rendering in five seconds", portal.key, kind, failure);
+            }
         }
         portal.failure = kind;
         portal.active = false;
@@ -1967,7 +1987,7 @@ public final class ClientPortalRenderer {
     }
 
     private static void retry(Portal portal, long now) {
-        if (!portal.active && portal.failure != null && now - portal.retryAt >= 0L) {
+        if (!portal.active && portal.failure != null && portal.failure != Failure.CONTENT && now - portal.retryAt >= 0L) {
             portal.active = true;
             portal.evicted.clear();
         }
@@ -2048,7 +2068,7 @@ public final class ClientPortalRenderer {
             return;
         }
         long started = System.nanoTime();
-        long slice = pendingBuilds < 2 ? buildBudgetNanos / 2 : buildBudgetNanos;
+        long slice = retainedMeshBudget(buildBudgetNanos, pendingBuilds);
         if (slice == 0L) {
             return;
         }
@@ -2165,6 +2185,7 @@ public final class ClientPortalRenderer {
     }
 
     private enum Failure {
+        CONTENT,
         FRAME,
         SECTION,
         FEATURES
@@ -2212,6 +2233,7 @@ public final class ClientPortalRenderer {
         private long restoreSequence;
         private boolean active = true;
         private Failure failure;
+        private long contentFailureSection;
         private long retryAt;
         private int generation;
         private PortalTerrainMaterials materials = PortalTerrainMaterials.VANILLA;

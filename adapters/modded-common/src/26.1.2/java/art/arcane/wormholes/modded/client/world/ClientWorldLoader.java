@@ -7,6 +7,8 @@
 package art.arcane.wormholes.modded.client.world;
 
 import art.arcane.wormholes.modded.client.render.sodium.SodiumSectionDiscovery;
+import art.arcane.wormholes.modded.client.WormholesClient;
+import art.arcane.wormholes.modded.mixin.client.ArrivalExtractorAccess;
 import art.arcane.wormholes.modded.mixin.client.ClientWorldCloudAccess;
 import art.arcane.wormholes.modded.mixin.client.ClientWorldGameRendererAccess;
 import art.arcane.wormholes.modded.mixin.client.ClientWorldLevelRendererAccess;
@@ -156,6 +158,92 @@ public final class ClientWorldLoader {
         mainLevel = destination;
     }
 
+    public static void adoptArrival(ClientLevel prepared, ClientLevel destination, Vec3 camera) {
+        initializeIfNeeded();
+        Minecraft minecraft = Minecraft.getInstance();
+        ClientLevel source = mainLevel;
+        WorldRenderer next = WORLD_RENDERER_MAP.get(prepared);
+        WorldRenderer previous = WORLD_RENDERER_MAP.get(source);
+        if (next == null || previous == null || next == previous) {
+            throw new IllegalStateException("Prepared arrival renderer is missing or already installed");
+        }
+        DimensionRenderHelper destinationHelper = helper(destination);
+        DimensionRenderHelper sourceHelper = helper(source);
+        next.attach(ClientRenderAccess.mainTarget(minecraft));
+        destinationHelper.enter(camera);
+        LevelRenderState detached = next.state;
+        LevelRenderState installed = previous.state;
+        LevelRenderer oldExtractor = ((PreparedLevelAccess) destination).wormholes$extractor();
+        ClientWorldMinecraftAccess access = (ClientWorldMinecraftAccess) minecraft;
+        try {
+            ((ArrivalExtractorAccess) next.renderer).wormholes$arrivalLevel(destination);
+            ((PreparedLevelAccess) destination).wormholes$extractor(next.renderer);
+            next.bind(installed);
+            previous.bind(detached);
+            access.wormholes$levelRenderer(next.renderer);
+            destinationHelper.install();
+            ((ClientWorldLightmapAccess) ((ClientWorldGameRendererAccess) minecraft.gameRenderer).wormholes$lightmapExtractor()).wormholes$needsUpdate(true);
+            FogRendererContext.onPlayerTeleport(destination);
+        } catch (RuntimeException failure) {
+            access.wormholes$levelRenderer(previous.renderer);
+            next.bind(detached);
+            previous.bind(installed);
+            ((ArrivalExtractorAccess) next.renderer).wormholes$arrivalLevel(prepared);
+            ((PreparedLevelAccess) destination).wormholes$extractor(oldExtractor);
+            sourceHelper.install();
+            FogRendererContext.onPlayerTeleport(source);
+            throw failure;
+        }
+        WORLD_RENDERER_MAP.remove(source);
+        WORLD_RENDERER_MAP.remove(prepared);
+        WORLD_RENDERER_MAP.put(destination, next);
+        mainLevel = destination;
+        forceFullSectionDiscovery = true;
+        for (ClientLevel level : new ArrayList<>(WORLD_RENDERER_MAP.keySet())) {
+            if (level != destination) {
+                releaseArrivalSource(level);
+            }
+        }
+        for (ClientLevel level : List.of(source, prepared)) {
+            if (level != destination) {
+                releaseArrivalHelper(level);
+            }
+        }
+        try {
+            dispose(source, previous);
+        } catch (RuntimeException failure) {
+            LOGGER.error("Unable to release the previous arrival renderer", failure);
+        }
+    }
+
+    public static void bindMainRenderer(ClientLevel level) {
+        ((PreparedLevelAccess) level).wormholes$extractor(Minecraft.getInstance().levelRenderer);
+    }
+
+    public static void rebuildMainTerrain() {
+        Minecraft.getInstance().levelRenderer.allChanged();
+    }
+
+    private static void releaseArrivalHelper(ClientLevel level) {
+        try {
+            DimensionRenderHelper old = RENDER_HELPER_MAP.remove(level);
+            if (old != null) {
+                old.close();
+            }
+            FogRendererContext.forget(level);
+        } catch (RuntimeException failure) {
+            LOGGER.error("Unable to release the previous arrival lighting", failure);
+        }
+    }
+
+    private static void releaseArrivalSource(ClientLevel level) {
+        try {
+            forget(level);
+        } catch (RuntimeException failure) {
+            LOGGER.error("Unable to release a resident level after arrival", failure);
+        }
+    }
+
     public static void sectionDirty(int x, int y, int z) {
         Minecraft.getInstance().levelRenderer.setSectionDirty(x, y, z);
     }
@@ -164,16 +252,16 @@ public final class ClientWorldLoader {
         forceFullSectionDiscovery = true;
     }
 
-    public static void prepareArrivalTerrain(ClientLevel level, Vec3 camera) {
+    public static void prepareArrivalTerrain(ClientLevel level, Vec3 camera, boolean fullColumns) {
         if (!SODIUM) {
             return;
         }
         initializeIfNeeded();
-        if (level == mainLevel || switchedLevel != null) {
+        if (level == mainLevel || switchedLevel != null && switchedLevel != level) {
             return;
         }
         WorldRenderer world = worldRenderer(level);
-        withWorldRenderer(level, world, () -> SodiumSectionDiscovery.prepareArrival(world.renderer, camera));
+        withWorldRenderer(level, world, () -> SodiumSectionDiscovery.prepareArrival(world.renderer, camera, fullColumns));
         world.rendered();
     }
 
@@ -235,6 +323,10 @@ public final class ClientWorldLoader {
         Minecraft minecraft = Minecraft.getInstance();
         if (reloadingOtherWorldRenderers || switchedLevel != null || renderer != minecraft.levelRenderer || mainLevel == null) {
             return;
+        }
+        WormholesClient client = WormholesClient.instance();
+        if (client != null) {
+            client.arrivals().clear();
         }
         reloadingOtherWorldRenderers = true;
         try {

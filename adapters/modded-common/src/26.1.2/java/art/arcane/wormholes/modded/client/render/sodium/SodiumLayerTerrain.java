@@ -72,7 +72,7 @@ final class SodiumLayerTerrain implements LayerContextStack.Context<SodiumTerrai
         internals.wormholes$renderTree(visible);
     }
 
-    static void prepareArrival(LevelRenderer renderer, Vec3 position) {
+    static void prepareArrival(LevelRenderer renderer, Vec3 position, boolean fullColumns) {
         LevelRendererExtension extension = (LevelRendererExtension) renderer;
         SodiumWorldRenderer sodium = extension.sodium$getWorldRenderer();
         reloadIfResized(sodium);
@@ -90,12 +90,18 @@ final class SodiumLayerTerrain implements LayerContextStack.Context<SodiumTerrai
             return;
         }
         Viewport open = new Viewport(PortalClipFrustum.OPEN, origin);
+        float distance = internals.wormholes$buildDistance() + ARRIVAL_MARGIN_BLOCKS;
+        if (fullColumns) {
+            double bottom = Math.abs(position.y - internals.wormholes$level().getMinY());
+            double top = Math.abs(position.y - (internals.wormholes$level().getMinY() + internals.wormholes$level().getHeight()));
+            distance = Math.max(distance, (float) Math.max(bottom, top) + ARRIVAL_MARGIN_BLOCKS);
+        }
         SodiumTerrainState state = capture(extension, world);
         RenderDevice.enterManagedCode();
         try {
-            build(world, open, origin, true);
+            build(world, open, origin, true, distance);
             preparation.prepared(section, internals.wormholes$terrainRevision(),
-                SodiumTaskSweep.arrival(internals, open, internals.wormholes$buildDistance() + ARRIVAL_MARGIN_BLOCKS).complete());
+                SodiumTaskSweep.arrival(internals, open, distance).complete());
         } finally {
             RenderDevice.exitManagedCode();
             restore(extension, world, state);
@@ -129,7 +135,7 @@ final class SodiumLayerTerrain implements LayerContextStack.Context<SodiumTerrai
         RenderDevice.enterManagedCode();
         try {
             if (!layer.shared() && world.wormholes$claimBuild()) {
-                build(world, viewport, origin, false);
+                build(world, viewport, origin, false, internals.wormholes$buildDistance());
             }
             collect(internals, sections, viewport, internals.wormholes$searchDistance(fog));
             sections.tickVisibleRenders();
@@ -138,7 +144,7 @@ final class SodiumLayerTerrain implements LayerContextStack.Context<SodiumTerrai
         }
     }
 
-    private static void build(SodiumPortalRenderer world, Viewport viewport, Vector3d origin, boolean arrival) {
+    private static void build(SodiumPortalRenderer world, Viewport viewport, Vector3d origin, boolean arrival, float distance) {
         RenderSectionManager sections = world.wormholes$sections();
         SodiumPortalSections internals = (SodiumPortalSections) sections;
         UniformBufferManager uniforms = world.wormholes$uniforms();
@@ -159,7 +165,6 @@ final class SodiumLayerTerrain implements LayerContextStack.Context<SodiumTerrai
         if (arrival || section != world.wormholes$sweptSection()
             || sections.needsUpdate() && now - world.wormholes$sweptAt() >= SWEEP_INTERVAL_NANOS) {
             Viewport open = new Viewport(PortalClipFrustum.OPEN, origin);
-            float distance = internals.wormholes$buildDistance() + (arrival ? ARRIVAL_MARGIN_BLOCKS : 0.0F);
             internals.wormholes$taskLists(SodiumTaskSweep.pending(internals, open, distance, arrival));
             world.wormholes$swept(section, now);
             internals.wormholes$graphUpdated();

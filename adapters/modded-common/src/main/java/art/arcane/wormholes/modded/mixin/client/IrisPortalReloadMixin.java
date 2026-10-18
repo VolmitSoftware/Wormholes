@@ -4,6 +4,7 @@ import art.arcane.wormholes.modded.client.render.iris.IrisPipelines;
 import art.arcane.wormholes.modded.client.render.iris.IrisProgramReserves;
 import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import net.irisshaders.iris.pipeline.WorldRenderingPipeline;
 import net.irisshaders.iris.shaderpack.materialmap.NamespacedId;
 import org.spongepowered.asm.mixin.Mixin;
@@ -25,5 +26,12 @@ public abstract class IrisPortalReloadMixin {
         try (IrisProgramReserves.Recording recording = IrisProgramReserves.record(dimension)) {
             return recording.completed(original.call(dimension));
         }
+    }
+
+    @WrapOperation(method = "createPipeline", at = @At(value = "INVOKE",
+        target = "Lnet/irisshaders/iris/Iris;handleException(Ljava/lang/Exception;)V"))
+    private static void wormholes$isolateOptionalFailure(Exception failure, Operation<Void> original) {
+        IrisPipelines.compilationFailed(failure);
+        original.call(failure);
     }
 }

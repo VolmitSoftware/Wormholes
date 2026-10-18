@@ -101,9 +101,7 @@ final class ProjectorPlates {
                                                ILocalPortal portal, ProjectorDestination destination, BlockData air, Target target,
                                                BlockBox clip, int distance) {
         int boundedDistance = Math.clamp(distance, 32, 512);
-        ViewPlateKey original = target.key();
-        ViewPlateKey key = new ViewPlateKey(original.portalId(), new MeshSection(original.destinationViewIdentity(), clip),
-            original.frontSide(), original.mirrorQuarterTurns(), original.targetIdentity());
+        ViewPlateKey key = sectionKey(target, clip);
         long transform = PassRevision.mix(target.transformRevision(), boundedDistance);
         WorldChangeTracker tracker = Wormholes.projectionChangeTracker;
         long revision = destination.destView.getRevision();
@@ -128,6 +126,10 @@ final class ProjectorPlates {
         });
     }
 
+    static boolean sectionQueued(ViewPlateCache<BlockData, World> cache, Target target, BlockBox clip) {
+        return cache.captureQueued(sectionKey(target, clip));
+    }
+
     static void retireTarget(ViewPlateCache<BlockData, World> cache, ILocalPortal portal, PortalProjector.RtpProjectionTarget previous,
                              PortalProjector.RtpProjectionTarget target) {
         if (cache == null || previous == null || portal.getId() == null) {
@@ -137,6 +139,12 @@ final class ProjectorPlates {
         if (target == null || previousIdentity != target.plateIdentity()) {
             cache.invalidateTarget(portal.getId(), previousIdentity);
         }
+    }
+
+    private static ViewPlateKey sectionKey(Target target, BlockBox clip) {
+        ViewPlateKey original = target.key();
+        return new ViewPlateKey(original.portalId(), new MeshSection(original.destinationViewIdentity(), clip),
+            original.frontSide(), original.mirrorQuarterTurns(), original.targetIdentity());
     }
 
     private static ViewPlateBuilder.Job<BlockData, World> job(ProjectionWorldViewProvider viewProvider,

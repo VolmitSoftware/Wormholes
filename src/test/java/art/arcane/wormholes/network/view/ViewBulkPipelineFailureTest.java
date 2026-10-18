@@ -10,6 +10,7 @@ import art.arcane.wormholes.network.replication.ChunkReplicationManager;
 import art.arcane.wormholes.platform.WormholesPlatform;
 import art.arcane.wormholes.portal.ProjectionRenderMode;
 import art.arcane.wormholes.render.blockentity.BlockEntityCapturer;
+import art.arcane.wormholes.render.view.BukkitBiomeVisuals;
 import org.bukkit.Chunk;
 import org.bukkit.ChunkSnapshot;
 import org.bukkit.World;
@@ -104,12 +105,14 @@ class ViewBulkPipelineFailureTest {
         try (MockedStatic<WormholesPlatform> platform = mockStatic(WormholesPlatform.class);
              MockedStatic<FoliaScheduler> scheduler = mockStatic(FoliaScheduler.class);
              MockedStatic<BlockEntityCapturer> entities = mockStatic(BlockEntityCapturer.class);
+             MockedStatic<BukkitBiomeVisuals> biomes = mockStatic(BukkitBiomeVisuals.class);
              MockedStatic<?> encoder = mockStatic(ChunkBulkBuilder.class);
              MockedConstruction<?> builders = mockConstruction(ChunkBulkBuilder.class, (builder, context) ->
                  when(builder.buildSlice(any(BlockBox.class), eq(0), eq(0), any(), any(ProjectionRenderMode.class), any(Map.class)))
                      .thenReturn(slice))) {
             platform.when(() -> WormholesPlatform.loadChunk(plugin, world, 0, 0))
                 .thenReturn(CompletableFuture.completedFuture(chunk));
+            biomes.when(() -> BukkitBiomeVisuals.capture(eq(snapshot), eq(64), eq(64), any())).thenReturn(Map.of());
             if (stage == FailureStage.ENCODING) {
                 platform.when(() -> WormholesPlatform.chunkSnapshot(chunk, false, true, false, true)).thenReturn(snapshot);
                 entities.when(() -> BlockEntityCapturer.captureChunk(eq(chunk), any())).thenReturn(Map.of());

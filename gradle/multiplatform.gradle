@@ -185,7 +185,7 @@ Closure<Void> configureModdedInputs = { Task task, String targetVersion, List<St
     List<String> overlays = (List<String>) (overlayTarget['overlays'] ?: [targetVersion])
     for (String sourceRoot : sourceRoots) {
         task.inputs.files(fileTree("${sourceRoot}/src") {
-            include('main/**', 'test/**', 'gameTest/**', 'clientGameTest/**', 'clientGameTestDriver/**')
+            include('main/**', 'test/**', 'gameTest/**', 'clientGameTest/**', 'clientGameTestDriver/**', 'clientTestLauncher/**')
             include(overlays.collect { String overlay -> "${overlay}/**".toString() })
         }).withPropertyName(sourceRoot.replace('/', '_')).withPathSensitivity(PathSensitivity.RELATIVE)
         task.inputs.files(file("${sourceRoot}/build.gradle"), file("${sourceRoot}/settings.gradle"), file("${sourceRoot}/gradle.properties"))

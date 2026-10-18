@@ -49,6 +49,7 @@ public final class MinecraftScaledTravelGameTest {
     }
 
     public static void run(GameTestHelper helper) {
+        MinecraftTravellerPersistenceGameTest.verify(helper);
         new MinecraftScaledTravelGameTest(helper).start();
     }
 

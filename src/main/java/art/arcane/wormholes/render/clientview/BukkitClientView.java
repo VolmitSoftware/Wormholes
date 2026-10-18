@@ -14,6 +14,7 @@ import java.util.concurrent.Executor;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -35,6 +36,10 @@ import com.github.retrooper.packetevents.protocol.player.User;
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 
 import art.arcane.wormholes.Wormholes;
+import art.arcane.wormholes.chunk.arrival.BukkitArrivalPreparation;
+import art.arcane.wormholes.network.client.ArrivalExtension;
+import art.arcane.wormholes.network.client.ArrivalMessage;
+import art.arcane.optics.stream.ViewStreamHooks;
 import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.wormholes.network.client.ClientViewChannel;
 import art.arcane.optics.stream.ViewStreamMessage;
@@ -61,7 +66,7 @@ public final class BukkitClientView implements ClientViewRouting {
         ViewStreamCapability.DEST_LIGHT, ViewStreamCapability.ENTITY_FRAMES, ViewStreamCapability.ENTITY_EVENTS, ViewStreamCapability.ATMOSPHERE,
         ViewStreamCapability.CONFIG_PHASE, ViewStreamCapability.LINK_UNCOMPRESSED, ViewStreamCapability.VIEW_STATS,
         ViewStreamCapability.CLIENT_MIRROR, ViewStreamCapability.CLIENT_RECURSION, ViewStreamCapability.MESH_RENDER, ViewStreamCapability.LOCAL_MESH, ViewStreamCapability.MESH_REUSE)
-        | ClientViewExtensions.FX_EMITTERS | ClientViewExtensions.ROOT_SOURCE;
+        | ClientViewExtensions.FX_EMITTERS | ClientViewExtensions.ROOT_SOURCE | ClientViewExtensions.ARRIVAL_PREPARATION;
     private static final long SOURCE_STALE_TICKS = 40L;
     private static final double PARTICLE_RANGE_SQUARED = 32.0D * 32.0D;
     private static final String CONFIGURE_EVENT_CLASS = "io.papermc.paper.event.connection.configuration.AsyncPlayerConnectionConfigureEvent";
@@ -91,7 +96,7 @@ public final class BukkitClientView implements ClientViewRouting {
         this.scene = portals.scene();
         ViewStreamPlatform<ClientViewObserver, BlockData> platform = new ViewStreamPlatform<ClientViewObserver, BlockData>(transport, portals,
             new EntityFrames<ClientViewObserver>(portals.scene()), new ClientViewSceneFx<ClientViewObserver>(portals.scene()), null, lanes,
-            BlockData::getAsString, options.mcDataVersion(), PLATFORM_CAPS, null, this::warn, ClientViewExtensions.ALL, null);
+            BlockData::getAsString, options.mcDataVersion(), PLATFORM_CAPS, null, this::warn, ClientViewExtensions.ALL, ArrivalHooks::new);
         this.registry = new ViewStreamSessionRegistry<ClientViewObserver, BlockData>(platform, options.settings());
         this.verbose = Objects.requireNonNull(options.verbose(), "verbose");
         this.negotiator = new BukkitClientViewNegotiator(this, options.users(), options.scheduler(), verbose);
@@ -106,6 +111,7 @@ public final class BukkitClientView implements ClientViewRouting {
         messenger.registerIncomingPluginChannel(owner, ClientViewChannel.CHANNEL, negotiator);
         packetListener = PacketEvents.getAPI().getEventManager().registerListener(transport);
         registerConfigureListener(owner, negotiator);
+        BukkitArrivalPreparation.install(owner, this);
     }
 
     public void stop() {
@@ -244,6 +250,29 @@ public final class BukkitClientView implements ClientViewRouting {
         return session != null && session.nativeRendererSelected();
     }
 
+    public boolean arrivalReceiver(Player player) {
+        ViewStreamSession<ClientViewObserver, BlockData> session = registry.session(player.getUniqueId());
+        if (session == null || session.state() != ViewStreamSessionState.CLIENT_VIEW
+            || (session.caps() & ClientViewExtensions.ARRIVAL_PREPARATION) == 0L) {
+            return false;
+        }
+        User user = session.player().user();
+        return user != null && user.getClientVersion() == PacketEvents.getAPI().getServerManager().getVersion().toClientVersion();
+    }
+
+    public boolean sendArrival(Player player, ArrivalMessage message) {
+        if (!arrivalReceiver(player)) {
+            return false;
+        }
+        ViewStreamSession<ClientViewObserver, BlockData> session = registry.session(player.getUniqueId());
+        try {
+            return session != null && session.send(ArrivalExtension.INSTANCE.wrap(message));
+        } catch (RuntimeException failure) {
+            warn("Arrival stream write failed for " + player.getUniqueId(), failure);
+            return false;
+        }
+    }
+
     @Override
     public boolean receiver(Player player) {
         return registry.effectsReceiver(player.getUniqueId());
@@ -375,6 +404,7 @@ public final class BukkitClientView implements ClientViewRouting {
     }
 
     public void shutdown() {
+        BukkitArrivalPreparation.shutdown();
         for (ClientViewObserver observer : observers.values()) {
             updateDoorVisibility(observer.player(), Set.of());
         }
@@ -470,6 +500,37 @@ public final class BukkitClientView implements ClientViewRouting {
             if (observer != null && observer.user() == user) {
                 forget(playerId, observer);
             }
+        }
+    }
+
+    private static final class ArrivalHooks implements ViewStreamHooks<ClientViewObserver> {
+        private final ViewStreamSession<ClientViewObserver, BlockData> session;
+
+        private ArrivalHooks(ViewStreamSession<ClientViewObserver, BlockData> session) {
+            this.session = session;
+        }
+
+        @Override
+        public boolean onExtension(ClientViewObserver peer, Object payload) {
+            if (payload instanceof ArrivalMessage.Ready ready && (session.caps() & ClientViewExtensions.ARRIVAL_PREPARATION) != 0L) {
+                BukkitArrivalPreparation.receive(peer.player(), ready);
+                return true;
+            }
+            return false;
+        }
+
+        @Override
+        public void tickExtension(ClientViewObserver peer, long nowMillis, Predicate<ViewStreamMessage> sender) {
+        }
+
+        @Override
+        public void onReset(ClientViewObserver peer) {
+            BukkitArrivalPreparation.disconnected(peer.id());
+        }
+
+        @Override
+        public void onClose(ClientViewObserver peer) {
+            BukkitArrivalPreparation.disconnected(peer.id());
         }
     }
 

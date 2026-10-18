@@ -14,17 +14,23 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityTeleportEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.event.player.PlayerChangedWorldEvent;
+import org.bukkit.event.world.EntitiesLoadEvent;
+import org.bukkit.event.world.EntitiesUnloadEvent;
 import org.bukkit.util.Vector;
 
 import art.arcane.wormholes.portal.LocalPortal;
 import art.arcane.wormholes.service.WormholesTelemetry;
+import art.arcane.wormholes.transit.BukkitScaleAccess;
 
 public class TraversableManager implements Listener
 {
+    private static final BukkitScaleAccess SCALE = BukkitScaleAccess.scaleAttribute();
+
 	public record Movement(Player player, UUID worldId, double x, double y, double z,
 		float yaw, float pitch, double velocityX, double velocityY, double velocityZ, long continuity)
 	{
@@ -98,8 +104,33 @@ public class TraversableManager implements Listener
 	}
 
 	@EventHandler
+	public void on(PlayerJoinEvent event)
+	{
+		SCALE.restore(event.getPlayer());
+	}
+
+	@EventHandler
+	public void on(EntitiesLoadEvent event)
+	{
+		for(Entity entity : event.getEntities())
+		{
+			SCALE.restore(entity);
+		}
+	}
+
+	@EventHandler
+	public void on(EntitiesUnloadEvent event)
+	{
+		for(Entity entity : event.getEntities())
+		{
+			SCALE.unload(entity);
+		}
+	}
+
+	@EventHandler
 	public void on(PlayerQuitEvent e)
 	{
+		SCALE.unload(e.getPlayer());
 		UUID playerId = e.getPlayer().getUniqueId();
 		Movement movement = movements.get(playerId);
 		if(movement != null && movement.player() != e.getPlayer())
@@ -109,6 +140,10 @@ public class TraversableManager implements Listener
 		if(movement != null && movement.player() == e.getPlayer())
 		{
 			movements.remove(playerId, movement);
+		}
+		if(Wormholes.arrivalWarmer != null)
+		{
+			Wormholes.arrivalWarmer.forget(playerId);
 		}
 		LocalPortal.clearReentryLatch(playerId);
 		LocalPortal.clearTeleportCooldown(playerId);

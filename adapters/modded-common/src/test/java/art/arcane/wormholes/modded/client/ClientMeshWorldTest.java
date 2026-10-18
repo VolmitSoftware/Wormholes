@@ -7,6 +7,7 @@ import art.arcane.optics.stream.BrickCodec;
 import art.arcane.optics.stream.ViewStreamMessage;
 import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.optics.stream.SectionBiomes;
+import art.arcane.optics.stream.BiomeVisual;
 import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.math.Face;
 import art.arcane.optics.frame.OpticTransform;
@@ -34,6 +35,7 @@ import org.junit.Test;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.Assert.assertEquals;
@@ -42,6 +44,21 @@ import static org.mockito.Mockito.when;
 import static org.mockito.ArgumentMatchers.anyDouble;
 
 public class ClientMeshWorldTest extends MinecraftTestBase {
+    @Test
+    public void absentCustomBiomeUsesAuthoritativeWaterGrassAndFoliageColors() throws Exception {
+        String key = "iris:biomes/" + "a".repeat(64);
+        BiomeVisual visual = new BiomeVisual(0.7F, 0.8F, true, BiomeVisual.TemperatureModifier.NONE,
+            0x123456, 0x456789, 0x789ABC, 0xABCDEF, BiomeVisual.GrassModifier.NONE);
+        ClientMeshSections store = store();
+        store.put(new ViewStreamMessage.MeshSection(7, 1, 0, 0, 0, 1, 3, Brick.single(0, 3),
+            new SectionBiomes(List.of(key), new byte[0], Map.of(key, visual))));
+        ClientMeshWorld world = snapshot(store, 0L, OpticTransform.IDENTITY, 0);
+        assertEquals(0xFF123456, world.getBlockTint(BlockPos.ZERO, (biome, x, z) -> biome.getWaterColor()));
+        assertEquals(0xFF456789, world.getBlockTint(BlockPos.ZERO, (biome, x, z) -> biome.getFoliageColor()));
+        assertEquals(0xFF789ABC, world.getBlockTint(BlockPos.ZERO, (biome, x, z) -> biome.getDryFoliageColor()));
+        assertEquals(0xFFABCDEF, world.getBlockTint(BlockPos.ZERO, Biome::getGrassColor));
+    }
+
     @Test
     public void destinationNeighborsFluidsAndLightRoundTripAcrossRotatedSectionEdges() throws Exception {
         ClientPalette palette = new ClientPalette(BuiltInRegistries.BLOCK);

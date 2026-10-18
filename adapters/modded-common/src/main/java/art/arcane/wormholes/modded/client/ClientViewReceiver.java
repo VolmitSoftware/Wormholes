@@ -14,6 +14,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import art.arcane.wormholes.network.client.ClientViewExtensions;
 import art.arcane.wormholes.network.client.TravelMessage;
+import art.arcane.wormholes.network.client.ArrivalMessage;
 import art.arcane.wormholes.modded.clientview.MinecraftClientViewExtensions;
 
 public final class ClientViewReceiver {
@@ -21,6 +22,8 @@ public final class ClientViewReceiver {
 
     private final ClientViewSession session;
     private Consumer<TravelMessage> travel = ignored -> { };
+    private Consumer<ArrivalMessage> arrivals = ignored -> { };
+    private Consumer<ViewStreamMessage.ResetReason> arrivalReset = ignored -> { };
     private Runnable negotiationReset = () -> { };
     private final ConcurrentLinkedQueue<Queued> queue;
     private final AtomicInteger queued;
@@ -45,6 +48,14 @@ public final class ClientViewReceiver {
 
     public void negotiationReset(Runnable reset) {
         negotiationReset = Objects.requireNonNull(reset);
+    }
+
+    public void arrivals(Consumer<ArrivalMessage> receiver) {
+        arrivals = Objects.requireNonNull(receiver);
+    }
+
+    public void arrivalReset(Consumer<ViewStreamMessage.ResetReason> reset) {
+        arrivalReset = Objects.requireNonNull(reset);
     }
 
     public void receive(byte[] payload, Consumer<byte[]> reply) {
@@ -74,6 +85,15 @@ public final class ClientViewReceiver {
             case ViewStreamMessage.Decline decline -> session.decline(decline);
             case ViewStreamMessage.Extension extension when extension.payload() instanceof TravelMessage message ->
                 prepared(frame, message, payload.length);
+            case ViewStreamMessage.Extension extension when extension.payload() instanceof ArrivalMessage message -> {
+                if (session.active() && session.has(ClientViewExtensions.ARRIVAL_PREPARATION)) {
+                    arrivals.accept(message);
+                }
+            }
+            case ViewStreamMessage.SessionReset reset -> {
+                arrivalReset.accept(reset.reason());
+                enqueue(new Queued(frame, payload.length, System.nanoTime()));
+            }
             default -> enqueue(new Queued(frame, payload.length, System.nanoTime()));
         }
     }

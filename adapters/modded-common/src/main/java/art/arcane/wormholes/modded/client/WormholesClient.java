@@ -38,6 +38,8 @@ import art.arcane.wormholes.modded.clientview.MinecraftClientViewExtensions;
 import art.arcane.wormholes.network.client.ClientViewExtensions;
 import art.arcane.wormholes.network.client.TravelExtension;
 import art.arcane.wormholes.network.client.TravelMessage;
+import art.arcane.wormholes.network.client.ArrivalExtension;
+import art.arcane.wormholes.network.client.ArrivalMessage;
 import art.arcane.optics.aperture.ApertureDescriptor;
 
 public final class WormholesClient {
@@ -47,6 +49,7 @@ public final class WormholesClient {
     private final WormholesClientConfig config;
     private final ClientViewStats stats;
     private final ClientSeamlessTravel seamlessTravel;
+    private final ClientArrivalPreparation arrivals;
     private final PortalViews portalViews;
     private final ClientLocalMeshSources localMeshes = new ClientLocalMeshSources(this::send);
     private final ClientMeshViews meshViews = new ClientMeshViews();
@@ -72,6 +75,10 @@ public final class WormholesClient {
         this.stats = new ClientViewStats();
         Consumer<TravelMessage> travel = message -> send(TravelExtension.INSTANCE.wrap(message));
         this.seamlessTravel = new ClientSeamlessTravel(travel, new ResidentLevels(travel, config.residentLevelMemoryBytes()));
+        Consumer<ArrivalMessage> arrivalReplies = message -> send(ArrivalExtension.INSTANCE.wrap(message));
+        this.arrivals = new ClientArrivalPreparation(arrivalReplies, config.residentLevelMemoryBytes());
+        this.arrivals.otherMemory(() -> seamlessTravel.residents().bytes());
+        this.seamlessTravel.residents().otherMemory(arrivals::bytes);
         this.portalViews = new PortalViews(seamlessTravel.residents());
         this.reflections = new ClientReflectionEntity();
         this.dataVersion = SharedConstants.getCurrentVersion().dataVersion().version();
@@ -160,6 +167,10 @@ public final class WormholesClient {
         return seamlessTravel;
     }
 
+    public ClientArrivalPreparation arrivals() {
+        return arrivals;
+    }
+
     public PortalViews portalViews() {
         return portalViews;
     }
@@ -194,6 +205,7 @@ public final class WormholesClient {
 
     public void connected() {
         seamlessTravel.clear();
+        arrivals.clear();
         if (session.state() == ClientViewSession.State.VANILLA || session.state() == ClientViewSession.State.DECLINED) {
             return;
         }
@@ -210,6 +222,7 @@ public final class WormholesClient {
         }
         seamlessTravel.clear();
         portalViews.clear();
+        arrivals.clear();
         PortalStencilRenderer.instance().clear();
         reflections.clear();
         detach();
@@ -222,6 +235,7 @@ public final class WormholesClient {
         outbound.flush();
         ClientPortalRenderer.instance().finishBuilds();
         seamlessTravel.tick();
+        arrivals.tick();
         tick.effectsActive(!minecraft.isPaused() && minecraft.isWindowActive());
         ClientLevel level = minecraft.level;
         if (level == null) {
@@ -344,7 +358,12 @@ public final class WormholesClient {
         next.meshes().otherMemory(() -> next.plates().bytes() + localMeshes.bytes());
         ClientViewReceiver nextReceiver = new ClientViewReceiver(next);
         nextReceiver.travel(seamlessTravel::deliver);
-        nextReceiver.negotiationReset(outbound::clear);
+        nextReceiver.arrivals(arrivals::deliver);
+        nextReceiver.arrivalReset(arrivals::reset);
+        nextReceiver.negotiationReset(() -> {
+            outbound.clear();
+            arrivals.clear();
+        });
         ClientViewTick nextTick = new ClientViewTick(next, nextReceiver, config, stats);
         nextTick.sender(this::send);
         session = next;

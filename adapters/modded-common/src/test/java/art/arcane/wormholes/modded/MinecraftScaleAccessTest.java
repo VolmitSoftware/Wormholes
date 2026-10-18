@@ -18,7 +18,7 @@ import static org.mockito.Mockito.verify;
 
 public class MinecraftScaleAccessTest extends MinecraftTestBase {
     @Test
-    public void scalingWritesOnePermanentTotalMultiplierUnderThePortalId() {
+    public void scalingWritesOneTransientTotalMultiplierUnderThePortalId() {
         AttributeInstance instance = new AttributeInstance(Attributes.SCALE, ignored -> { });
         Entity entity = mock(Entity.class);
         MinecraftScaleAccess access = new MinecraftScaleAccess(candidate -> candidate == entity ? instance : null);
@@ -29,7 +29,7 @@ public class MinecraftScaleAccessTest extends MinecraftTestBase {
         AttributeModifier modifier = instance.getModifier(MinecraftScaleAccess.ID);
         assertEquals(2.0D, modifier.amount(), 1.0E-12D);
         assertEquals(AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL, modifier.operation());
-        assertTrue(instance.getPermanentModifiers().contains(modifier));
+        assertFalse(instance.getPermanentModifiers().contains(modifier));
         assertEquals(3.0D, instance.getValue(), 1.0E-9D);
         assertEquals(3.0D, access.scale(entity), 1.0E-12D);
     }

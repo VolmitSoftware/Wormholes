@@ -1,6 +1,7 @@
 package art.arcane.wormholes.chunk.presend;
 
 public enum ChunkPreSendOutcome {
+    PREPARED(null, false),
     PRE_SENT(null, true),
     PRE_SENT_PARTIAL(null, true),
     SKIPPED_DISABLED(null, false),

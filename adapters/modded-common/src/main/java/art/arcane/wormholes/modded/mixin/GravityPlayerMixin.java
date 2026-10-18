@@ -6,6 +6,7 @@ import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
+import net.minecraft.world.entity.EntityDimensions;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.MoverType;
 import net.minecraft.world.phys.AABB;
@@ -17,6 +18,13 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(Player.class)
 public abstract class GravityPlayerMixin {
+    @WrapOperation(method = "canPlayerFitWithinBlocksAndEntitiesWhen", at = @At(value = "INVOKE",
+        target = "Lnet/minecraft/world/entity/EntityDimensions;makeBoundingBox(Lnet/minecraft/world/phys/Vec3;)Lnet/minecraft/world/phys/AABB;"))
+    private AABB wormholes$gravityPoseBounds(EntityDimensions dimensions, Vec3 feet, Operation<AABB> original) {
+        GravityFrame frame = MinecraftGravity.frame((Player) (Object) this);
+        return frame.equals(GravityFrame.WORLD) ? original.call(dimensions, feet) : MinecraftGravity.bounds(frame, dimensions, feet);
+    }
+
     @WrapMethod(method = "maybeBackOffFromEdge")
     private Vec3 wormholes$gravityEdge(Vec3 movement, MoverType type, Operation<Vec3> original) {
         GravityFrame frame = MinecraftGravity.frame((Player) (Object) this);

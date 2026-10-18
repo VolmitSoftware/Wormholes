@@ -2,6 +2,7 @@ package art.arcane.wormholes.render.view;
 
 import art.arcane.wormholes.render.BukkitProjectorBlocks;
 import art.arcane.optics.view.ContentView;
+import art.arcane.optics.stream.BiomeVisual;
 import art.arcane.wormholes.platform.WormholesPlatform;
 import art.arcane.wormholes.render.blockentity.BlockEntityCapturer;
 import art.arcane.optics.fidelity.BlockEntitySample;
@@ -59,6 +60,12 @@ public final class LiveWorldView implements ProjectionWorldView {
             return null;
         }
         return WormholesPlatform.keyString(world.getBiome(x, y, z).getKey());
+    }
+
+    @Override
+    public BiomeVisual biomeVisual(int x, int y, int z) {
+        String key = sampleBiome(x, y, z);
+        return key == null ? null : BukkitBiomeVisuals.capture(key);
     }
 
     @Override

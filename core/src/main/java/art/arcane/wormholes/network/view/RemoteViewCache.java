@@ -28,6 +28,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import art.arcane.optics.entity.EntityDeltaCodec;
 import art.arcane.optics.entity.EntitySnapshot;
+import art.arcane.optics.stream.BiomeVisual;
 
 public final class RemoteViewCache<B, M, E> {
     public static final class DecodedSlice<B> {
@@ -88,6 +89,11 @@ public final class RemoteViewCache<B, M, E> {
             }
             int paletteIndex = biomes[index] & 0xFFFF;
             return paletteIndex < biomePalette.length ? biomePalette[paletteIndex] : null;
+        }
+
+        public BiomeVisual biomeVisualAt(int x, int y, int z) {
+            String key = biomeAt(x, y, z);
+            return key == null ? null : source.biomeVisuals().get(key);
         }
 
         public int lightAt(int x, int y, int z) {

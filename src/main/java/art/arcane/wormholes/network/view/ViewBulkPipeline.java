@@ -14,6 +14,7 @@ import art.arcane.wormholes.network.replication.ChunkResyncRequest;
 import art.arcane.wormholes.network.replication.ReplicationStreamKey;
 import art.arcane.wormholes.platform.WormholesPlatform;
 import art.arcane.wormholes.render.blockentity.BlockEntityCapturer;
+import art.arcane.wormholes.render.view.BukkitBiomeVisuals;
 import art.arcane.optics.plate.PlateCaptureJob;
 import art.arcane.optics.fidelity.BlockEntitySample;
 
@@ -36,7 +37,7 @@ final class ViewBulkPipeline {
     private final ViewSessionRegistry registry;
     private final ViewTimeDelivery timeDelivery;
     private final Map<BlockData, String> blockDataStrings = new ConcurrentHashMap<>();
-    private final ChunkBulkBuilder<ChunkSnapshot, BlockData, Biome> chunkBulkBuilder;
+    private final ChunkBulkBuilder<BukkitChunkSnapshotReader.Snapshot, BlockData, Biome> chunkBulkBuilder;
     private final BulkRetryCoordinator<ViewServer.BulkRetryKey> bulkRetryCoordinator =
         new BulkRetryCoordinator<>(ViewServer.MAX_BULK_RETRY_DELAY_TICKS);
     private final Set<BulkCompleteKey> bulkCompleteRetries = ConcurrentHashMap.newKeySet();
@@ -177,6 +178,8 @@ final class ViewBulkPipeline {
                     }
                     try {
                         ChunkSnapshot snapshot = WormholesPlatform.chunkSnapshot(chunk, false, true, false, true);
+                        BukkitChunkSnapshotReader.Snapshot captured = new BukkitChunkSnapshotReader.Snapshot(snapshot,
+                            BukkitBiomeVisuals.capture(snapshot, session.box.minY(), session.box.maxY(), BukkitBiomeVisuals::capture));
                         Map<Long, BlockEntitySample> blockEntities = BlockEntityCapturer.captureChunk(chunk, BlockEntityCapturer.Limits.column(PlateCaptureJob.MAX_BLOCK_ENTITIES_PER_CHUNK));
                         boolean encodeScheduled = FoliaScheduler.runAsync(Wormholes.instance, () -> {
                             try {
@@ -184,7 +187,7 @@ final class ViewBulkPipeline {
                                     done.complete(false);
                                     return;
                                 }
-                                ViewSlice slice = chunkBulkBuilder.buildSlice(session.box, chunkX, chunkZ, snapshot, session.renderMode, blockEntities);
+                                ViewSlice slice = chunkBulkBuilder.buildSlice(session.box, chunkX, chunkZ, captured, session.renderMode, blockEntities);
                                 if (slice == null) {
                                     done.complete(registry.isSessionChunkActive(session, peerName, chunkKey));
                                     return;

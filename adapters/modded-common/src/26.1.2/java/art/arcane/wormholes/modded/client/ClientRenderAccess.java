@@ -4,6 +4,8 @@ import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.LevelLoadingScreen;
+import net.minecraft.client.multiplayer.LevelLoadTracker;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderDispatcher;
 import net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState;
 import net.minecraft.client.renderer.state.GameRenderState;
@@ -23,6 +25,17 @@ public final class ClientRenderAccess {
 
     public static GameRenderState gameState(Minecraft minecraft) {
         return minecraft.gameRenderer.getGameRenderState();
+    }
+
+    public static void finishLevelLoading(Minecraft minecraft, LevelLoadTracker tracker) {
+        if (tracker == null) {
+            return;
+        }
+        tracker.loadingPacketsReceived();
+        tracker.tickClientLoad();
+        if (tracker.isLevelReady() && minecraft.screen instanceof LevelLoadingScreen screen) {
+            screen.onClose();
+        }
     }
 
     public static boolean assignedEntityId(int entityId) {

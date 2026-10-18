@@ -697,7 +697,7 @@ public final class RtpLiveRuntimeTest
 	}
 
 	@Test
-	public void successfulRandomTeleportKeepsTheDestinationChunkPreSend()
+	public void successfulRandomTeleportSendsPreparedChunksOnTheTravelerOwner()
 	{
 		Harness harness = new Harness(RtpRotationMode.STATIC);
 		harness.prepareReady();
@@ -711,14 +711,14 @@ public final class RtpLiveRuntimeTest
 
 			assertEquals(1, recording.announcements());
 			assertEquals(1, recording.chunks());
-			assertEquals(List.of("destination"), recording.announcementOwners());
-			assertEquals(List.of("destination"), recording.chunkOwners());
+			assertEquals(List.of("traveler"), recording.announcementOwners());
+			assertEquals(List.of("traveler"), recording.chunkOwners());
 			assertEquals(List.of("traveler"), harness.environment.teleportOwners);
 		}
 	}
 
 	@Test
-	public void failedRandomTeleportRollsBackTheDestinationChunkPreSendOnce()
+	public void failedRandomTeleportDoesNotSendDestinationOrSourceChunks()
 	{
 		Harness harness = new Harness(RtpRotationMode.STATIC);
 		harness.prepareReady();
@@ -731,10 +731,10 @@ public final class RtpLiveRuntimeTest
 			assertTrue(harness.runtime.traverse(
 				harness.portal, traveler.entity(), harness.traversive(traveler.entity())));
 
-			assertEquals(2, recording.announcements());
-			assertEquals(2, recording.chunks());
-			assertEquals(List.of("destination", "source"), recording.announcementOwners());
-			assertEquals(List.of("destination", "source"), recording.chunkOwners());
+			assertEquals(0, recording.announcements());
+			assertEquals(0, recording.chunks());
+			assertEquals(List.of(), recording.announcementOwners());
+			assertEquals(List.of(), recording.chunkOwners());
 			assertEquals(List.of("traveler"), harness.environment.teleportOwners);
 		}
 	}
@@ -762,7 +762,7 @@ public final class RtpLiveRuntimeTest
 	}
 
 	@Test
-	public void retiredTravelerTeleportDispatchRollsBackTheDestinationChunkPreSend()
+	public void retiredTravelerTeleportDispatchCancelsPreparedChunksWithoutSending()
 	{
 		Harness harness = new Harness(RtpRotationMode.STATIC);
 		harness.prepareReady();
@@ -778,7 +778,7 @@ public final class RtpLiveRuntimeTest
 				harness.portal, traveler.entity(), harness.traversive(traveler.entity())));
 
 			assertEquals(0, harness.environment.teleports.get());
-			assertEquals(List.of("destination", "source"), recording.announcementOwners());
+			assertEquals(List.of(), recording.announcementOwners());
 			assertEquals(List.of(TraversalRefundReason.DESTINATION_UNAVAILABLE), cost.refunds);
 			assertTrue(harness.portal.beginRtpTraversal(traveler.entity(), harness.environment.nowMillis));
 			harness.portal.cancelRtpTraversal(traveler.entity());

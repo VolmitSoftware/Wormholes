@@ -129,12 +129,12 @@ public final class MinecraftPlateSnapshotCacheTest {
         for (String[] section : biomes) {
             Arrays.fill(section, "minecraft:plains");
         }
-        return new MinecraftPlateCaptureSource.CapturedChunk(0, sections, Map.of(), true, null, 0, biomes);
+        return new MinecraftPlateCaptureSource.CapturedChunk(0, sections, Map.of(), true, null, 0, biomes, Map.of());
     }
 
     @SuppressWarnings("unchecked")
     private static MinecraftPlateCaptureSource.CapturedChunk snapshot() {
         PalettedContainer<BlockState>[] sections = (PalettedContainer<BlockState>[]) new PalettedContainer<?>[0];
-        return new MinecraftPlateCaptureSource.CapturedChunk(0, sections, Map.of(), true, null, 0, new String[0][]);
+        return new MinecraftPlateCaptureSource.CapturedChunk(0, sections, Map.of(), true, null, 0, new String[0][], Map.of());
     }
 }

@@ -26,6 +26,10 @@ logs/
 
 /config/
 
+/adapters/neoforge/.cache/
+/adapters/neoforge/config/
+/adapters/neoforge/crash-reports/
+
 .claude/
 
 docs/specs/

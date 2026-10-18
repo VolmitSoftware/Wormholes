@@ -4,6 +4,7 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -11,25 +12,36 @@ import java.util.TreeMap;
 
 import art.arcane.optics.math.CellKeys;
 import art.arcane.optics.fidelity.BlockEntitySample;
+import art.arcane.optics.stream.BiomeVisual;
+import art.arcane.optics.stream.ViewStreamReader;
+import art.arcane.optics.stream.ViewStreamWriter;
 
 /**
  * One chunk column of a remote view. The block-entity map is keyed by world cell and is only carried
- * on the wire when both peers negotiated {@code WireCapability.VIEW_BLOCK_ENTITIES}; the pre-24 layout
- * is the default writer and reader.
+ * on the wire when both peers negotiated {@code WireCapability.VIEW_BLOCK_ENTITIES}. Both layouts
+ * carry destination biome visual definitions.
  */
-public record ViewSlice(int minX, int minY, int minZ, int sizeX, int sizeY, int sizeZ, List<String> palette, short[] indices, byte[] light, List<String> biomePalette, short[] biomes, Map<Long, BlockEntitySample> blockEntities) {
+public record ViewSlice(int minX, int minY, int minZ, int sizeX, int sizeY, int sizeZ, List<String> palette, short[] indices, byte[] light, List<String> biomePalette, short[] biomes, Map<Long, BlockEntitySample> blockEntities, Map<String, BiomeVisual> biomeVisuals) {
     public static final int MAX_PALETTE_ENTRIES = 4096;
     public static final int MAX_CELLS = 16 * 512 * 16;
     public static final int MAX_BLOCK_ENTITIES = 4096;
-    private static final int LAYOUT_BASE = 0;
-    private static final int LAYOUT_BLOCK_ENTITIES = 1;
+    private static final int LAYOUT_BASE = 2;
+    private static final int LAYOUT_BLOCK_ENTITIES = 3;
 
     public ViewSlice(int minX, int minY, int minZ, int sizeX, int sizeY, int sizeZ, List<String> palette, short[] indices, byte[] light, List<String> biomePalette, short[] biomes) {
-        this(minX, minY, minZ, sizeX, sizeY, sizeZ, palette, indices, light, biomePalette, biomes, new HashMap<Long, BlockEntitySample>());
+        this(minX, minY, minZ, sizeX, sizeY, sizeZ, palette, indices, light, biomePalette, biomes, Map.of(), Map.of());
+    }
+
+    public ViewSlice(int minX, int minY, int minZ, int sizeX, int sizeY, int sizeZ, List<String> palette, short[] indices, byte[] light, List<String> biomePalette, short[] biomes, Map<Long, BlockEntitySample> blockEntities) {
+        this(minX, minY, minZ, sizeX, sizeY, sizeZ, palette, indices, light, biomePalette, biomes, blockEntities, Map.of());
     }
 
     public ViewSlice {
         blockEntities = blockEntities == null ? new HashMap<Long, BlockEntitySample>() : blockEntities;
+        biomeVisuals = Map.copyOf(biomeVisuals);
+        if (!biomePalette.containsAll(biomeVisuals.keySet())) {
+            throw new IllegalArgumentException("Biome visual definition is outside the slice palette");
+        }
     }
 
     public BlockEntitySample blockEntityAt(int x, int y, int z) {
@@ -102,7 +114,14 @@ public record ViewSlice(int minX, int minY, int minZ, int sizeX, int sizeY, int 
         int biomeSize = biomePalette.size();
         int[] biomeHashes = new int[biomeSize];
         for (int i = 0; i < biomeSize; i++) {
-            biomeHashes[i] = biomePalette.get(i).hashCode();
+            String key = biomePalette.get(i);
+            biomeHashes[i] = key.hashCode();
+            BiomeVisual visual = biomeVisuals.get(key);
+            if (visual != null) {
+                ViewStreamWriter encoded = new ViewStreamWriter(BiomeVisual.ENCODED_BYTES);
+                visual.write(encoded);
+                biomeHashes[i] = 31 * biomeHashes[i] + Arrays.hashCode(encoded.toByteArray());
+            }
         }
         for (int i = 0; i < biomes.length; i++) {
             int idx = biomes[i] & 0xFFFF;
@@ -150,6 +169,13 @@ public record ViewSlice(int minX, int minY, int minZ, int sizeX, int sizeY, int 
         out.writeShort(biomePalette.size());
         for (String entry : biomePalette) {
             out.writeUTF(entry);
+            BiomeVisual visual = biomeVisuals.get(entry);
+            out.writeBoolean(visual != null);
+            if (visual != null) {
+                ViewStreamWriter encoded = new ViewStreamWriter(BiomeVisual.ENCODED_BYTES);
+                visual.write(encoded);
+                out.write(encoded.toByteArray());
+            }
         }
         writePackedIndices(out, biomes, biomePalette.size());
         if (!withBlockEntities) {
@@ -240,8 +266,21 @@ public record ViewSlice(int minX, int minY, int minZ, int sizeX, int sizeY, int 
             throw new IOException("View slice biome palette too large: " + biomePaletteSize);
         }
         List<String> biomePalette = new ArrayList<>(biomePaletteSize);
+        Map<String, BiomeVisual> visuals = new HashMap<>(biomePaletteSize);
         for (int i = 0; i < biomePaletteSize; i++) {
-            biomePalette.add(in.readUTF());
+            String key = in.readUTF();
+            biomePalette.add(key);
+            int present = in.readUnsignedByte();
+            if (present > 1) {
+                throw new IOException("Invalid biome visual flag " + present);
+            }
+            if (present == 1) {
+                byte[] encoded = new byte[BiomeVisual.ENCODED_BYTES];
+                in.readFully(encoded);
+                if (visuals.put(key, BiomeVisual.read(new ViewStreamReader(encoded))) != null) {
+                    throw new IOException("Repeated biome visual definition " + key);
+                }
+            }
         }
         int gridLength = biomeGridSpan(minX, sizeX) * biomeGridSpan(minY, sizeY) * biomeGridSpan(minZ, sizeZ);
         short[] biomes = readPackedIndices(in, gridLength);
@@ -256,6 +295,6 @@ public record ViewSlice(int minX, int minY, int minZ, int sizeX, int sizeY, int 
                 blockEntities.put(Long.valueOf(key), BlockEntitySample.read(in));
             }
         }
-        return new ViewSlice(minX, minY, minZ, sizeX, sizeY, sizeZ, palette, indices, light, biomePalette, biomes, blockEntities);
+        return new ViewSlice(minX, minY, minZ, sizeX, sizeY, sizeZ, palette, indices, light, biomePalette, biomes, blockEntities, visuals);
     }
 }

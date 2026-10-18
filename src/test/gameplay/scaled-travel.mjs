@@ -124,6 +124,8 @@ export default {
       }
     })
     await context.step('walk through the 3x3 and grow three times', async () => {
+      await context.command('/clear @s', /Removed|No items/i)
+      await p.wait(() => bot.inventory.items().length === 0, 'construction inventory is empty')
       await p.emptyHand()
       await p.stage(SMALL_X + SMALL * 0.5 + ENTRY_OFFSET, FLOOR_Y, 2.5)
       const entryOffset = bot.entity.position.x - (SMALL_X + SMALL * 0.5)

@@ -1,5 +1,7 @@
 package art.arcane.wormholes.render.view;
 
+import art.arcane.optics.stream.BiomeVisual;
+
 import art.arcane.optics.math.CellKeys;
 import art.arcane.optics.fidelity.BlockEntitySample;
 import it.unimi.dsi.fastutil.longs.LongIterator;
@@ -112,6 +114,11 @@ public final class SectionCachedWorldView implements ProjectionWorldView {
             return null;
         }
         return live.sampleBiome(x, y, z);
+    }
+
+    @Override
+    public BiomeVisual biomeVisual(int x, int y, int z) {
+        return cached() && !loaded(x, z) ? null : live.biomeVisual(x, y, z);
     }
 
     @Override

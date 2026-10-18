@@ -2,6 +2,7 @@ package art.arcane.wormholes.render.view;
 
 import art.arcane.optics.entity.EntityProfile;
 import art.arcane.optics.stream.EnvironmentState;
+import art.arcane.optics.stream.BiomeVisual;
 import art.arcane.optics.entity.EntitySnapshot;
 import art.arcane.wormholes.network.view.RemoteViewCache;
 import art.arcane.optics.math.BlockBox;
@@ -110,6 +111,16 @@ public class RemoteProjectionView<B, T, M, E> implements ContentView<B, T>, Proj
     public int biomeId(int x, int y, int z) {
         String biome = sampleBiome(x, y, z);
         return biome == null ? -1 : biomeIds.applyAsInt(biome);
+    }
+
+    @Override
+    public BiomeVisual biomeVisual(int x, int y, int z) {
+        BlockBox box = view.getBox();
+        if (box == null || x < box.minX() || x > box.maxX() || z < box.minZ() || z > box.maxZ()) {
+            return null;
+        }
+        RemoteViewCache.DecodedSlice<B> slice = decodedSliceAt(x, z);
+        return slice == null ? null : slice.biomeVisualAt(x, Math.clamp(y, box.minY(), box.maxY()), z);
     }
 
     @Override

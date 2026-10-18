@@ -9,4 +9,8 @@ public interface ChunkPreSendDelivery {
     boolean announceViewCenter(Player player, int chunkX, int chunkZ);
 
     boolean sendChunk(Player player, World world, int chunkX, int chunkZ);
+
+    default ChunkPreparedPacket<Player> prepareChunk(World world, int chunkX, int chunkZ) {
+        return null;
+    }
 }

@@ -1,8 +1,11 @@
 package art.arcane.wormholes.platform;
 
+import art.arcane.volmlib.util.scheduling.FoliaScheduler;
+import org.bukkit.Server;
 import org.bukkit.World;
 import org.bukkit.plugin.Plugin;
 import org.junit.jupiter.api.Test;
+import org.mockito.MockedStatic;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Proxy;
@@ -25,9 +28,76 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.when;
 
 class BukkitRegionTaskProviderTest {
     private static final long COMPLETION_TIMEOUT_MILLIS = 2_000L;
+
+    @Test
+    void ownedBukkitWorkExecutesImmediatelyAndHonorsWorldAndPluginRetirement() throws Exception {
+        Plugin plugin = mock(Plugin.class);
+        Server server = mock(Server.class);
+        World world = world(UUID.randomUUID());
+        when(plugin.getServer()).thenReturn(server);
+        when(plugin.isEnabled()).thenReturn(true);
+        try (MockedStatic<FoliaScheduler> scheduler = mockStatic(FoliaScheduler.class)) {
+            scheduler.when(() -> FoliaScheduler.isOwnedByCurrentRegion(world, 2, 3)).thenReturn(true);
+            BukkitRegionTaskProvider.Service service = new BukkitRegionTaskProvider.Service(plugin);
+            AtomicInteger completed = new AtomicInteger();
+            AtomicInteger retired = new AtomicInteger();
+            assertTrue(service.run(world, 2, 3, completed::incrementAndGet, retired::incrementAndGet, 0L));
+            assertEquals(1, completed.get());
+            assertEquals(0, pendingCount(service));
+            service.retireWorld(world.getUID());
+            assertFalse(service.run(world, 2, 3, completed::incrementAndGet, retired::incrementAndGet, 0L));
+            service.activateWorld(world.getUID());
+            when(plugin.isEnabled()).thenReturn(false);
+            assertFalse(service.run(world, 2, 3, completed::incrementAndGet, retired::incrementAndGet, 0L));
+            when(plugin.isEnabled()).thenReturn(true);
+            service.shutdown();
+            assertFalse(service.run(world, 2, 3, completed::incrementAndGet, retired::incrementAndGet, 0L));
+            assertEquals(1, completed.get());
+            assertEquals(3, retired.get());
+        }
+    }
+
+    @Test
+    void delayedUnownedAndFoliaWorkUsesTheScheduler() {
+        for (int reason = 0; reason < 3; reason++) {
+            Plugin plugin = mock(Plugin.class);
+            Server server = mock(Server.class);
+            World world = world(UUID.randomUUID());
+            when(plugin.getServer()).thenReturn(server);
+            when(plugin.isEnabled()).thenReturn(true);
+            long delayTicks = reason == 0 ? 1L : 0L;
+            boolean owned = reason != 1;
+            boolean folia = reason == 2;
+            try (MockedStatic<FoliaScheduler> scheduler = mockStatic(FoliaScheduler.class)) {
+                scheduler.when(() -> FoliaScheduler.isOwnedByCurrentRegion(world, 2, 3)).thenReturn(owned);
+                scheduler.when(() -> FoliaScheduler.isFoliaThreading(server)).thenReturn(folia);
+                AtomicReference<Runnable> scheduled = new AtomicReference<>();
+                scheduler.when(() -> FoliaScheduler.runRegion(eq(plugin), eq(world), anyInt(), anyInt(), any(Runnable.class), anyLong()))
+                    .thenAnswer(call -> {
+                        scheduled.set(call.getArgument(4));
+                        return true;
+                    });
+                BukkitRegionTaskProvider.Service service = new BukkitRegionTaskProvider.Service(plugin);
+                AtomicInteger completed = new AtomicInteger();
+                assertTrue(service.run(world, 2, 3, completed::incrementAndGet, () -> { }, delayTicks));
+                assertEquals(0, completed.get());
+                assertNotNull(scheduled.get());
+                scheduled.get().run();
+                assertEquals(1, completed.get());
+                service.shutdown();
+            }
+        }
+    }
 
     @Test
     void shutdownWaitsForClaimedExecutionAndRejectsLaterWork() throws Exception {

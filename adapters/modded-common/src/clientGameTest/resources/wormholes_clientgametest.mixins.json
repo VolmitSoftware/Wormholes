@@ -5,6 +5,9 @@
   "plugin": "art.arcane.wormholes.clientgametest.mixin.ClientGameTestMixinPlugin",
   "compatibilityLevel": "JAVA_21",
   "client": [
+    "PaperArrivalFrameTap",
+    "PaperArrivalPacketTap",
+    "BiomeRegistryFaultTap",
     "TravelConnectionTap",
     "QaReplyTap",
     "TravelFrameTap",

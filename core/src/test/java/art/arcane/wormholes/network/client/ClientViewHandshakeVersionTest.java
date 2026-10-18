@@ -12,8 +12,8 @@ final class ClientViewHandshakeVersionTest {
     private static final int DATA_VERSION = 4325;
 
     @Test
-    void wireVersionIsNine() {
-        assertEquals(9, ViewStreamLimits.WIRE_VERSION);
+    void wireVersionIsTen() {
+        assertEquals(10, ViewStreamLimits.WIRE_VERSION);
     }
 
     @Test
@@ -24,12 +24,12 @@ final class ClientViewHandshakeVersionTest {
     }
 
     @Test
-    void offerAdvertisesNineAndAnEightHelloIsAWireMismatch() {
+    void offerAdvertisesTenAndANineHelloIsAWireMismatch() {
         ViewStreamHandshake.Policy policy = new ViewStreamHandshake.Policy(true, DATA_VERSION, ViewStreamCapability.ALL,
             ViewStreamLimits.DEFAULT_MAX_FRAME_BYTES, 100, 20, 8, true);
         ViewStreamHandshake handshake = new ViewStreamHandshake(policy, ClientViewExtensions.CODEC, 0L, () -> 7, () -> 0x1234L);
-        assertEquals(9, handshake.offer(0L).wire());
-        ViewStreamMessage.Hello previous = new ViewStreamMessage.Hello(8, DATA_VERSION, ViewStreamCapability.ALL, 1, 1, 0L, "fabric");
+        assertEquals(10, handshake.offer(0L).wire());
+        ViewStreamMessage.Hello previous = new ViewStreamMessage.Hello(9, DATA_VERSION, ViewStreamCapability.ALL, 1, 1, 0L, "fabric");
         ViewStreamMessage.Decline decline = (ViewStreamMessage.Decline) handshake.onHello(previous, 1L, true).reply();
         assertEquals(ViewStreamMessage.DeclineReason.WIRE_MISMATCH, decline.reason());
     }

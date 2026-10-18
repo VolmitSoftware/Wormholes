@@ -61,7 +61,17 @@ public final class BukkitChunkPreSendProvider {
     }
 
     public static void shutdown() {
-        SERVICE.set(null);
+        ChunkPreSendService<World, Player> service = SERVICE.getAndSet(null);
+        if (service != null) {
+            service.shutdown();
+        }
         ChunkPreSendSettings.reset();
+    }
+
+    public static void disconnected(Player player) {
+        ChunkPreSendService<World, Player> service = SERVICE.get();
+        if (service != null) {
+            service.disconnected(player);
+        }
     }
 }

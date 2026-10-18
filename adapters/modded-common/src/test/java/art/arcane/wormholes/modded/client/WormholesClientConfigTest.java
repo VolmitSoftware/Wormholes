@@ -61,7 +61,7 @@ public class WormholesClientConfigTest extends MinecraftTestBase {
     }
 
     @Test
-    public void blockPacketRendererDoesNotNegotiateOrAcceptClientView() throws Exception {
+    public void blockPacketRendererNegotiatesArrivalWithoutProjectionOwnership() throws Exception {
         WormholesClientConfig config = new WormholesClientConfig();
         config.renderer = "block-packets";
         config.normalize();
@@ -70,14 +70,16 @@ public class WormholesClientConfigTest extends MinecraftTestBase {
         List<byte[]> replies = new ArrayList<>();
         receiver.receive(MinecraftClientViewExtensions.CODEC.encodeS2C(offer(), 1, 0), replies::add);
         receiver.receive(MinecraftClientViewExtensions.CODEC.encodeS2C(offer(), 2, 0), replies::add);
-        assertTrue(replies.isEmpty());
-        assertEquals(0, session.clientCapabilities());
-        assertEquals(ClientViewSession.State.VANILLA, session.state());
+        assertEquals(2, replies.size());
+        assertEquals(ClientViewExtensions.ARRIVAL_PREPARATION, session.clientCapabilities());
+        assertEquals(ClientViewSession.State.OFFERED, session.state());
         receiver.receive(MinecraftClientViewExtensions.CODEC.encodeS2C(new ViewStreamMessage.Accept(1, ViewStreamCapability.ALL, 20,
             ViewStreamLimits.DEFAULT_MAX_FRAME_BYTES, 7L, 8), 3, 0), replies::add);
-        assertEquals(ClientViewSession.State.VANILLA, session.state());
-        assertFalse(session.active());
-        assertNull(session.acceptMessage());
+        assertEquals(ClientViewSession.State.CLIENT_VIEW, session.state());
+        assertTrue(session.active());
+        assertFalse(session.nativeSelected());
+        assertFalse(session.has(ViewStreamCapability.PLATES));
+        assertTrue(session.has(ClientViewExtensions.ARRIVAL_PREPARATION));
         assertEquals(0L, receiver.decodeFailures());
     }
 

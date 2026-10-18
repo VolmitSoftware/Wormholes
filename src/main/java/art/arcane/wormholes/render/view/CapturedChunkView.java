@@ -1,6 +1,7 @@
 package art.arcane.wormholes.render.view;
 
 import org.bukkit.ChunkSnapshot;
+import art.arcane.optics.stream.BiomeVisual;
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.data.BlockData;
@@ -95,6 +96,12 @@ public final class CapturedChunkView implements ProjectionWorldView {
         ChunkSnapshot snapshot = snapshot(x, Math.clamp(y, minHeight, maxHeight - 1), z);
         return snapshot == null ? null : WormholesPlatform.keyString(snapshot.getBiome(x & 15,
             Math.clamp(y, minHeight, maxHeight - 1), z & 15).getKey());
+    }
+
+    @Override
+    public BiomeVisual biomeVisual(int x, int y, int z) {
+        PlateCaptureSource.CapturedChunk captured = chunk(x, z);
+        return captured == null ? null : captured.biomes().get(sampleBiome(x, y, z));
     }
 
     @Override

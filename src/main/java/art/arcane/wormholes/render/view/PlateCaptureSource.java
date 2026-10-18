@@ -1,6 +1,8 @@
 package art.arcane.wormholes.render.view;
 
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import art.arcane.optics.stream.BiomeVisual;
 
 import org.bukkit.Chunk;
 import org.bukkit.ChunkSnapshot;
@@ -15,6 +17,7 @@ import art.arcane.optics.plate.ChunkLease;
 import art.arcane.optics.plate.PlateCaptureJob;
 
 public final class PlateCaptureSource implements ChunkCapture<World, PlateCaptureSource.CapturedChunk> {
+    private final Map<String, BiomeVisual> visuals = new ConcurrentHashMap<>();
     private final boolean blockEntities;
     private final boolean environment;
     private final BlockEntityCapturer.Limits limits;
@@ -31,7 +34,7 @@ public final class PlateCaptureSource implements ChunkCapture<World, PlateCaptur
         }
     }
 
-    public record CapturedChunk(ChunkSnapshot snapshot, Map<Long, BlockEntitySample> blockEntities, boolean blockEntitiesComplete) {
+    public record CapturedChunk(ChunkSnapshot snapshot, Map<Long, BlockEntitySample> blockEntities, boolean blockEntitiesComplete, Map<String, BiomeVisual> biomes) {
     }
 
     @Override
@@ -51,6 +54,13 @@ public final class PlateCaptureSource implements ChunkCapture<World, PlateCaptur
         Map<Long, BlockEntitySample> captured = blockEntities
             ? BlockEntityCapturer.captureChunk(chunk, limits)
             : Map.of();
-        return new CapturedChunk(snapshot, captured, captured.size() < PlateCaptureJob.MAX_BLOCK_ENTITIES_PER_CHUNK);
+        return new CapturedChunk(snapshot, captured, captured.size() < PlateCaptureJob.MAX_BLOCK_ENTITIES_PER_CHUNK,
+            environment ? captureBiomes(world, snapshot) : Map.of());
+    }
+    private Map<String, BiomeVisual> captureBiomes(World world, ChunkSnapshot snapshot) {
+        int minimum = Math.clamp(limits.minY(), world.getMinHeight(), world.getMaxHeight() - 1);
+        int maximum = Math.clamp(limits.maxY(), world.getMinHeight(), world.getMaxHeight() - 1);
+        return BukkitBiomeVisuals.capture(snapshot, minimum, maximum,
+            key -> visuals.computeIfAbsent(key, BukkitBiomeVisuals::capture));
     }
 }

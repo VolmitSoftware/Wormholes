@@ -253,18 +253,32 @@ public class ClientTravelMeshReuseTest extends MinecraftTestBase {
     }
 
     @Test
-    public void availableCompilerSlotsReserveDispatchBudgetDuringBulkAdoption() throws Exception {
+    public void availableCompilerSlotsReserveDispatchBudgetDuringBulkAdoption() {
+        assertEquals(50_000_000L, ClientPortalRenderer.retainedMeshBudget(100_000_001L, 0));
+        assertEquals(50_000_000L, ClientPortalRenderer.retainedMeshBudget(100_000_001L, 1));
+        assertEquals(100_000_001L, ClientPortalRenderer.retainedMeshBudget(100_000_001L, 2));
+        assertEquals(0L, ClientPortalRenderer.retainedMeshBudget(1L, 0));
+        assertEquals(1L, ClientPortalRenderer.retainedMeshBudget(1L, 2));
+        assertEquals(0L, ClientPortalRenderer.retainedMeshBudget(0L, 0));
+        assertEquals(0L, ClientPortalRenderer.retainedMeshBudget(0L, 2));
+    }
+
+    @Test
+    public void bulkAdoptionAndDispatchChargeElapsedBuildBudget() throws Exception {
         try (BulkFixture fixture = new BulkFixture()) {
             fixture.cache(0L);
             fixture.reopen();
-            set(fixture.renderer, "buildBudgetNanos", 100_000_000L);
+            set(fixture.renderer, "buildBudgetNanos", 60_000_000_000L);
             fixture.restore();
             assertEquals(1, fixture.sections().size());
-            assertTrue((long) field(fixture.renderer, "buildBudgetNanos") > 50_000_000L);
+            long remaining = (long) field(fixture.renderer, "buildBudgetNanos");
+            assertTrue(remaining >= 0L);
+            assertTrue(remaining < 60_000_000_000L);
             Method dispatch = ClientPortalRenderer.class.getDeclaredMethod("dispatchBuilds");
             dispatch.setAccessible(true);
             dispatch.invoke(fixture.renderer);
-            assertTrue((long) field(fixture.renderer, "buildBudgetNanos") < 100_000_000L);
+            assertTrue((long) field(fixture.renderer, "buildBudgetNanos") >= 0L);
+            assertTrue((long) field(fixture.renderer, "buildBudgetNanos") < remaining);
         }
     }
 

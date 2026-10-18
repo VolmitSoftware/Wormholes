@@ -54,7 +54,7 @@ public class ClientViewConnectionStatusTest extends MinecraftTestBase {
     }
 
     @Test
-    public void disabledCapacityAndStandardPacketRenderingAreDisconnected() {
+    public void disabledAndCapacityAreDisconnectedWhileArrivalOnlyCanConnect() {
         ClientViewSession session = session(new WormholesClientConfig());
         session.decline(new ViewStreamMessage.Decline(ViewStreamMessage.DeclineReason.DISABLED));
         assertEquals(ClientViewSession.ConnectionStatus.DISCONNECTED, session.connectionStatus());
@@ -63,9 +63,9 @@ public class ClientViewConnectionStatusTest extends MinecraftTestBase {
         WormholesClientConfig config = new WormholesClientConfig();
         config.renderer = "block-packets";
         ClientViewSession standard = session(config);
-        standard.offer(offer(ViewStreamLimits.WIRE_VERSION + 1, 2));
+        standard.offer(offer(ViewStreamLimits.WIRE_VERSION, 1));
         standard.accept(accept());
-        assertEquals(ClientViewSession.ConnectionStatus.DISCONNECTED, standard.connectionStatus());
+        assertEquals(ClientViewSession.ConnectionStatus.CONNECTED, standard.connectionStatus());
     }
 
     @Test

@@ -3,6 +3,7 @@ package art.arcane.wormholes.render.view;
 import art.arcane.optics.entity.EntityProfile;
 import art.arcane.wormholes.network.view.BukkitProjectedMapData;
 import art.arcane.optics.view.ContentView;
+import art.arcane.optics.stream.BiomeVisual;
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.optics.entity.EntitySnapshot;
@@ -160,7 +161,8 @@ public final class RegionSnapshotWorldViewProvider implements ProjectionWorldVie
             CapturedChunk captured = new CapturedChunk(snapshot, minHeight, maxHeight,
                 SkyMath.computeSkyDarken(world.getTime(), world.hasStorm(), world.isThundering()), now, entities,
                 chunkX, chunkZ, trackerVersion, refreshBlocks ? now : current.snapshotCapturedAtMillis,
-                blockEntities, refreshBlockEntities ? now : current.blockEntitiesCapturedAtMillis);
+                blockEntities, refreshBlockEntities ? now : current.blockEntitiesCapturedAtMillis,
+                refreshBlocks ? BukkitBiomeVisuals.capture(snapshot, minHeight, maxHeight - 1, BukkitBiomeVisuals::capture) : current.biomes);
             view.publish(key, captured);
         } catch (Throwable ex) {
             view.finishCapture(key);
@@ -335,6 +337,12 @@ public final class RegionSnapshotWorldViewProvider implements ProjectionWorldVie
                 return null;
             }
             return WormholesPlatform.keyString(chunk.snapshot.getBiome(x & 15, y, z & 15).getKey());
+        }
+
+        @Override
+        public BiomeVisual biomeVisual(int x, int y, int z) {
+            CapturedChunk chunk = capturedChunk(x, z);
+            return chunk == null ? null : chunk.biomes.get(sampleBiome(x, y, z));
         }
 
         @Override
@@ -623,11 +631,12 @@ public final class RegionSnapshotWorldViewProvider implements ProjectionWorldVie
         private final long snapshotCapturedAtMillis;
         private final Map<Long, BlockEntitySample> blockEntities;
         private final long blockEntitiesCapturedAtMillis;
+        private final Map<String, BiomeVisual> biomes;
 
         private CapturedChunk(ChunkSnapshot snapshot, int minHeight, int maxHeight, int skyDarken,
                               long capturedAtMillis, List<CapturedEntity> entities, int chunkX, int chunkZ,
                               long trackerVersion, long snapshotCapturedAtMillis,
-                              Map<Long, BlockEntitySample> blockEntities, long blockEntitiesCapturedAtMillis) {
+                              Map<Long, BlockEntitySample> blockEntities, long blockEntitiesCapturedAtMillis, Map<String, BiomeVisual> biomes) {
             this.snapshot = snapshot;
             this.minHeight = minHeight;
             this.maxHeight = maxHeight;
@@ -640,6 +649,7 @@ public final class RegionSnapshotWorldViewProvider implements ProjectionWorldVie
             this.snapshotCapturedAtMillis = snapshotCapturedAtMillis;
             this.blockEntities = blockEntities;
             this.blockEntitiesCapturedAtMillis = blockEntitiesCapturedAtMillis;
+            this.biomes = biomes;
         }
     }
 

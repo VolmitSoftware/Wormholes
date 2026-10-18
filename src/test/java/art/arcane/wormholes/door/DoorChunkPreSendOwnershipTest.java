@@ -71,7 +71,7 @@ final class DoorChunkPreSendOwnershipTest {
     }
 
     @Test
-    void failedDoorMovementPreSendsOnDestinationTeleportsOnTravelerAndRollsBackOnSource() throws Exception {
+    void failedDoorMovementPreservesSourceChunksAndTeleportsOnTraveler() throws Exception {
         Scenario scenario = scenario(SchedulerMode.EXECUTE);
 
         try (RecordingBukkitChunkPreSend recording = RecordingBukkitChunkPreSend.install(scenario.owner()::get)) {
@@ -84,8 +84,8 @@ final class DoorChunkPreSendOwnershipTest {
 
             assertEquals(1, scenario.teleports().get());
             assertEquals(List.of("traveler"), scenario.teleportOwners());
-            assertEquals(List.of("destination", "source"), recording.announcementOwners());
-            assertEquals(List.of("destination", "source"), recording.chunkOwners());
+            assertEquals(List.of(), recording.announcementOwners());
+            assertEquals(List.of(), recording.chunkOwners());
         }
     }
 
@@ -113,8 +113,8 @@ final class DoorChunkPreSendOwnershipTest {
 
             assertEquals(0, scenario.teleports().get());
             assertEquals(List.of(), scenario.teleportOwners());
-            assertEquals(List.of("destination", "source"), recording.announcementOwners());
-            assertEquals(List.of("destination", "source"), recording.chunkOwners());
+            assertEquals(List.of(), recording.announcementOwners());
+            assertEquals(List.of(), recording.chunkOwners());
             assertEquals(List.of(TraversalRefundReason.DESTINATION_UNAVAILABLE), cost.refunds);
             assertEquals(0, cost.commits.get());
         }

@@ -12,6 +12,7 @@ public final class ChunkPreSendService<W, P> {
 
     private final ChunkPreSendPlatform<W, P> platform;
     private final Supplier<ChunkPreSendOptions> options;
+    private final ChunkArrivalDelivery<W, P> arrivals;
 
     public ChunkPreSendService(ChunkPreSendPlatform<W, P> platform) {
         this(platform, ChunkPreSendSettings::active);
@@ -20,6 +21,31 @@ public final class ChunkPreSendService<W, P> {
     public ChunkPreSendService(ChunkPreSendPlatform<W, P> platform, Supplier<ChunkPreSendOptions> options) {
         this.platform = Objects.requireNonNull(platform, "platform");
         this.options = Objects.requireNonNull(options, "options");
+        this.arrivals = new ChunkArrivalDelivery<>(platform, this::current);
+    }
+
+    public ChunkPreSendTicket<W, P> prepare(ChunkPreSendOrigin<W, P> origin, W world, int blockX, int blockZ) {
+        return arrivals.prepare(origin, world, blockX >> 4, blockZ >> 4);
+    }
+
+    public boolean commit(ChunkPreSendTicket<W, P> ticket) {
+        return arrivals.commit(ticket);
+    }
+
+    public boolean complete(ChunkPreSendTicket<W, P> ticket) {
+        return platform.scheduleForPlayer(ticket.player(), () -> commit(ticket), () -> cancel(ticket), 0L);
+    }
+
+    public void cancel(ChunkPreSendTicket<W, P> ticket) {
+        arrivals.cancel(ticket);
+    }
+
+    public void shutdown() {
+        arrivals.shutdown();
+    }
+
+    public void disconnected(P player) {
+        arrivals.disconnected(player);
     }
 
     public ChunkPreSendTicket<W, P> preSend(

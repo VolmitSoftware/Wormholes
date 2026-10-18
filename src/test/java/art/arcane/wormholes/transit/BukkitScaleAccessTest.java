@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -17,7 +18,10 @@ import org.bukkit.attribute.AttributeModifier;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.inventory.EquipmentSlotGroup;
+import org.bukkit.persistence.PersistentDataContainer;
+import org.bukkit.persistence.PersistentDataType;
 import org.junit.jupiter.api.Test;
+import java.util.concurrent.atomic.AtomicReference;
 
 final class BukkitScaleAccessTest {
     @Test
@@ -74,8 +78,38 @@ final class BukkitScaleAccessTest {
     }
 
     @Test
+    void unloadKeepsTheSavedFactorAndRestoreReappliesOnlyTransientScale() {
+        Scaled scaled = scaled(1.0D);
+        BukkitScaleAccess access = scaled.access();
+        access.scale(scaled.entity(), 3.0D);
+
+        access.unload(scaled.entity());
+        assertEquals(1.0D, access.scale(scaled.entity()), 0.0D);
+        assertEquals(3.0D, scaled.entity().getPersistentDataContainer().get(BukkitScaleAccess.KEY, PersistentDataType.DOUBLE), 0.0D);
+        access.restore(scaled.entity());
+        assertEquals(3.0D, access.scale(scaled.entity()), 0.0D);
+        access.reset(scaled.entity());
+        access.restore(scaled.entity());
+        assertEquals(1.0D, access.scale(scaled.entity()), 0.0D);
+    }
+
+    @Test
+    void restoringWithoutSavedScaleClearsThePortalModifier() {
+        Scaled scaled = scaled(1.0D);
+        BukkitScaleAccess access = scaled.access();
+        access.scale(scaled.entity(), 3.0D);
+        scaled.entity().getPersistentDataContainer().remove(BukkitScaleAccess.KEY);
+
+        access.restore(scaled.entity());
+
+        assertEquals(1.0D, access.scale(scaled.entity()), 0.0D);
+        assertTrue(scaled.modifiers().isEmpty());
+    }
+
+    @Test
     void entitiesWithoutTheAttributeAreUnsupported() {
         Entity item = mock(Entity.class);
+        when(item.getPersistentDataContainer()).thenReturn(mock(PersistentDataContainer.class));
         BukkitScaleAccess access = new BukkitScaleAccess(entity -> null);
 
         assertEquals(1.0D, access.scale(item), 0.0D);
@@ -102,9 +136,21 @@ final class BukkitScaleAccessTest {
             }
             return value;
         });
-        doAnswer(invocation -> modifiers.add(invocation.getArgument(0))).when(instance).addModifier(any(AttributeModifier.class));
+        doAnswer(invocation -> modifiers.add(invocation.getArgument(0))).when(instance).addTransientModifier(any(AttributeModifier.class));
         doAnswer(invocation -> modifiers.remove(invocation.<AttributeModifier>getArgument(0))).when(instance).removeModifier(any(AttributeModifier.class));
         LivingEntity entity = mock(LivingEntity.class);
+        PersistentDataContainer data = mock(PersistentDataContainer.class);
+        AtomicReference<Double> savedFactor = new AtomicReference<>();
+        when(entity.getPersistentDataContainer()).thenReturn(data);
+        when(data.get(BukkitScaleAccess.KEY, PersistentDataType.DOUBLE)).thenAnswer(invocation -> savedFactor.get());
+        doAnswer(invocation -> {
+            savedFactor.set(invocation.getArgument(2));
+            return null;
+        }).when(data).set(eq(BukkitScaleAccess.KEY), eq(PersistentDataType.DOUBLE), any(Double.class));
+        doAnswer(invocation -> {
+            savedFactor.set(null);
+            return null;
+        }).when(data).remove(BukkitScaleAccess.KEY);
         return new Scaled(entity, modifiers, new BukkitScaleAccess(candidate -> candidate == entity ? instance : null));
     }
 

@@ -4,6 +4,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import java.util.List;
 import java.util.UUID;
@@ -22,6 +24,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import art.arcane.wormholes.Wormholes;
+import art.arcane.wormholes.PortalManager;
 import art.arcane.wormholes.api.traversal.TraversalContext;
 import art.arcane.wormholes.api.traversal.TraversalCostProvider;
 import art.arcane.wormholes.api.traversal.TraversalKind;
@@ -76,6 +79,40 @@ public final class LocalTraversalApiIntegrationTest
 		new LocalPortalTraversal(destination, successfulRuntime()).receive(traversive, null, admission);
 		assertEquals(1, commits.get());
 		assertFalse(Wormholes.traversalCostGateway.isOpen(captured.get().traversalId()));
+	}
+
+	@Test
+	public void immediateLocalPlayerTravelDoesNotRequireRemoteDepartureHold()
+	{
+		PortalManager previous = Wormholes.portalManager;
+		PortalManager manager = mock(PortalManager.class);
+		Wormholes.portalManager = manager;
+		try
+		{
+			World world = LocalPortalTestSupport.world("local-player-no-hold");
+			LocalPortal source = LocalPortalTestSupport.portal(world, PortalType.PORTAL);
+			LocalPortal destination = silentPortal(world);
+			source.linking().assignTunnel(new LocalTunnel(destination));
+			when(manager.getLocalPortal(source.getId())).thenReturn(source);
+			when(manager.getLocalPortal(destination.getId())).thenReturn(destination);
+			LocalPortalTestSupport.FakeEntity traveler = LocalPortalTestSupport.FakeEntity.player(
+					"Local traveler", new Location(world, 0.5D, 65.0D, 1.0D));
+			Traversive traversive = new Traversive(traveler.entity(), source.getFrame().view(true),
+					new Vector(0.0D, 65.0D, 1.0D), new Vector(0.5D, 65.0D, 1.0D),
+					new Vector(0.0D, 0.0D, -0.4D), new Vector(0.0D, 0.0D, -1.0D), true, source.getId());
+			AtomicInteger commits = new AtomicInteger();
+			Wormholes.traversalCostGateway = gateway(new AtomicReference<TraversalContext>(), commits);
+			TraversalCostGateway.Admission admission = new LocalPortalTraversal(source, successfulRuntime())
+					.evaluateLocalTraversalCost(traveler.entity(), new LocalTunnel(destination), traversive);
+
+			new LocalPortalTraversal(destination, successfulRuntime()).receive(traversive, null, admission);
+
+			assertEquals(1, commits.get());
+		}
+		finally
+		{
+			Wormholes.portalManager = previous;
+		}
 	}
 
 	@Test
@@ -298,7 +335,7 @@ public final class LocalTraversalApiIntegrationTest
 	}
 
 	@Test
-	public void retiredTravelerDispatchRefundsTheApiAfterSourceRollback()
+	public void retiredTravelerDispatchRefundsTheApiWithoutSendingPreparedChunks()
 	{
 		World world = LocalPortalTestSupport.world("traversal-api-retired-dispatch");
 		LocalPortal source = LocalPortalTestSupport.portal(world, PortalType.PORTAL);
@@ -394,7 +431,7 @@ public final class LocalTraversalApiIntegrationTest
 			new LocalPortalTraversal(destination, runtime).receive(traversive, reservation, admission);
 
 			assertEquals(0, teleports.get());
-			assertEquals(List.of("destination", "source"), recording.announcementOwners());
+			assertEquals(List.of(), recording.announcementOwners());
 			assertEquals(1, builtInRefunds.get());
 			assertEquals(0, apiCommits.get());
 			assertEquals(1, apiRefunds.get());

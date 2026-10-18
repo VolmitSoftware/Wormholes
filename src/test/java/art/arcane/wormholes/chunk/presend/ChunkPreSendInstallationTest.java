@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.CompletableFuture;
 import java.util.logging.Handler;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
@@ -84,7 +85,7 @@ class ChunkPreSendInstallationTest {
     }
 
     @Test
-    void aDeliveredProviderTransactionRollsBackExactlyOnceAfterFailedMovement() {
+    void aPreparedProviderTransactionCancelsExactlyOnceWithoutChangingSourceTerrain() {
         AtomicInteger announcements = new AtomicInteger();
         AtomicInteger chunks = new AtomicInteger();
         World world = world();
@@ -98,14 +99,14 @@ class ChunkPreSendInstallationTest {
         );
 
         assertNotNull(transaction);
-        assertEquals(ChunkPreSendOutcome.PRE_SENT_PARTIAL, transaction.outcome());
-        assertEquals(1, transaction.sentChunks());
-        assertEquals(1, announcements.get());
-        assertEquals(1, chunks.get());
-        assertEquals(ChunkPreSendRollbackOutcome.RESTORED, transaction.rollback());
+        assertEquals(ChunkPreSendOutcome.PREPARED, transaction.outcome());
+        assertEquals(0, transaction.sentChunks());
+        assertEquals(0, announcements.get());
+        assertEquals(0, chunks.get());
+        assertEquals(ChunkPreSendRollbackOutcome.NOT_NEEDED, transaction.rollback());
         assertEquals(ChunkPreSendRollbackOutcome.ALREADY_CONSUMED, transaction.rollback());
-        assertEquals(2, announcements.get());
-        assertEquals(2, chunks.get());
+        assertEquals(0, announcements.get());
+        assertEquals(0, chunks.get());
     }
 
     @Test
@@ -118,7 +119,7 @@ class ChunkPreSendInstallationTest {
 
         BukkitChunkPreSendTransaction transaction = BukkitChunkPreSendProvider.preSend(
             player,
-            new Location(world, 512.0D, 80.0D, 512.0D)
+            new Location(world, 0.0D, 80.0D, 0.0D)
         );
 
         assertNotNull(transaction);
@@ -271,6 +272,22 @@ class ChunkPreSendInstallationTest {
             }
 
             @Override
+            public ChunkPreparedPacket<Player> prepareChunk(World target, int chunkX, int chunkZ) {
+                return player -> {
+                    chunks.incrementAndGet();
+                    return CompletableFuture.completedFuture(true);
+                };
+            }
+
+            @Override
+            public boolean scheduleForPlayer(Player player, Runnable command, Runnable retired, long delayTicks) {
+                if (delayTicks == 0L) {
+                    command.run();
+                }
+                return true;
+            }
+
+            @Override
             public boolean scheduleForRegion(
                 World target,
                 int chunkX,
@@ -278,7 +295,9 @@ class ChunkPreSendInstallationTest {
                 Runnable command,
                 long delayTicks
             ) {
-                command.run();
+                if (delayTicks == 0L) {
+                    command.run();
+                }
                 return true;
             }
 

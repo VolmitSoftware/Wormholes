@@ -1,7 +1,7 @@
 import { deflateSync, inflateSync } from 'node:zlib'
 
 export const CHANNEL = 'wormholes:v11'
-export const WIRE_VERSION = 9
+export const WIRE_VERSION = 10
 export const S2C_HEADER_BYTES = 6
 export const FLAG_DEFLATED = 1
 export const FLAG_LAST = 2
@@ -812,6 +812,15 @@ function writeGeometry(writer, geometry, depth) {
   for (const child of nested) writeGeometry(writer, child, depth + 1)
 }
 
+function validateBiomeVisual(visual) {
+  if (!Number.isFinite(visual.temperature) || !Number.isFinite(visual.downfall) ||
+      !Number.isInteger(visual.waterColor) || visual.waterColor < 0 || visual.waterColor > 0xFFFFFF ||
+      ![visual.foliageColor, visual.dryFoliageColor, visual.grassColor].every(color => Number.isInteger(color) && color >= -1 && color <= 0xFFFFFF) ||
+      !['NONE', 'FROZEN'].includes(visual.temperatureModifier) || !['NONE', 'DARK_FOREST', 'SWAMP'].includes(visual.grassModifier)) {
+    throw new ClientViewProtocolError('invalid biome visual definition')
+  }
+}
+
 function readFlag(reader, label) {
   const value = reader.u8()
   if (value > 1) throw new ClientViewProtocolError(`invalid ${label} flag ${value}`)
@@ -1364,12 +1373,24 @@ export function readBody(reader, type, caps) {
       if (message.brick.brickIndex !== 0) throw new ClientViewProtocolError('mesh section brick index must be zero')
       const biomeCount = reader.u16()
       if (biomeCount > 512) throw new ClientViewProtocolError('section biome palette exceeds 512 entries')
-      const palette = Array.from({ length: biomeCount }, () => reader.string())
+      const visuals = {}
+      const palette = Array.from({ length: biomeCount }, () => {
+        const key = reader.string()
+        if (readFlag(reader, 'biome visual')) {
+          visuals[key] = { temperature: reader.f32(), downfall: reader.f32(), precipitation: readFlag(reader, 'biome precipitation'),
+            temperatureModifier: enumName(['NONE', 'FROZEN'], reader.u8(), 'biome temperature modifier'),
+            waterColor: reader.i32(), foliageColor: reader.i32(), dryFoliageColor: reader.i32(), grassColor: reader.i32(),
+            grassModifier: enumName(['NONE', 'DARK_FOREST', 'SWAMP'], reader.u8(), 'biome grass modifier') }
+          validateBiomeVisual(visuals[key])
+        }
+        return key
+      })
       const indices = biomeCount > 1 ? reader.bytes(1024) : Buffer.alloc(0)
       for (let offset = 0; offset < indices.length; offset += 2) {
         if (indices.readUInt16LE(offset) >= biomeCount) throw new ClientViewProtocolError('biome index exceeds palette')
       }
       message.biomes = { palette, indices }
+      if (Object.keys(visuals).length) message.biomes.visuals = visuals
       return message
     }
     case 'MESH_DROP':
@@ -1619,7 +1640,23 @@ export function writeBody(writer, message) {
           if (biomes.indices.readUInt16LE(offset) >= biomes.palette.length) throw new ClientViewProtocolError('biome index exceeds palette')
         }
         writer.u16(biomes.palette.length)
-        for (const biome of biomes.palette) writer.string(biome)
+        for (const biome of biomes.palette) {
+          writer.string(biome)
+          const visual = biomes.visuals?.[biome]
+          writer.u8(visual ? 1 : 0)
+          if (visual) {
+            validateBiomeVisual(visual)
+            writer.f32(visual.temperature)
+            writer.f32(visual.downfall)
+            writer.u8(visual.precipitation ? 1 : 0)
+            writer.u8(['NONE', 'FROZEN'].indexOf(visual.temperatureModifier))
+            writer.i32(visual.waterColor)
+            writer.i32(visual.foliageColor)
+            writer.i32(visual.dryFoliageColor)
+            writer.i32(visual.grassColor)
+            writer.u8(['NONE', 'DARK_FOREST', 'SWAMP'].indexOf(visual.grassModifier))
+          }
+        }
         writer.bytes(biomes.indices)
       }
       return

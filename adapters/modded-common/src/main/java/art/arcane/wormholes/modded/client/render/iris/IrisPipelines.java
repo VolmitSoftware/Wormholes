@@ -14,9 +14,12 @@ import art.arcane.wormholes.modded.client.render.stencil.PortalViewSelection;
 import art.arcane.wormholes.modded.client.world.ClientWorldLoader;
 import art.arcane.wormholes.modded.mixin.client.IrisPortalPipelineAccess;
 import art.arcane.wormholes.modded.mixin.client.IrisPortalRenderingAccess;
+import art.arcane.wormholes.modded.mixin.client.IrisPortalStorageBufferAccess;
+import art.arcane.wormholes.modded.mixin.client.IrisPortalStorageBuffersAccess;
 import art.arcane.wormholes.modded.client.ClientRenderAccess;
 import com.mojang.logging.LogUtils;
 import net.irisshaders.iris.Iris;
+import net.irisshaders.iris.gl.buffer.ShaderStorageBuffer;
 import net.irisshaders.iris.gl.program.ProgramSamplers;
 import net.irisshaders.iris.gl.program.ProgramUniforms;
 import net.irisshaders.iris.pipeline.IrisRenderingPipeline;
@@ -45,6 +48,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -63,6 +67,7 @@ public final class IrisPipelines {
     private static final Identifier POCKET_TYPE = Identifier.fromNamespaceAndPath("wormholes", "fullbright_pockets");
     private static final Set<String> FAILED = new HashSet<>();
     private static final Map<String, IrisWorldSettings> SETTINGS = new HashMap<>();
+    private static OptionalCompilation compiling;
 
     private IrisPipelines() {
     }
@@ -337,16 +342,21 @@ public final class IrisPipelines {
         IrisCapturedState captured = current ? null : IrisCapturedState.capture();
         long started = System.nanoTime();
         try (PortalTextureScope textures = current ? null : new PortalTextureScope();
-             PortalFramebufferScope framebuffer = current ? null : PortalFramebufferScope.capture()) {
+             PortalFramebufferScope framebuffer = current ? null : PortalFramebufferScope.capture();
+             OptionalCompilation compilation = new OptionalCompilation(target, !current)) {
             WorldRenderingPipeline pipeline = manager.preparePipeline(target);
-            if (!current && pipeline instanceof IrisRenderingPipeline) {
+            if (!(pipeline instanceof IrisRenderingPipeline)) {
+                throw new IllegalStateException("Shader compilation did not produce an Iris rendering pipeline for " + dimension);
+            }
+            compilation.completed = true;
+            if (!current) {
                 ((IrisPortalRenderingAccess) pipeline).wormholes$initializedBlockIds(true);
                 SETTINGS.put(dimension, IrisWorldSettings.capture());
             }
             LOGGER.info("Iris pipeline {} ready in {} ms", dimension, (System.nanoTime() - started) / 1_000_000L);
         } catch (RuntimeException failure) {
             FAILED.add(dimension);
-            LOGGER.error("Unable to create the Iris pipeline for {}; portal views into it compile it on first use", dimension, failure);
+            LOGGER.error("Unable to create the Iris pipeline for {}", dimension, failure);
         } finally {
             if (!current) {
                 try {
@@ -368,8 +378,38 @@ public final class IrisPipelines {
         return SETTINGS.get(dimension);
     }
 
+    public static void compilationFailed(Exception failure) {
+        if (compiling == null || compiling.retained == null) {
+            return;
+        }
+        if (failure instanceof RuntimeException runtimeFailure) {
+            throw runtimeFailure;
+        }
+        throw new IllegalStateException("Unable to compile the optional Iris dimension " + text(compiling.dimension), failure);
+    }
+
+    public static boolean arrivalReady(ClientLevel level) {
+        Optional<ShaderPack> pack = Iris.getCurrentPack();
+        if (pack.isEmpty()) {
+            return true;
+        }
+        NamespacedId dimension = resolve(level, pack.get());
+        if (!dimension.equals(Iris.getCurrentDimension())) {
+            return false;
+        }
+        captureCurrentSettings();
+        IrisWorldSettings destination = SETTINGS.get(text(dimension));
+        return destination != null && ((IrisPortalPipelineAccess) Iris.getPipelineManager()).wormholes$pipelines()
+            .get(dimension) instanceof IrisRenderingPipeline && destination.matchesTerrain(IrisWorldSettings.capture());
+    }
+
     public static void destroyed() {
         SETTINGS.clear();
+        FAILED.clear();
+        WormholesClient client = WormholesClient.instance();
+        if (client != null) {
+            client.arrivals().clear();
+        }
     }
 
     private static void captureCurrentSettings() {
@@ -417,6 +457,55 @@ public final class IrisPipelines {
 
     private static String text(NamespacedId dimension) {
         return dimension.getNamespace() + ":" + dimension.getName();
+    }
+
+    private static final class OptionalCompilation implements AutoCloseable {
+        private final NamespacedId dimension;
+        private final OptionalCompilation previous;
+        private final Set<ShaderStorageBuffer> retained;
+        private boolean completed;
+
+        private OptionalCompilation(NamespacedId dimension, boolean optional) {
+            this.dimension = dimension;
+            previous = compiling;
+            retained = optional ? new HashSet<>(IrisPortalStorageBuffersAccess.wormholes$activeBuffers()) : null;
+            compiling = this;
+        }
+
+        @Override
+        public void close() {
+            if (compiling != this) {
+                throw new IllegalStateException("Iris dimension compilation scope order");
+            }
+            compiling = previous;
+            if (completed || retained == null) {
+                return;
+            }
+            Throwable failure = null;
+            Iterator<ShaderStorageBuffer> buffers = IrisPortalStorageBuffersAccess.wormholes$activeBuffers().iterator();
+            while (buffers.hasNext()) {
+                ShaderStorageBuffer buffer = buffers.next();
+                if (retained.contains(buffer)) {
+                    continue;
+                }
+                buffers.remove();
+                try {
+                    ((IrisPortalStorageBufferAccess) buffer).wormholes$destroy();
+                } catch (RuntimeException | Error cleanupFailure) {
+                    if (failure == null) {
+                        failure = cleanupFailure;
+                    } else {
+                        failure.addSuppressed(cleanupFailure);
+                    }
+                }
+            }
+            if (failure instanceof RuntimeException runtimeFailure) {
+                throw runtimeFailure;
+            }
+            if (failure instanceof Error error) {
+                throw error;
+            }
+        }
     }
 
     record PreparationCamera(Vec3d eye, Matrix4fc view, Matrix4fc projection, Frustum frustum, PortalViewSelection.Window window,

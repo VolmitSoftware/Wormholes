@@ -163,6 +163,12 @@ public final class BukkitClientViewPortalAccess implements ViewStreamEndpoints<C
     }
 
     @Override
+    public boolean meshSectionQueued(ClientViewObserver observer, UUID portal, BlockBox clip) {
+        ClientViewPortalSource source = source(observer, portal);
+        return source != null && source.meshSectionQueued(clip);
+    }
+
+    @Override
     public void nested(ClientViewObserver observer, UUID parent, ApertureDescriptor parentGeometry, List<UUID> out) {
         if (observer.meshDepth() > 0) {
             nestedNative(observer, parent, parentGeometry, out);
@@ -272,6 +278,12 @@ public final class BukkitClientViewPortalAccess implements ViewStreamEndpoints<C
     public ViewPlate<BlockData> nestedMeshSection(ClientViewObserver observer, UUID parent, UUID child, BlockBox clip, int distance) {
         ClientViewPortalSource source = nestedSource(observer, parent, child);
         return source == null ? null : source.meshSection(clip, distance);
+    }
+
+    @Override
+    public boolean nestedMeshSectionQueued(ClientViewObserver observer, UUID parent, UUID child, BlockBox clip) {
+        ClientViewPortalSource source = nestedSource(observer, parent, child);
+        return source != null && source.meshSectionQueued(clip);
     }
 
     @Override

@@ -98,6 +98,16 @@ public class MinecraftClientViewServiceTest extends MinecraftTestBase {
     }
 
     @Test
+    public void loadingPlayerGravityBeforeTheConnectionExistsDoesNotSendPackets() {
+        ServerPlayer player = worldGravity(mock(ServerPlayer.class));
+        when(player.level()).thenReturn(overworld);
+
+        service.entityGravity(player, player.connection);
+
+        assertTrue(sent.isEmpty());
+    }
+
+    @Test
     public void nativeGreetingAdvertisesAndNegotiatesLocalMesh() throws ViewStreamProtocolException {
         service.channelRegistered(player(overworld));
         ViewStreamMessage.Offer offer = (ViewStreamMessage.Offer) message(sent.get(sent.size() - 1));

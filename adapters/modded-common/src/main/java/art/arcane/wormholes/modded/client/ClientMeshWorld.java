@@ -5,6 +5,10 @@ import art.arcane.wormholes.modded.client.render.PortalScene;
 import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.stream.EnvironmentState;
 import art.arcane.optics.stream.SectionBiomes;
+import art.arcane.optics.stream.BiomeVisual;
+import net.minecraft.world.level.biome.BiomeSpecialEffects;
+import net.minecraft.world.level.biome.BiomeGenerationSettings;
+import net.minecraft.world.level.biome.MobSpawnSettings;
 import art.arcane.optics.frame.OpticTransform;
 import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
@@ -90,10 +94,30 @@ public final class ClientMeshWorld implements BlockAndTintGetter {
         Biome[] palette = new Biome[sourceBiomes.palette().size()];
         Registry<Biome> registry = snapshot.registry().lookupOrThrow(Registries.BIOME);
         for (int index = 0; index < palette.length; index++) {
-            Identifier id = Identifier.parse(sourceBiomes.palette().get(index));
-            palette[index] = registry.getOptional(id).orElseThrow(() -> new IllegalArgumentException("Unknown destination biome " + id));
+            String key = sourceBiomes.palette().get(index);
+            BiomeVisual visual = sourceBiomes.visuals().get(key);
+            Identifier id = Identifier.parse(key);
+            palette[index] = visual == null ? registry.getOptional(id).orElseThrow(() ->
+                new IllegalArgumentException("Unknown destination biome without visual definition " + id)) : biome(visual);
         }
         biomes = new Biomes(palette, sourceBiomes.indices());
+    }
+
+    private static Biome biome(BiomeVisual visual) {
+        BiomeSpecialEffects.Builder effects = new BiomeSpecialEffects.Builder().waterColor(visual.waterColor())
+            .grassColorModifier(BiomeSpecialEffects.GrassColorModifier.valueOf(visual.grassModifier().name()));
+        if (visual.foliageColor() >= 0) {
+            effects.foliageColorOverride(visual.foliageColor());
+        }
+        if (visual.dryFoliageColor() >= 0) {
+            effects.dryFoliageColorOverride(visual.dryFoliageColor());
+        }
+        if (visual.grassColor() >= 0) {
+            effects.grassColorOverride(visual.grassColor());
+        }
+        return new Biome.BiomeBuilder().temperature(visual.temperature()).downfall(visual.downfall())
+            .hasPrecipitation(visual.precipitation()).temperatureAdjustment(Biome.TemperatureModifier.valueOf(visual.temperatureModifier().name()))
+            .specialEffects(effects.build()).generationSettings(BiomeGenerationSettings.EMPTY).mobSpawnSettings(MobSpawnSettings.EMPTY).build();
     }
 
     public static PortalScene.MeshIdentity meshContext(Snapshot snapshot) {

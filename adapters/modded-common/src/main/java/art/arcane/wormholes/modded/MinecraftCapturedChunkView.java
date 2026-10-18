@@ -1,6 +1,7 @@
 package art.arcane.wormholes.modded;
 
 import art.arcane.optics.math.CellKeys;
+import art.arcane.optics.stream.BiomeVisual;
 import art.arcane.optics.fidelity.BlockEntitySample;
 import art.arcane.optics.plate.PlateCaptureJob;
 import art.arcane.optics.plate.ViewPlateBuilder;
@@ -131,6 +132,12 @@ final class MinecraftCapturedChunkView implements ContentView<BlockState, BlockS
         int section = Math.clamp((y >> 4) - chunk.minBiomeSection(), 0, chunk.biomes().length - 1);
         int sampledY = Math.clamp(y, minHeight, maxHeight - 1);
         return chunk.biomes()[section][((sampledY & 15) >> 2) << 4 | ((z & 15) >> 2) << 2 | (x & 15) >> 2];
+    }
+
+    @Override
+    public BiomeVisual biomeVisual(int x, int y, int z) {
+        MinecraftPlateCaptureSource.CapturedChunk captured = chunk(x, z);
+        return captured == null ? null : captured.visuals().get(sampleBiome(x, y, z));
     }
 
     @Override

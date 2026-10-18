@@ -37,13 +37,13 @@ public final class BukkitChunkPreSendCapture {
             return null;
         }
         long started = System.nanoTime();
-        ChunkPreSendTicket<World, Player> ticket = service.preSend(
+        ChunkPreSendTicket<World, Player> ticket = service.prepare(
             origin,
             destinationWorld,
             target.getBlockX(),
             target.getBlockZ()
         );
         PreSendTelemetry.record(origin.player(), ticket.outcome(), ticket.sentChunks(), ticket.plannedChunks(), System.nanoTime() - started);
-        return ticket.outcome().delivered() ? new BukkitChunkPreSendTransaction(service, ticket) : null;
+        return ticket.outcome() == ChunkPreSendOutcome.PREPARED ? new BukkitChunkPreSendTransaction(service, ticket) : null;
     }
 }

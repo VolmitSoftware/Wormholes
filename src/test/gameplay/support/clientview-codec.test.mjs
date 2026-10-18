@@ -43,6 +43,7 @@ const TYPE_ALIASES = Object.freeze({
   entity_hurt: 'ENTITY_EVENT',
   entity_frame_delta: 'ENTITY_FRAME',
   mesh_section_biomes: 'MESH_SECTION',
+  mesh_section_custom_biome: 'MESH_SECTION',
   travel_begin_resident: 'TRAVEL_BEGIN'
 })
 const TEST_UUID = '00000000-0000-000c-0000-000000000022'
@@ -174,8 +175,8 @@ describe('ClientView golden vectors', () => {
 
   it('decodes the handshake fields', () => {
     const offer = decodeVector(vector('offer'))
-    assert.deepEqual(offer, { type: 'OFFER', wire: 9, mcDataVersion: 4325, serverCaps: ALL_CAPS, maxFrameBytes: 524288, zeroCopyNonce: 0x1122334455667788n })
-    assert.deepEqual(decodeVector(vector('hello')), { type: 'HELLO', wire: 9, mcDataVersion: 4325, clientCaps: HELLO_CAPS, maxFrameBytes: 524288, plateMemoryMb: 256, zeroCopyNonceEcho: 0x1122334455667788n, brandTag: 'fabric' })
+    assert.deepEqual(offer, { type: 'OFFER', wire: 10, mcDataVersion: 4325, serverCaps: ALL_CAPS, maxFrameBytes: 524288, zeroCopyNonce: 0x1122334455667788n })
+    assert.deepEqual(decodeVector(vector('hello')), { type: 'HELLO', wire: 10, mcDataVersion: 4325, clientCaps: HELLO_CAPS, maxFrameBytes: 524288, plateMemoryMb: 256, zeroCopyNonceEcho: 0x1122334455667788n, brandTag: 'fabric' })
     assert.deepEqual(decodeVector(vector('accept')), { type: 'ACCEPT', sessionId: 42, caps: HELLO_CAPS, tickRate: 20, maxFrameBytes: 524288, hashSalt: 0x0f1e2d3c4b5a6978n, ackWindowFrames: 8 })
     assert.deepEqual(decodeVector(vector('decline')), { type: 'DECLINE', reason: 'DATA_VERSION_MISMATCH' })
     assert.deepEqual(capabilityNames(HELLO_CAPS), ['PLATES', 'BRICK_CACHE', 'DEST_LIGHT', 'ENTITY_FRAMES', 'VIEW_STATS'])

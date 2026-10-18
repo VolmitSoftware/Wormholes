@@ -11,6 +11,7 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 
 import java.util.Map;
+import java.util.Objects;
 
 record IrisWorldSettings(Object2IntMap<BlockState> blocks, Map<Block, BlockRenderType> blockTypes,
                          Object2IntFunction<NamespacedId> entities, Object2IntFunction<NamespacedId> items,
@@ -22,6 +23,12 @@ record IrisWorldSettings(Object2IntMap<BlockState> blocks, Map<Block, BlockRende
             settings.getVertexFormat(), settings.getAmbientOcclusionLevel(), settings.shouldDisableDirectionalShading(),
             settings.shouldUseSeparateAo(), settings.shouldSeparateEntityDraws(), settings.shouldVoxelizeLightBlocks(),
             settings.breaksAnisotropy(), settings.isReloadRequired());
+    }
+
+    boolean matchesTerrain(IrisWorldSettings other) {
+        return format == other.format && ambientOcclusion == other.ambientOcclusion && directional == other.directional
+            && separateAo == other.separateAo && separateEntities == other.separateEntities && voxelize == other.voxelize
+            && anisotropy == other.anisotropy && Objects.equals(blocks, other.blocks) && Objects.equals(blockTypes, other.blockTypes);
     }
 
     void apply() {

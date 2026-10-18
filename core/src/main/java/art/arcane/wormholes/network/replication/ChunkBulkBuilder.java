@@ -5,6 +5,7 @@ import art.arcane.wormholes.network.view.ViewSlice;
 import art.arcane.wormholes.portal.ProjectionRenderMode;
 import art.arcane.optics.math.CellKeys;
 import art.arcane.optics.fidelity.BlockEntitySample;
+import art.arcane.optics.stream.BiomeVisual;
 
 
 import java.io.ByteArrayOutputStream;
@@ -109,7 +110,15 @@ public final class ChunkBulkBuilder<S, B, T> {
                 inside.put(entry.getKey(), entry.getValue());
             }
         }
-        return new ViewSlice(minX, minY, minZ, sizeX, sizeY, sizeZ, palette, indices, light, biomePalette, biomes, inside);
+        Map<String, BiomeVisual> capturedVisuals = reader.biomeVisuals(snapshot);
+        Map<String, BiomeVisual> visuals = new HashMap<>(biomePalette.size());
+        for (String key : biomePalette) {
+            BiomeVisual visual = capturedVisuals.get(key);
+            if (visual != null) {
+                visuals.put(key, visual);
+            }
+        }
+        return new ViewSlice(minX, minY, minZ, sizeX, sizeY, sizeZ, palette, indices, light, biomePalette, biomes, inside, visuals);
     }
 
     static void substituteDeeplyBuriedCells(int minX,
@@ -209,6 +218,9 @@ public final class ChunkBulkBuilder<S, B, T> {
         String blockKey(B block);
         String biomeKey(T biome);
         boolean occluding(B block);
+        default Map<String, BiomeVisual> biomeVisuals(S snapshot) {
+            return Map.of();
+        }
     }
 
     @FunctionalInterface

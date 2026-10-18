@@ -59,6 +59,11 @@ List<String> forgeCoveredClientTestClasses = [
     'art.arcane.wormholes.modded.client.render.iris.IrisSodiumProgramsTest',
     'art.arcane.wormholes.modded.client.render.sodium.SodiumArrivalSectionTest'
 ]
+List<String> clientTestClasses = [
+    'art.arcane.wormholes.modded.client.render.iris.IrisArrivalReadinessTest',
+    'art.arcane.wormholes.modded.client.world.ClientArrivalRendererTransactionTest',
+    'art.arcane.wormholes.modded.client.world.PreparedTerrainTest'
+]
 
 sourceSets {
     main {
@@ -70,6 +75,10 @@ sourceSets {
         for (String testClass : forgeCoveredClientTestClasses) {
             java.exclude(testClass.replace('.', '/') + '.java')
         }
+    }
+    clientTestLauncher {
+        compileClasspath += sourceSets.test.compileClasspath
+        runtimeClasspath += sourceSets.test.runtimeClasspath
     }
     clientGameTest {
         java.srcDir('../modded-common/src/clientGameTest/java')
@@ -144,6 +153,7 @@ dependencies {
     bundle('com.github.VolmitSoftware.VolmLib:volmlib-web:master-SNAPSHOT')
     testImplementation('junit:junit:4.13.2')
     testImplementation('org.mockito:mockito-core:5.23.0')
+    clientTestLauncherImplementation('org.junit.platform:junit-platform-launcher:6.1.2')
     testRuntimeOnly('org.junit.platform:junit-platform-launcher:6.1.2')
     testRuntimeOnly('org.junit.vintage:junit-vintage-engine:6.1.2')
 }
@@ -187,7 +197,7 @@ neoForge {
 
 tasks.named('test').configure {
     useJUnitPlatform()
-    for (String testClass : forgeCoveredClientTestClasses) {
+    for (String testClass : forgeCoveredClientTestClasses + clientTestClasses) {
         exclude(testClass.replace('.', '/') + '*.class')
     }
     inputs.files(file('../../optics/src/test/resources/block-state-goldens.txt'),
@@ -197,6 +207,27 @@ tasks.named('test').configure {
     filter {
         excludeTestsMatching('art.arcane.wormholes.modded.client.render.PortalSectionMeshTest')
     }
+}
+
+TaskProvider<Test> clientTest = tasks.register('clientTest', Test) {
+    group = 'verification'
+    description = 'Runs client unit tests with the client-side FML test launcher.'
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.clientTestLauncher.output + sourceSets.test.runtimeClasspath.filter { File dependency ->
+        !dependency.name.startsWith('junit-fml-')
+    }
+    useJUnitPlatform()
+    Test serverTest = tasks.named('test', Test).get()
+    dependsOn(serverTest.dependsOn)
+    jvmArgs(serverTest.jvmArgs)
+    jvmArgumentProviders.addAll(serverTest.jvmArgumentProviders)
+    for (String testClass : clientTestClasses) {
+        include(testClass.replace('.', '/') + '*.class')
+    }
+}
+
+tasks.named('check').configure {
+    dependsOn(clientTest)
 }
 
 tasks.withType(JavaCompile).configureEach {

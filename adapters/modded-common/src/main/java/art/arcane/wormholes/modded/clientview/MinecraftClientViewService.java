@@ -568,7 +568,7 @@ public final class MinecraftClientViewService implements AutoCloseable {
 
     private void sendGravity(Entity entity, ServerPlayerConnection connection, boolean restoreWorldOrientation) {
         runtime.requireServerThread();
-        if (!(entity.level() instanceof ServerLevel level)) {
+        if (connection == null || !(entity.level() instanceof ServerLevel level)) {
             return;
         }
         int handle = observerHandle(connection, level);

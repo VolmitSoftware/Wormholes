@@ -34,6 +34,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.Pose;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.decoration.ArmorStand;
 import net.minecraft.world.entity.player.Player;
@@ -98,6 +99,7 @@ public final class GravityPortalClientGameTest {
             awaitArrival(client, server, expected, 0.5D);
             Snapshot authoritative = server.compute(nativeServer -> snapshot(server.player()));
             assertTrue(expected.equals(authoritative.gravity()) && authoritative.grounded(), "Server did not accept grounded wall locomotion: " + authoritative);
+            assertTrue(authoritative.pose() == Pose.STANDING, "Server forced a prone or crouching pose after wall landing: " + authoritative);
             assertTrue(Math.abs(authoritative.scale() - 0.5D) < 1.0E-6D, "Server traveller scale was not 50%: " + authoritative);
             assertTrue(Math.abs(Mth.wrapDegrees(authoritative.yaw() - YAW)) < 0.5F, "Server did not preserve local yaw");
             server.run(nativeServer -> scene.traversal().verify());
@@ -557,6 +559,7 @@ public final class GravityPortalClientGameTest {
     }
 
     private static void validatePose(Minecraft minecraft, GravityFrame gravity, int observerId, double scale) {
+        assertTrue(minecraft.player.getPose() == Pose.STANDING, "Client forced " + minecraft.player.getPose() + " after wall landing");
         assertTrue(Math.abs(minecraft.player.getAttributeValue(Attributes.SCALE) - scale) < 1.0E-6D, "Client scale did not remain " + scale);
         Vec3 eyeOffset = MinecraftGravity.local(gravity, minecraft.player.getEyePosition().subtract(minecraft.player.position()));
         assertTrue(Math.abs(eyeOffset.x) < 1.0E-6D && Math.abs(eyeOffset.z) < 1.0E-6D
@@ -642,7 +645,7 @@ public final class GravityPortalClientGameTest {
     }
 
     private static Snapshot snapshot(LivingEntity entity) {
-        return new Snapshot(MinecraftGravity.frame(entity), entity.position(), entity.getDeltaMovement(), entity.getYRot(), entity.getScale(), entity.onGround());
+        return new Snapshot(MinecraftGravity.frame(entity), entity.position(), entity.getDeltaMovement(), entity.getYRot(), entity.getScale(), entity.onGround(), entity.getPose());
     }
 
     private static void fill(ServerLevel level, BlockPos min, int sizeX, int sizeY, int sizeZ, BlockState state) {
@@ -718,7 +721,7 @@ public final class GravityPortalClientGameTest {
         }
     }
 
-    private record Snapshot(GravityFrame gravity, Vec3 position, Vec3 velocity, float yaw, double scale, boolean grounded) {
+    private record Snapshot(GravityFrame gravity, Vec3 position, Vec3 velocity, float yaw, double scale, boolean grounded, Pose pose) {
     }
 
     private record Preparation(Snapshot pose, boolean flying, boolean mayFly, boolean chunkLoaded, String support,

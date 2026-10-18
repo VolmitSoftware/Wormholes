@@ -88,8 +88,17 @@ public final class BukkitRegionTaskProvider {
         private final Lock lifecycleWriteLock;
 
         Service(Plugin plugin) {
-            this(plugin, (activePlugin, world, chunkX, chunkZ, task, delayTicks) ->
-                FoliaScheduler.runRegion(activePlugin, world, chunkX, chunkZ, task, delayTicks));
+            this(plugin, (activePlugin, world, chunkX, chunkZ, task, delayTicks) -> {
+                if (delayTicks <= 0L && !FoliaScheduler.isFoliaThreading(activePlugin.getServer())
+                    && FoliaScheduler.isOwnedByCurrentRegion(world, chunkX, chunkZ)) {
+                    if (!activePlugin.isEnabled()) {
+                        return false;
+                    }
+                    task.run();
+                    return true;
+                }
+                return FoliaScheduler.runRegion(activePlugin, world, chunkX, chunkZ, task, delayTicks);
+            });
         }
 
         Service(Plugin plugin, RegionScheduler scheduler) {

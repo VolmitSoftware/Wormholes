@@ -691,7 +691,7 @@ public final class ClientSeamlessTravel {
         TravelMessage.TravelBegin arm = nearestResident(minecraft.level, player);
         ClientLevel target = arm == null ? null : residents.level(arm.levelHandle());
         if (target != null && target != minecraft.level) {
-            ClientWorldLoader.prepareArrivalTerrain(target, ClientTravelMotion.point(arm.sourceToDestination(), camera.position()));
+            ClientWorldLoader.prepareArrivalTerrain(target, ClientTravelMotion.point(arm.sourceToDestination(), camera.position()), false);
         }
     }
 

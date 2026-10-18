@@ -52,10 +52,14 @@ public final class MinecraftScaleAccess implements ScaleAccess<Entity> {
             }
             return true;
         }
-        if (current != null && current.amount() == factor - 1.0D && current.operation() == AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL) {
+        if (current != null && current.amount() == factor - 1.0D && current.operation() == AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL
+            && !instance.getPermanentModifiers().contains(current)) {
             return true;
         }
-        instance.addOrReplacePermanentModifier(new AttributeModifier(ID, factor - 1.0D, AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL));
+        if (current != null) {
+            instance.removeModifier(ID);
+        }
+        instance.addTransientModifier(new AttributeModifier(ID, factor - 1.0D, AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL));
         entity.refreshDimensions();
         return true;
     }

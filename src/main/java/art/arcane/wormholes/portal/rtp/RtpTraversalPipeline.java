@@ -25,6 +25,7 @@ import art.arcane.wormholes.api.traversal.internal.TraversalCostGateway;
 import art.arcane.wormholes.chunk.presend.BukkitChunkPreSendCapture;
 import art.arcane.wormholes.chunk.presend.BukkitChunkPreSendProvider;
 import art.arcane.wormholes.chunk.presend.BukkitChunkPreSendTransaction;
+import art.arcane.wormholes.chunk.arrival.BukkitArrivalPreparation;
 import art.arcane.wormholes.portal.LocalPortal;
 import art.arcane.optics.frame.Frame;
 import art.arcane.wormholes.portal.PortalStructure;
@@ -613,15 +614,36 @@ final class RtpTraversalPipeline
 		Retained retained,
 		Active traversal)
 	{
+		BukkitArrivalPreparation.prepareForTeleport(entity instanceof Player player ? player : null, target,
+			attempt -> teleportReady(portal, entity, traversive, preparation, targetFrame, target, retained, traversal, attempt),
+			() -> {
+				retained.close();
+				fail(portal, entity, preparation, null, stage("traveler retired during arrival preparation"));
+			});
+	}
+
+	private void teleportReady(
+		LocalPortal portal,
+		Entity entity,
+		Traversive traversive,
+		RtpService.TraversalPreparation preparation,
+		Frame targetFrame,
+		Location target,
+		Retained retained,
+		Active traversal,
+		BukkitArrivalPreparation.Attempt arrivalAttempt)
+	{
 		if(active.get(entity.getUniqueId()) != traversal || !traversal.canProceed()
 			|| !sourceEligible(portal, entity) || !portal.canContinueRtpTraversal(entity))
 		{
+			arrivalAttempt.cancel();
 			retained.close();
 			fail(portal, entity, preparation, null, stage("traveler ineligible before teleport"));
 			return;
 		}
 		if(!portal.commitDepartureHold(entity, traversive))
 		{
+			arrivalAttempt.cancel();
 			retained.close();
 			fail(portal, entity, preparation, null, stage("departure hold lost"));
 			return;
@@ -630,10 +652,12 @@ final class RtpTraversalPipeline
 		CompletionStage<Boolean> teleportStage;
 		try
 		{
+			arrivalAttempt.beforeTeleport();
 			teleportStage = Objects.requireNonNull(environment.teleport(entity, target), "teleport stage");
 		}
 		catch(RuntimeException exception)
 		{
+			arrivalAttempt.cancel();
 			departureDrain.complete(null);
 			retained.close();
 			fail(portal, entity, preparation, exception, new Abort("teleport failed", FAILURE_STAGE, TraversalRefundReason.TELEPORT_FAILED));
@@ -641,6 +665,14 @@ final class RtpTraversalPipeline
 		}
 		teleportStage.whenComplete((teleported, teleportFailure) ->
 		{
+			if(teleportFailure == null && Boolean.TRUE.equals(teleported))
+			{
+				arrivalAttempt.complete();
+			}
+			else
+			{
+				arrivalAttempt.cancel();
+			}
 			departureDrain.complete(null);
 			guard(portal, entity, preparation, retained, () ->
 			{
@@ -1266,7 +1298,7 @@ final class RtpTraversalPipeline
 		{
 			if(preSendTransaction != null)
 			{
-				preSendTransaction.commit();
+				preSendTransaction.cancel();
 			}
 		}
 

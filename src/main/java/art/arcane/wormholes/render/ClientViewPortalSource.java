@@ -176,6 +176,11 @@ public final class ClientViewPortalSource {
         return ProjectorPlates.acquireSection(plates, views, portal, destination, air, plateTarget, clip, distance);
     }
 
+    public boolean meshSectionQueued(BlockBox clip) {
+        return plateTarget != null && ProjectorPlates.enabled(plates, portal, target)
+            && ProjectorPlates.sectionQueued(plates, plateTarget, clip);
+    }
+
     public long geometryRevision() {
         return geometryRevision;
     }

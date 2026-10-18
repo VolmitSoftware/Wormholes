@@ -6,10 +6,15 @@ import art.arcane.wormholes.network.view.ViewSlice;
 import art.arcane.wormholes.portal.ProjectionRenderMode;
 import art.arcane.optics.math.CellKeys;
 import art.arcane.optics.fidelity.BlockEntitySample;
+import art.arcane.optics.stream.BiomeVisual;
+import art.arcane.wormholes.render.BiomeVisuals;
+import com.mojang.serialization.JsonOps;
 import net.minecraft.commands.arguments.blocks.BlockStateParser;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Holder;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.LightLayer;
+import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
 
@@ -28,6 +33,7 @@ public final class MinecraftChunkSnapshot {
     private final byte[] light;
     private final String[] biomes;
     private final Map<Long, BlockEntitySample> blockEntities;
+    private final Map<String, BiomeVisual> biomeVisuals = new HashMap<>();
 
     private MinecraftChunkSnapshot(LevelChunk chunk, BlockBox box) {
         chunkX = chunk.getPos().x();
@@ -62,9 +68,11 @@ public final class MinecraftChunkSnapshot {
         for (int y = box.minY() >> 2; y <= box.maxY() >> 2; y++) {
             for (int z = 0; z < 4; z++) {
                 for (int x = 0; x < 4; x++) {
-                    snapshot.biomes[((y - (snapshot.minY >> 2)) << 4) | (z << 2) | x] =
-                        chunk.getNoiseBiome((snapshot.chunkX << 2) + x, y, (snapshot.chunkZ << 2) + z)
-                            .unwrapKey().orElseThrow().identifier().toString();
+                    Holder<Biome> biome = chunk.getNoiseBiome((snapshot.chunkX << 2) + x, y, (snapshot.chunkZ << 2) + z);
+                    String key = biome.unwrapKey().orElseThrow().identifier().toString();
+                    snapshot.biomes[((y - (snapshot.minY >> 2)) << 4) | (z << 2) | x] = key;
+                    snapshot.biomeVisuals.computeIfAbsent(key, ignored -> BiomeVisuals.read(
+                        Biome.NETWORK_CODEC.encodeStart(JsonOps.INSTANCE, biome.value()).getOrThrow().getAsJsonObject()));
                 }
             }
         }
@@ -123,6 +131,11 @@ public final class MinecraftChunkSnapshot {
         @Override
         public boolean occluding(BlockState block) {
             return MinecraftProjectorBlocks.INSTANCE.isOccluding(block);
+        }
+
+        @Override
+        public Map<String, BiomeVisual> biomeVisuals(MinecraftChunkSnapshot snapshot) {
+            return snapshot.biomeVisuals;
         }
     }
 }

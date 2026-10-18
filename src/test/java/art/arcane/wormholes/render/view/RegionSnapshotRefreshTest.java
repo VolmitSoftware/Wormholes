@@ -34,6 +34,7 @@ import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -45,6 +46,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -137,6 +139,7 @@ final class RegionSnapshotRefreshTest {
             }
 
             assertEquals(1, fixture.snapshotCaptures.get());
+            assertEquals(1, fixture.biomeCaptures.get());
             assertEquals(initialRevision, fixture.view.getRevision());
             assertEquals(Material.STONE, fixture.view.material(0, 64, 0));
 
@@ -144,6 +147,7 @@ final class RegionSnapshotRefreshTest {
             fixture.capture();
 
             assertEquals(2, fixture.snapshotCaptures.get());
+            assertEquals(2, fixture.biomeCaptures.get());
             assertTrue(fixture.view.getRevision() > initialRevision);
             assertEquals(Material.DIRT, fixture.view.material(0, 64, 0));
         }
@@ -241,6 +245,8 @@ final class RegionSnapshotRefreshTest {
         private final AtomicLong entityX = new AtomicLong(1L);
         private final AtomicLong entityZ = new AtomicLong(8L);
         private final AtomicInteger snapshotCaptures = new AtomicInteger();
+        private final AtomicInteger biomeCaptures = new AtomicInteger();
+        private final MockedStatic<BukkitBiomeVisuals> biomeVisuals = mockStatic(BukkitBiomeVisuals.class);
         private final AtomicInteger equipmentCaptures = new AtomicInteger();
         private final AtomicReference<Material> material = new AtomicReference<Material>(Material.STONE);
         private final AtomicReference<Entity[]> entities = new AtomicReference<Entity[]>();
@@ -257,6 +263,10 @@ final class RegionSnapshotRefreshTest {
         private final Method capture;
 
         private Fixture() throws ReflectiveOperationException {
+            biomeVisuals.when(() -> BukkitBiomeVisuals.capture(any(), anyInt(), anyInt(), any())).thenAnswer(call -> {
+                biomeCaptures.incrementAndGet();
+                return Map.of();
+            });
             LivingEntity entity = proxy(LivingEntity.class, this::entityValue);
             entities.set(new Entity[] {entity});
             Chunk chunk = proxy(Chunk.class, (instance, method, arguments) -> switch (method.getName()) {
@@ -339,6 +349,7 @@ final class RegionSnapshotRefreshTest {
         @Override
         public void close() {
             provider.close();
+            biomeVisuals.close();
             Wormholes.projectionChangeTracker = previousTracker;
         }
     }

@@ -112,7 +112,7 @@ final class MinecraftPlateSnapshotCache {
         for (BlockEntitySample sample : snapshot.blockEntities().values()) {
             size += 128L + sample.bytes() * 2L;
         }
-        return size;
+        return size + snapshot.visuals().size() * 96L;
     }
 
     record Limits(int maximumEntries, int lifetimeTicks, long maximumBytes) {

@@ -16,6 +16,8 @@ abstract class VerifyModdedArtifact extends DefaultTask {
                                      'client.EndPortalSurfaceMixin', 'client.MeshBlockModelLighterMixin', 'client.MeshFluidLightingMixin',
                                      'client.PortalShaderGameRendererMixin', 'client.PortalSkyRendererMixin',
                                      'client.PreparedLevelAccess', 'client.PreparedLevelMetadataMixin',
+                                     'client.ArrivalExtractorAccess', 'client.ArrivalPacketMixin',
+                                     'client.ArrivalDispatcherAccess', 'client.ArrivalViewAreaAccess',
                                      'client.CrossingCameraMixin', 'client.SodiumPortalUniformsMixin',
                                      'client.LocalMeshChunkMixin', 'client.StraddleOverlayMixin',
                                      'client.ClientWorldAtmosphereAccess', 'client.ClientWorldFogAccess',

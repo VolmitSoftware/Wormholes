@@ -1,6 +1,8 @@
 package art.arcane.wormholes.render.clientview;
 
 import art.arcane.wormholes.network.client.ClientViewChannel;
+import art.arcane.wormholes.chunk.presend.BukkitChunkPreSendProvider;
+import art.arcane.wormholes.chunk.arrival.BukkitArrivalPreparation;
 import java.util.Collection;
 import java.util.Objects;
 import java.util.UUID;
@@ -149,6 +151,8 @@ public final class BukkitClientViewNegotiator implements Listener, PluginMessage
     @EventHandler(priority = EventPriority.MONITOR)
     public void on(PlayerQuitEvent event) {
         Player player = event.getPlayer();
+        BukkitChunkPreSendProvider.disconnected(player);
+        BukkitArrivalPreparation.disconnected(player.getUniqueId());
         ClientViewObserver observer = view.observer(player.getUniqueId());
         if (observer != null && observer.player() == player) {
             view.forget(player.getUniqueId(), observer);

@@ -52,6 +52,7 @@ public class ResidentLevelsOpenCloseTest extends MinecraftTestBase {
             ClientLevel nether = residents.open(ResidentTestFixtures.open(3, ResidentTestFixtures.NETHER, 12, -4));
             assertEquals(1, scope.levels.constructed().size());
             assertSame(scope.levels.constructed().getFirst(), nether);
+            assertEquals(ResidentTestFixtures.environment(ResidentTestFixtures.NETHER).gameTime(), nether.getLevelData().getGameTime());
             assertTrue(residents.has(3));
             assertSame(nether, residents.level(3));
             assertEquals(3, residents.handle(nether));
@@ -277,6 +278,7 @@ public class ResidentLevelsOpenCloseTest extends MinecraftTestBase {
                 ClientChunkCache cache = mock(ClientChunkCache.class, withSettings().extraInterfaces(PreparedChunkColumns.class));
                 when(((PreparedChunkColumns) cache).wormholes$columns()).thenReturn(new AtomicReferenceArray<>(0));
                 when(level.getChunkSource()).thenReturn(cache);
+                when(level.getLevelData()).thenReturn((ClientLevel.ClientLevelData) context.arguments().get(1));
                 when(level.entitiesForRendering()).thenReturn(List.of());
                 when(level.dimension()).thenReturn(dimension(context.arguments().get(2)));
             });

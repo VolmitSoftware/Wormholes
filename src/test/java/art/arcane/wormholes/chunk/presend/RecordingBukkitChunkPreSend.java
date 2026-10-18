@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 
 public final class RecordingBukkitChunkPreSend implements AutoCloseable {
@@ -142,6 +143,19 @@ public final class RecordingBukkitChunkPreSend implements AutoCloseable {
                 long delayTicks
             ) {
                 command.run();
+                return true;
+            }
+
+            @Override
+            public ChunkPreparedPacket<Player> prepareChunk(World world, int chunkX, int chunkZ) {
+                return player -> CompletableFuture.completedFuture(sendChunk(player, world, chunkX, chunkZ));
+            }
+
+            @Override
+            public boolean scheduleForPlayer(Player player, Runnable command, Runnable retired, long delayTicks) {
+                if (delayTicks == 0L) {
+                    command.run();
+                }
                 return true;
             }
 

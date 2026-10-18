@@ -108,9 +108,18 @@ shadowJarTask.configure {
             return false
         }
         List<String> segments = relative.tokenize('/')
-        String capability = segments[0] == 'common' || segments[0].startsWith('v') ? segments[1] : segments[0]
-        if (!['block', 'chunk', 'map', 'entity', 'item', 'environment', 'player'].contains(capability)) {
+        String capability = segments[0] == 'common' || segments[0].startsWith('v')
+                || segments[0].startsWith('minecraft') ? segments[1] : segments[0]
+        if (segments[0].startsWith('minecraft') && capability != 'terrain') {
             return true
+        }
+        if (!['block', 'chunk', 'map', 'entity', 'item', 'environment', 'player', 'terrain'].contains(capability)) {
+            return true
+        }
+        if (capability == 'terrain') {
+            return !segments.last().startsWith('NativeGenerationRegistry')
+                    && !segments.last().startsWith('NativeRegistryDefinitions')
+                    && !segments.last().startsWith('RegistryDefinitionJson')
         }
         if (capability == 'player') {
             return !segments.last().startsWith('PlayerRespawnAccess')
@@ -498,6 +507,10 @@ pluginPackaging {
                 'art/arcane/volmlib/nativelib/chunk/ChunkPosition.class',
                 'art/arcane/volmlib/nativelib/chunk/ChunkPacketSnapshot.class',
                 'art/arcane/volmlib/nativelib/chunk/ChunkWorldContext.class',
+                'art/arcane/volmlib/nativelib/chunk/PreparedChunkPacket.class',
+                'art/arcane/volmlib/nativelib/terrain/NativeGenerationRegistry.class',
+                'art/arcane/volmlib/nativelib/v26_2_R1/terrain/NativeGenerationRegistryImpl.class',
+                'art/arcane/volmlib/nativelib/v26_3_R1/terrain/NativeGenerationRegistryImpl.class',
                 'art/arcane/volmlib/nativelib/entity/EntityMetadataAccess.class',
                 'art/arcane/volmlib/nativelib/common/entity/NativeEntityMetadataAccess.class',
                 'art/arcane/volmlib/nativelib/v26_2_R1/entity/NativeEntityMetadataAccess.class',

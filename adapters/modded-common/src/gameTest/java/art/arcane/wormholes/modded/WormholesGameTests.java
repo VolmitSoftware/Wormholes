@@ -122,6 +122,7 @@ public final class WormholesGameTests {
     }
 
     public static void lookContinuityRuntime(GameTestHelper helper) {
+        MinecraftGravityPoseGameTest.verify(helper);
         MinecraftLookContinuityGameTest.run(helper);
     }
 

@@ -5,15 +5,21 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
+import org.bukkit.entity.Player;
 import org.bukkit.event.player.PlayerTeleportEvent;
 
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.wormholes.Wormholes;
+import art.arcane.wormholes.chunk.arrival.BukkitArrivalPreparation;
+import art.arcane.wormholes.chunk.presend.BukkitChunkPreSendProvider;
+import art.arcane.wormholes.chunk.presend.BukkitChunkPreSendTransaction;
 import art.arcane.wormholes.platform.WormholesPlatform;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.Traversive;
@@ -37,6 +43,11 @@ public final class ConvoyLocalTraversal {
         void leash(Entity leashed, Entity holder);
 
         boolean runRegion(Location location, Runnable task);
+
+        default boolean runEntity(Entity entity, Runnable task, Runnable retired) {
+            task.run();
+            return true;
+        }
     }
 
     /** Settlement callbacks; {@link #settle} runs once per member on the destination before re-attachment. */
@@ -50,7 +61,8 @@ public final class ConvoyLocalTraversal {
 
     public static final Teleporter BUKKIT = new BukkitTeleporter();
 
-    private record Move(ConvoyGraph.Member member, Location origin, Location target, Traversive traversive) {
+    private record Move(ConvoyGraph.Member member, Location origin, Location target, Traversive traversive,
+                        BukkitChunkPreSendTransaction chunks, AtomicReference<BukkitArrivalPreparation.Attempt> arrival) {
     }
 
     private final Teleporter teleporter;
@@ -66,7 +78,11 @@ public final class ConvoyLocalTraversal {
             Location origin = entity.getLocation().clone();
             Traversive memberTraversive = rootTraversive.forMember(entity, origin.toVector());
             Location target = destination.computeExitTarget(memberTraversive);
-            moves.add(new Move(member, origin, target, memberTraversive));
+            BukkitChunkPreSendTransaction chunks = null;
+            if (entity instanceof Player player) {
+                chunks = BukkitChunkPreSendProvider.preSend(player, target);
+            }
+            moves.add(new Move(member, origin, target, memberTraversive, chunks, new AtomicReference<>()));
         }
         if (moves.isEmpty()) {
             arrival.failed("empty rig");
@@ -92,8 +108,30 @@ public final class ConvoyLocalTraversal {
         }
         Move move = moves.get(index);
         Entity entity = move.member().entity();
+        AtomicBoolean pending = new AtomicBoolean(true);
+        Runnable retired = () -> {
+            if (pending.compareAndSet(true, false)) {
+                rollback(moves, index, arrival, "traveler scheduler retired");
+            }
+        };
+        if (!teleporter.runEntity(entity, () -> {
+            if (pending.compareAndSet(true, false)) {
+                teleportMove(moves, index, reloadExpected, arrival);
+            }
+        }, retired)) {
+            retired.run();
+        }
+    }
+
+    private void teleportMove(List<Move> moves, int index, boolean reloadExpected, Arrival arrival) {
+        Move move = moves.get(index);
+        Entity entity = move.member().entity();
+        BukkitArrivalPreparation.Attempt arrivalAttempt = BukkitArrivalPreparation.claimForTeleport(
+            entity instanceof Player player ? player : null, move.target());
         CompletionStage<Boolean> stage;
+        move.arrival().set(arrivalAttempt);
         try {
+            arrivalAttempt.beforeTeleport();
             stage = Objects.requireNonNull(teleporter.teleport(entity, move.target()), "teleport stage");
         } catch (RuntimeException failure) {
             rollback(moves, index, arrival, entity.getName());
@@ -111,6 +149,13 @@ public final class ConvoyLocalTraversal {
     private void finish(List<Move> moves, boolean reloadExpected, Arrival arrival) {
         Runnable settle = () -> {
             for (Move move : moves) {
+                if (move.chunks() != null) {
+                    move.chunks().commit();
+                }
+                BukkitArrivalPreparation.Attempt attempt = move.arrival().get();
+                if (attempt != null) {
+                    attempt.complete();
+                }
                 arrival.settle(move.member().entity(), move.traversive(), reloadExpected);
             }
             reattach(moves);
@@ -136,6 +181,15 @@ public final class ConvoyLocalTraversal {
 
     /** Members below {@code failedIndex} moved; send them home in reverse order, then re-attach at the source. */
     private void rollback(List<Move> moves, int failedIndex, Arrival arrival, String reason) {
+        for (Move move : moves) {
+            if (move.chunks() != null) {
+                move.chunks().cancel();
+            }
+            BukkitArrivalPreparation.Attempt attempt = move.arrival().get();
+            if (attempt != null) {
+                attempt.cancel();
+            }
+        }
         rollbackNext(moves, failedIndex - 1, arrival, reason);
     }
 
@@ -204,6 +258,12 @@ public final class ConvoyLocalTraversal {
         public boolean runRegion(Location location, Runnable task) {
             Wormholes plugin = Wormholes.instance;
             return plugin != null && FoliaScheduler.runRegion(plugin, location, task);
+        }
+
+        @Override
+        public boolean runEntity(Entity entity, Runnable task, Runnable retired) {
+            Wormholes plugin = Wormholes.instance;
+            return plugin != null && WormholesPlatform.scheduleEntity(plugin, entity, task, retired, 0L);
         }
     }
 }

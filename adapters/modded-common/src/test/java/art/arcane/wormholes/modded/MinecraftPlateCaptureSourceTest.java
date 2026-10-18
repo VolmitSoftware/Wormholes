@@ -12,6 +12,9 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.Holder;
 import net.minecraft.world.level.biome.Biome;
+import net.minecraft.world.level.biome.BiomeSpecialEffects;
+import net.minecraft.world.level.biome.BiomeGenerationSettings;
+import net.minecraft.world.level.biome.MobSpawnSettings;
 import net.minecraft.world.level.biome.Biomes;
 import net.minecraft.world.level.dimension.DimensionType;
 import net.minecraft.world.level.LightLayer;
@@ -92,9 +95,14 @@ public class MinecraftPlateCaptureSourceTest extends MinecraftTestBase {
         LevelChunkSection section = mock(LevelChunkSection.class);
         Holder.Reference<Biome> biome = mock(Holder.Reference.class);
         when(biome.unwrapKey()).thenReturn(Optional.of(Biomes.PLAINS));
+        when(biome.value()).thenReturn(new Biome.BiomeBuilder().temperature(0.7F).downfall(0.8F).hasPrecipitation(true)
+            .specialEffects(new BiomeSpecialEffects.Builder().waterColor(0x123456).grassColorOverride(0xABCDEF).build())
+            .generationSettings(BiomeGenerationSettings.EMPTY).mobSpawnSettings(MobSpawnSettings.EMPTY).build());
         when(section.getNoiseBiome(anyInt(), anyInt(), anyInt())).thenReturn(biome);
         Holder.Reference<Biome> topBiome = mock(Holder.Reference.class);
         when(topBiome.unwrapKey()).thenReturn(Optional.of(Biomes.DESERT));
+        Biome capturedBiome = biome.value();
+        when(topBiome.value()).thenReturn(capturedBiome);
         when(section.getNoiseBiome(anyInt(), eq(3), anyInt())).thenReturn(topBiome);
         when(section.hasOnlyAir()).thenReturn(true);
         when(fixture.chunk().getMinSectionY()).thenReturn(0);
@@ -122,6 +130,8 @@ public class MinecraftPlateCaptureSourceTest extends MinecraftTestBase {
         blockLayer.set(1, 2, 3, 0);
         skyLayer.set(1, 2, 3, 0);
         assertEquals("minecraft:plains", captured.biomes()[0][0]);
+        assertEquals(0x123456, captured.visuals().get("minecraft:plains").waterColor());
+        assertEquals(0xABCDEF, captured.visuals().get("minecraft:plains").grassColor());
         assertEquals(ContentView.packLight(13, 4), captured.light().light(1, 2, 3));
         assertEquals(ContentView.packLight(15, 0), captured.light().light(1, 25, 3));
         Long2ObjectOpenHashMap<MinecraftPlateCaptureSource.CapturedChunk> chunks = new Long2ObjectOpenHashMap<>();
@@ -131,6 +141,8 @@ public class MinecraftPlateCaptureSourceTest extends MinecraftTestBase {
             key -> "minecraft:plains".equals(key) ? 7 : 9);
         assertEquals("minecraft:plains", view.sampleBiome(1, -8, 3));
         assertEquals("minecraft:desert", view.sampleBiome(1, 23, 3));
+        assertEquals(0x123456, view.biomeVisual(1, -8, 3).waterColor());
+        assertEquals(0xABCDEF, view.biomeVisual(1, 23, 3).grassColor());
         assertEquals(7, view.biomeId(1, -8, 3));
         assertEquals(9, view.biomeId(1, 23, 3));
         verify(fixture.runtime()).requireServerThread();

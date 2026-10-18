@@ -14,6 +14,7 @@ import art.arcane.wormholes.api.traversal.internal.TraversalCostGateway;
 import art.arcane.wormholes.chunk.presend.BukkitChunkPreSendCapture;
 import art.arcane.wormholes.chunk.presend.BukkitChunkPreSendProvider;
 import art.arcane.wormholes.chunk.presend.BukkitChunkPreSendTransaction;
+import art.arcane.wormholes.chunk.arrival.BukkitArrivalPreparation;
 import art.arcane.wormholes.localization.WormholesMessages;
 import art.arcane.wormholes.platform.WormholesPlatform;
 import art.arcane.wormholes.survival.doors.dimension.PocketWorldService;
@@ -945,22 +946,65 @@ final class DoorTransitCoordinator
 		}
 	}
 
+	private boolean preparedRouteValid(RuntimeDoor source, Location target, TransitContext prepared)
+	{
+		PlacedDoorEndpoint expectedSource = source.endpoint();
+		PlacedDoorEndpoint currentSource = guard.state().findEndpointByItem(expectedSource.identity().itemId()).orElse(null);
+		if(currentSource == null || !currentSource.position().equals(expectedSource.position())
+			|| !currentSource.identity().equals(expectedSource.identity()))
+		{
+			return false;
+		}
+		if(prepared.expected() != null && tickets.find(prepared.travelerId()).filter(prepared.expected()::equals).isEmpty())
+		{
+			return false;
+		}
+		if(currentSource.identity().kind() != DoorKind.PAIR)
+		{
+			return true;
+		}
+		PlacedDoorEndpoint destination = guard.state().findMate(currentSource.identity()).orElse(null);
+		DoorwayPlane plane = prepared.destinationPlane();
+		return destination != null && plane != null && target.getWorld() != null
+			&& destination.position().worldId().equals(target.getWorld().getUID())
+			&& destination.position().x() == plane.blockX() && destination.position().y() == plane.blockY()
+			&& destination.position().z() == plane.blockZ();
+	}
+
 	private void teleportPrepared(Entity traveler, RuntimeDoor source, Location target, TransitContext prepared)
+	{
+		BukkitArrivalPreparation.prepareForTeleport(traveler instanceof Player player ? player : null, target,
+			attempt -> teleportReady(traveler, source, target, prepared, attempt),
+			() -> retireScheduledTransit(traveler, source, prepared));
+	}
+
+	private void teleportReady(Entity traveler, RuntimeDoor source, Location target, TransitContext prepared,
+		BukkitArrivalPreparation.Attempt arrivalAttempt)
 	{
 		if(guard.closed())
 		{
+			arrivalAttempt.cancel();
 			finishClosedTransit(
 				traveler, source, false, prepared, DoorTransitFailures.Failure.TRANSIT_SHUTDOWN);
+			return;
+		}
+		if(arrivalAttempt.waitedForPreparation() && !preparedRouteValid(source, target, prepared))
+		{
+			arrivalAttempt.cancel();
+			rollbackChunkPreSend(prepared);
+			failTransit(traveler, source, WormholesMessages.DOOR_TRANSIT_CANCELLED, prepared);
 			return;
 		}
 		CompletableFuture<Boolean> teleportFuture;
 		Vec3d arrivalVelocity = arrivalVelocity(prepared, target);
 		try
 		{
+			arrivalAttempt.beforeTeleport();
 			teleportFuture = WormholesPlatform.teleport(plugin, traveler, target, PlayerTeleportEvent.TeleportCause.PLUGIN);
 		}
 		catch(Throwable ex)
 		{
+			arrivalAttempt.cancel();
 			plugin.getLogger().log(Level.WARNING, "Could not initiate dimensional-door teleport", ex);
 			rollbackChunkPreSend(prepared);
 			failTransit(traveler, source, WormholesMessages.DOOR_TRANSIT_START_FAILED, prepared);
@@ -969,6 +1013,14 @@ final class DoorTransitCoordinator
 		teleportFuture.whenComplete((success, error) ->
 		{
 			boolean moved = error == null && Boolean.TRUE.equals(success);
+			if(moved)
+			{
+				arrivalAttempt.complete();
+			}
+			else
+			{
+				arrivalAttempt.cancel();
+			}
 			AtomicBoolean completionPending = new AtomicBoolean(true);
 			Runnable retired = () ->
 			{
@@ -1078,7 +1130,7 @@ final class DoorTransitCoordinator
 		{
 			if(pending.compareAndSet(true, false))
 			{
-				transaction.commit();
+				transaction.cancel();
 				plugin.getLogger().warning("Discarded dimensional-door chunk pre-send rollback after both source schedulers retired for "
 					+ context.travelerId());
 			}

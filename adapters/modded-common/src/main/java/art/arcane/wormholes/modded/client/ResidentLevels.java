@@ -23,6 +23,7 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
+import java.util.function.LongSupplier;
 
 public final class ResidentLevels {
     private static final Logger LOGGER = LoggerFactory.getLogger("Wormholes");
@@ -39,6 +40,7 @@ public final class ResidentLevels {
     private ClientLevel crossingSource;
     private Routing routing;
     private long clock;
+    private LongSupplier otherMemory = () -> 0L;
 
     public ResidentLevels(Consumer<TravelMessage> sender, long budgetBytes) {
         this.sender = sender;
@@ -220,6 +222,10 @@ public final class ResidentLevels {
         return crossingSource;
     }
 
+    public void otherMemory(LongSupplier memory) {
+        otherMemory = memory;
+    }
+
     public long bytes() {
         ClientLevel active = activeLevel();
         long total = 0L;
@@ -365,8 +371,9 @@ public final class ResidentLevels {
 
     private void enforceBudget() {
         long total = bytes();
+        long available = Math.max(0L, budgetBytes - otherMemory.getAsLong());
         ClientLevel active = activeLevel();
-        while (total > budgetBytes) {
+        while (total > available) {
             ResidentLevel oldest = null;
             for (ResidentLevel resident : levels) {
                 if (resident.bound() || resident.level() == active || resident.level() == crossingSource) {

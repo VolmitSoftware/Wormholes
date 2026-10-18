@@ -69,7 +69,7 @@
                  }
              });
          }
-@@ -129,23 +143,28 @@
+@@ -129,23 +143,29 @@
          promise.addListener(p -> this.promise = oldPromise);
          this.promise = promise;
  
@@ -106,12 +106,13 @@
 +                    this.compress(ctx, (ByteBuf) msg);
 +                }
 +            }
-+
-+            ctx.write(msg, promise);
 +        } catch (Exception exception) {
++            ReferenceCountUtil.release(msg);
 +            promise.tryFailure(exception);
-+            throw exception;
++            return;
 +        }
++
++        ctx.write(msg, promise);
      }
  
      @Override

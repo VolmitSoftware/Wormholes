@@ -632,7 +632,7 @@ public final class ClientMeshSections {
             if (blockLight != null) {
                 size += blockLight.length + skyLight.length;
             }
-            size += biomes.indices().length;
+            size += biomes.indices().length + biomes.visuals().size() * 96L;
             for (String biome : biomes.palette()) {
                 size += 48L + biome.length() * 2L;
             }

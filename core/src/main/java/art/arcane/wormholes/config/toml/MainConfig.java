@@ -40,13 +40,13 @@ public class MainConfig {
     public int traversalApiProviderFaultLimit = 5;
     @ConfigDescription("Warn when a single traversal cost provider call takes at least this many milliseconds. 0 disables the warning.")
     public int traversalApiSlowProviderMillis = 5;
-    @ConfigDescription("Send the destination's chunks to the player during the moment a portal traversal commits, so the destination world is already drawn when they arrive instead of appearing blank while it streams in. Verified under load; set false if a traversal ever stalls a tick.")
+    @ConfigDescription("Prepare destination chunk packets during approach and send them after a successful local teleport, continuing across ticks within the configured limits.")
     public boolean chunkPreSendEnabled = true;
-    @ConfigDescription("How many chunks out from the destination to pre-send. Further clamped to what the client will accept.")
+    @ConfigDescription("Destination chunk radius prepared and sent for local arrivals, clamped to the client's view distance.")
     public int chunkPreSendRadiusChunks = 3;
-    @ConfigDescription("Hard ceiling on chunks pre-sent for one traversal. A partial pre-send is a shorter blink; an overrun is a server stall.")
+    @ConfigDescription("Maximum destination chunks processed per arrival delivery tick. Remaining chunks continue on later ticks.")
     public int chunkPreSendMaxChunks = 32;
-    @ConfigDescription("Microseconds of the commitment tick the pre-send may use before it stops early and delivers what it has.")
+    @ConfigDescription("Microseconds available per delivery tick and per global packet preparation window before work continues on a later tick.")
     public int chunkPreSendBudgetMicros = 2000;
     public boolean arrivalPrewarmOnInterest = true;
     public int arrivalWarmRadiusChunks = 4;

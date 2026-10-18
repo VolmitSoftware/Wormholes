@@ -13,6 +13,7 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.Pose;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Blocks;
@@ -166,7 +167,8 @@ public final class GravityMovementClientGameTest {
                 compare(server, pod, trace, baseline.samples().get(trace.samples().size() - 1), sample);
             }
             if (name.equals("stationary")) {
-                assertTrue(sample.grounded() && !sample.flying() && sample.position().length() < POSITION_TOLERANCE,
+                assertTrue(sample.grounded() && !sample.flying() && sample.pose() == Pose.STANDING
+                    && sample.position().length() < POSITION_TOLERANCE,
                     diagnostic(trace, "Stationary gravity floor pushed or ungrounded the player"));
             }
         }
@@ -178,6 +180,7 @@ public final class GravityMovementClientGameTest {
         });
         Sample local = last(trace);
         assertTrue(local.flying() == authoritative.flying() && local.grounded() == authoritative.grounded()
+            && local.pose() == authoritative.pose()
             && local.position().distanceTo(authoritative.position()) < 0.15D,
             diagnostic(trace, "Client/server phase disagreement: server=" + authoritative));
         LOGGER.info("Gravity movement phase: down={}, camera={}, phase={}, local={}, server={}", trace.down(), trace.camera(), name, local, authoritative);
@@ -195,7 +198,8 @@ public final class GravityMovementClientGameTest {
         if (!expected.phase().equals(actual.phase()) || expected.tick() != actual.tick()
             || expected.position().distanceTo(actual.position()) > POSITION_TOLERANCE
             || expected.velocity().distanceTo(actual.velocity()) > VELOCITY_TOLERANCE
-            || expected.grounded() != actual.grounded() || expected.flying() != actual.flying() || expected.sprinting() != actual.sprinting()) {
+            || expected.grounded() != actual.grounded() || expected.flying() != actual.flying() || expected.sprinting() != actual.sprinting()
+            || expected.pose() != actual.pose()) {
             Sample authoritative = server.compute(nativeServer -> sample(server.player(), pod, actual.phase(), actual.tick()));
             throw new AssertionError(diagnostic(trace, "WORLD baseline mismatch: expected=" + expected + "; actual=" + actual + "; server=" + authoritative));
         }
@@ -274,8 +278,9 @@ public final class GravityMovementClientGameTest {
 
     private static void landed(Trace trace) {
         Sample sample = last(trace);
-        assertTrue(sample.grounded() && !sample.flying() && Math.abs(sample.position().y) < POSITION_TOLERANCE,
-            diagnostic(trace, "Player did not land on the gravity floor with flight disabled"));
+        assertTrue(sample.grounded() && !sample.flying() && sample.pose() == Pose.STANDING
+            && Math.abs(sample.position().y) < POSITION_TOLERANCE,
+            diagnostic(trace, "Player did not land standing on the gravity floor with flight disabled"));
     }
 
     private static List<Sample> inPhase(Trace trace, String name) {
@@ -301,7 +306,7 @@ public final class GravityMovementClientGameTest {
         boolean flying = player instanceof Player actor && actor.getAbilities().flying;
         return new Sample(phase, tick, MinecraftGravity.local(pod.gravity(), player.position().subtract(pod.feet())),
             MinecraftGravity.local(pod.gravity(), player.getDeltaMovement()), player.onGround(), flying, player.isSprinting(),
-            player.isInWall(), player.getYRot(), player.getXRot());
+            player.isInWall(), player.getYRot(), player.getXRot(), player.getPose());
     }
 
     private static void prepare(SeamlessClient client, Server server, Pod pod, double height, boolean flying, CameraType camera) {
@@ -409,7 +414,7 @@ public final class GravityMovementClientGameTest {
     }
 
     private record Sample(String phase, int tick, Vec3 position, Vec3 velocity, boolean grounded, boolean flying,
-                          boolean sprinting, boolean suffocating, float yaw, float pitch) {
+                          boolean sprinting, boolean suffocating, float yaw, float pitch, Pose pose) {
     }
 
     private record Trace(Face down, CameraType camera, List<Sample> samples) {

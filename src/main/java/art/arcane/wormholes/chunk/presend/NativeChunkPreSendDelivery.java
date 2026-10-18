@@ -2,6 +2,12 @@ package art.arcane.wormholes.chunk.presend;
 
 import art.arcane.volmlib.nativelib.NativeAdapters;
 import art.arcane.volmlib.nativelib.chunk.ChunkPacketAccess;
+import art.arcane.volmlib.nativelib.chunk.ChunkPosition;
+import art.arcane.volmlib.nativelib.chunk.PreparedChunkPacket;
+import art.arcane.optics.plate.ChunkLease;
+import art.arcane.optics.view.WorldChangeTracker;
+import art.arcane.wormholes.Wormholes;
+import art.arcane.wormholes.chunk.BukkitChunkLeaseProvider;
 import art.arcane.wormholes.service.WormholesTelemetry;
 import com.github.retrooper.packetevents.PacketEvents;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerUpdateViewPosition;
@@ -10,6 +16,9 @@ import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 
 import java.util.Objects;
+import java.util.UUID;
+import java.util.concurrent.CompletionStage;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 
@@ -67,10 +76,78 @@ public final class NativeChunkPreSendDelivery implements ChunkPreSendDelivery {
         }
     }
 
+    @Override
+    public ChunkPreparedPacket<Player> prepareChunk(World world, int chunkX, int chunkZ) {
+        if (!supported()) {
+            return null;
+        }
+        ChunkLease lease = BukkitChunkLeaseProvider.registry().retain(world, world.getUID(), chunkX, chunkZ);
+        try {
+            WorldChangeTracker tracker = Wormholes.projectionChangeTracker;
+            long version = tracker == null ? 0L : tracker.currentVersion();
+            PreparedChunkPacket packet = packets.prepare(world, new ChunkPosition(chunkX, chunkZ)).orElse(null);
+            if (packet == null) {
+                lease.close();
+                return null;
+            }
+            Capture capture = new Capture(packet, lease, tracker, world.getUID(), chunkX, chunkZ, version,
+                System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(250));
+            return new Captured(capture);
+        } catch (ReflectiveOperationException | RuntimeException | LinkageError failure) {
+            lease.close();
+            report(chunkReported, "ARRIVAL_CHUNK_CAPTURE_FAILED", "Arrival chunk preparation failed", failure);
+            return null;
+        }
+    }
+
     private void report(AtomicBoolean latch, String reason, String message, Throwable failure) {
         WormholesTelemetry.countFailure(reason);
         if (latch.compareAndSet(false, true)) {
             plugin.getLogger().log(Level.WARNING, message, failure);
+        }
+    }
+
+    private record Capture(PreparedChunkPacket packet, ChunkLease lease, WorldChangeTracker tracker,
+                           UUID world, int x, int z, long version, long expiry) {
+    }
+
+    private final class Captured implements ChunkPreparedPacket<Player> {
+        private final Capture capture;
+        private final AtomicBoolean closed = new AtomicBoolean();
+
+        private Captured(Capture capture) {
+            this.capture = capture;
+        }
+
+        @Override
+        public boolean ready() {
+            return capture.packet().ready();
+        }
+
+        @Override
+        public boolean valid() {
+            return System.nanoTime() <= capture.expiry()
+                && capture.tracker() == Wormholes.projectionChangeTracker
+                && (capture.tracker() == null || !capture.tracker().dirtySince(capture.world(),
+                    capture.x() - 1, capture.z() - 1, capture.x() + 1, capture.z() + 1, capture.version()));
+        }
+
+        @Override
+        public CompletionStage<Boolean> send(Player player) {
+            return capture.packet().send(player).whenComplete((written, failure) -> {
+                if (failure != null) {
+                    report(chunkReported, "ARRIVAL_CHUNK_WRITE_FAILED", "Arrival chunk write failed", failure);
+                } else if (Boolean.TRUE.equals(written)) {
+                    WormholesTelemetry.countPacket();
+                }
+            });
+        }
+
+        @Override
+        public void close() {
+            if (closed.compareAndSet(false, true)) {
+                capture.lease().close();
+            }
         }
     }
 }

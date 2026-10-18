@@ -19,7 +19,7 @@ import static org.junit.Assert.assertSame;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-public class MinecraftBiomePacketsTest {
+public class MinecraftBiomePacketsTest extends MinecraftTestBase {
     @Test
     @SuppressWarnings("unchecked")
     public void nativeBiomePacketPreservesEverySectionAndQuartCoordinate() {

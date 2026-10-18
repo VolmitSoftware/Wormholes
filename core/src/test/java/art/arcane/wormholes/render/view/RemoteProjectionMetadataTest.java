@@ -2,6 +2,7 @@ package art.arcane.wormholes.render.view;
 
 import art.arcane.wormholes.network.view.RemoteViewCache;
 import art.arcane.optics.math.BlockBox;
+import art.arcane.optics.stream.BiomeVisual;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -18,11 +19,17 @@ final class RemoteProjectionMetadataTest {
         when(remote.getBox()).thenReturn(BlockBox.spanning(-16, -64, -16, 31, 319, 31));
         when(remote.sliceAt(anyInt(), anyInt())).thenReturn(slice);
         when(slice.biomeAt(anyInt(), anyInt(), anyInt())).thenAnswer(call -> (int) call.getArgument(1) == -64 ? "test:bottom" : "test:top");
+        BiomeVisual visual = new BiomeVisual(0.7F, 0.8F, true, BiomeVisual.TemperatureModifier.NONE,
+            0x123456, 0x456789, -1, -1, BiomeVisual.GrassModifier.SWAMP);
+        when(slice.biomeVisualAt(anyInt(), anyInt(), anyInt())).thenReturn(visual);
         when(slice.lightAt(anyInt(), anyInt(), anyInt())).thenReturn(ContentView.packLight(13, 9));
         RemoteProjectionView<String, String, Object, Object> view = new RemoteProjectionView<>(remote,
             new RemoteProjectionView.Options<>("minecraft:air", state -> state, biome -> -1));
         assertEquals("test:bottom", view.sampleBiome(0, -72, 0));
         assertEquals("test:top", view.sampleBiome(0, 327, 0));
+        assertEquals(visual, view.biomeVisual(0, -72, 0));
+        assertEquals(visual, view.biomeVisual(0, 327, 0));
+        assertNull(view.biomeVisual(32, 320, 0));
         assertEquals(ContentView.packLight(0, 0), view.getLight(0, -65, 0));
         assertEquals(ContentView.packLight(13, 0), view.getLight(0, 320, 0));
         assertEquals(ContentView.packLight(13, 9), view.getLight(0, 319, 0));

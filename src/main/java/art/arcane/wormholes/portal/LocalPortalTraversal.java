@@ -41,6 +41,7 @@ import art.arcane.wormholes.api.traversal.internal.TraversalCostGateway;
 import art.arcane.wormholes.chunk.presend.BukkitChunkPreSendCapture;
 import art.arcane.wormholes.chunk.presend.BukkitChunkPreSendProvider;
 import art.arcane.wormholes.chunk.presend.BukkitChunkPreSendTransaction;
+import art.arcane.wormholes.chunk.arrival.BukkitArrivalPreparation;
 import art.arcane.wormholes.config.toml.TransitConfig;
 import art.arcane.wormholes.hook.DestinationResolver;
 import art.arcane.wormholes.hook.TraversalAttempt;
@@ -243,7 +244,8 @@ final class LocalPortalTraversal
 	private void captureEntity(Entity i, ITunnel activeTunnel, long now, boolean rtp, Location sweepStart)
 	{
 		UUID entityId = i.getUniqueId();
-		if(!rtp && i instanceof Player viewer)
+		Traversive traversive = rayTeleport(i, sweepStart);
+		if(traversive == null && !rtp && i instanceof Player viewer)
 		{
 			ArrivalWarmer warmer = Wormholes.arrivalWarmer;
 			if(warmer != null)
@@ -276,7 +278,6 @@ final class LocalPortalTraversal
 			return;
 		}
 
-		Traversive traversive = rayTeleport(i, sweepStart);
         if(traversive == null)
         {
             return;
@@ -1288,6 +1289,8 @@ final class LocalPortalTraversal
 		BukkitChunkPreSendCapture capture,
 		BukkitChunkPreSendTransaction preSend)
 	{
+		BukkitArrivalPreparation.Attempt arrivalAttempt = BukkitArrivalPreparation.claimForTeleport(
+			entity instanceof Player player ? player : null, placement.target());
 		CompletionStage<Boolean> teleportStage;
 		Location target = placement.target();
 		Vector outVelocity = placement.outVelocity();
@@ -1299,10 +1302,12 @@ final class LocalPortalTraversal
 			{
 				TRAVELLER_SCALE.cross(entity, placement.scale(), placement.ratio());
 			}
+			arrivalAttempt.beforeTeleport();
 			teleportStage = Objects.requireNonNull(runtime.teleport(entity, target), "teleport stage");
 		}
 		catch(RuntimeException exception)
 		{
+			arrivalAttempt.cancel();
 			if(scales)
 			{
 				restoreScale(entity, departureScale);
@@ -1313,6 +1318,14 @@ final class LocalPortalTraversal
 		}
 		teleportStage.whenComplete((success, error) ->
 			{
+				if(error == null && Boolean.TRUE.equals(success))
+				{
+					arrivalAttempt.complete();
+				}
+				else
+				{
+					arrivalAttempt.cancel();
+				}
 				if(error != null || !Boolean.TRUE.equals(success))
 				{
 					if(scales && !runtime.dispatch(entity, () -> restoreScale(entity, departureScale), () -> { }, 0L))
@@ -1447,7 +1460,7 @@ final class LocalPortalTraversal
 		TraversalRefundReason refundReason)
 	{
 		LocalPortalTransitRegistry.clearTeleportInFlight(entityId);
-		commitPreSend(preSend);
+		rollbackPreSend(preSend);
 		refund(reservation);
 		refund(traversalAdmission, refundReason);
 	}

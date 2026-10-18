@@ -31,11 +31,11 @@ public final class SodiumSectionDiscovery {
         return presenting;
     }
 
-    public static void prepareArrival(LevelRenderer renderer, Vec3 camera) {
+    public static void prepareArrival(LevelRenderer renderer, Vec3 camera, boolean fullColumns) {
         boolean previous = presenting;
         presenting = true;
         try {
-            SodiumLayerTerrain.prepareArrival(renderer, camera);
+            SodiumLayerTerrain.prepareArrival(renderer, camera, fullColumns);
         } finally {
             presenting = previous;
         }
