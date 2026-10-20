@@ -135,7 +135,7 @@ public final class PreparedTerrainRenderer {
 
     public void adoptChunks(ClientLevel target) {
         if (SODIUM) {
-            SodiumArrivalTerrain.adoptChunks(target);
+            SodiumArrivalTerrain.adoptChunks(renderer(), target);
         }
     }
 

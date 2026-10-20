@@ -2,6 +2,7 @@ package art.arcane.wormholes.modded.client.render.sodium;
 
 import art.arcane.wormholes.modded.mixin.client.SodiumArrivalRendererAccess;
 import art.arcane.wormholes.modded.client.PreparedChunkColumns;
+import it.unimi.dsi.fastutil.longs.LongIterator;
 import net.caffeinemc.mods.sodium.client.render.chunk.map.ChunkTracker;
 import net.caffeinemc.mods.sodium.client.render.chunk.map.ChunkTrackerHolder;
 import net.caffeinemc.mods.sodium.client.render.chunk.map.ChunkStatus;
@@ -17,11 +18,14 @@ import net.caffeinemc.mods.sodium.client.render.chunk.RenderSectionManager;
 import net.caffeinemc.mods.sodium.client.render.chunk.compile.estimation.MeshTaskSizeEstimator;
 import net.caffeinemc.mods.sodium.client.render.chunk.compile.executor.ChunkBuilder;
 import net.caffeinemc.mods.sodium.client.render.chunk.occlusion.OcclusionCuller;
+import net.caffeinemc.mods.sodium.client.render.chunk.storage.SectionStorage;
 import net.caffeinemc.mods.sodium.client.render.chunk.vertex.format.ChunkVertexType;
 import net.caffeinemc.mods.sodium.client.world.LevelRendererExtension;
 import net.caffeinemc.mods.sodium.client.world.cloned.ClonedChunkSectionCache;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.LevelRenderer;
+import net.minecraft.core.SectionPos;
+import net.minecraft.world.level.ChunkPos;
 
 import java.util.List;
 
@@ -56,7 +60,7 @@ public final class SodiumArrivalTerrain {
         return arenas.getGeometryDeviceAllocatedMemory() + arenas.getIndexDeviceAllocatedMemory() + arenas.getMiscAllocatedMemory();
     }
 
-    public static void adoptChunks(ClientLevel target) {
+    public static void adoptChunks(LevelRenderer renderer, ClientLevel target) {
         ChunkTracker tracker = ChunkTrackerHolder.get(target);
         AtomicReferenceArray<LevelChunk> columns = ((PreparedChunkColumns) target.getChunkSource()).wormholes$columns();
         for (int index = 0; index < columns.length(); index++) {
@@ -65,6 +69,7 @@ public final class SodiumArrivalTerrain {
                 tracker.onChunkStatusAdded(chunk.getPos().x(), chunk.getPos().z(), ChunkStatus.FLAG_ALL);
             }
         }
+        addMissingSections(sections(renderer), target, tracker);
     }
 
     public static void rebind(LevelRenderer renderer, ClientLevel target) {
@@ -96,5 +101,21 @@ public final class SodiumArrivalTerrain {
 
     private static RenderSectionManager sections(LevelRenderer renderer) {
         return ((SodiumPortalRenderer) ((LevelRendererExtension) renderer).sodium$getWorldRenderer()).wormholes$sections();
+    }
+
+    private static void addMissingSections(RenderSectionManager sections, ClientLevel target, ChunkTracker tracker) {
+        sections.beforeSectionUpdates();
+        SectionStorage storage = ((SodiumPortalSections) sections).wormholes$storage();
+        LongIterator ready = tracker.getReadyChunks().iterator();
+        while (ready.hasNext()) {
+            long position = ready.nextLong();
+            int x = ChunkPos.getX(position);
+            int z = ChunkPos.getZ(position);
+            for (int y = target.getMinSectionY(); y <= target.getMaxSectionY(); y++) {
+                if (!storage.hasSectionConsistent(SectionPos.asLong(x, y, z))) {
+                    sections.onSectionAdded(x, y, z);
+                }
+            }
+        }
     }
 }

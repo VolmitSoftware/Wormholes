@@ -1,9 +1,16 @@
 package art.arcane.wormholes.clientgametest;
 
+import art.arcane.wormholes.modded.client.PreparedChunkColumns;
 import art.arcane.wormholes.modded.client.WormholesClient;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
+import net.minecraft.client.Minecraft;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.chunk.LevelChunk;
+import net.minecraft.world.level.chunk.status.ChunkStatus;
 
+import java.util.concurrent.atomic.AtomicReferenceArray;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -96,5 +103,58 @@ public final class PaperCrossingLatencyClientGameTest implements FabricClientGam
         if (micros > MAX_DELAY_MICROS) {
             throw new AssertionError("Physical portal crossing waited " + micros + " microseconds before teleport; limit=" + MAX_DELAY_MICROS);
         }
+        verifyLanding(context, phase + "-" + crossing, destinationX);
+    }
+
+    private void verifyLanding(ClientGameTestContext context, String label, double destinationX) {
+        try {
+            context.waitFor(client -> landingReady(client, destinationX), 10);
+        } catch (AssertionError failure) {
+            String state = context.computeOnClient(this::landingState);
+            try {
+                context.takeScreenshot("paper-crossing-" + label + "-terrain-failed");
+            } catch (RuntimeException | AssertionError screenshotFailure) {
+                failure.addSuppressed(screenshotFailure);
+            }
+            throw new AssertionError("Physical portal arrival lost terrain during " + label + ": " + state, failure);
+        }
+        context.takeScreenshot("paper-crossing-" + label + "-terrain");
+        System.out.println("WORMHOLES_CROSSING_TERRAIN sample=" + label + " " + context.computeOnClient(this::landingState));
+    }
+
+    private boolean landingReady(Minecraft client, double destinationX) {
+        if (client.level == null || client.player == null || client.player.level() != client.level
+            || Math.abs(client.player.getX() - destinationX) > 0.25D || Math.abs(client.player.getY() - 191D) > 0.25D
+            || ClientGui.screen(client) != null) {
+            return false;
+        }
+        BlockPos floor = BlockPos.containing(client.player.getX(), 190D, client.player.getZ());
+        return client.level.getChunkSource().getChunk(floor.getX() >> 4, floor.getZ() >> 4, ChunkStatus.FULL, false) != null
+            && client.level.getBlockState(floor).is(Blocks.STONE) && MainRendererSections.visible(client) > 0
+            && MainRendererSections.missingReadySections(client) == 0;
+    }
+
+    private String landingState(Minecraft client) {
+        if (client.level == null || client.player == null) {
+            return "level=" + client.level + " player=" + client.player + " screen=" + ClientGui.screen(client);
+        }
+        BlockPos floor = BlockPos.containing(client.player.getX(), 190D, client.player.getZ());
+        PreparedChunkColumns cache = (PreparedChunkColumns) client.level.getChunkSource();
+        AtomicReferenceArray<LevelChunk> columns = cache.wormholes$columns();
+        int loaded = 0;
+        for (int index = 0; index < columns.length(); index++) {
+            if (columns.get(index) != null) {
+                loaded++;
+            }
+        }
+        return "dimension=" + client.level.dimension().identifier() + " position=" + client.player.position()
+            + " playerOwnsLevel=" + (client.player.level() == client.level) + " floor=" + floor
+            + " landingChunk=" + (client.level.getChunkSource().getChunk(floor.getX() >> 4, floor.getZ() >> 4, ChunkStatus.FULL, false) != null)
+            + " floorState=" + client.level.getBlockState(floor) + " cacheRadius=" + cache.wormholes$radius()
+            + " loadedColumns=" + loaded + "/" + columns.length() + " visibleSections=" + MainRendererSections.visible(client)
+            + " missingReadySections=" + MainRendererSections.missingReadySections(client)
+            + " terrainComplete=" + MainRendererSections.terrainComplete(client) + " screen=" + ClientGui.screen(client)
+            + " clientview=" + WormholesClient.instance().session().active() + " resets=" + WormholesClient.instance().session().resets()
+            + " arrivals=" + WormholesClient.instance().arrivals().diagnostics();
     }
 }
