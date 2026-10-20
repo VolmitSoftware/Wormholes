@@ -1,6 +1,7 @@
 package qa;
 
 import art.arcane.optics.math.CellKeys;
+import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.chunk.arrival.BukkitArrivalPreparation;
 import art.arcane.wormholes.chunk.presend.BukkitChunkPreSendProvider;
@@ -33,6 +34,8 @@ final class ArrivalFixture implements Listener {
     private final JavaPlugin plugin;
     private final Map<UUID, Pending> pending = new HashMap<>();
     private final Map<UUID, Set<Long>> stableChunks = new HashMap<>();
+    private UUID setupPlayer;
+    private boolean previousPrewarm;
 
     ArrivalFixture(JavaPlugin plugin) {
         this.plugin = plugin;
@@ -44,9 +47,15 @@ final class ArrivalFixture implements Listener {
         }
         switch (args[1]) {
             case "setup" -> {
+                if (setupPlayer == null) {
+                    previousPrewarm = Settings.ARRIVAL_PREWARM_ON_INTEREST;
+                }
+                setupPlayer = player.getUniqueId();
+                Settings.ARRIVAL_PREWARM_ON_INTEREST = false;
                 player.setGameMode(GameMode.CREATIVE);
                 floor(target("return"));
                 floor(target("same"));
+                floor(target("near"));
                 floor(target("end"));
                 player.sendMessage("[whqa] ARRIVAL setup=true");
             }
@@ -84,6 +93,11 @@ final class ArrivalFixture implements Listener {
                 cancel(player.getUniqueId());
                 player.sendMessage("[whqa] ARRIVAL cancelled=true");
             }
+            case "finish" -> {
+                cancel(player.getUniqueId());
+                restorePrewarm(player.getUniqueId());
+                player.sendMessage("[whqa] ARRIVAL finished=true");
+            }
             default -> throw new IllegalArgumentException("Unknown arrival fixture command");
         }
     }
@@ -91,9 +105,11 @@ final class ArrivalFixture implements Listener {
     @EventHandler
     public void quit(PlayerQuitEvent event) {
         cancel(event.getPlayer().getUniqueId());
+        restorePrewarm(event.getPlayer().getUniqueId());
     }
 
     void close() {
+        restorePrewarm(setupPlayer);
         for (UUID playerId : pending.keySet().toArray(UUID[]::new)) {
             cancel(playerId);
         }
@@ -117,6 +133,13 @@ final class ArrivalFixture implements Listener {
         }
     }
 
+    private void restorePrewarm(UUID playerId) {
+        if (setupPlayer != null && setupPlayer.equals(playerId)) {
+            Settings.ARRIVAL_PREWARM_ON_INTEREST = previousPrewarm;
+            setupPlayer = null;
+        }
+    }
+
     private boolean stable(Block block) {
         Set<Long> chunks = stableChunks.get(block.getWorld().getUID());
         return chunks != null && chunks.contains(CellKeys.chunkKey(block.getX() >> 4, block.getZ() >> 4));
@@ -124,10 +147,15 @@ final class ArrivalFixture implements Listener {
 
     private Location target(String mode) {
         World world = Objects.requireNonNull(plugin.getServer().getWorld(mode.equals("end") ? "world_the_end" : "world"));
-        if (!mode.equals("end") && !mode.equals("same") && !mode.equals("return")) {
-            throw new IllegalArgumentException("Expected same, end or return");
+        if (!mode.equals("end") && !mode.equals("same") && !mode.equals("return") && !mode.equals("near")) {
+            throw new IllegalArgumentException("Expected same, near, end or return");
         }
-        return new Location(world, mode.equals("return") ? 8.5D : 520.5D, 200D, 8.5D, 0F, 90F);
+        double x = switch (mode) {
+            case "return" -> 8.5D;
+            case "near" -> 56.5D;
+            default -> 520.5D;
+        };
+        return new Location(world, x, 200D, 8.5D, 0F, 90F);
     }
 
     private void floor(Location center) {

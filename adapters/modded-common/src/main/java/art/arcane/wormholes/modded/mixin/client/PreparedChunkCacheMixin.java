@@ -56,6 +56,11 @@ public abstract class PreparedChunkCacheMixin implements PreparedChunkColumns {
         wormholes$storage.wormholes$announce();
     }
 
+    @Override
+    public boolean wormholes$retainColumn(LevelChunk chunk) {
+        return wormholes$storage.wormholes$retain(chunk);
+    }
+
     @Inject(method = "onLightUpdate", at = @At("HEAD"), cancellable = true)
     private void wormholesPreparedLight(LightLayer layer, SectionPos position, CallbackInfo callback) {
         if (!WormholesClient.activeLevel(level) && !ClientWorldLoader.switchedTo(level)) {

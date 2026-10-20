@@ -11,11 +11,16 @@ import art.arcane.wormholes.modded.mixin.client.ArrivalLightEngineAccess;
 import net.minecraft.client.multiplayer.ClientChunkCache;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.SectionPos;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.TickingBlockEntity;
 import net.minecraft.world.level.chunk.LevelChunk;
+import net.minecraft.world.level.chunk.DataLayer;
+import net.minecraft.world.level.chunk.LevelChunkSection;
+import net.minecraft.world.level.lighting.LayerLightEventListener;
 import net.minecraft.world.level.lighting.LevelLightEngine;
 import org.junit.Test;
 
@@ -30,8 +35,11 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
@@ -60,6 +68,53 @@ public class PreparedTerrainTest extends MinecraftTestBase {
         assertSame(scene.staged, scene.owner.get());
     }
 
+    @Test
+    public void overlappingArrivalKeepsAuthoritativeColumnsAndTheirLight() {
+        Scene scene = new Scene();
+        AtomicReferenceArray<LevelChunk> columns = new AtomicReferenceArray<>(new LevelChunk[]{scene.chunk, null});
+        when(((PreparedChunkColumns) scene.stagedCache).wormholes$columns()).thenReturn(columns);
+        when(((PreparedChunkColumns) scene.stagedCache).wormholes$retainColumn(scene.oldChunk)).thenAnswer(invocation -> {
+            columns.set(1, scene.oldChunk);
+            return true;
+        });
+        ChunkPos position = new ChunkPos(259, -129);
+        when(scene.oldChunk.getPos()).thenReturn(position);
+        when(scene.oldChunk.getSections()).thenReturn(new LevelChunkSection[]{mock(LevelChunkSection.class)});
+        when(scene.oldChunk.getSectionYFromSectionIndex(0)).thenReturn(4);
+        LevelLightEngine previousLight = mock(LevelLightEngine.class);
+        LayerLightEventListener blockLight = mock(LayerLightEventListener.class);
+        LayerLightEventListener skyLight = mock(LayerLightEventListener.class);
+        when(scene.originalCache.getLightEngine()).thenReturn(previousLight);
+        when(previousLight.getMinLightSection()).thenReturn(4);
+        when(previousLight.getMaxLightSection()).thenReturn(5);
+        when(previousLight.getLayerListener(LightLayer.BLOCK)).thenReturn(blockLight);
+        when(previousLight.getLayerListener(LightLayer.SKY)).thenReturn(skyLight);
+        SectionPos section = SectionPos.of(position, 4);
+        DataLayer block = new DataLayer(7);
+        DataLayer sky = new DataLayer(15);
+        when(blockLight.getDataLayerData(section)).thenReturn(block);
+        when(skyLight.getDataLayerData(section)).thenReturn(sky);
+        PreparedTerrain.transfer(scene.staged, scene.target);
+        assertSame(scene.oldChunk, ((PreparedChunkColumns) scene.target.getChunkSource()).wormholes$columns().get(1));
+        verify(scene.target, never()).unload(scene.oldChunk);
+        verify(scene.target).onChunkLoaded(position);
+        verify(scene.light).queueSectionData(eq(LightLayer.BLOCK), eq(section),
+            argThat(data -> data != block && data.get(0, 0, 0) == 7));
+        verify(scene.light).queueSectionData(eq(LightLayer.SKY), eq(section),
+            argThat(data -> data != sky && data.get(0, 0, 0) == 15));
+        verify(scene.light).setLightEnabled(position, true);
+        verify(scene.light).runLightUpdates();
+    }
+
+    @Test
+    public void anotherDimensionCannotReplaceTheActiveTerrain() {
+        Scene scene = new Scene();
+        when(scene.staged.dimension()).thenReturn(Level.END);
+        assertThrows(IllegalArgumentException.class, () -> PreparedTerrain.transfer(scene.staged, scene.target));
+        assertSame(scene.originalCache, scene.target.getChunkSource());
+        verify(scene.target, never()).unload(scene.oldChunk);
+    }
+
     private static final class Scene {
         private final ClientLevel staged = level();
         private final ClientLevel target = level();
@@ -79,6 +134,8 @@ public class PreparedTerrainTest extends MinecraftTestBase {
         private final ArrayDeque<Runnable> pending = new ArrayDeque<>();
 
         private Scene() {
+            when(staged.dimension()).thenReturn(Level.OVERWORLD);
+            when(target.dimension()).thenReturn(Level.OVERWORLD);
             when(staged.getChunkSource()).thenReturn(stagedCache);
             when(target.getChunkSource()).thenAnswer(invocation -> current.get());
             doAnswer(invocation -> {

@@ -6,6 +6,7 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.ChestBlock;
@@ -18,14 +19,48 @@ import net.minecraft.world.level.chunk.Strategy;
 import net.minecraft.world.level.chunk.UpgradeData;
 import net.minecraft.world.level.chunk.status.ChunkStatus;
 import net.minecraft.world.level.lighting.LevelLightEngine;
+import net.minecraft.world.level.lighting.LayerLightEventListener;
 import net.minecraft.world.ticks.LevelChunkTicks;
 import org.junit.Test;
 
 import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 public class ClientLevelSurfaceTest extends MinecraftTestBase {
+    @Test
+    public void arrivalCacheReplacementMovesLightPatchesToTheNewEngine() {
+        ClientLevel level = mock(ClientLevel.class);
+        LevelLightEngine original = mock(LevelLightEngine.class);
+        LevelLightEngine replacement = mock(LevelLightEngine.class);
+        LayerLightEventListener oldBlock = mock(LayerLightEventListener.class);
+        LayerLightEventListener oldSky = mock(LayerLightEventListener.class);
+        LayerLightEventListener newBlock = mock(LayerLightEventListener.class);
+        LayerLightEventListener newSky = mock(LayerLightEventListener.class);
+        when(original.getLayerListener(LightLayer.BLOCK)).thenReturn(oldBlock);
+        when(original.getLayerListener(LightLayer.SKY)).thenReturn(oldSky);
+        when(replacement.getLayerListener(LightLayer.BLOCK)).thenReturn(newBlock);
+        when(replacement.getLayerListener(LightLayer.SKY)).thenReturn(newSky);
+        when(level.getLightEngine()).thenReturn(original);
+        ClientLevelSurface surface = new ClientLevelSurface(level, true);
+        ClientLightPatches patches = mock(ClientLightPatches.class);
+        when(patches.value(false, 0, 0, 0, 0)).thenReturn(10);
+        when(patches.value(true, 0, 0, 0, 0)).thenReturn(15);
+        surface.attachLight(patches);
+        try {
+            assertEquals(10, ClientLightPatches.patched(oldBlock, 0, 0, 0));
+            when(level.getLightEngine()).thenReturn(replacement);
+            surface.refreshLight();
+            assertEquals(ClientLightPatches.NO_LIGHT, ClientLightPatches.patched(oldBlock, 0, 0, 0));
+            assertEquals(ClientLightPatches.NO_LIGHT, ClientLightPatches.patched(oldSky, 0, 0, 0));
+            assertEquals(10, ClientLightPatches.patched(newBlock, 0, 0, 0));
+            assertEquals(15, ClientLightPatches.patched(newSky, 0, 0, 0));
+        } finally {
+            surface.detachLight(patches);
+        }
+    }
+
     @Test
     public void bulkWritesUpdateAndRestoreTheExistingChestState() {
         ClientLevel level = mock(ClientLevel.class);

@@ -3,6 +3,8 @@ package art.arcane.wormholes.modded.client;
 import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.optics.stream.EnvironmentState;
+import art.arcane.optics.stream.Brick;
+import art.arcane.optics.stream.SectionBiomes;
 import art.arcane.wormholes.modded.client.render.PortalEnvironmentTest;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.math.BlockBox;
@@ -27,6 +29,7 @@ import java.util.ArrayList;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.verify;
@@ -38,6 +41,43 @@ import art.arcane.wormholes.network.client.FxExtension;
 public class WormholesClientSessionTest extends MinecraftTestBase {
     @Rule
     public final TemporaryFolder folder = new TemporaryFolder();
+
+    @Test
+    public void missingCachedSectionRetractsItsClaimAndAcknowledgesTheFullReplacement() throws Exception {
+        ClientViewHarness harness = new ClientViewHarness(ViewStreamCapability.ALL);
+        ClientViewSession session = harness.session;
+        EnvironmentState environment = PortalEnvironmentTest.environment(OpticTransform.IDENTITY);
+        BlockBox bounds = new BlockBox(-32, -32, -32, 64, 64, 64);
+        session.handle(new ViewStreamMessage.Palette(List.of(new ViewStreamMessage.PaletteEntry(3, "minecraft:stone"))), harness.tick);
+        session.handle(new ViewStreamMessage.Portal(1, 1, ClientViewHarness.geometry()), harness.tick);
+        session.handle(new ViewStreamMessage.MeshBegin(1, 1, bounds, 8), harness.tick);
+        session.handle(new ViewStreamMessage.Environment(1, environment), harness.tick);
+        session.handle(new ViewStreamMessage.MeshSection(1, 1, 0, 0, 0, 1, 3, Brick.single(0, 3), SectionBiomes.NONE), harness.tick);
+        session.handle(new ViewStreamMessage.MeshBegin(1, 2, bounds, 8), harness.tick);
+        session.handle(new ViewStreamMessage.Environment(1, environment), harness.tick);
+        harness.sent.clear();
+        session.flushCached(harness.sent::add);
+        ViewStreamMessage.MeshCached available = (ViewStreamMessage.MeshCached) harness.sent.getFirst();
+        ViewStreamMessage.MeshClaim claim = available.claims().getFirst();
+        assertTrue(available.available());
+        session.cacheClaims(1, List.of(claim, claim));
+        assertTrue(session.meshes().drop(1, 2, 0, 0, 0));
+        harness.sent.clear();
+        session.handle(new ViewStreamMessage.MeshReuse(1, 2, 0, 0, 0, 2, claim.hash()), harness.tick);
+        session.flushCached(harness.sent::add);
+        assertEquals(List.of(new ViewStreamMessage.MeshCached(1, 2, available.sequence() + 1, false, List.of(claim))), harness.sent);
+        harness.sent.clear();
+        session.handle(new ViewStreamMessage.MeshSection(1, 2, 0, 0, 0, 3, 3, Brick.single(0, 3), SectionBiomes.NONE), harness.tick);
+        assertEquals(List.of(new ViewStreamMessage.MeshAck(1, 2, 0, 0, 0, 3)), harness.sent);
+        assertSame(ClientViewHarness.STONE, session.meshes().view(1).section(0L).state(0));
+        harness.sent.clear();
+        session.handle(new ViewStreamMessage.MeshReuse(1, 1, 0, 0, 0, 4, claim.hash()), harness.tick);
+        session.handle(new ViewStreamMessage.MeshReuse(1, 2, 0, 0, 0, 2, claim.hash()), harness.tick);
+        assertTrue(harness.sent.isEmpty());
+        session.handle(new ViewStreamMessage.MeshReuse(1, 2, 0, 0, 0, 3, claim.hash()), harness.tick);
+        assertEquals(List.of(new ViewStreamMessage.MeshAck(1, 2, 0, 0, 0, 3)), harness.sent);
+        assertEquals(ClientViewSession.State.CLIENT_VIEW, session.state());
+    }
 
     @Test
     public void queuedCacheClaimsSurviveEqualIdentityAndRetireForEachProofComponentChange() throws Exception {

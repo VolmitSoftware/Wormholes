@@ -37,7 +37,8 @@ public final class ClientLevelSurface implements ClientViewSurface {
     private static final long BLOCK_ENTITY_NBT_QUOTA = BlockEntitySample.MAX_NBT_BYTES * 16L;
 
     private final ClientLevel level;
-    private final LevelLightEngine lightEngine;
+    private LevelLightEngine lightEngine;
+    private ClientLightPatches lightPatches;
     private final boolean bulk;
     private final Long2ObjectOpenHashMap<TouchedSection> touched;
     private final LongOpenHashSet dirtySections;
@@ -59,6 +60,21 @@ public final class ClientLevelSurface implements ClientViewSurface {
 
     public boolean bulk() {
         return bulk;
+    }
+
+    void refreshLight() {
+        LevelLightEngine current = level.getLightEngine();
+        if (current == lightEngine) {
+            return;
+        }
+        lightEngine = current;
+        if (bulk) {
+            touched.clear();
+            dirtySections.clear();
+        }
+        if (lightPatches != null) {
+            attachLight(lightPatches);
+        }
     }
 
     @Override
@@ -114,11 +130,15 @@ public final class ClientLevelSurface implements ClientViewSurface {
 
     @Override
     public void attachLight(ClientLightPatches patches) {
+        lightPatches = patches;
         ClientLightPatches.bind(lightEngine.getLayerListener(LightLayer.BLOCK), lightEngine.getLayerListener(LightLayer.SKY), level::getSkyDarken, patches);
     }
 
     @Override
     public void detachLight(ClientLightPatches patches) {
+        if (lightPatches == patches) {
+            lightPatches = null;
+        }
         ClientLightPatches.unbind(patches);
     }
 

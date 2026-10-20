@@ -2,12 +2,13 @@ package art.arcane.wormholes.clientgametest;
 
 import art.arcane.wormholes.modded.client.ClientArrivalPreparation;
 import art.arcane.wormholes.modded.client.WormholesClient;
-import art.arcane.wormholes.network.client.ArrivalMessage;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.minecraft.client.CameraType;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.world.level.chunk.LevelChunk;
+import net.minecraft.world.level.chunk.status.ChunkStatus;
 
 public final class PaperArrivalClientGameTest implements FabricClientGameTest {
     @Override
@@ -33,6 +34,7 @@ public final class PaperArrivalClientGameTest implements FabricClientGameTest {
             context.waitFor(client -> PaperArrivalFrames.complete(), 200);
             context.runOnClient(client -> PaperArrivalFrames.clear());
             for (int repetition = 0; repetition < 2; repetition++) {
+                overlap(context, server, repetition);
                 cross(context, server, "same", "minecraft:overworld", 520.5D, true, repetition);
                 cross(context, server, "return", "minecraft:overworld", 8.5D, true, repetition);
                 cross(context, server, "end", "minecraft:the_end", 520.5D, false, repetition);
@@ -40,9 +42,10 @@ public final class PaperArrivalClientGameTest implements FabricClientGameTest {
             }
             dirty(context, server);
             server.command("whnested arrival prepare return", "ARRIVAL prepared=return");
-            ready(context);
+            ready(context, "minecraft:overworld", 8.5D);
             server.command("whnested arrival cancel", "ARRIVAL cancelled=true");
             context.waitFor(client -> diagnostics().token() == null && diagnostics().bytes() == 0, 100);
+            server.command("whnested arrival finish", "ARRIVAL finished=true");
             System.out.println("WORMHOLES_PAPER_ARRIVAL_PASS " + context.computeOnClient(client -> diagnostics()));
         } finally {
             context.runOnClient(client -> PaperArrivalFrames.clear());
@@ -59,7 +62,7 @@ public final class PaperArrivalClientGameTest implements FabricClientGameTest {
         LocalPlayer player = context.computeOnClient(client -> client.player);
         ClientLevel level = context.computeOnClient(client -> client.level);
         server.command("whnested arrival prepare " + mode, "ARRIVAL prepared=" + mode);
-        ready(context);
+        ready(context, dimension, x);
         server.command("whnested arrival cross", "ARRIVAL crossed=true",
             client -> PaperArrivalFrames.arm(mode + "-" + repetition, dimension, x));
         context.waitFor(client -> {
@@ -75,9 +78,26 @@ public final class PaperArrivalClientGameTest implements FabricClientGameTest {
             }
             PaperArrivalFrames.clear();
         });
-        context.waitFor(client -> client.level.hasChunk(((int) Math.floor(x) >> 4) + 4, 0), 400);
+        context.waitFor(client -> client.level.getChunkSource().getChunk(((int) Math.floor(x) >> 4) + 4, 0, ChunkStatus.FULL, false) != null, 400);
         System.out.println("WORMHOLES_PAPER_ARRIVAL_CROSS mode=" + mode + " repetition=" + repetition
             + " diagnostics=" + context.computeOnClient(client -> diagnostics()));
+    }
+
+    private void overlap(ClientGameTestContext context, ExternalServerSession server, int repetition) {
+        context.waitFor(client -> client.level.getChunkSource().getChunk(0, 3, ChunkStatus.FULL, false) != null, 400);
+        LevelChunk retained = context.computeOnClient(client -> client.level.getChunkSource().getChunk(0, 3, ChunkStatus.FULL, false));
+        cross(context, server, "near", "minecraft:overworld", 56.5D, true, repetition);
+        context.runOnClient(client -> {
+            if (client.level.getChunkSource().getChunk(0, 3, ChunkStatus.FULL, false) != retained) {
+                throw new AssertionError("Nearby arrival discarded a retained server chunk");
+            }
+        });
+        cross(context, server, "return", "minecraft:overworld", 8.5D, true, repetition);
+        context.runOnClient(client -> {
+            if (client.level.getChunkSource().getChunk(0, 3, ChunkStatus.FULL, false) != retained) {
+                throw new AssertionError("Return arrival discarded a retained server chunk");
+            }
+        });
     }
 
     private void shaderDimensionFallback(ClientGameTestContext context, ExternalServerSession server, String mode,
@@ -108,7 +128,7 @@ public final class PaperArrivalClientGameTest implements FabricClientGameTest {
     private void dirty(ClientGameTestContext context, ExternalServerSession server) {
         long adopted = context.computeOnClient(client -> diagnostics().adopted());
         server.command("whnested arrival prepare same", "ARRIVAL prepared=same");
-        ready(context);
+        ready(context, "minecraft:overworld", 520.5D);
         server.command("whnested arrival dirty", "ARRIVAL dirty=true");
         server.command("whnested arrival cross", "ARRIVAL crossed=true");
         context.waitFor(client -> Math.abs(client.player.getX() - 520.5D) < 0.1D, 200);
@@ -119,14 +139,14 @@ public final class PaperArrivalClientGameTest implements FabricClientGameTest {
         });
     }
 
-    private static void ready(ClientGameTestContext context) {
+    private static void ready(ClientGameTestContext context, String dimension, double x) {
         for (int tick = 0; tick < 100; tick++) {
             context.runOnClient(client -> {
                 if (client.player == null || !client.player.isAlive() || ClientGui.screen(client) != null) {
                     throw new AssertionError("Arrival preparation interrupted by player death or GUI");
                 }
             });
-            if (context.computeOnClient(client -> diagnostics().readiness() == ArrivalMessage.Readiness.RENDER)) {
+            if (context.computeOnClient(client -> PaperArrivalDiagnostics.readyAt(dimension, x))) {
                 return;
             }
             if (tick % 20 == 0) {

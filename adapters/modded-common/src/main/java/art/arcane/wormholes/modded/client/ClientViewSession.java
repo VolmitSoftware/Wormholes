@@ -196,14 +196,7 @@ public final class ClientViewSession {
                 case ViewStreamMessage.PortalDrop drop -> drop(drop.portalKey(), sink);
                 case ViewStreamMessage.MeshBegin begin -> meshBegin(begin, sink);
                 case ViewStreamMessage.MeshSection section -> meshSection(section, sink);
-                case ViewStreamMessage.MeshReuse reuse -> {
-                    if (has(ViewStreamCapability.MESH_REUSE)) {
-                        ClientMeshSections.Result result = meshes.reuse(reuse);
-                        if (result == ClientMeshSections.Result.DUPLICATE) {
-                            sink.meshAck(new ViewStreamMessage.MeshAck(reuse.portalKey(), reuse.generation(), reuse.sectionX(), reuse.sectionY(), reuse.sectionZ(), reuse.revision()));
-                        }
-                    }
-                }
+                case ViewStreamMessage.MeshReuse reuse -> meshReuse(reuse, sink);
                 case ViewStreamMessage.MeshDrop drop -> meshes.drop(drop.portalKey(), drop.generation(), drop.sectionX(), drop.sectionY(), drop.sectionZ());
                 case ViewStreamMessage.Environment environment -> {
                     if (portals.containsKey(environment.portalKey())) {
@@ -647,6 +640,29 @@ public final class ClientViewSession {
         }
     }
 
+    private void meshReuse(ViewStreamMessage.MeshReuse message, Sink sink) throws ViewStreamProtocolException {
+        if (!has(ViewStreamCapability.MESH_REUSE)) {
+            return;
+        }
+        ClientMeshSections.Result result = meshes.reuse(message);
+        if (result == ClientMeshSections.Result.DUPLICATE) {
+            sink.meshAck(new ViewStreamMessage.MeshAck(message.portalKey(), message.generation(), message.sectionX(),
+                message.sectionY(), message.sectionZ(), message.revision()));
+        } else if (result == ClientMeshSections.Result.MISSING) {
+            ViewStreamMessage.MeshClaim missing = new ViewStreamMessage.MeshClaim(message.sectionX(), message.sectionY(),
+                message.sectionZ(), message.hash());
+            List<ViewStreamMessage.MeshClaim> claims = pendingClaims.get(message.portalKey());
+            if (claims != null) {
+                claims.removeIf(missing::equals);
+                if (claims.isEmpty()) {
+                    pendingClaims.remove(message.portalKey());
+                }
+            }
+            sink.meshCached(new ViewStreamMessage.MeshCached(message.portalKey(), message.generation(),
+                nextCacheSequence(message.portalKey()), false, List.of(missing)));
+        }
+    }
+
     private void begin(ViewStreamMessage.PlateBegin begin, Sink sink) throws ViewStreamProtocolException {
         ViewStreamMessage.BrickMiss.Plate miss = plates.begin(begin);
         if (miss != null && has(ViewStreamCapability.BRICK_CACHE)) {
@@ -740,6 +756,8 @@ public final class ClientViewSession {
         void meshStarted(ClientPortal portal);
 
         void meshAck(ViewStreamMessage.MeshAck ack);
+
+        void meshCached(ViewStreamMessage.MeshCached cached);
 
         void brickMiss(ViewStreamMessage.BrickMiss.Plate plate);
 

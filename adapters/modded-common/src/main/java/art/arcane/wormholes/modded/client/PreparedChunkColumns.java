@@ -12,4 +12,6 @@ public interface PreparedChunkColumns {
     void wormholes$storage(PreparedChunkStorage storage, AtomicReferenceArray<LevelChunk> columns, int radius);
 
     void wormholes$announceColumns();
+
+    boolean wormholes$retainColumn(LevelChunk chunk);
 }

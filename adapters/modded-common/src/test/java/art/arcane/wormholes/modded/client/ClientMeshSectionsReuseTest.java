@@ -84,13 +84,15 @@ public class ClientMeshSectionsReuseTest extends MinecraftTestBase {
         long previewKey = SectionPos.asLong(1, 0, 0);
         ClientMeshSections.Section preview = store.localSection(new ViewStreamMessage.MeshSection(7, 1, 1, 0, 0,
             1, 3, Brick.single(0, 3), SectionBiomes.NONE));
-        assertNotNull(store.preview(7, previewKey, preview));
+        ViewStreamMessage.MeshClaim previewClaim = store.preview(7, previewKey, preview);
+        assertNotNull(previewClaim);
         assertFalse(store.canPreview(7, SectionPos.asLong(-1, 0, 0)));
         assertEquals(ClientMeshSections.Result.APPLIED, store.put(new ViewStreamMessage.MeshSection(7, 1, -1, 0, 0,
             1, 3, Brick.single(0, 3), SectionBiomes.NONE)));
         assertSame(local, store.view(7).section(0L));
         assertNull(store.view(7).section(previewKey));
         assertEquals(2, store.view(7).sectionKeys().size());
+        assertEquals(ClientMeshSections.Result.MISSING, store.reuse(new ViewStreamMessage.MeshReuse(7, 1, 1, 0, 0, 2, previewClaim.hash())));
     }
 
     @Test
@@ -125,14 +127,14 @@ public class ClientMeshSectionsReuseTest extends MinecraftTestBase {
         ClientMeshSections.Section restored = store.view(7).section(0L);
         assertEquals(ClientMeshSections.Result.STALE, store.reuse(reuse(7, 1, 90, hash)));
         assertEquals(ClientMeshSections.Result.STALE, store.reuse(reuse(8, 2, 90, hash)));
-        assertEquals(ClientMeshSections.Result.STALE, store.reuse(reuse(7, 2, 90, hash + 1)));
-        assertEquals(ClientMeshSections.Result.STALE, store.reuse(new ViewStreamMessage.MeshReuse(7, 2, 1, 0, 0, 90, hash)));
+        assertEquals(ClientMeshSections.Result.MISSING, store.reuse(reuse(7, 2, 90, hash + 1)));
+        assertEquals(ClientMeshSections.Result.MISSING, store.reuse(new ViewStreamMessage.MeshReuse(7, 2, 1, 0, 0, 90, hash)));
         assertEquals(ClientMeshSections.Result.APPLIED, store.put(section(7, 2, 1, 4)));
         ClientMeshSections.Section changed = store.view(7).section(0L);
         assertNotSame(restored, changed);
         assertTrue(changed.revision() > restored.revision());
         assertSame(Blocks.DIRT.defaultBlockState(), changed.state(0));
-        assertEquals(ClientMeshSections.Result.STALE, store.reuse(reuse(7, 2, 100, hash)));
+        assertEquals(ClientMeshSections.Result.MISSING, store.reuse(reuse(7, 2, 100, hash)));
         assertEquals(ClientMeshSections.Result.APPLIED, store.put(section(7, 2, 2, 3)));
         assertSame(Blocks.STONE.defaultBlockState(), store.view(7).section(0L).state(0));
     }
@@ -168,7 +170,7 @@ public class ClientMeshSectionsReuseTest extends MinecraftTestBase {
         assertTrue(store.bind(7, new ClientMeshSections.Identity(ENVIRONMENT, 71, 12)).isEmpty());
         assertNull(store.view(7).section(0L));
         assertTrue(store.view(7).sectionKeys().isEmpty());
-        assertEquals(ClientMeshSections.Result.STALE, store.reuse(reuse(7, 2, 51, hash)));
+        assertEquals(ClientMeshSections.Result.MISSING, store.reuse(reuse(7, 2, 51, hash)));
         assertEquals(ClientMeshSections.Result.APPLIED, store.put(section(7, 2, 1, 4)));
         assertSame(Blocks.DIRT.defaultBlockState(), store.view(7).section(0L).state(0));
         List<ViewStreamMessage.MeshClaim> restored = store.bind(7, new ClientMeshSections.Identity(ENVIRONMENT, 71, 11));
@@ -205,7 +207,7 @@ public class ClientMeshSectionsReuseTest extends MinecraftTestBase {
         assertEquals(0, claims.getFirst().x());
         assertNull(store.view(7).section(SectionPos.asLong(1, 0, 0)));
         assertTrue(store.drop(7, 2, 0, 0, 0));
-        assertEquals(ClientMeshSections.Result.STALE, store.reuse(reuse(7, 2, 1, claims.getFirst().hash())));
+        assertEquals(ClientMeshSections.Result.MISSING, store.reuse(reuse(7, 2, 1, claims.getFirst().hash())));
     }
 
     @Test

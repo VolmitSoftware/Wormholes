@@ -4,6 +4,7 @@ import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.modded.client.ClientArrivalPreparation;
 import art.arcane.wormholes.modded.client.WormholesClient;
 import art.arcane.wormholes.modded.mixin.client.IrisPortalPipelineAccess;
+import art.arcane.wormholes.modded.mixin.client.IrisPortalRenderingAccess;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import net.caffeinemc.mods.sodium.client.render.chunk.vertex.format.ChunkVertexType;
 import net.irisshaders.iris.Iris;
@@ -26,6 +27,7 @@ import java.util.Optional;
 import java.util.ServiceLoader;
 
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
@@ -81,12 +83,56 @@ public class IrisArrivalReadinessTest extends MinecraftTestBase {
             assertFalse(IrisPipelines.arrivalReady(level));
             IrisPipelines.destroyed();
             assertFalse(IrisPipelines.arrivalReady(level));
-            IrisRenderingPipeline replacement = mock(IrisRenderingPipeline.class);
+            IrisRenderingPipeline replacement = mock(IrisRenderingPipeline.class, withSettings().extraInterfaces(IrisPortalRenderingAccess.class));
+            when(((IrisPortalRenderingAccess) replacement).wormholes$initializedBlockIds()).thenReturn(true);
             when(manager.getPipelineNullable()).thenReturn(replacement);
             when(((IrisPortalPipelineAccess) manager).wormholes$pipelines()).thenReturn(Map.of(dimension, replacement));
             assertTrue(IrisPipelines.arrivalReady(level));
             iris.when(Iris::getCurrentPack).thenReturn(Optional.empty());
             assertTrue(IrisPipelines.arrivalReady(level));
+        } finally {
+            settings.clear();
+            settings.putAll(previous);
+        }
+    }
+
+    @Test
+    public void firstRenderingInitializesBlockIdsBeforeTerrainSettingsAreRetained() throws Exception {
+        ClientLevel level = mock(ClientLevel.class);
+        DimensionType type = mock(DimensionType.class);
+        ShaderPack pack = mock(ShaderPack.class);
+        PipelineManager manager = mock(PipelineManager.class, withSettings().extraInterfaces(IrisPortalPipelineAccess.class));
+        IrisRenderingPipeline pipeline = mock(IrisRenderingPipeline.class, withSettings().extraInterfaces(IrisPortalRenderingAccess.class));
+        NamespacedId dimension = new NamespacedId("minecraft:overworld");
+        when(level.dimension()).thenReturn(Level.OVERWORLD);
+        when(level.dimensionType()).thenReturn(type);
+        when(type.skybox()).thenReturn(DimensionType.Skybox.OVERWORLD);
+        when(pack.getDimensionMap()).thenReturn(Map.of(dimension, "world0"));
+        when(manager.getPipelineNullable()).thenReturn(pipeline);
+        when(((IrisPortalPipelineAccess) manager).wormholes$pipelines()).thenReturn(Map.of(dimension, pipeline));
+        ChunkVertexType format = mock(ChunkVertexType.class);
+        IrisWorldSettings uninitialized = new IrisWorldSettings(null, Map.of(), null, null, format, 1F,
+            false, false, false, false, false, false);
+        IrisWorldSettings initialized = settings(format, 1F);
+        Map<String, IrisWorldSettings> settings = settings();
+        Map<String, IrisWorldSettings> previous = new HashMap<>(settings);
+        settings.clear();
+        try (MockedStatic<IrisPlatformHelpers> platform = platform();
+             MockedStatic<Iris> iris = mockStatic(Iris.class);
+             MockedStatic<IrisWorldSettings> captured = mockStatic(IrisWorldSettings.class)) {
+            iris.when(Iris::getCurrentPack).thenReturn(Optional.of(pack));
+            iris.when(Iris::getPipelineManager).thenReturn(manager);
+            iris.when(Iris::getCurrentDimension).thenReturn(dimension);
+            captured.when(IrisWorldSettings::capture).thenReturn(uninitialized);
+            assertFalse(IrisPipelines.arrivalReady(level));
+            assertFalse(settings.containsKey("minecraft:overworld"));
+            when(((IrisPortalRenderingAccess) pipeline).wormholes$initializedBlockIds()).thenReturn(true);
+            captured.when(IrisWorldSettings::capture).thenReturn(initialized);
+            assertTrue(IrisPipelines.arrivalReady(level));
+            assertSame(initialized, settings.get("minecraft:overworld"));
+            captured.when(IrisWorldSettings::capture).thenReturn(settings(format, 0.5F));
+            assertFalse(IrisPipelines.arrivalReady(level));
+            assertSame(initialized, settings.get("minecraft:overworld"));
         } finally {
             settings.clear();
             settings.putAll(previous);

@@ -418,7 +418,8 @@ public final class IrisPipelines {
             return;
         }
         if (Iris.getPipelineManager().getPipelineNullable() instanceof IrisRenderingPipeline selected
-            && ((IrisPortalPipelineAccess) Iris.getPipelineManager()).wormholes$pipelines().get(current) == selected) {
+            && ((IrisPortalPipelineAccess) Iris.getPipelineManager()).wormholes$pipelines().get(current) == selected
+            && ((IrisPortalRenderingAccess) selected).wormholes$initializedBlockIds()) {
             SETTINGS.put(text(current), IrisWorldSettings.capture());
         }
     }

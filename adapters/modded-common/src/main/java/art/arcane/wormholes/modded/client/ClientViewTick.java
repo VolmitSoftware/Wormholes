@@ -349,6 +349,11 @@ public final class ClientViewTick implements ClientViewSession.Sink {
     }
 
     @Override
+    public void meshCached(ViewStreamMessage.MeshCached cached) {
+        sender.accept(cached);
+    }
+
+    @Override
     public void brickMiss(ViewStreamMessage.BrickMiss.Plate plate) {
         misses.add(plate);
     }

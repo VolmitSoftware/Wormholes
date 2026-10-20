@@ -91,7 +91,10 @@ public final class NestedEntityFixture extends JavaPlugin {
             }
             case "biome" -> biomes.execute(player, args);
             case "setup" -> setup(player, false);
-            case "mesh" -> setup(player, true);
+            case "mesh" -> {
+                setup(player, true);
+                containers(player.getWorld());
+            }
             case "stage" -> WormholesPlatform.teleport(this, player, new Location(player.getWorld(), 8.5, 191, 13.5, 180, 0),
                 PlayerTeleportEvent.TeleportCause.PLUGIN)
                 .thenAccept(done -> player.sendMessage("NESTED staged=" + done));
@@ -170,7 +173,18 @@ public final class NestedEntityFixture extends JavaPlugin {
         }
         direct = item(world, 104.5, 6.5, Material.DIAMOND);
         nested = item(world, 200.5, 4.5, Material.EMERALD);
-        owner.sendMessage("NESTED ready=true direct=" + direct.getEntityId() + " nested=" + nested.getEntityId());
+        owner.sendMessage("[whqa] NESTED ready=true direct=" + direct.getEntityId() + " nested=" + nested.getEntityId());
+    }
+
+    private void containers(World world) {
+        Material[] materials = {Material.CHEST, Material.ENDER_CHEST, Material.PURPLE_SHULKER_BOX};
+        for (int offset : new int[] {0, 96, 192}) {
+            for (int z : new int[] {5, 12}) {
+                for (int index = 0; index < materials.length; index++) {
+                    world.getBlockAt(offset + 7 + index, 191, z).setType(materials[index], false);
+                }
+            }
+        }
     }
 
     private LocalPortal portal(Player owner, int offset, int z, String name) {

@@ -411,13 +411,16 @@ public final class ClientMeshSections {
             return Result.STALE;
         }
         long key = sectionKey(message.sectionX(), message.sectionY(), message.sectionZ());
-        Section section = view.sections.get(key);
-        if (section == null || !view.claimed.containsKey(key) || view.claimed.get(key) != message.hash() || section.hash != message.hash()) {
-            return Result.STALE;
+        if (message.revision() <= 0 || !view.intersects(message.sectionX(), message.sectionY(), message.sectionZ())) {
+            throw new ViewStreamProtocolException("Mesh reuse outside its view or invalid revision");
         }
         int current = view.wireRevisions.get(key);
+        Section section = view.sections.get(key);
         if (message.revision() <= current) {
-            return message.revision() == current ? Result.DUPLICATE : Result.STALE;
+            return message.revision() == current && section != null && section.hash == message.hash() ? Result.DUPLICATE : Result.STALE;
+        }
+        if (section == null || !view.claimed.containsKey(key) || view.claimed.get(key) != message.hash() || section.hash != message.hash()) {
+            return Result.MISSING;
         }
         view.wireRevisions.put(key, message.revision());
         return Result.DUPLICATE;
@@ -525,7 +528,7 @@ public final class ClientMeshSections {
     }
 
     public enum Result {
-        APPLIED, DUPLICATE, STALE, REFUSED
+        APPLIED, DUPLICATE, STALE, MISSING, REFUSED
     }
 
     public static final class View {

@@ -252,6 +252,7 @@ public final class WormholesClient {
             attachedLevel = level;
             attachedSurface = surface;
         }
+        attachedSurface.refreshLight();
         registerDebugEntry(minecraft);
         LocalPlayer player = minecraft.player;
         Camera camera = ClientRenderAccess.mainCamera(minecraft);

@@ -28,6 +28,30 @@ public abstract class PreparedChunkStorageMixin implements PreparedChunkStorage 
     @Shadow
     protected abstract void onChunkAdded(LevelChunk chunk);
 
+    @Shadow
+    protected abstract boolean inRange(int x, int z);
+
+    @Shadow
+    protected abstract int getIndex(int x, int z);
+
+    @Shadow
+    protected abstract void replace(int index, LevelChunk chunk);
+
+    @Override
+    public boolean wormholes$retain(LevelChunk chunk) {
+        int x = chunk.getPos().x();
+        int z = chunk.getPos().z();
+        if (!inRange(x, z)) {
+            return false;
+        }
+        int index = getIndex(x, z);
+        if (chunks.get(index) != null) {
+            return false;
+        }
+        replace(index, chunk);
+        return true;
+    }
+
     @Override
     public void wormholes$announce() {
         for (int index = 0; index < chunks.length(); index++) {

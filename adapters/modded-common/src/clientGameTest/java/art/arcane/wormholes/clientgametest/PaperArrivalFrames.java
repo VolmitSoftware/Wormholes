@@ -4,6 +4,7 @@ import art.arcane.wormholes.modded.client.ClientRenderAccess;
 import art.arcane.wormholes.modded.client.WormholesClient;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.protocol.game.ClientboundRespawnPacket;
+import net.minecraft.world.level.chunk.status.ChunkStatus;
 import net.minecraft.world.phys.Vec3;
 import net.irisshaders.iris.Iris;
 import net.irisshaders.iris.pipeline.IrisRenderingPipeline;
@@ -62,7 +63,7 @@ public final class PaperArrivalFrames {
         if (Math.abs(camera.x - targetX) > 0.1D || Math.abs(camera.z - 8.5D) > 0.1D) {
             return;
         }
-        if (!client.level.hasChunk((int) Math.floor(targetX) >> 4, 0)) {
+        if (client.level.getChunkSource().getChunk((int) Math.floor(targetX) >> 4, 0, ChunkStatus.FULL, false) == null) {
             failure = new AssertionError("First destination frame has no landing chunk");
             return;
         }
