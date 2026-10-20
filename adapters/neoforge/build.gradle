@@ -61,6 +61,7 @@ List<String> forgeCoveredClientTestClasses = [
 ]
 List<String> clientTestClasses = [
     'art.arcane.wormholes.modded.client.render.iris.IrisArrivalReadinessTest',
+    'art.arcane.wormholes.modded.client.render.stencil.LayerResourcesTest',
     'art.arcane.wormholes.modded.client.world.ClientArrivalRendererTransactionTest',
     'art.arcane.wormholes.modded.client.world.PreparedTerrainTest'
 ]

@@ -131,6 +131,7 @@ final class LayerResources implements AutoCloseable {
             features = null;
         }
         if (buffers != null) {
+            buffers.fixedBufferPack().close();
             buffers.close();
             buffers = null;
         }

@@ -3,8 +3,12 @@ package art.arcane.wormholes.render.view;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.optics.entity.EntitySnapshot;
+import art.arcane.optics.fidelity.BlockEntitySample;
+import art.arcane.optics.math.CellKeys;
 import art.arcane.wormholes.network.view.PacketBlobs;
 import art.arcane.wormholes.platform.WormholesPlatform;
+import art.arcane.wormholes.render.FidelitySettings;
+import art.arcane.wormholes.render.blockentity.BlockEntityCapturer;
 import art.arcane.wormholes.transit.AttributeTestSupport;
 import art.arcane.optics.view.WorldChangeTracker;
 
@@ -51,6 +55,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.times;
 
 final class RegionSnapshotRefreshTest {
     @BeforeAll
@@ -150,6 +155,106 @@ final class RegionSnapshotRefreshTest {
             assertEquals(2, fixture.biomeCaptures.get());
             assertTrue(fixture.view.getRevision() > initialRevision);
             assertEquals(Material.DIRT, fixture.view.material(0, 64, 0));
+        }
+    }
+
+    @Test
+    void disabledBlockEntitiesStillPublishInitialTerrainAndEntitySnapshots() throws ReflectiveOperationException {
+        boolean previous = FidelitySettings.blockEntities;
+        try (Fixture fixture = new Fixture();
+             MockedStatic<BlockEntityCapturer> capturer = mockStatic(BlockEntityCapturer.class)) {
+            FidelitySettings.blockEntities = false;
+            fixture.capture();
+            fixture.now.set(1_250L);
+            fixture.capture();
+
+            assertTrue(fixture.view.isChunkReady(0, 0));
+            assertEquals(Material.STONE, fixture.view.material(0, 64, 0));
+            assertEquals(1, fixture.snapshotCaptures.get());
+            assertEquals(1, ((ProjectionEntityView) fixture.view).getEntities(1, 64, 8, 1).size());
+            assertNull(fixture.view.sampleBlockEntity(0, 64, 0));
+            capturer.verifyNoInteractions();
+
+            BlockEntitySample sample = new BlockEntitySample("minecraft:sign", new byte[] {1});
+            capturer.when(() -> BlockEntityCapturer.captureChunk(any(), any()))
+                .thenReturn(Map.of(CellKeys.pack(0, 64, 0), sample));
+            FidelitySettings.blockEntities = true;
+            fixture.now.set(1_500L);
+            fixture.capture();
+
+            assertEquals(sample, fixture.view.sampleBlockEntity(0, 64, 0));
+            assertEquals(1, fixture.snapshotCaptures.get());
+            capturer.verify(() -> BlockEntityCapturer.captureChunk(any(), any()), times(1));
+        } finally {
+            FidelitySettings.blockEntities = previous;
+        }
+    }
+
+    @Test
+    void disablingBlockEntitiesDropsCachedPayloadsAndReenablingCapturesFreshState() throws ReflectiveOperationException {
+        boolean previous = FidelitySettings.blockEntities;
+        try (Fixture fixture = new Fixture();
+             MockedStatic<BlockEntityCapturer> capturer = mockStatic(BlockEntityCapturer.class)) {
+            BlockEntitySample initial = new BlockEntitySample("minecraft:sign", new byte[] {1});
+            BlockEntitySample changed = new BlockEntitySample("minecraft:sign", new byte[] {2});
+            capturer.when(() -> BlockEntityCapturer.captureChunk(any(), any()))
+                .thenReturn(Map.of(CellKeys.pack(0, 64, 0), initial), Map.of(CellKeys.pack(0, 64, 0), changed));
+            FidelitySettings.blockEntities = true;
+            fixture.capture();
+            assertEquals(initial, fixture.view.sampleBlockEntity(0, 64, 0));
+            long enabledRevision = fixture.view.getRevision();
+
+            FidelitySettings.blockEntities = false;
+            fixture.now.set(1_250L);
+            fixture.capture();
+            assertNull(fixture.view.sampleBlockEntity(0, 64, 0));
+            assertTrue(fixture.view.getRevision() > enabledRevision);
+            long disabledRevision = fixture.view.getRevision();
+            capturer.verify(() -> BlockEntityCapturer.captureChunk(any(), any()), times(1));
+
+            FidelitySettings.blockEntities = true;
+            fixture.now.set(1_500L);
+            fixture.capture();
+            assertEquals(changed, fixture.view.sampleBlockEntity(0, 64, 0));
+            assertTrue(fixture.view.getRevision() > disabledRevision);
+            assertEquals(1, fixture.snapshotCaptures.get());
+            capturer.verify(() -> BlockEntityCapturer.captureChunk(any(), any()), times(2));
+        } finally {
+            FidelitySettings.blockEntities = previous;
+        }
+    }
+
+    @Test
+    void continuousCapturesPreserveTheBlockEntityRefreshDeadline() throws ReflectiveOperationException {
+        boolean previous = FidelitySettings.blockEntities;
+        try (Fixture fixture = new Fixture();
+             MockedStatic<BlockEntityCapturer> capturer = mockStatic(BlockEntityCapturer.class)) {
+            BlockEntitySample initial = new BlockEntitySample("minecraft:sign", new byte[] {1});
+            BlockEntitySample changed = new BlockEntitySample("minecraft:sign", new byte[] {2});
+            capturer.when(() -> BlockEntityCapturer.captureChunk(any(), any()))
+                .thenReturn(Map.of(CellKeys.pack(0, 64, 0), initial), Map.of(CellKeys.pack(0, 64, 0), changed));
+            FidelitySettings.blockEntities = true;
+            fixture.capture();
+            for (long now = 1_250L; now < 3_000L; now += 250L) {
+                fixture.now.set(now);
+                fixture.capture();
+                assertEquals(initial, fixture.view.sampleBlockEntity(0, 64, 0));
+            }
+            capturer.verify(() -> BlockEntityCapturer.captureChunk(any(), any()), times(1));
+
+            fixture.now.set(3_000L);
+            fixture.capture();
+            assertEquals(changed, fixture.view.sampleBlockEntity(0, 64, 0));
+            assertEquals(1, fixture.snapshotCaptures.get());
+            capturer.verify(() -> BlockEntityCapturer.captureChunk(any(), any()), times(2));
+
+            fixture.tracker.markChanged(fixture.worldId, 0, 0);
+            fixture.now.set(3_250L);
+            fixture.capture();
+            assertEquals(2, fixture.snapshotCaptures.get());
+            capturer.verify(() -> BlockEntityCapturer.captureChunk(any(), any()), times(3));
+        } finally {
+            FidelitySettings.blockEntities = previous;
         }
     }
 

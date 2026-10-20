@@ -3,7 +3,6 @@ package art.arcane.wormholes.modded.client.render;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.aperture.AperturePolygon;
 import art.arcane.optics.math.Vec3d;
-import art.arcane.optics.shape.Bounds2;
 import art.arcane.optics.shape.PlaneShape;
 import art.arcane.optics.shape.ShapeMesh;
 import art.arcane.optics.shape.ShapeRaster;
@@ -19,7 +18,6 @@ import java.nio.ByteBuffer;
 public final class PortalApertureMesh {
     static final int MAX_SUBDIVIDED_CELLS = 1 << 22;
     static final int SHAPE_VERTEX_BYTES = 20;
-    private static final double TOUCH_DISTANCE_CELLS = 0.75D;
 
     private PortalApertureMesh() {
     }
@@ -36,14 +34,12 @@ public final class PortalApertureMesh {
     public static long[] renderMask(ApertureDescriptor geometry, PlaneShape plane) {
         long[] mask = geometry.apertureMask();
         ShapeRaster raster = plane.raster(ShapeRaster.DEFAULT_SUBSAMPLES);
-        Bounds2 reach = plane.bounds().grown(TOUCH_DISTANCE_CELLS);
         int columns = geometry.apertureWidth();
         for (int row = 0; row < geometry.apertureHeight(); row++) {
             for (int column = 0; column < columns; column++) {
                 int bit = row * columns + column;
                 if ((mask[bit >>> 6] & (1L << (bit & 63))) != 0L || raster.inside(column, row)
-                    || !reach.contains(column + 0.5D, row + 0.5D)
-                    || plane.signedDistance(column + 0.5D, row + 0.5D) >= TOUCH_DISTANCE_CELLS) {
+                    || raster.coverage(column, row) != ShapeRaster.Coverage.PARTIAL) {
                     continue;
                 }
                 mask[bit >>> 6] |= 1L << (bit & 63);

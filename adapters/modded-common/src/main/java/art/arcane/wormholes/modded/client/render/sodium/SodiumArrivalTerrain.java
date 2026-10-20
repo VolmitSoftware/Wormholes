@@ -11,7 +11,6 @@ import java.util.concurrent.atomic.AtomicReferenceArray;
 import art.arcane.wormholes.modded.mixin.client.SodiumArrivalBuilderAccess;
 import art.arcane.wormholes.modded.mixin.client.SodiumArrivalBuffersAccess;
 import art.arcane.wormholes.modded.mixin.client.SodiumArrivalSectionsAccess;
-import net.caffeinemc.mods.sodium.client.gpu.arena.ArenaAggregator;
 import net.caffeinemc.mods.sodium.client.render.SodiumWorldRenderer;
 import net.caffeinemc.mods.sodium.client.render.chunk.RenderSection;
 import net.caffeinemc.mods.sodium.client.render.chunk.RenderSectionManager;
@@ -56,8 +55,9 @@ public final class SodiumArrivalTerrain {
         if (sections == null) {
             return 0L;
         }
-        ArenaAggregator arenas = sections.regions.getArenaAggregator();
-        return arenas.getGeometryDeviceAllocatedMemory() + arenas.getIndexDeviceAllocatedMemory() + arenas.getMiscAllocatedMemory();
+        return sections.regions.getArenaAggregator().getGeometryDeviceAllocatedMemory()
+            + sections.regions.getArenaAggregator().getIndexDeviceAllocatedMemory()
+            + sections.regions.getArenaAggregator().getMiscAllocatedMemory();
     }
 
     public static void adoptChunks(LevelRenderer renderer, ClientLevel target) {

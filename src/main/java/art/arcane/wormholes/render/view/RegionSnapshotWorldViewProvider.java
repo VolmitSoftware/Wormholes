@@ -151,17 +151,25 @@ public final class RegionSnapshotWorldViewProvider implements ProjectionWorldVie
                 ? WormholesPlatform.chunkSnapshot(chunk, false, true, false, true)
                 : current.snapshot;
             List<CapturedEntity> entities = captureEntities(view, chunk, key, now);
-            boolean refreshBlockEntities = FidelitySettings.blockEntities
-                && (refreshBlocks || current == null || now - current.blockEntitiesCapturedAtMillis >= BLOCK_ENTITY_REFRESH_MILLIS);
-            Map<Long, BlockEntitySample> blockEntities = refreshBlockEntities
-                ? BlockEntityCapturer.captureChunk(chunk, BlockEntityCapturer.Limits.column(PlateCaptureJob.MAX_BLOCK_ENTITIES_PER_CHUNK))
-                : current.blockEntities;
+            Map<Long, BlockEntitySample> blockEntities = Map.of();
+            long blockEntitiesCapturedAtMillis = Long.MIN_VALUE;
+            if (FidelitySettings.blockEntities) {
+                if (refreshBlocks || current == null || current.blockEntitiesCapturedAtMillis == Long.MIN_VALUE
+                    || now - current.blockEntitiesCapturedAtMillis >= BLOCK_ENTITY_REFRESH_MILLIS) {
+                    blockEntities = BlockEntityCapturer.captureChunk(chunk,
+                        BlockEntityCapturer.Limits.column(PlateCaptureJob.MAX_BLOCK_ENTITIES_PER_CHUNK));
+                    blockEntitiesCapturedAtMillis = now;
+                } else {
+                    blockEntities = current.blockEntities;
+                    blockEntitiesCapturedAtMillis = current.blockEntitiesCapturedAtMillis;
+                }
+            }
             int minHeight = current == null ? world.getMinHeight() : current.minHeight;
             int maxHeight = current == null ? world.getMaxHeight() : current.maxHeight;
             CapturedChunk captured = new CapturedChunk(snapshot, minHeight, maxHeight,
                 SkyMath.computeSkyDarken(world.getTime(), world.hasStorm(), world.isThundering()), now, entities,
                 chunkX, chunkZ, trackerVersion, refreshBlocks ? now : current.snapshotCapturedAtMillis,
-                blockEntities, refreshBlockEntities ? now : current.blockEntitiesCapturedAtMillis,
+                blockEntities, blockEntitiesCapturedAtMillis,
                 refreshBlocks ? BukkitBiomeVisuals.capture(snapshot, minHeight, maxHeight - 1, BukkitBiomeVisuals::capture) : current.biomes);
             view.publish(key, captured);
         } catch (Throwable ex) {
