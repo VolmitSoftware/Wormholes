@@ -313,6 +313,11 @@ public final class ClientBridge {
                     integer(input, "y"), integer(input, "z")));
                 return result;
             }
+            case "displays" -> {
+                JsonObject result = snapshot(client);
+                result.add("displays", DisplayStates.capture(client));
+                return result;
+            }
             case "capture" -> capture(client, input);
             case "shader" -> IrisStatus.configure(input);
             case "clear-errors" -> {

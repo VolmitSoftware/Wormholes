@@ -1,8 +1,31 @@
+import org.gradle.api.tasks.testing.Test
+
 Gradle rootBuild = gradle
 while (rootBuild.parent != null) {
     rootBuild = rootBuild.parent
 }
 String nestedVolmLibBuildDirectory = rootBuild.startParameter.projectProperties['nestedVolmLibBuildDirectory']
+String buildLane = rootBuild.startParameter.projectProperties['wormholesBuildLane']
+if (buildLane == null || !(buildLane ==~ /[a-zA-Z0-9][a-zA-Z0-9._-]*/)) {
+    throw new GradleException('wormholesBuildLane must contain only letters, numbers, dots, underscores and hyphens.')
+}
+
+gradle.extensions.extraProperties.set('wormholesBuildLane', buildLane)
+if (gradle != rootBuild) {
+    gradle.startParameter.projectCacheDir = new File(gradle.startParameter.currentDir, ".gradle/wormholes-lanes/${buildLane}")
+}
+gradle.beforeSettings { Settings settings ->
+    if (settings.gradle != rootBuild) {
+        settings.gradle.startParameter.projectCacheDir = new File(settings.settingsDir, ".gradle/wormholes-lanes/${buildLane}")
+    }
+}
+int requestedForks = Math.max(1, Integer.parseInt(rootBuild.startParameter.projectProperties.getOrDefault('testForks', '1')))
+gradle.beforeProject { Project candidate ->
+    candidate.tasks.withType(Test).configureEach {
+        maxParallelForks = Math.min(requestedForks, candidate.gradle.startParameter.maxWorkerCount)
+        jvmArgs('-XX:ParallelGCThreads=2', '-XX:ConcGCThreads=1', '-XX:CICompilerCount=2')
+    }
+}
 
 if (nestedVolmLibBuildDirectory != null) {
     gradle.rootProject { Project root ->

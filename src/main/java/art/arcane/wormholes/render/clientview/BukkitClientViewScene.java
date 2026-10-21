@@ -15,6 +15,7 @@ import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Player;
 
 import art.arcane.wormholes.Settings;
+import art.arcane.wormholes.Wormholes;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.stream.EntityScenes;
 import art.arcane.optics.stream.EnvironmentState;
@@ -55,6 +56,9 @@ final class BukkitClientViewScene implements EntityScenes<ClientViewObserver>, C
 
     void removeObserver(UUID observer) {
         environments.removeObserver(observer);
+        if (Wormholes.projectionManager != null) {
+            Wormholes.projectionManager.projectionViews().removeViewer(observer);
+        }
     }
 
     void close() {
@@ -75,7 +79,24 @@ final class BukkitClientViewScene implements EntityScenes<ClientViewObserver>, C
     @Override
     public List<EntitySnapshot> capture(ClientViewObserver observer, UUID portalId, long tick) {
         ClientViewPortalSource source = portals.source(observer, portalId);
+        ClientViewObserver.NestedContext context = observer.nestedContext(portalId);
+        Location eye = context == null ? observer.eye() : context.sourceEye();
+        publishView(observer, portalId, source, eye);
         return source == null ? List.of() : capture.entities(source, frame(observer, source), tick, observer.meshDepth() > 0);
+    }
+
+    static void publishView(ClientViewObserver observer, UUID portal, ClientViewPortalSource source, Location eye) {
+        if (Wormholes.projectionManager == null) {
+            return;
+        }
+        if (source == null || eye == null || source.destinationWorld() == null || source.transformFrame() == null
+            || !Settings.ENTITY_SPOOFING || Settings.MAX_SPOOFED_ENTITIES <= 0) {
+            Wormholes.projectionManager.projectionViews().removeView(observer.id(), portal);
+            return;
+        }
+        Vec3d destination = destinationEye(source, eye);
+        Wormholes.projectionManager.projectionViews().publish(observer.id(), portal, source.destinationWorld().getUID(),
+            destination.x(), destination.y(), destination.z());
     }
 
     @Override

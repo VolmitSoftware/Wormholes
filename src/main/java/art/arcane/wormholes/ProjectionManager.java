@@ -1,5 +1,7 @@
 package art.arcane.wormholes;
 
+import art.arcane.volmlib.projection.ProjectionViewRegistry;
+
 import art.arcane.wormholes.render.BukkitProjectionOutput;
 import org.bukkit.block.data.BlockData;
 import art.arcane.wormholes.hook.ProjectionSource;
@@ -112,6 +114,7 @@ public class ProjectionManager implements Listener {
     private final ViewPlateCache<BlockData, World> plateCache;
     private final Set<UUID> observerTasksInFlight;
     private final BukkitClientView clientView;
+    private final ProjectionViewRegistry projectionViews;
     private final BukkitEndReturnPreview endReturnPreview;
     private final AtomicBoolean shutdownFinalized;
     private final AtomicBoolean shutdownStarted;
@@ -124,6 +127,7 @@ public class ProjectionManager implements Listener {
 
     public ProjectionManager(ProjectionClientChunkTracker clientChunkTracker, BukkitOpticsScheduler scheduler) {
         this.scheduler = Objects.requireNonNull(scheduler, "scheduler");
+        this.projectionViews = new ProjectionViewRegistry(Wormholes.instance);
         this.endReturnPreview = BukkitEndReturnPreview.create(Wormholes.instance);
         this.viewProvider = FoliaScheduler.isFoliaThreading(Bukkit.getServer())
             ? new RegionSnapshotWorldViewProvider(Wormholes.instance)
@@ -184,6 +188,10 @@ public class ProjectionManager implements Listener {
 
     public BukkitClientView clientView() {
         return clientView;
+    }
+
+    public ProjectionViewRegistry projectionViews() {
+        return projectionViews;
     }
 
     public void registerClientView(Plugin plugin) {
@@ -666,6 +674,7 @@ public class ProjectionManager implements Listener {
             return;
         }
         closed = true;
+        projectionViews.close();
         endReturnPreview.close();
         clientView.stop();
         projectedEntityUpdates.close();

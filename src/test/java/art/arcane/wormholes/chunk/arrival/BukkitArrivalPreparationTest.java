@@ -443,8 +443,9 @@ final class BukkitArrivalPreparationTest {
         private void runRegions() throws InterruptedException {
             int attempts = 0;
             while (!regions.isEmpty() && attempts++ < 100) {
+                int messages = sent.size();
                 regions.removeFirst().run();
-                if (!regions.isEmpty()) {
+                if (!regions.isEmpty() && sent.size() == messages) {
                     Thread.sleep(51);
                 }
             }

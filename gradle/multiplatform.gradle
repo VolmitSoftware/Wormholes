@@ -9,6 +9,8 @@ import org.gradle.api.logging.Logging
 import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.MapProperty
 import org.gradle.api.provider.Property
+import org.gradle.api.services.BuildService
+import org.gradle.api.services.BuildServiceParameters
 import org.gradle.api.tasks.ClasspathNormalizer
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.Internal
@@ -23,6 +25,9 @@ import org.gradle.workers.WorkParameters
 import org.gradle.workers.WorkerExecutor
 
 import javax.inject.Inject
+
+abstract class NestedGradleBuildService implements BuildService<BuildServiceParameters.None> {
+}
 
 abstract class NestedGradleBuild extends DefaultTask {
     @Internal
@@ -204,6 +209,8 @@ Closure<Void> configureModdedInputs = { Task task, String targetVersion, List<St
     null
 }
 List<String> nestedBuildArguments = [gradle.startParameter.buildCacheEnabled ? '--build-cache' : '--no-build-cache']
+String nestedJvmArguments = providers.gradleProperty('org.gradle.jvmargs').getOrElse('') +
+    ' -XX:ActiveProcessorCount=2'
 if (gradle.startParameter.refreshDependencies) {
     nestedBuildArguments.add('--refresh-dependencies')
 }
@@ -233,7 +240,16 @@ List<String> minecraftVersions = fileTree('gradle/minecraft-versions') {
 Project adapters = project(':adapters')
 File nestedVolmLibInitScript = file('gradle/nested-volmlib.init.gradle')
 String wormholesVersion = project.version.toString()
-Map<String, TaskProvider<NestedGradleBuild>> loaderChains = [:]
+int matrixParallelism = Math.min(gradle.startParameter.maxWorkerCount, Math.max(1,
+    providers.gradleProperty('moddedBuildParallelism').getOrElse(
+        Math.min(9, Math.max(1, Runtime.runtime.availableProcessors() - 4)).toString()).toInteger()))
+Provider<NestedGradleBuildService> matrixWorkers = gradle.sharedServices.registerIfAbsent(
+    'wormholesModdedBuilds', NestedGradleBuildService) {
+    maxParallelUsages.set(matrixParallelism)
+}
+String nestedTestForks = providers.gradleProperty('moddedTestForks').getOrElse('1')
+Map<Integer, TaskProvider<NestedGradleBuild>> daemonSlots = [:]
+int nextDaemonSlot = 0
 List<TaskProvider<NestedGradleBuild>> moddedBuilds = []
 List<TaskProvider<Task>> versionBuilds = []
 ([minecraftVersion] + (minecraftVersions - minecraftVersion)).each { String targetVersion ->
@@ -256,12 +272,20 @@ List<TaskProvider<Task>> versionBuilds = []
         if (selected) {
             moddedArtifacts[display] = artifact
         }
+        int daemonSlot = nextDaemonSlot++ % matrixParallelism
         TaskProvider<NestedGradleBuild> jarTask = adapters.tasks.register("${loader}Jar${suffix}", NestedGradleBuild) {
             group = 'build'
             description = "Builds and checks the ${display} ${targetVersion} jar in its own Gradle build."
+            usesService(matrixWorkers)
+            dependsOn(':core:check')
             label.set("${display} ${targetVersion}".toString())
             projectDirectory.set(file("adapters/${loader}"))
-            List<Object> arguments = [file(wrapper).absolutePath, ':build', ':core:build', '--console=plain',
+            List<Object> arguments = [file(wrapper).absolutePath, ':build', ':core:assemble', '--console=plain',
+                "--max-workers=${Math.min(2, gradle.startParameter.maxWorkerCount)}",
+                "-Dorg.gradle.jvmargs=${nestedJvmArguments.trim()}",
+                "-Dorg.gradle.daemon.registry.base=${file(".gradle/wormholes-daemons/slot-${daemonSlot}").absolutePath}",
+                '-Dorg.gradle.daemon.idletimeout=3600000',
+                "-PwormholesBuildLane=${loader}-${targetVersion}", "-PtestForks=${nestedTestForks}",
                 "-PwormholesVersion=${wormholesVersion}", "-PminecraftVersion=${targetVersion}",
                 "-P${versionKey}=${loaderVersion}", "-PuseLocalVolmLib=${useLocalVolmLib}",
                 "-PnestedVolmLibBuildDirectory=${file("adapters/${loader}/${targetBuildDirectory}/volmlib").absolutePath}",
@@ -269,6 +293,7 @@ List<TaskProvider<Task>> versionBuilds = []
                 nestedBuildArguments +
                 ['--project-cache-dir', file("adapters/${loader}/.gradle/targets/${targetVersion}").absolutePath]
             commandLine.set(arguments.collect { Object argument -> argument.toString() })
+            environment.put('VOLMIT_BUILD_TEST_FORKS', nestedTestForks)
             inputs.file(nestedVolmLibInitScript).withPropertyName('nestedVolmLibInitScript').withPathSensitivity(PathSensitivity.NONE)
             if (localVolmLibCheckout != null) {
                 environment.put('ORG_GRADLE_PROJECT_localVolmLibDirectory', localVolmLibCheckout.absolutePath)
@@ -277,11 +302,11 @@ List<TaskProvider<Task>> versionBuilds = []
             inputs.property('loaderVersion', loaderVersion)
             outputs.file(artifact)
         }
-        TaskProvider<NestedGradleBuild> predecessor = loaderChains[loader]
+        TaskProvider<NestedGradleBuild> predecessor = daemonSlots[daemonSlot]
         if (predecessor != null) {
             jarTask.configure { mustRunAfter(predecessor) }
         }
-        loaderChains[loader] = jarTask
+        daemonSlots[daemonSlot] = jarTask
         moddedBuilds.add(jarTask)
         TaskProvider<Task> verifyTask = tasks.register("verify${display}${suffix}Artifact") {
             group = 'verification'

@@ -215,6 +215,9 @@ public final class BukkitClientViewPortalAccess implements ViewStreamEndpoints<C
     @Override
     public void releaseNested(ClientViewObserver observer, UUID context) {
         observer.releaseNested(context);
+        if (Wormholes.projectionManager != null) {
+            Wormholes.projectionManager.projectionViews().removeView(observer.id(), context);
+        }
     }
 
     @Override

@@ -399,6 +399,13 @@ public final class BukkitClientView implements ClientViewRouting {
             }
         }
         observer.publishOwned();
+        if (Wormholes.projectionManager != null) {
+            for (UUID portalId : observer.sourceIds()) {
+                if (!observer.ownedPortals().contains(portalId)) {
+                    Wormholes.projectionManager.projectionViews().removeView(observer.id(), portalId);
+                }
+            }
+        }
         updateDoorVisibility(player, observer.meshDepth() > 0 ? observer.ownedPortals() : Set.of());
         observer.prune(frameTick - SOURCE_STALE_TICKS);
     }

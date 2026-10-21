@@ -68,6 +68,7 @@ import art.arcane.optics.volume.ViewVolume;
 import art.arcane.optics.math.Angles;
 import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.math.Box;
+import art.arcane.optics.math.Vec3d;
 import org.bukkit.util.BoundingBox;
 
 public final class ProjectedEntityRenderer {
@@ -81,6 +82,7 @@ public final class ProjectedEntityRenderer {
     private static final int LABEL_INTERPOLATION_TICKS = 3;
 
     private final EntityRenderPacketChannel channel;
+    private final UUID projectionViewId = UUID.randomUUID();
     private final EntityRenderPlayerIdentity identity;
     private final BukkitEntityRegistryHost output;
     private BedrockProfile viewerProfile = BedrockProfile.JAVA;
@@ -245,6 +247,8 @@ public final class ProjectedEntityRenderer {
             return;
         }
 
+        publishView(observer, remoteWorld, transform);
+
         prepareRenderBatch(observer);
         RuntimeException batchFailure = null;
         try {
@@ -365,6 +369,10 @@ public final class ProjectedEntityRenderer {
             return;
         }
 
+        if (entityView instanceof ProjectionWorldView view) {
+            publishView(observer, view.getWorld(), transform);
+        }
+
         prepareRenderBatch(observer);
         RuntimeException batchFailure = null;
         try {
@@ -387,6 +395,7 @@ public final class ProjectedEntityRenderer {
     }
 
     public void close(Player observer) {
+        removeView(observer);
         for (ProjectedEntityRenderer renderer : nestedRenderers.values()) {
             renderer.close(observer);
         }
@@ -396,12 +405,29 @@ public final class ProjectedEntityRenderer {
     }
 
     public void discard(Player observer) {
+        removeView(observer);
         for (ProjectedEntityRenderer renderer : nestedRenderers.values()) {
             renderer.close(observer);
         }
         nestedRenderers.clear();
         publishedNestedCount = 0;
         recovery.teardown(observer);
+    }
+
+    private void publishView(Player observer, World world, OpticTransform transform) {
+        if (world == null || Wormholes.projectionManager == null) {
+            return;
+        }
+        Location eye = observer.getEyeLocation();
+        Vec3d projected = transform.inverse().point(new Vec3d(eye.getX(), eye.getY(), eye.getZ()));
+        Wormholes.projectionManager.projectionViews().publish(observer.getUniqueId(), projectionViewId, world.getUID(),
+            projected.x(), projected.y(), projected.z());
+    }
+
+    private void removeView(Player observer) {
+        if (observer != null && Wormholes.projectionManager != null) {
+            Wormholes.projectionManager.projectionViews().removeView(observer.getUniqueId(), projectionViewId);
+        }
     }
 
     private void sendTeardown(Player observer) {

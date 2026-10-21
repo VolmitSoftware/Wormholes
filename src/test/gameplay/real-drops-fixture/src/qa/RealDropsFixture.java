@@ -1,6 +1,7 @@
 package qa;
 
 import art.arcane.wormholes.platform.WormholesPlatform;
+import art.arcane.wormholes.network.view.PacketBlobs;
 
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.access.PortalAdmission;
@@ -26,9 +27,12 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.util.Vector;
+import org.bukkit.util.Transformation;
+import org.joml.Quaternionf;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -59,6 +63,9 @@ public final class RealDropsFixture extends JavaPlugin {
                 }
             }
             case "sample" -> sample(player, args.length > 1 ? getServer().getPlayerExact(args[1]) : player);
+            case "throw" -> throwDrop(player, args.length > 1 ? Material.valueOf(args[1]) : Material.STICK);
+            case "pose" -> droppedItem.getScheduler().run(this, task -> pose(player), null);
+            case "trace" -> trace(player);
             case "visibility" -> visibility(player, droppedItem, args);
             case "default" -> droppedItem.getScheduler().run(this, task -> {
                 droppedItem.setVisibleByDefault(Boolean.parseBoolean(args[1]));
@@ -96,6 +103,51 @@ public final class RealDropsFixture extends JavaPlugin {
 
     private void sample(Player recipient, Player viewer) {
         droppedItem.getScheduler().run(this, task -> captureSample(recipient, viewer), null);
+    }
+
+    private void throwDrop(Player player, Material material) {
+        if (droppedItem != null && droppedItem.isValid()) {
+            Item previous = droppedItem;
+            previous.getScheduler().run(this, task -> previous.remove(), null);
+        }
+        World world = player.getWorld();
+        getServer().getRegionScheduler().execute(this, world, 6, 0, () -> {
+            droppedItem = world.dropItem(new Location(world, 104.5, 193.5, 4.5), new ItemStack(material));
+            preserve(droppedItem);
+            droppedItem.setVelocity(new Vector(0.3D, 0.12D, 0.0D));
+            trace(player);
+            reply(player, "DROPS thrown=" + droppedItem.getUniqueId() + " material=" + material);
+        });
+    }
+
+    private void trace(Player player) {
+        Item observed = droppedItem;
+        int[] remaining = {60};
+        observed.getScheduler().runAtFixedRate(this, task -> {
+            if (observed != droppedItem || !observed.isValid() || remaining[0]-- <= 0) {
+                task.cancel();
+                return;
+            }
+            pose(player);
+        }, null, 1L, 1L);
+    }
+
+    private void pose(Player player) {
+        Location item = droppedItem.getLocation();
+        List<String> poses = new ArrayList<>();
+        for (Display display : droppedItem.getWorld().getNearbyEntitiesByType(Display.class, item, 5)) {
+            Transformation transformation = display.getTransformation();
+            Quaternionf rotation = transformation.getLeftRotation();
+            Location position = display.getLocation();
+            poses.add(display.getUniqueId() + ":" + display.getType() + ":" + position.getX() + ","
+                + position.getY() + "," + position.getZ() + ":" + rotation.x + "," + rotation.y + ","
+                + rotation.z + "," + rotation.w + ":revision=" + PacketBlobs.metadataRevision(display)
+                + ":metadata=" + Arrays.hashCode(PacketBlobs.captureMetadata(display)));
+        }
+        reply(player, "DROPS pose item=" + droppedItem.getUniqueId() + " valid=" + droppedItem.isValid()
+            + " position=" + item.getX() + "," + item.getY() + "," + item.getZ()
+            + " world=" + item.getWorld().getKey() + " ground=" + droppedItem.isOnGround()
+            + " displays=" + String.join(";", poses));
     }
 
     private void captureSample(Player recipient, Player viewer) {

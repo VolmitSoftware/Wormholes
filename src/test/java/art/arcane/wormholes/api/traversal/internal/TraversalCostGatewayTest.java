@@ -23,8 +23,11 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.Queue;
 import java.util.UUID;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -36,6 +39,7 @@ import static art.arcane.wormholes.api.traversal.internal.TraversalCostTestSuppo
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -767,10 +771,15 @@ class TraversalCostGatewayTest {
         Thread shutdown = new Thread(gateway::shutdown, "traversal-cost-shutdown-test");
 
         shutdown.start();
-        awaitClosing(gateway);
-        assertTrue(admission.deferCommit());
-        executor.runNextEntity();
-        shutdown.join(3_000L);
+        try {
+            awaitClosing(gateway);
+            assertTrue(admission.deferCommit());
+            Runnable settlement = executor.entityTasks.poll(3L, TimeUnit.SECONDS);
+            assertNotNull(settlement);
+            executor.runOwned(settlement);
+        } finally {
+            shutdown.join(3_000L);
+        }
 
         assertFalse(shutdown.isAlive());
         assertEquals(1, shop.commitCalls.get());
@@ -867,7 +876,7 @@ class TraversalCostGatewayTest {
 
     private static final class ControlledTravelerExecutor implements TraversalCostGateway.TravelerExecutor {
         private final AtomicBoolean owned = new AtomicBoolean(true);
-        private final Queue<Runnable> entityTasks = new ConcurrentLinkedQueue<>();
+        private final BlockingQueue<Runnable> entityTasks = new LinkedBlockingQueue<>();
         private final Queue<Runnable> retryTasks = new ConcurrentLinkedQueue<>();
 
         private boolean rejectEntity;
