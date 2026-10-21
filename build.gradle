@@ -1,6 +1,5 @@
 import org.gradle.api.artifacts.Configuration
 import org.gradle.api.attributes.Attribute
-import org.gradle.api.tasks.Copy
 import org.gradle.api.tasks.WriteProperties
 import org.gradle.api.tasks.compile.JavaCompile
 import org.gradle.jvm.toolchain.JavaLanguageVersion
@@ -55,23 +54,6 @@ apply from: 'gradle/runtime-test.gradle'
 apply from: 'gradle/packetevents-patch.gradle'
 apply from: 'gradle/fawe-patch.gradle'
 tasks.named('slimJar').get()
-
-tasks.register('buildPsychoLT') {
-    group = 'development'
-    description = 'Builds the CraftBukkit, Fabric, Forge, and NeoForge jars and deploys them to the managed Minecraft test-server dropins.'
-    dependsOn('buildAll')
-}
-
-tasks.register('buildSwiftSwamp', Copy) {
-    group = 'development'
-    description = 'Builds and deploys Wormholes to the local BUILDS output directory.'
-    outputs.upToDateWhen { false }
-    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-    dependsOn(tasks.named('check'), 'packedJar')
-    from({ tasks.named('packedJar').get().outputJar })
-    into(file('C://VolmitSoftware/BUILDS'))
-    rename { String ignored -> 'Wormholes.jar' }
-}
 
 tasks.named('jar').configure {
     enabled = false
@@ -179,7 +161,9 @@ String runtimeJarTestFilter = 'art.arcane.wormholes.RuntimePlatformAbiTest'
 
 tasks.named('test').configure {
     useJUnitPlatform()
-    maxParallelForks = Math.max(1, Runtime.runtime.availableProcessors().intdiv(2))
+    int requestedForks = Math.max(1, Integer.parseInt(providers.gradleProperty('testForks')
+        .getOrElse(Math.max(1, Runtime.runtime.availableProcessors().intdiv(2)).toString())))
+    maxParallelForks = Math.min(gradle.startParameter.maxWorkerCount, requestedForks)
     jvmArgs '--enable-native-access=ALL-UNNAMED'
     systemProperty('wormholes.projectVersion', project.version.toString())
     systemProperty('junit.jupiter.execution.parallel.enabled', 'true')
@@ -537,3 +521,5 @@ pluginPackaging {
         }
     }
 }
+
+apply from: file('gradle/multiplexor.gradle')
