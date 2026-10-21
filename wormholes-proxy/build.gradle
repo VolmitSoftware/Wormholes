@@ -68,7 +68,9 @@ pluginPackaging {
             taskName = 'shadowJar'
             maximumBytes = 7_600_000
             shrink = false
-            releaseCompression = true
+            releaseCompression = providers.gradleProperty('compactRelease')
+                    .map { String value -> value.toBoolean() }
+                    .getOrElse(true)
             packed = true
             requiredEntries = [
                 'velocity-plugin.json',
