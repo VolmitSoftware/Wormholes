@@ -55,12 +55,15 @@ abstract class VerifyModdedArtifact extends DefaultTask {
     @Input
     abstract Property<String> getLoaderRange()
 
+    @Input
+    abstract Property<String> getReleaseVersion()
+
     @TaskAction
     void verify() {
         File artifact = getArtifact().get().asFile
         new java.util.jar.JarFile(artifact).withCloseable { java.util.jar.JarFile archive ->
             String metadata = getMetadata().get()
-            for (String required : [metadata, 'wormholes-target.properties', 'art/arcane/wormholes/modded/WormholesModRuntime.class',
+            for (String required : [metadata, 'wormholes-target.properties', 'wormholes-build.properties', 'art/arcane/wormholes/modded/WormholesModRuntime.class',
                                     'art/arcane/wormholes/network/WireCodec.class',
                                     'art/arcane/optics/frame/Frame.class',
                                     'art/arcane/optics/spi/OpticsMetrics.class']) {
@@ -82,15 +85,31 @@ abstract class VerifyModdedArtifact extends DefaultTask {
             if (loaderMetadata.contains('${')) {
                 throw new GradleException("${artifact.name} contains unexpanded loader metadata")
             }
+            String releaseVersion = getReleaseVersion().get()
+            Properties buildInfo = new Properties()
+            archive.getInputStream(archive.getJarEntry('wormholes-build.properties')).withCloseable { InputStream stream ->
+                buildInfo.load(stream)
+            }
+            if (buildInfo.getProperty('version') != releaseVersion) {
+                throw new GradleException("${artifact.name} contains an incorrect core version")
+            }
             if (metadata == 'fabric.mod.json') {
                 Map<String, Object> fabricMetadata = (Map<String, Object>) new groovy.json.JsonSlurper().parseText(loaderMetadata)
+                if (fabricMetadata['version'] != releaseVersion) {
+                    throw new GradleException("${artifact.name} declares an incorrect mod version")
+                }
                 Map<String, Object> dependencies = (Map<String, Object>) fabricMetadata['depends']
                 if (dependencies['minecraft'] != minecraftVersion || dependencies['fabricloader'] != ">=${getLoaderVersion().get()}") {
                     throw new GradleException("${artifact.name} declares an incorrect Minecraft or Fabric loader version")
                 }
-            } else if (!loaderMetadata.contains('versionRange = "[' + minecraftVersion + ']"')
-                || !loaderMetadata.contains('versionRange = "' + getLoaderRange().get() + '"')) {
-                throw new GradleException("${artifact.name} declares an incorrect Minecraft or mod loader version range")
+            } else {
+                if (!loaderMetadata.contains('version = "' + releaseVersion + '"')) {
+                    throw new GradleException("${artifact.name} declares an incorrect mod version")
+                }
+                if (!loaderMetadata.contains('versionRange = "[' + minecraftVersion + ']"')
+                    || !loaderMetadata.contains('versionRange = "' + getLoaderRange().get() + '"')) {
+                    throw new GradleException("${artifact.name} declares an incorrect Minecraft or mod loader version range")
+                }
             }
             Set<String> classes = new HashSet<>()
             archive.entries().each { java.util.jar.JarEntry entry ->
@@ -161,6 +180,7 @@ tasks.register('verifyModdedArtifact', VerifyModdedArtifact) {
     dependsOn(tasks.named('shadowJar'))
     artifact.set(tasks.named('shadowJar').flatMap { task -> task.archiveFile })
     minecraftVersion.set(project.ext.minecraftTargetVersion)
+    releaseVersion.set(project.version.toString())
     String loader = project.projectDir.name
     Map<String, String> versionKeys = [fabric: 'fabricLoaderVersion', forge: 'forgeVersion', neoforge: 'neoForgeVersion']
     Map<String, Object> target = project.ext.minecraftTarget

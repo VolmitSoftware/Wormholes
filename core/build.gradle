@@ -5,7 +5,7 @@ plugins {
 Properties wormholesProperties = new Properties()
 file('../gradle.properties').withInputStream { InputStream stream -> wormholesProperties.load(stream) }
 group = 'art.arcane'
-version = wormholesProperties.getProperty('wormholesVersion')
+version = providers.gradleProperty('wormholesVersion').getOrElse(wormholesProperties.getProperty('wormholesVersion'))
 
 base {
     archivesName = 'wormholes-core'

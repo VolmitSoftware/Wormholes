@@ -234,6 +234,8 @@ Map<Integer, TaskProvider<NestedGradleBuild>> daemonSlots = [:]
 int nextDaemonSlot = 0
 List<TaskProvider<NestedGradleBuild>> moddedBuilds = []
 List<TaskProvider<Task>> versionBuilds = []
+Map<String, TaskProvider<Task>> selectedModdedVerifications = [:]
+Map<String, File> selectedModdedArtifacts = [:]
 ([minecraftVersion] + (minecraftVersions - minecraftVersion)).each { String targetVersion ->
     Map<String, Object> target = (Map<String, Object>) new JsonSlurper().parse(file("gradle/minecraft-versions/${targetVersion}.json"))
     boolean selected = targetVersion == minecraftVersion
@@ -292,6 +294,10 @@ List<TaskProvider<Task>> versionBuilds = []
             dependsOn(jarTask)
             inputs.files(jarTask.map { Task task -> task.outputs.files })
         }
+        if (selected) {
+            selectedModdedVerifications[loader] = verifyTask
+            selectedModdedArtifacts[loader] = artifact
+        }
         platformBuilds.add(tasks.register("build${display == 'NeoForge' ? 'Neoforge' : display}${suffix}") {
             group = 'build'
             description = "Builds and verifies the ${display} ${targetVersion} jar."
@@ -303,6 +309,21 @@ List<TaskProvider<Task>> versionBuilds = []
         description = "Builds and verifies every ${targetVersion} mod jar."
         dependsOn(platformBuilds)
     })
+}
+
+tasks.register('prepareRelease', Sync) {
+    group = 'distribution'
+    description = 'Builds, verifies and stages one selected mod loader jar for publication.'
+    Provider<String> releaseLoader = providers.provider {
+        String loader = providers.gradleProperty('releaseLoader').orNull
+        if (!loaders.containsKey(loader)) {
+            throw new GradleException('prepareRelease requires -PreleaseLoader=fabric, forge or neoforge')
+        }
+        return loader
+    }
+    dependsOn(releaseLoader.map { String loader -> selectedModdedVerifications[loader] })
+    from(releaseLoader.map { String loader -> selectedModdedArtifacts[loader] })
+    into(layout.buildDirectory.dir('release'))
 }
 
 tasks.register('buildAll') {
