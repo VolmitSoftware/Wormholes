@@ -522,4 +522,15 @@ pluginPackaging {
     }
 }
 
+tasks.register('buildSwiftSwamp', Copy) {
+    group = 'development'
+    description = 'Builds, verifies, and stages Wormholes in the workspace BUILDS directory.'
+    outputs.upToDateWhen { false }
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    dependsOn(tasks.named('check'), 'packedJar', apiJarTask)
+    from({ tasks.named('packedJar').get().outputJar })
+    into(providers.gradleProperty('buildsDirectory').map { String directory -> file(directory) }.getOrElse(file('../BUILDS')))
+    rename { String ignored -> 'Wormholes.jar' }
+}
+
 apply from: file('gradle/multiplexor.gradle')
