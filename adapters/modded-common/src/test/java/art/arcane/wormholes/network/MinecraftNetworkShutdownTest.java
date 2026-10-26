@@ -31,7 +31,7 @@ import org.junit.rules.TemporaryFolder;
 import org.mockito.MockedConstruction;
 
 import java.lang.reflect.Field;
-import java.net.InetSocketAddress;
+import java.net.BindException;
 import java.net.ServerSocket;
 import java.util.List;
 import java.util.Map;
@@ -73,8 +73,14 @@ public class MinecraftNetworkShutdownTest extends MinecraftTestBase {
             fixture.service.start();
             NetworkManager original = fixture.service.manager();
             try {
+                int port = original.getBoundListenPort();
+                fixture.config.listenPort = port;
                 assertTrue(original.isRunning());
                 assertSame(original, registeredServers().get(fixture.server));
+                assertThrows(BindException.class, () -> {
+                    try (TcpPeerTransport probe = TcpPeerTransport.bind("0.0.0.0", port)) {
+                    }
+                });
                 RuntimeException failure = assertThrows(RuntimeException.class, fixture.service::close);
                 assertSame(handoffFailure, failure);
                 assertEquals(1, failure.getSuppressed().length);
@@ -87,15 +93,15 @@ public class MinecraftNetworkShutdownTest extends MinecraftTestBase {
                 assertNull(registeredServers().get(fixture.server));
                 assertThrows(NullPointerException.class, fixture.service::manager);
                 fixture.service.close();
-                try (ServerSocket probe = new ServerSocket()) {
-                    probe.bind(new InetSocketAddress("127.0.0.1", fixture.port));
+                try (TcpPeerTransport probe = TcpPeerTransport.bind("0.0.0.0", port)) {
+                    assertTrue(probe.isListening());
                 }
                 fixture.service.start();
                 NetworkManager replacement = fixture.service.manager();
                 assertNotSame(original, replacement);
                 assertTrue(replacement.isRunning());
                 assertSame(replacement, registeredServers().get(fixture.server));
-                assertEquals(fixture.port, replacement.getBoundListenPort());
+                assertEquals(port, replacement.getBoundListenPort());
                 fixture.service.close();
                 assertFalse(replacement.isRunning());
                 assertNull(registeredServers().get(fixture.server));
@@ -182,18 +188,16 @@ public class MinecraftNetworkShutdownTest extends MinecraftTestBase {
         private final MinecraftServer server = mock(MinecraftServer.class);
         private final WormholesModRuntime runtime = mock(WormholesModRuntime.class);
         private final MinecraftNetworkService service = new MinecraftNetworkService(runtime);
-        private final int port;
+        private final NetworkConfig config = new NetworkConfig();
 
         private ShutdownFixture() throws Exception {
             try (ServerSocket available = new ServerSocket(0)) {
-                port = available.getLocalPort();
+                config.listenPort = available.getLocalPort();
             }
             PlayerList players = mock(PlayerList.class);
             WormholesModConfiguration configuration = mock(WormholesModConfiguration.class);
-            NetworkConfig config = new NetworkConfig();
             config.enabled = true;
             config.listenEnabled = true;
-            config.listenPort = port;
             config.serverName = "shutdown-fixture";
             config.advertiseHostOverride = "127.0.0.1";
             config.transport.udsEnabled = false;
