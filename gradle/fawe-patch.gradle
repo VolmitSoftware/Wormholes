@@ -3,6 +3,28 @@ import java.nio.file.Files
 import java.nio.file.StandardCopyOption
 import java.security.MessageDigest
 
+String posixShell() {
+    if (!System.getProperty('os.name').toLowerCase(Locale.ROOT).contains('windows')) {
+        return 'sh'
+    }
+    List<File> candidates = []
+    for (String entry : (System.getenv('PATH') ?: '').split(File.pathSeparator)) {
+        if (!entry.isBlank()) {
+            candidates.add(new File(entry, 'sh.exe'))
+        }
+    }
+    for (String root : [System.getenv('ProgramFiles'), System.getenv('ProgramW6432'), System.getenv('LOCALAPPDATA') ? System.getenv('LOCALAPPDATA') + '/Programs' : null]) {
+        if (root != null) {
+            candidates.add(new File(root, 'Git/bin/sh.exe'))
+        }
+    }
+    File shell = candidates.find { File candidate -> candidate.isFile() }
+    if (shell == null) {
+        throw new GradleException('The patched FAWE API build needs a POSIX shell: install Git for Windows or put sh.exe on PATH')
+    }
+    return shell.absolutePath
+}
+
 String patchedFaweVersion = '2.16.1-wormholes-1'
 File patchedFaweSupport = file('compat/fastasyncworldedit')
 def patchedFaweApi = layout.buildDirectory.dir('compat/fastasyncworldedit/api')
@@ -26,7 +48,7 @@ def preparePatchedFaweApi = tasks.register('preparePatchedFaweApi') {
                 ? file(providers.gradleProperty('fawePatchedSourceDirectory').get())
                 : new File(gradle.gradleUserHomeDir, "wormholes-builds/fastasyncworldedit/${fingerprint}/source")
         def invocation = providers.exec {
-            commandLine('sh', new File(patchedFaweSupport, 'build-patched.sh').absolutePath,
+            commandLine(posixShell(), new File(patchedFaweSupport, 'build-patched.sh').absolutePath,
                     sourceDirectory.absolutePath, ':worldedit-core:jar', ':worldedit-bukkit:jar',
                     '--console=plain', '--max-workers=2', '--no-watch-fs')
             ignoreExitValue = true
