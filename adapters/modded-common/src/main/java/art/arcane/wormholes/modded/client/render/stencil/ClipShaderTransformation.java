@@ -14,14 +14,28 @@ import java.util.regex.Pattern;
 public final class ClipShaderTransformation {
     public static final String CLIP_PLANE = "WormholesClipPlane";
     public static final String CLIP_PLANE_DEFINE = "WORMHOLES_CLIP_PLANE";
+    public static final String DEPTH_ZERO_TO_ONE_DEFINE = "WORMHOLES_DEPTH_IS_ZERO_TO_ONE";
     public static final String PROJECTION_INCLUDE = NativeShaderImports.PROJECTION;
     public static final String SODIUM_GLOBALS_INCLUDE = NativeShaderImports.SODIUM_GLOBALS;
     private static final Pattern PROJECTION_MATRIX = Pattern.compile("uniform\\s+Projection\\s*\\{[^}]*?mat4\\s+ProjMat\\s*;");
     private static final Pattern MAIN = Pattern.compile("\\bvoid\\s+main\\s*\\(\\s*(?:void)?\\s*\\)");
+    private static final Pattern VERSION = Pattern.compile("(?m)^\\s*#version[^\\r\\n]*");
     private static final Set<String> UNCLIPPED = Set.of("minecraft:core/sky", "minecraft:core/stars", "minecraft:core/panorama");
     private static final String RENAMED_MAIN = "void wormholes_main()";
 
     private ClipShaderTransformation() {
+    }
+
+    public static String stencilDepth(String source, boolean zeroToOne) {
+        if (!source.contains(DEPTH_ZERO_TO_ONE_DEFINE)) {
+            return source;
+        }
+        Matcher version = VERSION.matcher(source);
+        if (!version.find()) {
+            return source;
+        }
+        return source.substring(0, version.end()) + "\n#define " + DEPTH_ZERO_TO_ONE_DEFINE + " " + (zeroToOne ? "1" : "0")
+            + source.substring(version.end());
     }
 
     public static Optional<String> projection(String source) {

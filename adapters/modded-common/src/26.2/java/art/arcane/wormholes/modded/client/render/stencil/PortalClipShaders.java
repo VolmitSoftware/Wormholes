@@ -61,6 +61,9 @@ public final class PortalClipShaders {
     }
 
     public static String shader(Identifier location, ShaderType type, String contents) {
+        if ("wormholes".equals(location.getNamespace()) && contents.contains(ClipShaderTransformation.DEPTH_ZERO_TO_ONE_DEFINE)) {
+            contents = ClipShaderTransformation.stencilDepth(contents, ClientRenderAccess.zeroToOneDepth());
+        }
         if (!loading || type != ShaderType.VERTEX) {
             return contents;
         }
