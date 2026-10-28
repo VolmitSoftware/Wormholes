@@ -1,5 +1,7 @@
 package art.arcane.wormholes.network;
 
+import art.arcane.volmlib.util.crypto.Ed25519;
+
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.DataInputStream;
@@ -334,7 +336,7 @@ public final class PeerConnection {
     }
 
     private void handshakeAsDialer(DataInputStream in) throws IOException, HandshakeException {
-        byte[] dialerNonce = Handshake.newNonce();
+        byte[] dialerNonce = Ed25519.newNonce();
         WireMessage.Hello hello = new WireMessage.Hello(WireCodec.PROTOCOL_VERSION, identity.mcVersion(), identity.pluginVersion(), identity.serverName(),
             identity.advertiseHost() == null ? "" : identity.advertiseHost(), identity.wormholePort(), identity.gameEndpoint(), identity.privateGameEndpoint(), dialerNonce, identity.publicKey(),
             localCompressionSupported(), localDictHash(), localDictVersion(), identity.capabilities());
@@ -347,7 +349,7 @@ public final class PeerConnection {
         if (expectedPeerName != null && !expectedPeerName.equals(challenge.serverName())) {
             throw new HandshakeException("Peer identified as '" + challenge.serverName() + "', expected '" + expectedPeerName + "'");
         }
-        if (expectedPeerPublicKey != null && !Handshake.sameKey(expectedPeerPublicKey, challenge.publicKey())) {
+        if (expectedPeerPublicKey != null && !Ed25519.sameKey(expectedPeerPublicKey, challenge.publicKey())) {
             throw new HandshakeException("Peer '" + challenge.serverName() + "' used an unexpected public key");
         }
         int negotiatedVersion = Handshake.negotiateTranscriptVersion(challenge.publicKey(), challenge.signature(), hello, challenge,
@@ -404,7 +406,7 @@ public final class PeerConnection {
         absorbPeerCapabilities(hello.capabilities());
         absorbPeerCompression(hello.compressionSupported(), hello.currentDictHash(), hello.currentDictVersion());
 
-        byte[] acceptorNonce = Handshake.newNonce();
+        byte[] acceptorNonce = Ed25519.newNonce();
         WireMessage.Challenge challenge = new WireMessage.Challenge(identity.serverName(),
             identity.advertiseHost() == null ? "" : identity.advertiseHost(), identity.wormholePort(),
             identity.gameEndpoint(), identity.privateGameEndpoint(), acceptorNonce, identity.publicKey(), new byte[0],

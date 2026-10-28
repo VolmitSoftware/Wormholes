@@ -1,5 +1,6 @@
 package art.arcane.wormholes.network;
 
+import art.arcane.volmlib.util.crypto.Ed25519;
 import art.arcane.wormholes.config.toml.NetworkConfig;
 import art.arcane.wormholes.network.mesh.MeshHandlers;
 import art.arcane.wormholes.network.mesh.PeerQuarantineStore;
@@ -54,7 +55,7 @@ final class PeerTrustGate {
         }
         byte[] trustedKey = trustStore.get(peerName);
         if (trustedKey != null) {
-            if (Handshake.sameKey(trustedKey, decoded)) {
+            if (Ed25519.sameKey(trustedKey, decoded)) {
                 return true;
             }
             logger.warning("net: refusing introduced key for " + peerName + ", it differs from the trusted one");
@@ -99,7 +100,7 @@ final class PeerTrustGate {
         NetworkConfig active = network.activeConfig();
         byte[] trustedKey = trustStore.get(peerName);
         if (trustedKey != null) {
-            if (Handshake.sameKey(trustedKey, publicKey)) {
+            if (Ed25519.sameKey(trustedKey, publicKey)) {
                 return true;
             }
             logger.warning("net: rejecting " + label + " " + peerName + " because its public key changed");
@@ -114,7 +115,7 @@ final class PeerTrustGate {
         }
         PeerQuarantineStore.Entry quarantined = quarantine.get(peerName);
         if (quarantined != null) {
-            if (!Handshake.sameKey(quarantined.announce().publicKey(), publicKey)) {
+            if (!Ed25519.sameKey(quarantined.announce().publicKey(), publicKey)) {
                 logger.warning("net: rejecting " + label + " " + peerName + " because its key differs from the introduced key");
                 return false;
             }

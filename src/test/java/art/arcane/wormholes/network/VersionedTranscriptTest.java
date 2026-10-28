@@ -1,5 +1,6 @@
 package art.arcane.wormholes.network;
 
+import art.arcane.volmlib.util.crypto.Ed25519;
 import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayOutputStream;
@@ -20,13 +21,13 @@ class VersionedTranscriptTest {
 
     private static WireMessage.Hello hello(KeyPair keys) {
         return new WireMessage.Hello(WireCodec.PROTOCOL_VERSION, "26.2", "2.1.0", "alpha", "10.0.0.1", 8901,
-            new GameEndpoint("alpha.example", 25570), new GameEndpoint("10.0.0.1", 25565), Handshake.newNonce(),
+            new GameEndpoint("alpha.example", 25570), new GameEndpoint("10.0.0.1", 25565), Ed25519.newNonce(),
             keys.getPublic().getEncoded(), true, CompressionDictionary.ZERO_HASH, 0, WireCapability.localSet());
     }
 
     private static WireMessage.Challenge challenge(KeyPair keys) {
         return new WireMessage.Challenge("beta", "10.0.0.2", 8902, new GameEndpoint("beta.example", 25580),
-            new GameEndpoint("10.0.0.2", 25566), Handshake.newNonce(), keys.getPublic().getEncoded(), new byte[0], true,
+            new GameEndpoint("10.0.0.2", 25566), Ed25519.newNonce(), keys.getPublic().getEncoded(), new byte[0], true,
             CompressionDictionary.ZERO_HASH, 0, WireCapability.localSet());
     }
 

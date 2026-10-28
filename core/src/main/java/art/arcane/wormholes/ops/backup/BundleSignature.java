@@ -1,5 +1,6 @@
 package art.arcane.wormholes.ops.backup;
 
+import art.arcane.volmlib.util.crypto.Ed25519;
 import art.arcane.wormholes.network.Handshake;
 
 import java.util.Map;
@@ -46,12 +47,12 @@ public record BundleSignature(Verdict verdict, String signer, String fingerprint
         if (!bundle.signatureValid()) {
             return new BundleSignature(Verdict.BROKEN, bundle.manifest().serverName(), fingerprint);
         }
-        if (localKey != null && localKey.length > 0 && Handshake.sameKey(localKey, signingKey)) {
+        if (localKey != null && localKey.length > 0 && Ed25519.sameKey(localKey, signingKey)) {
             return new BundleSignature(Verdict.LOCAL, bundle.manifest().serverName(), fingerprint);
         }
         if (trustedKeys != null) {
             for (Map.Entry<String, byte[]> peer : trustedKeys.entrySet()) {
-                if (Handshake.sameKey(peer.getValue(), signingKey)) {
+                if (Ed25519.sameKey(peer.getValue(), signingKey)) {
                     return new BundleSignature(Verdict.TRUSTED_PEER, peer.getKey(), fingerprint);
                 }
             }

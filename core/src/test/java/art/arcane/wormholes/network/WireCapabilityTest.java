@@ -4,6 +4,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import art.arcane.volmlib.util.crypto.Ed25519;
+
 import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.security.KeyPair;
@@ -26,10 +28,10 @@ final class WireCapabilityTest {
         KeyPair keys = keyPair();
         long advertised = WireCapability.PROTOCOL_21.mask() | (1L << 40);
         WireMessage.Hello hello = new WireMessage.Hello(WireCodec.PROTOCOL_VERSION, "26.2", "test", "alpha", "10.0.0.1", 8901,
-            new GameEndpoint("alpha.example", 25570), new GameEndpoint("10.0.0.1", 25565), Handshake.newNonce(),
+            new GameEndpoint("alpha.example", 25570), new GameEndpoint("10.0.0.1", 25565), Ed25519.newNonce(),
             keys.getPublic().getEncoded(), true, CompressionDictionary.ZERO_HASH, 0, advertised);
         WireMessage.Challenge challenge = new WireMessage.Challenge("beta", "10.0.0.2", 8902,
-            new GameEndpoint("beta.example", 25580), new GameEndpoint("10.0.0.2", 25566), Handshake.newNonce(),
+            new GameEndpoint("beta.example", 25580), new GameEndpoint("10.0.0.2", 25566), Ed25519.newNonce(),
             keys.getPublic().getEncoded(), new byte[0], true, CompressionDictionary.ZERO_HASH, 0, advertised);
 
         WireMessage.Hello decodedHello = WireMessage.Hello.read(new DataInputStream(new ByteArrayInputStream(WireCodec.encodePayload(hello))));
@@ -43,10 +45,10 @@ final class WireCapabilityTest {
     void handshakeTranscriptBindsTheCapabilitySet() throws Exception {
         KeyPair signer = keyPair();
         WireMessage.Hello hello = new WireMessage.Hello(WireCodec.PROTOCOL_VERSION, "26.2", "test", "alpha", "10.0.0.1", 8901,
-            new GameEndpoint("alpha.example", 25570), new GameEndpoint("10.0.0.1", 25565), Handshake.newNonce(),
+            new GameEndpoint("alpha.example", 25570), new GameEndpoint("10.0.0.1", 25565), Ed25519.newNonce(),
             signer.getPublic().getEncoded(), true, CompressionDictionary.ZERO_HASH, 0, WireCapability.localSet());
         WireMessage.Challenge challenge = new WireMessage.Challenge("beta", "10.0.0.2", 8902,
-            new GameEndpoint("beta.example", 25580), new GameEndpoint("10.0.0.2", 25566), Handshake.newNonce(),
+            new GameEndpoint("beta.example", 25580), new GameEndpoint("10.0.0.2", 25566), Ed25519.newNonce(),
             signer.getPublic().getEncoded(), new byte[0], true, CompressionDictionary.ZERO_HASH, 0, WireCapability.localSet());
         byte[] signature = Handshake.signTranscript(signer.getPrivate(), hello, challenge, Handshake.ROLE_ACCEPTOR);
         assertTrue(Handshake.verifyTranscript(signer.getPublic().getEncoded(), signature, hello, challenge, Handshake.ROLE_ACCEPTOR));

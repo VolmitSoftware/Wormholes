@@ -356,6 +356,9 @@ dependencies {
     implementation("com.github.VolmitSoftware.VolmLib:volmlib-localization:${volmLibCoordinate.tokenize(':').last()}") {
         transitive = false
     }
+    implementation("com.github.VolmitSoftware.VolmLib:volmlib-crypto:${volmLibCoordinate.tokenize(':').last()}") {
+        transitive = false
+    }
     implementation("com.github.VolmitSoftware.VolmLib:volmlib-web:${volmLibCoordinate.tokenize(':').last()}") {
         transitive = false
     }

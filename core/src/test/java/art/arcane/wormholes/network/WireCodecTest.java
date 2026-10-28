@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.UUID;
 
 import art.arcane.optics.entity.EntitySnapshot;
+import art.arcane.volmlib.util.crypto.Ed25519;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -42,7 +43,7 @@ class WireCodecTest {
 
     @Test
     void helloRoundTripPreservesAllFields() throws Exception {
-        byte[] nonce = Handshake.newNonce();
+        byte[] nonce = Ed25519.newNonce();
         byte[] publicKey = publicKey();
         WireMessage.Hello hello = new WireMessage.Hello(WireCodec.PROTOCOL_VERSION, "26.2", "1.0.0", "alpha", "10.0.0.5", 8901, new GameEndpoint("10.0.0.5", 25565), null, nonce, publicKey, false, CompressionDictionary.ZERO_HASH, 0, WireCapability.localSet());
         WireMessage.Hello decoded = assertInstanceOf(WireMessage.Hello.class, roundTrip(hello));
@@ -59,7 +60,7 @@ class WireCodecTest {
 
     @Test
     void challengeRoundTripPreservesAllFields() throws Exception {
-        byte[] nonce = Handshake.newNonce();
+        byte[] nonce = Ed25519.newNonce();
         byte[] publicKey = publicKey();
         byte[] signature = new byte[] {1, 2, 3, 4};
         WireMessage.Challenge challenge = new WireMessage.Challenge("beta", "10.0.0.2", 8901, new GameEndpoint("10.0.0.2", 25565), null, nonce, publicKey, signature, true, CompressionDictionary.ZERO_HASH, 0, WireCapability.localSet());
@@ -94,7 +95,7 @@ class WireCodecTest {
     @Test
     void largePayloadIsCompressedAndRoundTrips() throws Exception {
         String bigVersion = "x".repeat(50_000);
-        WireMessage.Hello hello = new WireMessage.Hello(WireCodec.PROTOCOL_VERSION, "26.2", bigVersion, "alpha", "10.0.0.5", 8901, new GameEndpoint("10.0.0.5", 25565), null, Handshake.newNonce(), publicKey(), true, CompressionDictionary.ZERO_HASH, 0, WireCapability.localSet());
+        WireMessage.Hello hello = new WireMessage.Hello(WireCodec.PROTOCOL_VERSION, "26.2", bigVersion, "alpha", "10.0.0.5", 8901, new GameEndpoint("10.0.0.5", 25565), null, Ed25519.newNonce(), publicKey(), true, CompressionDictionary.ZERO_HASH, 0, WireCapability.localSet());
         WireCompression compression = new WireCompression(WireCompression.DEFAULT_LEVEL);
         try {
             byte[] frame = WireCodec.encodeFrame(hello, compression, 0);

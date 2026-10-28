@@ -54,6 +54,7 @@ if (useLocalVolmLib && localVolmLibDirectory != null) {
         name = 'VolmLib'
         dependencySubstitution {
             substitute(module('com.github.VolmitSoftware.VolmLib:volmlib-localization')).using(project(':localization'))
+            substitute(module('com.github.VolmitSoftware.VolmLib:volmlib-crypto')).using(project(':crypto'))
             substitute(module('com.github.VolmitSoftware.VolmLib:volmlib-web')).using(project(':web'))
         }
     }

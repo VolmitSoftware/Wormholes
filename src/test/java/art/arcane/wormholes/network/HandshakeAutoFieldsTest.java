@@ -1,6 +1,7 @@
 package art.arcane.wormholes.network;
 
 import com.github.retrooper.packetevents.protocol.player.ClientVersion;
+import art.arcane.volmlib.util.crypto.Ed25519;
 import art.arcane.wormholes.util.BukkitJsonDocuments;
 import art.arcane.wormholes.config.toml.NetworkConfig;
 import org.junit.jupiter.api.AfterEach;
@@ -73,7 +74,7 @@ class HandshakeAutoFieldsTest {
 
     @Test
     void challengeRoundTripCarriesAdvertiseAndPorts() throws Exception {
-        byte[] nonce = Handshake.newNonce();
+        byte[] nonce = Ed25519.newNonce();
         java.security.KeyPair pair = java.security.KeyPairGenerator.getInstance("Ed25519").generateKeyPair();
         WireMessage.Challenge challenge = new WireMessage.Challenge(
             "beta",

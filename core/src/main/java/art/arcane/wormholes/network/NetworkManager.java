@@ -1,5 +1,6 @@
 package art.arcane.wormholes.network;
 
+import art.arcane.volmlib.util.crypto.Ed25519;
 import art.arcane.wormholes.config.toml.NetworkConfig;
 import art.arcane.wormholes.util.JsonDocuments;
 import art.arcane.wormholes.network.mesh.DirectoryCache;
@@ -787,7 +788,7 @@ public class NetworkManager implements PeerConnection.Listener, PeerConnection.C
         return isRunning() && config.enabled && packet.endpointProbe() && packet.messages().isEmpty()
             && expectedKey != null && expectedPeer.equals(packet.sourceServer())
             && getLocalName().equals(packet.targetServer()) && statusBridgeIncompatibility(packet) == null
-            && Handshake.sameKey(expectedKey, packet.publicKey()) && packet.verify();
+            && Ed25519.sameKey(expectedKey, packet.publicKey()) && packet.verify();
     }
 
     boolean isRawPeerReady(String name) {

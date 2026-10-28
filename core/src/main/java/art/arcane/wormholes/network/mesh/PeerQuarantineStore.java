@@ -1,6 +1,6 @@
 package art.arcane.wormholes.network.mesh;
 
-import art.arcane.wormholes.network.Handshake;
+import art.arcane.volmlib.util.crypto.Ed25519;
 import art.arcane.wormholes.util.VIO;
 
 import java.io.ByteArrayInputStream;
@@ -58,7 +58,7 @@ public final class PeerQuarantineStore {
 
     public boolean matches(String name, byte[] publicKey) {
         Entry entry = get(name);
-        return entry != null && Handshake.sameKey(entry.announce().publicKey(), publicKey);
+        return entry != null && Ed25519.sameKey(entry.announce().publicKey(), publicKey);
     }
 
     /** Stores a verified introduction; an announce older than the stored epoch is ignored. Returns true when stored. */

@@ -1,6 +1,6 @@
 package art.arcane.wormholes.network.mesh;
 
-import art.arcane.wormholes.network.Handshake;
+import art.arcane.volmlib.util.crypto.Ed25519;
 import art.arcane.wormholes.util.VIO;
 
 import java.io.ByteArrayOutputStream;
@@ -69,7 +69,7 @@ public final class TombstoneService {
 
     public boolean blocksKey(String name, byte[] publicKey, long nowMillis, long ttlMillis) {
         Tombstone tombstone = name == null ? null : tombstones.get(name);
-        return tombstone != null && tombstone.active(nowMillis, ttlMillis) && Handshake.sameKey(tombstone.publicKey(), publicKey);
+        return tombstone != null && tombstone.active(nowMillis, ttlMillis) && Ed25519.sameKey(tombstone.publicKey(), publicKey);
     }
 
     public long epochOf(String name, long fallback) {

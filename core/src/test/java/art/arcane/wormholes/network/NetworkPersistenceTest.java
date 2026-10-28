@@ -4,6 +4,9 @@ import art.arcane.wormholes.config.toml.NetworkConfig;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.io.ByteArrayOutputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.KeyPair;
@@ -14,6 +17,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class NetworkPersistenceTest {
@@ -41,6 +45,45 @@ class NetworkPersistenceTest {
         assertArrayEquals(expectedPublicKey, repaired.publicKeyBytes());
         assertArrayEquals(expectedPublicKey, Files.readAllBytes(publicPath));
         assertTrue(Files.readAllBytes(privatePath).length > 3);
+    }
+
+    @Test
+    void identityStoreLoadsAStoredIdentityWithItsOriginalKeys() throws Exception {
+        KeyPair stored = KeyPairGenerator.getInstance("Ed25519").generateKeyPair();
+        byte[] privateBytes = stored.getPrivate().getEncoded();
+        byte[] publicBytes = stored.getPublic().getEncoded();
+        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+        try (DataOutputStream output = new DataOutputStream(buffer)) {
+            output.writeInt(0x57484944);
+            output.writeInt(1);
+            output.writeInt(privateBytes.length);
+            output.write(privateBytes);
+            output.writeInt(publicBytes.length);
+            output.write(publicBytes);
+        }
+        Path identityDirectory = tempDir.resolve("identity");
+        Files.createDirectories(identityDirectory);
+        Path identityPath = identityDirectory.resolve("server.identity");
+        Files.write(identityPath, buffer.toByteArray());
+
+        IdentityStore loaded = IdentityStore.loadOrCreate(tempDir);
+
+        assertArrayEquals(publicBytes, loaded.publicKeyBytes());
+        assertArrayEquals(privateBytes, loaded.privateKey().getEncoded());
+        assertArrayEquals(buffer.toByteArray(), Files.readAllBytes(identityPath));
+        assertArrayEquals(privateBytes, Files.readAllBytes(identityDirectory.resolve("server.key")));
+        assertArrayEquals(publicBytes, Files.readAllBytes(identityDirectory.resolve("server.pub")));
+    }
+
+    @Test
+    void identityStoreRejectsAMismatchedLegacyPair() throws Exception {
+        Path identityDirectory = tempDir.resolve("identity");
+        Files.createDirectories(identityDirectory);
+        Files.write(identityDirectory.resolve("server.key"), KeyPairGenerator.getInstance("Ed25519").generateKeyPair().getPrivate().getEncoded());
+        Files.write(identityDirectory.resolve("server.pub"), KeyPairGenerator.getInstance("Ed25519").generateKeyPair().getPublic().getEncoded());
+
+        assertThrows(IOException.class, () -> IdentityStore.loadOrCreate(tempDir));
+        assertFalse(Files.exists(identityDirectory.resolve("server.identity")));
     }
 
     @Test

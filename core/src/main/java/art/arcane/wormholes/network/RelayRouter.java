@@ -1,5 +1,6 @@
 package art.arcane.wormholes.network;
 
+import art.arcane.volmlib.util.crypto.Ed25519;
 import art.arcane.wormholes.config.toml.NetworkConfig;
 
 import java.io.IOException;
@@ -91,7 +92,7 @@ final class RelayRouter {
                 logger.warning("net: rejected peer announce for " + origin + " via " + inboundPeer + " because the announce signature failed");
                 return false;
             }
-            originKey = Handshake.decodePublicKey(message.announce().publicKey());
+            originKey = Ed25519.decodePublicKey(message.announce().publicKey());
         } catch (Exception e) {
             logger.warning("net: dropped peer announce for " + origin + " via " + inboundPeer + ": " + e.getMessage());
             return false;

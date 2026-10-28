@@ -1,5 +1,6 @@
 package art.arcane.wormholes.ops.backup;
 
+import art.arcane.volmlib.util.crypto.Ed25519;
 import art.arcane.wormholes.network.Handshake;
 import art.arcane.wormholes.network.IdentityStore;
 
@@ -45,7 +46,7 @@ public interface BundleSigner {
 
             @Override
             public String fingerprint() {
-                return Handshake.fingerprint(publicKey);
+                return Ed25519.fingerprint(publicKey);
             }
         };
     }

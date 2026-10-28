@@ -1,6 +1,7 @@
 package art.arcane.wormholes.network;
 
 import com.github.retrooper.packetevents.protocol.player.ClientVersion;
+import art.arcane.volmlib.util.crypto.Ed25519;
 import art.arcane.wormholes.util.BukkitJsonDocuments;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.config.toml.NetworkConfig;
@@ -1441,7 +1442,7 @@ class NetworkManagerTest {
     @Test
     void removePeerForgetsRouteAndTrustPersistently() throws Exception {
         java.security.KeyPairGenerator generator = java.security.KeyPairGenerator.getInstance("Ed25519");
-        String betaKey = Handshake.encodePublicKey(generator.generateKeyPair().getPublic().getEncoded());
+        String betaKey = Ed25519.encodePublicKeyText(generator.generateKeyPair().getPublic().getEncoded());
         NetworkManager alpha = manager(config(8907, ALPHA_NAME), ALPHA_GAME_PORT, "remove-alpha");
         alpha.savePeer(route(BETA_NAME, 8902));
         alpha.trustPeer(BETA_NAME, betaKey);

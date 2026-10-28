@@ -1,5 +1,6 @@
 package art.arcane.wormholes.network;
 
+import art.arcane.volmlib.util.crypto.Ed25519;
 import org.junit.jupiter.api.Test;
 
 import java.security.KeyPair;
@@ -65,6 +66,6 @@ class ServerCodeTest {
     private static String publicKey() throws Exception {
         KeyPairGenerator generator = KeyPairGenerator.getInstance("Ed25519");
         KeyPair keyPair = generator.generateKeyPair();
-        return Handshake.encodePublicKey(keyPair.getPublic().getEncoded());
+        return Ed25519.encodePublicKeyText(keyPair.getPublic().getEncoded());
     }
 }

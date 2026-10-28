@@ -1,5 +1,6 @@
 package art.arcane.wormholes.network;
 
+import art.arcane.volmlib.util.crypto.Ed25519;
 import art.arcane.wormholes.util.VIO;
 
 import java.io.ByteArrayOutputStream;
@@ -51,7 +52,7 @@ public final class PeerTrustStore {
         }
         return decodedTrustedKeys.computeIfAbsent(serverName, ignored -> {
             try {
-                return Handshake.decodePublicKey(trustedKeys.get(serverName));
+                return Ed25519.decodePublicKey(trustedKeys.get(serverName));
             } catch (Exception e) {
                 return null;
             }
@@ -60,7 +61,7 @@ public final class PeerTrustStore {
 
     public boolean isTrusted(String serverName, byte[] publicKey) {
         byte[] trusted = trustedKeys.get(serverName);
-        return trusted != null && Handshake.sameKey(trusted, publicKey);
+        return trusted != null && Ed25519.sameKey(trusted, publicKey);
     }
 
     public boolean trust(String serverName, byte[] publicKey) {
@@ -69,7 +70,7 @@ public final class PeerTrustStore {
         }
         byte[] previous = trustedKeys.putIfAbsent(serverName, publicKey.clone());
         if (previous != null) {
-            return Handshake.sameKey(previous, publicKey);
+            return Ed25519.sameKey(previous, publicKey);
         }
         decodedTrustedKeys.remove(serverName);
         persist();
@@ -90,7 +91,7 @@ public final class PeerTrustStore {
             return;
         }
         byte[] previous = trustedKeys.put(serverName, publicKey.clone());
-        if (previous != null && Handshake.sameKey(previous, publicKey)) {
+        if (previous != null && Ed25519.sameKey(previous, publicKey)) {
             return;
         }
         decodedTrustedKeys.remove(serverName);
@@ -119,7 +120,7 @@ public final class PeerTrustStore {
     private synchronized void persist() {
         Properties properties = new Properties();
         for (Map.Entry<String, byte[]> entry : trustedKeys.entrySet()) {
-            properties.setProperty(entry.getKey(), Handshake.encodePublicKey(entry.getValue()));
+            properties.setProperty(entry.getKey(), Ed25519.encodePublicKeyText(entry.getValue()));
         }
         try {
             ByteArrayOutputStream output = new ByteArrayOutputStream();

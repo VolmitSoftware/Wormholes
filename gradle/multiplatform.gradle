@@ -154,6 +154,7 @@ Configuration moddedSharedLibraries = configurations.create('moddedSharedLibrari
     }
 }
 dependencies.add(moddedSharedLibraries.name, 'com.github.VolmitSoftware.VolmLib:volmlib-localization:master-SNAPSHOT')
+dependencies.add(moddedSharedLibraries.name, 'com.github.VolmitSoftware.VolmLib:volmlib-crypto:master-SNAPSHOT')
 dependencies.add(moddedSharedLibraries.name, 'com.github.VolmitSoftware.VolmLib:volmlib-web:master-SNAPSHOT')
 Provider<JavaLauncher> moddedLauncher = javaToolchains.launcherFor {
     languageVersion = JavaLanguageVersion.of(25)

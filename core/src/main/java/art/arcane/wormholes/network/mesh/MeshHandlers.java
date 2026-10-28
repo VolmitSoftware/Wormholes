@@ -1,7 +1,7 @@
 package art.arcane.wormholes.network.mesh;
 
+import art.arcane.volmlib.util.crypto.Ed25519;
 import art.arcane.wormholes.config.toml.NetworkConfig;
-import art.arcane.wormholes.network.Handshake;
 import art.arcane.wormholes.network.NetworkManager;
 import art.arcane.wormholes.network.WireMessage;
 import art.arcane.wormholes.network.WireMessageHandler;
@@ -127,7 +127,7 @@ public final class MeshHandlers implements WireMessageHandler {
         }
         byte[] trustedKey = network.trustedKey(name);
         if (trustedKey != null) {
-            if (!Handshake.sameKey(trustedKey, announce.publicKey())) {
+            if (!Ed25519.sameKey(trustedKey, announce.publicKey())) {
                 if (keyMismatchLogged.add(name)) {
                     logger.warning("net: ignoring peer announce for " + name + " via " + via + ": key " + announce.fingerprint()
                         + " differs from the trusted key; /wh server remove " + name + " then re-import to accept the new identity");
@@ -200,7 +200,7 @@ public final class MeshHandlers implements WireMessageHandler {
             pendingLogged.remove(name);
         }
         byte[] trustedKey = network.trustedKey(name);
-        if (trustedKey != null && Handshake.sameKey(trustedKey, tombstone.publicKey())) {
+        if (trustedKey != null && Ed25519.sameKey(trustedKey, tombstone.publicKey())) {
             logger.info("net: peer " + name + " removed network-wide by " + issuer);
             network.removePeer(name);
             notifyRemoved(name);

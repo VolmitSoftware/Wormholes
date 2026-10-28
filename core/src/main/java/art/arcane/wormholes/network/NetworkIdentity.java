@@ -1,5 +1,6 @@
 package art.arcane.wormholes.network;
 
+import art.arcane.volmlib.util.crypto.Ed25519;
 import art.arcane.wormholes.config.toml.NetworkConfig;
 
 import java.security.PrivateKey;
@@ -41,11 +42,11 @@ final class NetworkIdentity {
     }
 
     String publicKey() {
-        return Handshake.encodePublicKey(identityStore.publicKeyBytes());
+        return Ed25519.encodePublicKeyText(identityStore.publicKeyBytes());
     }
 
     String fingerprint() {
-        return Handshake.fingerprint(identityStore.publicKeyBytes());
+        return Ed25519.fingerprint(identityStore.publicKeyBytes());
     }
 
     String localName() {

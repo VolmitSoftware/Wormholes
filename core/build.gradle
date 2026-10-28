@@ -19,6 +19,7 @@ repositories {
 dependencies {
     api(project(':optics'))
     api('com.github.VolmitSoftware.VolmLib:volmlib-localization:master-SNAPSHOT')
+    api('com.github.VolmitSoftware.VolmLib:volmlib-crypto:master-SNAPSHOT')
     implementation('net.kyori:adventure-text-minimessage:4.26.1')
     implementation('net.kyori:adventure-text-serializer-legacy:4.26.1')
     implementation('net.kyori:adventure-text-serializer-plain:4.26.1')
