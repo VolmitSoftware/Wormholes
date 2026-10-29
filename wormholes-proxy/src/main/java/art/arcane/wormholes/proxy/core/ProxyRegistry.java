@@ -3,16 +3,24 @@ package art.arcane.wormholes.proxy.core;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiConsumer;
 
 /**
  * Backends that enrolled over the plugin channel, keyed by their Wormholes server name. A name belongs
- * to the proxy-side server that first claimed it until that backend goes quiet, so a cloned or
+ * to the proxy-side server that first claimed it until that backend stops answering, so a cloned or
  * copy-configured backend cannot take another one's handoffs by enrolling under its name.
  */
 public final class ProxyRegistry {
     public record Backend(String proxyServer, String serverName, String serverCode, long capabilities, List<String> portals, long lastSeenMillis) {
+        Backend seenAt(long nowMillis) {
+            return new Backend(proxyServer, serverName, serverCode, capabilities, portals, nowMillis);
+        }
+    }
+
+    public interface Reachability {
+        CompletableFuture<Boolean> reachable(String proxyServer);
     }
 
     private final Map<String, Backend> backends = new ConcurrentHashMap<>();
@@ -26,19 +34,28 @@ public final class ProxyRegistry {
         if (existing != null && !existing.proxyServer().equals(proxyServer)) {
             return false;
         }
+        backends.values().removeIf(backend -> backend.proxyServer().equals(proxyServer) && !backend.serverName().equals(serverName));
         backends.put(serverName, new Backend(proxyServer, serverName, serverCode, capabilities, List.copyOf(portals), nowMillis));
         return true;
     }
 
     /**
-     * Drops backends that have not enrolled within {@code ttlMillis}; a backend that went down stops
-     * attracting handoffs that would fail at connect time. Each removal is handed to {@code onExpired}.
+     * Checks every backend that has not enrolled within {@code quietMillis}. A backend can only enroll
+     * through a connected player, so an empty one goes quiet while it is still up: it stays while its
+     * proxy-side server answers and is dropped, through {@code onDropped}, once it does not.
      */
-    public void expire(long nowMillis, long ttlMillis, BiConsumer<String, String> onExpired) {
+    public void sweep(long nowMillis, long quietMillis, Reachability reachability, BiConsumer<String, String> onDropped) {
         for (Backend backend : backends.values()) {
-            if (nowMillis - backend.lastSeenMillis() > ttlMillis && backends.remove(backend.serverName(), backend)) {
-                onExpired.accept(backend.serverName(), backend.proxyServer());
+            if (nowMillis - backend.lastSeenMillis() <= quietMillis) {
+                continue;
             }
+            reachability.reachable(backend.proxyServer()).whenComplete((reachable, error) -> {
+                if (error == null && Boolean.TRUE.equals(reachable)) {
+                    backends.replace(backend.serverName(), backend, backend.seenAt(nowMillis));
+                } else if (backends.remove(backend.serverName(), backend)) {
+                    onDropped.accept(backend.serverName(), backend.proxyServer());
+                }
+            });
         }
     }
 

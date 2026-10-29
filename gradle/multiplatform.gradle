@@ -212,7 +212,7 @@ for (File initScript : gradle.startParameter.initScripts) {
 tasks.register('buildBukkit') {
     group = 'build'
     description = 'Builds and verifies the packed Bukkit plugin.'
-    dependsOn('check', ':core:check', ':optics:check', 'packedJar')
+    dependsOn('check', ':core:check', ':optics:check', ':wormholes-proxy:check', 'packedJar')
 }
 
 Map<String, String> loaders = [fabric: 'Fabric', forge: 'Forge', neoforge: 'NeoForge']
@@ -329,8 +329,8 @@ tasks.register('prepareRelease', Sync) {
 
 tasks.register('buildAll') {
     group = 'build'
-    description = 'Builds and verifies the Bukkit plugin, API, proxy and every supported mod target.'
-    dependsOn('buildBukkit', 'apiJar', ':wormholes-proxy:build', 'buildModdedVersions')
+    description = 'Builds and verifies the Bukkit plugin, API, and every supported mod target.'
+    dependsOn('buildBukkit', 'apiJar', 'buildModdedVersions')
 }
 
 tasks.register('buildModdedVersions') {

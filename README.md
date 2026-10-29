@@ -6,7 +6,7 @@ The central [Wormholes manual](https://github.com/VolmitSoftware/docs/blob/maste
 
 The projection library lives in the [Optics](https://github.com/VolmitSoftware/Optics) submodule at `optics/`; clone with `git clone --recurse-submodules` or run `git submodule update --init` in an existing checkout.
 
-Build the Bukkit distribution, API, proxy and every declared Fabric, Forge and NeoForge target with Java 25 and `./gradlew buildAll`. Artifacts stay in the producing module's `build/` directory. Use `./gradlew buildModdedVersions` for the mod matrix or `./gradlew checkAll` for every Bukkit, core, Optics, proxy and mod check. `buildFabric`, `buildForge` and `buildNeoforge` select the `minecraftVersion` Gradle property. Multiplexor reads `gradle/multiplexor.gradle` to build targets in separate source sandboxes and deliver selected artifacts to configured destinations.
+Build the Bukkit distribution (which also runs on Velocity and BungeeCord), API and every declared Fabric, Forge and NeoForge target with Java 25 and `./gradlew buildAll`. Artifacts stay in the producing module's `build/` directory. Use `./gradlew buildModdedVersions` for the mod matrix or `./gradlew checkAll` for every Bukkit, core, Optics, proxy and mod check. `buildFabric`, `buildForge` and `buildNeoforge` select the `minecraftVersion` Gradle property. Multiplexor reads `gradle/multiplexor.gradle` to build targets in separate source sandboxes and deliver selected artifacts to configured destinations.
 
 ## Known issues
 

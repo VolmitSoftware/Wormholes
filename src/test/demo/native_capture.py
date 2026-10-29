@@ -4,7 +4,7 @@ from pathlib import Path
 import re
 import subprocess
 
-from studio import Bridge, DOCS, FFMPEG, FFPROBE, verify_capture, verify_hidden_renderer
+from studio import Bridge, DOCS, FFMPEG, complete_publication, publish_exports, record_publication, verify_capture, verify_hidden_renderer
 
 
 TAKES: dict[str, str] = {
@@ -105,24 +105,40 @@ def accepted(evidence: Path, selected: list[str] | None) -> dict[str, dict]:
     return {identifier: manifest['takes'][identifier] for identifier in TAKES if identifier in identifiers}
 
 
-def export(evidence: Path, destination: Path, selected: list[str] | None = None) -> None:
-    takes: dict[str, dict] = accepted(evidence, selected)
+def export(evidence: Path, destination: Path, selected: list[str] | None = None, reviewed: bool = False) -> None:
+    if not reviewed:
+        raise ValueError('Review the native recordings, then publish with --reviewed')
+    identifiers: list[str] = sorted(TAKES if selected is None else set(selected))
+    if not identifiers or not set(identifiers) <= TAKES.keys():
+        raise ValueError('Unknown or empty native export selection')
     recordings: Path = evidence / 'native-demo'
-    destination.mkdir(parents=True, exist_ok=True)
+    if recordings.is_symlink() or destination.resolve().is_relative_to(recordings.resolve()):
+        raise ValueError('Publication requires separate recording and documentation directories')
+    receipt: Path = recordings / ('publication-' + '-'.join(identifiers) + '.json')
+    if receipt.is_file():
+        missing: bool = not any((recordings / (identifier + '.mp4')).exists() for identifier in identifiers)
+        if not json.loads(receipt.read_text())['complete'] or missing:
+            complete_publication(receipt, recordings, destination)
+            return
+    takes: dict[str, dict] = accepted(evidence, selected)
+    exports: list[tuple[Path, Path]] = []
+    sources: list[Path] = []
     for identifier in takes:
         filename: str = TAKES[identifier]
         source: Path = recordings / (identifier + '.mp4')
-        target: Path = destination / filename
+        if source.is_symlink():
+            raise ValueError('Native recordings must be regular files')
+        target: Path = recordings / filename
+        if target.is_symlink():
+            raise ValueError('Native export target must not be a symbolic link')
         subprocess.run([str(FFMPEG), '-y', '-v', 'error', '-i', str(source), '-an', '-c:v', 'libvpx-vp9',
                         '-crf', '27', '-b:v', '0', '-row-mt', '1', '-pix_fmt', 'yuv420p', str(target)], check=True)
-        probe: dict = json.loads(subprocess.check_output([str(FFPROBE), '-v', 'error', '-select_streams', 'v:0',
-            '-show_entries', 'stream=width,height,avg_frame_rate:format=duration', '-of', 'json', str(target)], text=True))
-        stream: dict = probe['streams'][0]
-        if (stream['width'], stream['height'], stream['avg_frame_rate']) != (1920, 1080, '30/1'):
-            raise AssertionError('Native demo export changed capture dimensions or frame rate')
-        if target.stat().st_size >= 25 * 1024 * 1024:
-            raise AssertionError('Native demo export exceeds the clip size budget')
-        subprocess.run([str(FFMPEG), '-v', 'error', '-i', str(target), '-f', 'null', '-'], check=True)
+        exports.append((target, destination / filename))
+        sources.append(source)
+    publish_exports(exports)
+    record_publication(receipt, recordings, exports, sources + [staged for staged, _ in exports])
+    complete_publication(receipt, recordings, destination)
+    for staged, target in exports:
         print(str(target), flush=True)
 
 
@@ -131,5 +147,6 @@ if __name__ == '__main__':
     parser.add_argument('evidence', type=Path)
     parser.add_argument('--destination', type=Path, default=DOCS)
     parser.add_argument('--only', action='append', choices=list(TAKES))
+    parser.add_argument('--reviewed', action='store_true')
     arguments = parser.parse_args()
-    export(arguments.evidence, arguments.destination, arguments.only)
+    export(arguments.evidence, arguments.destination, arguments.only, arguments.reviewed)

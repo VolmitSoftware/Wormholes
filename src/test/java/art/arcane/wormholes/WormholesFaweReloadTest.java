@@ -13,8 +13,10 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -28,6 +30,7 @@ final class WormholesFaweReloadTest {
     @Test
     void reloadWaitsForAdmittedEditsBeforeAllowingUnload() throws ReflectiveOperationException {
         FaweProjectionIntegration integration = mock(FaweProjectionIntegration.class);
+        when(integration.supportsReload()).thenReturn(true);
         CompletableFuture<Void> edits = new CompletableFuture<>();
         when(integration.prepareReload(Duration.ofSeconds(90))).thenReturn(edits);
         CompletionStage<ReloadPreparation> prepared = plugin(integration).prepareReload(ReloadAware.PreUnloadReason.HOT_RELOAD);
@@ -39,12 +42,25 @@ final class WormholesFaweReloadTest {
     @Test
     void editTimeoutRefusesUnload() throws ReflectiveOperationException {
         FaweProjectionIntegration integration = mock(FaweProjectionIntegration.class);
+        when(integration.supportsReload()).thenReturn(true);
         when(integration.prepareReload(Duration.ofSeconds(90)))
                 .thenReturn(CompletableFuture.failedFuture(new TimeoutException("edit still active")));
         ReloadPreparation prepared = plugin(integration).prepareReload(ReloadAware.PreUnloadReason.HOT_UNLOAD)
                 .toCompletableFuture().join();
         assertFalse(prepared.ready());
         assertFalse(prepared.reason().isBlank());
+    }
+
+    @Test
+    void standardFaweRefusesUnloadWithoutWaitingForUnavailableCompletionHooks() throws ReflectiveOperationException {
+        FaweProjectionIntegration integration = mock(FaweProjectionIntegration.class);
+        when(integration.supportsReload()).thenReturn(false);
+        CompletionStage<ReloadPreparation> preparation = plugin(integration).prepareReload(ReloadAware.PreUnloadReason.HOT_UNLOAD);
+        assertTrue(preparation.toCompletableFuture().isDone());
+        ReloadPreparation prepared = preparation.toCompletableFuture().join();
+        assertFalse(prepared.ready());
+        assertFalse(prepared.reason().isBlank());
+        verify(integration, never()).prepareReload(any());
     }
 
     @Test

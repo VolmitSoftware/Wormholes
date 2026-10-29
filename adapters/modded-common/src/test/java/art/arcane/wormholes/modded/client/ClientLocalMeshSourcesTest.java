@@ -50,7 +50,9 @@ import java.lang.reflect.Constructor;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.LongSupplier;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.clearInvocations;
@@ -398,6 +400,24 @@ public class ClientLocalMeshSourcesTest extends MinecraftTestBase {
     }
 
     @Test
+    public void prioritizedBlockChangeProgressesWhenSchedulingConsumesTheFrameBudget() throws Exception {
+        AtomicLong time = new AtomicLong();
+        AtomicLong step = new AtomicLong();
+        Fixture fixture = new Fixture(() -> time.getAndAdd(step.get()));
+        fixture.awaitSection();
+        ClientMeshSections.Section original = fixture.session.meshes().view(1).section(0L);
+        fixture.state.set(Blocks.DIRT.defaultBlockState());
+        fixture.sources.blockChanged(fixture.level, BlockPos.ZERO);
+        step.set(3_000_000L);
+
+        fixture.update();
+
+        ClientMeshSections.Section changed = fixture.session.meshes().view(1).section(0L);
+        assertSame(Blocks.DIRT.defaultBlockState(), changed.state(0));
+        assertTrue(changed.revision() > original.revision());
+    }
+
+    @Test
     public void nativePeersWithoutLocalCapabilityStillRenderLocalUpdatesWithoutSendingNewMessages() throws Exception {
         Fixture fixture = new Fixture();
         fixture.session.accept(new ViewStreamMessage.Accept(1, ViewStreamCapability.ALL & ~ViewStreamCapability.LOCAL_MESH.mask(),
@@ -552,11 +572,16 @@ public class ClientLocalMeshSourcesTest extends MinecraftTestBase {
         private final AtomicReference<BlockState> marker = new AtomicReference<>();
         private final AtomicReference<Holder<Biome>> biome = new AtomicReference<>();
         private final List<ViewStreamMessage> messages = new ArrayList<>();
-        final ClientLocalMeshSources sources = new ClientLocalMeshSources(messages::add);
+        final ClientLocalMeshSources sources;
         final ClientViewSession session;
         final ClientViewSession.Sink sink = mock(ClientViewSession.Sink.class);
 
         Fixture() throws Exception {
+            this(System::nanoTime);
+        }
+
+        private Fixture(LongSupplier nanoTime) throws Exception {
+            sources = new ClientLocalMeshSources(messages::add, nanoTime);
             WormholesClientConfig config = new WormholesClientConfig();
             config.normalize();
             session = new ClientViewSession(config, new ClientPalette(BuiltInRegistries.BLOCK), 1, "test");

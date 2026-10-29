@@ -1,9 +1,6 @@
 plugins {
     id 'java-library'
-    id 'com.gradleup.shadow'
 }
-
-apply plugin: 'art.arcane.volmit-packaging'
 
 group = 'art.arcane'
 version = rootProject.version
@@ -47,38 +44,4 @@ tasks.named('processResources').configure {
 
 tasks.named('test').configure {
     useJUnitPlatform()
-}
-
-tasks.named('jar').configure {
-    enabled = false
-}
-
-tasks.named('shadowJar', com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar).configure {
-    archiveBaseName.set('WormholesProxy')
-    archiveClassifier.set('')
-}
-
-tasks.named('build').configure {
-    dependsOn(tasks.named('shadowJar'))
-}
-
-pluginPackaging {
-    artifacts {
-        create('distribution') {
-            taskName = 'shadowJar'
-            maximumBytes = 7_500_000
-            shrink = false
-            releaseCompression = providers.gradleProperty('compactRelease')
-                    .map { String value -> value.toBoolean() }
-                    .getOrElse(true)
-            packed = true
-            requiredEntries = [
-                'velocity-plugin.json',
-                'bungee.yml',
-                'art/arcane/wormholes/proxy/velocity/WormholesVelocityPlugin.class',
-                'art/arcane/wormholes/proxy/bungee/WormholesBungeePlugin.class'
-            ]
-            forbiddenPrefixes = ['com/velocitypowered/', 'net/md_5/bungee/', 'com/google/inject/']
-        }
-    }
 }

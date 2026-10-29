@@ -14,6 +14,7 @@ import org.bukkit.plugin.messaging.PluginMessageListener;
 
 import java.io.IOException;
 import java.security.MessageDigest;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -23,8 +24,9 @@ import java.util.function.LongSupplier;
 import java.util.function.Supplier;
 
 /**
- * Backend side of the proxy module. Enrolls this server's code whenever a player links the channel,
- * imports every roster entry the proxy answers with (trust + route flagged for proxy transfers),
+ * Backend side of the proxy module. Enrolls this server's code whenever a player links the channel and
+ * again every {@value #REENROLL_INTERVAL_TICKS} ticks while anyone is online, imports every roster
+ * entry the proxy answers with (trust + route flagged for proxy transfers),
  * and turns PROXY handoffs into HANDOFF frames the proxy brokers. Active only while
  * {@code [network.proxy] enabled} is true and a shared secret is configured; without the proxy
  * module nothing changes.
@@ -42,6 +44,7 @@ public final class ProxyBridge implements PluginMessageListener, Listener {
 
     static final long NONCE_TTL_MILLIS = 15_000L;
     static final long HANDOFF_TTL_MILLIS = 60_000L;
+    static final int REENROLL_INTERVAL_TICKS = 1_200;
     private static final int MAX_PENDING = 64;
     private static final long JOIN_ENROLL_DELAY_TICKS = 40L;
     private static volatile ProxyBridge active;
@@ -126,6 +129,16 @@ public final class ProxyBridge implements PluginMessageListener, Listener {
             return;
         }
         player.sendPluginMessage(Wormholes.instance, channel, enrollFrame());
+    }
+
+    /** Enrolls through the first online player, which keeps this backend fresh on the proxy and pulls in backends that enrolled since. */
+    public void reenroll(Collection<? extends Player> online) {
+        for (Player player : online) {
+            if (player.isOnline()) {
+                enroll(player);
+                return;
+            }
+        }
     }
 
     /** Asks the proxy to move the player to the backend enrolled as {@code targetServer}. */

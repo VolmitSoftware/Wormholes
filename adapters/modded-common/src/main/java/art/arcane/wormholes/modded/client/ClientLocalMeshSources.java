@@ -47,6 +47,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Consumer;
+import java.util.function.LongSupplier;
 
 public final class ClientLocalMeshSources {
     private static final long SNAPSHOT_BUDGET = 64 * 1024 * 1024L;
@@ -55,6 +56,7 @@ public final class ClientLocalMeshSources {
     private final LinkedHashMap<SnapshotKey, WeakReference<ClientLevel>> pendingSnapshots = new LinkedHashMap<>();
     private final Map<Integer, Route> routes = new HashMap<>();
     private final Consumer<ViewStreamMessage> sender;
+    private final LongSupplier nanoTime;
     private ClientLevel level;
     private int nextRoute;
     private long snapshotBytes;
@@ -63,7 +65,12 @@ public final class ClientLocalMeshSources {
     private boolean epochKnown;
 
     public ClientLocalMeshSources(Consumer<ViewStreamMessage> sender) {
+        this(sender, System::nanoTime);
+    }
+
+    ClientLocalMeshSources(Consumer<ViewStreamMessage> sender, LongSupplier nanoTime) {
         this.sender = sender;
+        this.nanoTime = nanoTime;
     }
 
     public long bytes() {
@@ -237,8 +244,9 @@ public final class ClientLocalMeshSources {
         }
         List<Route> active = new ArrayList<>(routes.values());
         int attempts = 0;
-        long deadline = System.nanoTime() + 2_000_000L;
-        while (attempts++ < SECTION_ATTEMPTS && System.nanoTime() < deadline) {
+        long deadline = nanoTime.getAsLong() + 2_000_000L;
+        while (attempts < SECTION_ATTEMPTS && (attempts == 0 || nanoTime.getAsLong() < deadline)) {
+            attempts++;
             if (nextRoute >= active.size()) {
                 nextRoute = 0;
             }
@@ -632,10 +640,10 @@ public final class ClientLocalMeshSources {
     }
 
     private void capturePending() {
-        long deadline = System.nanoTime() + 1_000_000L;
+        long deadline = nanoTime.getAsLong() + 1_000_000L;
         int captured = 0;
         for (Iterator<Map.Entry<SnapshotKey, WeakReference<ClientLevel>>> iterator = pendingSnapshots.entrySet().iterator();
-             iterator.hasNext() && captured < 4 && System.nanoTime() < deadline;) {
+             iterator.hasNext() && captured < 4 && nanoTime.getAsLong() < deadline;) {
             Map.Entry<SnapshotKey, WeakReference<ClientLevel>> entry = iterator.next();
             SnapshotKey key = entry.getKey();
             ClientLevel current = entry.getValue().get();

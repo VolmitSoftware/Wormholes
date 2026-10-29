@@ -20,22 +20,18 @@ project.ext.multiplexor = [
 ]
 
 gradle.projectsEvaluated {
-    File bukkitSource = tasks.named('shadowJar', Jar).get().archiveFile.get().asFile
-    File bukkitArtifact = new File(bukkitSource.parentFile, bukkitSource.name.replaceFirst(/\.jar$/, '-packed.jar'))
+    File bukkitArtifact = tasks.named('packedJar').get().outputJar.get().asFile
     File apiArtifact = tasks.named('apiJar', Jar).get().archiveFile.locationOnly.get().asFile
-    File proxySource = project(':wormholes-proxy').tasks.named('shadowJar', Jar).get().archiveFile.get().asFile
-    File proxyArtifact = new File(proxySource.parentFile, proxySource.name.replaceFirst(/\.jar$/, '-packed.jar'))
     List<String> minecraftVersions = manifests.collect { File manifest -> manifest.name.substring(0, manifest.name.length() - 5) }
     buildTargets.addAll([
-        [id: 'bukkit', tasks: [':buildBukkit'], arguments: [], java: 25,
-            memoryMiB: 6144, workers: 2, dependsOn: [], artifacts: [
-                [path: relativePath(bukkitArtifact), role: 'runtime', platforms: ['plugin'], minecraftVersions: minecraftVersions]]],
+        [id: 'core', tasks: [':core:check', ':optics:check'], arguments: [], java: 25,
+            memoryMiB: 6144, workers: 2, dependsOn: [], artifacts: []],
+        [id: 'bukkit', tasks: [':buildBukkit'], arguments: ['-x', ':core:check', '-x', ':optics:check'], java: 25,
+            memoryMiB: 6144, workers: 2, dependsOn: ['wormholes:core'], artifacts: [
+                [path: relativePath(bukkitArtifact), role: 'runtime', platforms: ['plugin', 'velocity', 'bungee'], minecraftVersions: minecraftVersions]]],
         [id: 'api', tasks: [':apiJar'], arguments: [], java: 25,
             memoryMiB: 6144, workers: 2, dependsOn: [], artifacts: [
-                [path: relativePath(apiArtifact), role: 'api', platforms: ['plugin'], minecraftVersions: minecraftVersions]]],
-        [id: 'proxy', tasks: [':wormholes-proxy:build'], arguments: [], java: 25,
-            memoryMiB: 6144, workers: 2, dependsOn: [], artifacts: [
-                [path: relativePath(proxyArtifact), role: 'runtime', platforms: ['velocity', 'bungee'], minecraftVersions: []]]]
+                [path: relativePath(apiArtifact), role: 'api', platforms: ['plugin'], minecraftVersions: minecraftVersions]]]
     ])
     for (File manifest : manifests) {
         Map<String, Object> target = (Map<String, Object>) new JsonSlurper().parse(manifest)
@@ -52,13 +48,13 @@ gradle.projectsEvaluated {
             String artifactName = "Wormholes v${project.version} [${label}] ${minecraft}+${displayedPin}.jar"
             buildTargets.add([
                 id: "${loader}-${minecraft}".toString(),
-                tasks: [':build', ':core:build', ':optics:build'],
+                tasks: [':build'],
                 arguments: ['-p', "adapters/${loader}".toString(), "-PminecraftVersion=${minecraft}".toString(),
                     "-PwormholesVersion=${project.version}".toString(), "-P${loaderProperties[loader]}=${pin}".toString()],
                 java: 25,
                 memoryMiB: 6144,
                 workers: 2,
-                dependsOn: [],
+                dependsOn: ['wormholes:core'],
                 artifacts: [[path: "adapters/${loader}/${outputDirectory}/libs/${artifactName}".toString(),
                     role: 'runtime', platforms: [loader], minecraftVersions: [minecraft]]]
             ])

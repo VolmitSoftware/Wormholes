@@ -16,7 +16,7 @@ import javax.crypto.spec.SecretKeySpec;
 
 /**
  * Plugin-message frames exchanged on the {@value #CHANNEL} channel between a Wormholes backend and the
- * WormholesProxy module. Layout: int protocol, byte frame type, then length-prefixed UTF fields,
+ * Wormholes proxy module. Layout: int protocol, byte frame type, then length-prefixed UTF fields,
  * then a 32-byte HMAC-SHA256 tag over everything before it.
  *
  * <p>The channel is not an authenticated transport: Bukkit hands a backend every payload a client

@@ -15,6 +15,7 @@ import art.arcane.wormholes.network.RemotePortalRegistry;
 import art.arcane.wormholes.network.WireCapability;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.proxy.protocol.ProxySecret;
+import art.arcane.wormholes.util.J;
 
 import org.bukkit.event.HandlerList;
 import org.bukkit.plugin.messaging.Messenger;
@@ -31,6 +32,7 @@ import java.util.List;
  */
 public final class MeshSubsystem implements WormholesSubsystem {
     private ProxyBridge bridge;
+    private int reenrollTask = -1;
     private boolean secretWarned;
 
     @Override
@@ -78,7 +80,7 @@ public final class MeshSubsystem implements WormholesSubsystem {
         }
         if (proxy.enabled && secret == null && !secretWarned) {
             secretWarned = true;
-            plugin.getLogger().warning("net: proxy module off, [network.proxy] secret is unset (copy plugins/WormholesProxy/" + ProxySecret.FILE + ")");
+            plugin.getLogger().warning("net: proxy module off, [network.proxy] secret is unset (copy " + ProxySecret.FILE + " from the proxy's Wormholes data folder)");
         }
         ImportExportService importExport = Wormholes.importExportService;
         if (!enabled || bridge != null || importExport == null) {
@@ -93,6 +95,7 @@ public final class MeshSubsystem implements WormholesSubsystem {
         plugin.getServer().getPluginManager().registerEvents(fresh, plugin);
         bridge = fresh;
         ProxyBridge.setActive(fresh);
+        reenrollTask = J.ar(() -> fresh.reenroll(plugin.getServer().getOnlinePlayers()), ProxyBridge.REENROLL_INTERVAL_TICKS);
         plugin.getLogger().info("net: proxy module channel " + channel + " enrolled");
     }
 
@@ -100,6 +103,10 @@ public final class MeshSubsystem implements WormholesSubsystem {
         ProxyBridge current = bridge;
         bridge = null;
         ProxyBridge.setActive(null);
+        if (reenrollTask != -1) {
+            J.csr(reenrollTask);
+            reenrollTask = -1;
+        }
         if (current == null || plugin == null) {
             return;
         }

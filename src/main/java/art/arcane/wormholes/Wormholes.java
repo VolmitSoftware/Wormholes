@@ -223,7 +223,7 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
                 try {
                     faweProjectionIntegration = FaweProjectionIntegration.enable(this, projectionChangeTracker);
                 } catch (RuntimeException | LinkageError failure) {
-                    getLogger().log(Level.SEVERE, "FAWE projection integration requires the supported patched FAWE distribution", failure);
+                    getLogger().log(Level.WARNING, "FAWE projection tracking could not start; Wormholes remains available", failure);
                 }
             }
             projectionManager = new ProjectionManager(packetEvents().projectionChunkTracker(), opticsScheduler);
@@ -359,12 +359,17 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
         if (integration == null) {
             return CompletableFuture.completedFuture(ReloadPreparation.readyToUnload());
         }
+        if (!integration.supportsReload()) {
+            String refusalReason = "FAWE does not expose edit completion hooks; restart the server to unload Wormholes safely";
+            getLogger().warning(refusalReason);
+            return CompletableFuture.completedFuture(ReloadPreparation.refuse(refusalReason));
+        }
         return integration.prepareReload(Duration.ofSeconds(90)).handle((ignored, failure) -> {
             if (failure == null) {
                 return ReloadPreparation.readyToUnload();
             }
-            getLogger().log(Level.WARNING, "Cannot unload Wormholes while FAWE edits are active", failure);
-            return ReloadPreparation.refuse("FAWE edits have not finished; Wormholes remains loaded");
+            getLogger().log(Level.WARNING, "Cannot confirm FAWE edit completion before unloading Wormholes", failure);
+            return ReloadPreparation.refuse("FAWE edit completion could not be confirmed; Wormholes remains loaded");
         });
     }
 

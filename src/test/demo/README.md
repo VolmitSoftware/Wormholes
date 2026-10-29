@@ -37,10 +37,10 @@ python3 -m unittest discover -s src/test/demo/tests -p 'test_*.py' -v
 
 ```sh
 python3 src/test/demo/demo.py --only door-crafting --only pair-doors
-python3 src/test/demo/docs_sync.py --only door-crafting --only pair-doors
+python3 src/test/demo/docs_sync.py --reviewed --only door-crafting --only pair-doors
 ```
 
-Without `--only`, the director selects the entire shot sheet. By default it records both client variants, exports the shot sheet’s selected perspectives as 1920×1080/30 fps VP9 WebM clips, and stops/deletes its disposable Multiplexor instance. The clients remain installed in Prism. The output-directory lock prevents two runs from using that same studio output.
+Without `--only`, the director selects the entire shot sheet. By default it records both client variants, stages the shot sheet’s selected perspectives as 1920×1080/30 fps VP9 WebM clips under the output directory's `exports/`, and stops/deletes its disposable Multiplexor instance. Review those clips before running `docs_sync.py --reviewed`; this command publishes the verified clips into docs and removes their local exports, raw captures and screenshots. The clients remain installed in Prism. The output-directory lock prevents two runs from using that same studio output.
 
 Use `--variant standard` or `--variant clientview` for one pair of clients. Repeat `--only <id>` to select multiple demonstrations; the director uses shot-sheet order. The synchronizer also accepts repeated `--only`, and requires the selected client variants and perspectives for every selected ID before changing any page. Standard studio IDs require both client variants; `gravity` and `scale` require only the native client-mod first-person and third-person exports. `--record-only` preserves raw MP4 captures without exporting. `--keep-open` leaves the owned server and clients running for inspection; subsequent `--reuse-server --reuse-clients` runs must select the same single variant. Stop and delete that owned instance when inspection ends.
 
@@ -60,7 +60,9 @@ Use `--only cross-server-gateways` for the two-server demonstration. Before each
 
 Fresh studio servers enable `atmosphere.biome-tint` and `atmosphere.sky-light` in `plugins/Wormholes/wormholes.toml` before the first boot so all four atmosphere modes are available. Reused servers need both flags enabled for the same demonstration.
 
-Raw captures, screenshots, assertions and timing records are retained under the selected output directory (`build/demo/` by default). Recording captures the game's live framebuffer, including its actual UI, effects and portal rendering. Capture acceptance requires at least 28 recorded frames per second and no encoder queue drops. Both camera angles must be visually reviewed against the shot's assertions; inventory footage must visibly show the actual screen and result. Confirm the final clips decode and remain under 25 MB each. Live captures are silent.
+Raw captures and screenshots remain under the selected output directory (`build/demo/` by default) until reviewed publication succeeds. Publication checks each final clip's dimensions, frame rate, size and decode before replacing its docs asset. Failed or unreviewed takes remain available for correction; discard rejected takes after the investigation ends. Completed media lives only in `../docs/wormholes-assets/demos/`; keep the small local manifests, assertions, timing records and reusable studio configuration. Recording captures the game's live framebuffer, including its actual UI, effects and portal rendering. Capture acceptance requires at least 28 recorded frames per second and no encoder queue drops. Both camera angles must be visually reviewed against the shot's assertions; inventory footage must visibly show the actual screen and result. Live captures are silent.
+
+Publication retains a small local receipt with the docs paths and SHA256 hashes. Cleanup removes raw captures and review images before staged exports. If cleanup is interrupted, repeat the same publication command; it verifies the published hashes and resumes removal without reencoding deleted captures. Preserve pending receipts until cleanup completes.
 
 The recorder preserves elapsed time during shader rebuilds and other render stalls by holding the last captured framebuffer at the requested video frame rate. These pauses remain visible. `captureFrames` counts real captured frames; `captureEncodedFrames`, `captureRepeatedFrames`, and `captureMaxGapFrames` separately report total video frames, held frames, and the longest consecutive hold in frame slots. Repeated frames do not count toward the existing real-frame acceptance gate.
 
@@ -72,7 +74,7 @@ Observer footage should show world action rather than menu navigation or waiting
 
 Pass `only_views=('observer',)` to `export` when replacing an observer edit while retaining the accepted first-person clip.
 
-To export accepted raw takes again without recording, run:
+To export accepted raw takes before publication without recording again, run:
 
 ```sh
 python3 - <<'PY'
@@ -83,7 +85,7 @@ for identifier in ('wand-creation', 'rune-creation', 'portal-linking'):
     for variant in ('standard', 'clientview'):
         export(identifier, variant)
 PY
-python3 src/test/demo/docs_sync.py --only wand-creation --only rune-creation --only portal-linking
+python3 src/test/demo/docs_sync.py --reviewed --only wand-creation --only rune-creation --only portal-linking
 ```
 
 Intentional wiki assets live in `../docs/wormholes-assets/demos/`. `docs_sync.py` maps each selected demonstration into its matching reference section and preserves existing prose and unselected demonstrations. Without `--only`, it requires every mapped ID’s client variants and camera views. Repeating synchronization leaves unchanged pages untouched. Visible clips autoplay muted and loop. Standard demos have No client mod and Client mod tabs with an independent client selection. Native-only demos show a Client mod heading. Where an observer clip is available, a separate Camera dropdown selects First person or Third person (Second player for the traveler comparisons), synchronizes with Adapt's demos, and remembers the selection across pages. First-person-only demos omit the dropdown and remain visible even when the saved preference is Third person.
@@ -94,11 +96,11 @@ Record the native server/client gravity and two-way scale scenes with the real f
 
 ```sh
 python3 src/test/client/gametest.py GravityScaleDemo --renderer vanilla --record-demo
-python3 src/test/demo/native_capture.py <evidence-directory>
+python3 src/test/demo/native_capture.py <evidence-directory> --reviewed
 python3 src/test/demo/docs_sync.py --only gravity --only scale
 ```
 
-The native recording produces `gravity-clientview-pov.webm`, `gravity-clientview-observer.webm`, `scale-clientview-pov.webm`, and `scale-clientview-observer.webm`. Review all four clips before synchronization. These IDs have no standard-client variant, and their camera views are independent of the Paper studio shot sheet. The wiki shows a Client mod heading and its camera selector.
+Review the native raw clips before publishing with `--reviewed`. The export produces `gravity-clientview-pov.webm`, `gravity-clientview-observer.webm`, `scale-clientview-pov.webm`, and `scale-clientview-observer.webm`, verifies them, publishes them into docs, and removes the selected local raw clips and intermediate exports. A failed export retains the recordings. These IDs have no standard-client variant, and their camera views are independent of the Paper studio shot sheet. The wiki shows a Client mod heading and its camera selector.
 
 ## Automator bridge
 

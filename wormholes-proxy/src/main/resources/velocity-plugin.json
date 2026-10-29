@@ -1,6 +1,6 @@
 {
-  "id": "wormholesproxy",
-  "name": "WormholesProxy",
+  "id": "wormholes",
+  "name": "Wormholes",
   "version": "${version}",
   "description": "Enrolls Wormholes backends and brokers proxy-mediated portal handoffs",
   "authors": ["Volmit Software"],

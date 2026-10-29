@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.Queue;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
@@ -36,7 +37,10 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -44,7 +48,11 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.same;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
@@ -243,19 +251,133 @@ class FaweProjectionIntegrationTest {
     }
 
     @Test
-    void checksPatchedCoreCapabilityAndRejectsUnsupportedActualNativeAdapter() {
-        FaweProjectionIntegration.verifyCapabilities();
+    void detectsOptionalCompletionHooks() {
+        assertEquals(FaweProjectionIntegration.Mode.PATCHED, FaweProjectionIntegration.detectMode());
+        assertEquals(FaweProjectionIntegration.Mode.STANDARD,
+                FaweProjectionIntegration.detectMode(new MissingNativeScopeLoader()));
+    }
+
+    @Test
+    void unsupportedNativeAdapterPreservesQueuedTrackingAndSessionCompletion() {
         try (Fixture fixture = new Fixture(List.of("existing.integration"))) {
-            EditSessionEvent unsupported = event(queue(new BatchProcessorHolder()), EditSession.Stage.BEFORE_CHANGE);
-            BukkitWorld world = assertInstanceOf(BukkitWorld.class, unsupported.getWorld());
-            when(world.appliedChangeSupportVersion()).thenReturn(0);
-            assertThrows(IllegalStateException.class, () -> fixture.integration.onEditSession(unsupported));
-            assertEquals(0L, fixture.tracker.currentVersion());
-            assertTrue(fixture.scheduled.isEmpty());
+            BatchProcessorHolder chain = new BatchProcessorHolder();
+            EditSessionEvent queued = event(queue(chain), EditSession.Stage.BEFORE_CHANGE);
+            BukkitWorld queuedWorld = assertInstanceOf(BukkitWorld.class, queued.getWorld());
+            when(queuedWorld.appliedChangeSupportVersion()).thenReturn(0);
+            fixture.integration.onEditSession(queued);
+            IChunk chunk = mock(IChunk.class);
+            when(chunk.getX()).thenReturn(3);
+            when(chunk.getZ()).thenReturn(-5);
+            chain.postProcess(chunk, null, mock(IChunkSet.class));
+            fixture.scheduled.remove().run();
+            assertTrue(fixture.tracker.dirtySince(fixture.worldId, 3, -5, 3, -5, 0L));
+
+            Extent child = nativeExtent();
+            EditSessionEvent nativeEdit = event(child, EditSession.Stage.BEFORE_CHANGE);
+            BukkitWorld nativeWorld = assertInstanceOf(BukkitWorld.class, nativeEdit.getWorld());
+            when(nativeWorld.appliedChangeSupportVersion()).thenReturn(0);
+            fixture.integration.onEditSession(nativeEdit);
+            assertSame(child, nativeEdit.getExtent());
+            assertFalse(nativeEdit.isCancelled());
+            assertTrue(fixture.integration.supportsReload());
+
             CompletableFuture<Void> prepared = fixture.integration.prepareReload(Duration.ofSeconds(1L)).toCompletableFuture();
             assertFalse(prepared.isDone());
+            queued.completeSession();
+            assertFalse(prepared.isDone());
+            nativeEdit.completeSession();
             fixture.scheduled.remove().run();
             prepared.join();
+        }
+    }
+
+    @Test
+    void standardModeRefreshesQueuedEditsWithoutPatchedLifecycleOrNativeTracking() {
+        List<String> allowed = List.of("existing.integration");
+        try (Fixture fixture = new Fixture(allowed, FaweProjectionIntegration.Mode.STANDARD)) {
+            BatchProcessorHolder chain = new BatchProcessorHolder();
+            IBatchProcessor existing = mock(IBatchProcessor.class);
+            when(existing.getScope()).thenReturn(ProcessorScope.READING_BLOCKS);
+            when(existing.joinPost(any())).thenCallRealMethod();
+            chain.setPostProcessor(existing);
+            Extent extent = queue(chain);
+            EditSessionEvent queued = spy(event(extent, EditSession.Stage.BEFORE_CHANGE));
+            fixture.integration.onEditSession(queued);
+            verify(queued, never()).onSessionClose(any());
+            assertSame(extent, queued.getExtent());
+            assertFalse(queued.isCancelled());
+            assertTrue(fixture.scheduled.isEmpty());
+
+            IChunk chunk = mock(IChunk.class);
+            when(chunk.getX()).thenReturn(3);
+            when(chunk.getZ()).thenReturn(-5);
+            IChunkSet set = mock(IChunkSet.class);
+            chain.postProcess(chunk, null, set);
+            verify(existing).postProcess(chunk, null, set);
+            assertEquals(0L, fixture.tracker.currentVersion());
+            fixture.scheduled.remove().run();
+            assertTrue(fixture.tracker.dirtySince(fixture.worldId, 3, -5, 3, -5, 0L));
+
+            Extent child = nativeExtent();
+            EditSessionEvent nativeEdit = spy(event(child, EditSession.Stage.BEFORE_CHANGE));
+            fixture.integration.onEditSession(nativeEdit);
+            assertSame(child, nativeEdit.getExtent());
+            verify(nativeEdit, never()).onSessionClose(any());
+            verify(nativeEdit, never()).setExtent(any());
+            assertEquals(allowed, Settings.settings().EXTENT.ALLOWED_PLUGINS);
+            fixture.integration.close();
+            chain.postProcess(chunk, null, set);
+            assertTrue(fixture.scheduled.isEmpty());
+            assertEquals(allowed, Settings.settings().EXTENT.ALLOWED_PLUGINS);
+        }
+    }
+
+    @Test
+    void standardReloadRefusalLeavesEditAdmissionOpen() {
+        try (Fixture fixture = new Fixture(List.of("existing.integration"), FaweProjectionIntegration.Mode.STANDARD)) {
+            assertFalse(fixture.integration.supportsReload());
+            CompletionException refusal = assertThrows(CompletionException.class,
+                    () -> fixture.integration.prepareReload(Duration.ofSeconds(1L)).toCompletableFuture().join());
+            assertInstanceOf(IllegalStateException.class, refusal.getCause());
+            assertTrue(fixture.scheduled.isEmpty());
+            BatchProcessorHolder chain = new BatchProcessorHolder();
+            EditSessionEvent event = event(queue(chain), EditSession.Stage.BEFORE_CHANGE);
+            fixture.integration.onEditSession(event);
+            assertFalse(event.isCancelled());
+            IChunk chunk = mock(IChunk.class);
+            chain.postProcess(chunk, null, mock(IChunkSet.class));
+            fixture.scheduled.remove().run();
+            assertTrue(fixture.tracker.dirtySince(fixture.worldId, 0, 0, 0, 0, 0L));
+        }
+    }
+
+    @Test
+    void runtimeTrackingFailureDoesNotAbortTheEdit() {
+        assertTrackingFailureIsContained(new IllegalStateException("processor registration failed"));
+    }
+
+    @Test
+    void incompatibleTrackingApiDoesNotAbortTheEdit() {
+        assertTrackingFailureIsContained(new NoSuchMethodError("processor API changed"));
+    }
+
+    private static void assertTrackingFailureIsContained(Throwable failure) {
+        try (Fixture fixture = new Fixture(List.of("existing.integration"))) {
+            Extent failing = mock(Extent.class);
+            doThrow(failure).when(failing).addPostProcessor(any());
+            EditSessionEvent event = event(failing, EditSession.Stage.BEFORE_CHANGE);
+            assertDoesNotThrow(() -> fixture.integration.onEditSession(event));
+            assertFalse(event.isCancelled());
+            assertSame(failing, event.getExtent());
+            event.completeSession();
+            assertEquals(List.of("existing.integration"), Settings.settings().EXTENT.ALLOWED_PLUGINS);
+
+            Extent later = queue(new BatchProcessorHolder());
+            fixture.bus.post(event(later, EditSession.Stage.BEFORE_CHANGE));
+            fixture.integration.onEditSession(event(later, EditSession.Stage.BEFORE_CHANGE));
+            verify(later, never()).addPostProcessor(any());
+            verify(fixture.logger, times(1)).log(eq(Level.WARNING), anyString(), same(failure));
+            assertTrue(fixture.scheduled.isEmpty());
         }
     }
 
@@ -383,9 +505,15 @@ class FaweProjectionIntegrationTest {
         private final EventBus bus = new EventBus();
         private final UUID worldId = UUID.randomUUID();
         private final World world = mock(World.class);
-        private final FaweProjectionIntegration integration = new FaweProjectionIntegration(tracker, scheduled::add);
+        private final Logger logger = mock(Logger.class);
+        private final FaweProjectionIntegration integration;
 
         private Fixture(List<String> allowed) {
+            this(allowed, FaweProjectionIntegration.Mode.PATCHED);
+        }
+
+        private Fixture(List<String> allowed, FaweProjectionIntegration.Mode mode) {
+            integration = new FaweProjectionIntegration(new FaweProjectionIntegration.Options(tracker, scheduled::add, mode));
             Settings.settings().EXTENT.ALLOWED_PLUGINS = new ArrayList<>(allowed);
             Plugin plugin = mock(Plugin.class);
             Server server = mock(Server.class);
@@ -393,6 +521,7 @@ class FaweProjectionIntegrationTest {
             when(world.getName()).thenReturn("destination");
             when(world.getUID()).thenReturn(worldId);
             when(plugin.getServer()).thenReturn(server);
+            when(plugin.getLogger()).thenReturn(logger);
             when(server.getWorlds()).thenReturn(List.of(world));
             when(server.getPluginManager()).thenReturn(pluginManager);
             integration.start(plugin, bus);
@@ -402,6 +531,20 @@ class FaweProjectionIntegrationTest {
         public void close() {
             integration.close();
             Settings.settings().EXTENT.ALLOWED_PLUGINS = previous;
+        }
+    }
+
+    private static final class MissingNativeScopeLoader extends ClassLoader {
+        private MissingNativeScopeLoader() {
+            super(FaweProjectionIntegration.class.getClassLoader());
+        }
+
+        @Override
+        protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
+            if (name.equals("com.fastasyncworldedit.core.util.task.NativeChangeScope")) {
+                throw new ClassNotFoundException(name);
+            }
+            return super.loadClass(name, resolve);
         }
     }
 }

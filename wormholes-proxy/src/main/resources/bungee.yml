@@ -1,4 +1,4 @@
-name: WormholesProxy
+name: Wormholes
 main: art.arcane.wormholes.proxy.bungee.WormholesBungeePlugin
 version: ${version}
 author: Volmit Software

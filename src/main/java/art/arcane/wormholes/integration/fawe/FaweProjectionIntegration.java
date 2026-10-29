@@ -36,35 +36,48 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public final class FaweProjectionIntegration implements Listener, AutoCloseable {
     private final ConcurrentHashMap<String, WorldGeneration> worlds = new ConcurrentHashMap<>();
     private final FaweAppliedChunkInvalidator invalidator;
+    private final Mode mode;
     private final FaweEditQuiescence quiescence = new FaweEditQuiescence();
     private final AtomicLong generations = new AtomicLong();
     private CompletableFuture<Void> preparing;
     private EventBus eventBus;
+    private Logger logger;
     private String allowedExtent;
     private volatile boolean closed;
 
-    FaweProjectionIntegration(WorldChangeTracker tracker, Consumer<Runnable> scheduler) {
-        invalidator = new FaweAppliedChunkInvalidator(tracker, scheduler);
+    FaweProjectionIntegration(Options options) {
+        invalidator = new FaweAppliedChunkInvalidator(options.tracker(), options.scheduler());
+        mode = Objects.requireNonNull(options.mode());
     }
 
     public static FaweProjectionIntegration enable(JavaPlugin plugin, WorldChangeTracker tracker) {
         Objects.requireNonNull(plugin);
-        FaweProjectionIntegration integration = new FaweProjectionIntegration(tracker, task -> schedule(plugin, task));
+        FaweProjectionIntegration integration = new FaweProjectionIntegration(
+                new Options(tracker, task -> schedule(plugin, task), detectMode()));
         try {
-            verifyCapabilities();
-            for (World world : plugin.getServer().getWorlds()) {
-                verifyNativeWorld(new BukkitWorld(world));
-            }
             integration.start(plugin, WorldEdit.getInstance().getEventBus());
+            plugin.getLogger().info(integration.mode == Mode.PATCHED
+                    ? "FAWE projection tracking enabled with edit completion hooks"
+                    : "FAWE queued projection tracking enabled; native edit tracking and safe hot reload require completion hooks");
             return integration;
         } catch (RuntimeException | LinkageError exception) {
-            integration.close();
+            try {
+                integration.close();
+            } catch (RuntimeException | LinkageError cleanupFailure) {
+                exception.addSuppressed(cleanupFailure);
+            }
             throw exception;
         }
+    }
+
+    public boolean supportsReload() {
+        return mode == Mode.PATCHED;
     }
 
     public synchronized CompletionStage<Void> prepareReload(Duration timeout) {
@@ -74,6 +87,10 @@ public final class FaweProjectionIntegration implements Listener, AutoCloseable 
         }
         if (closed) {
             return CompletableFuture.failedFuture(new IllegalStateException("FAWE integration is closed"));
+        }
+        if (!supportsReload()) {
+            return CompletableFuture.failedFuture(new IllegalStateException(
+                    "FAWE does not expose edit completion hooks; restart the server to unload Wormholes safely"));
         }
         if (preparing != null && !preparing.isCompletedExceptionally()) {
             return preparing;
@@ -106,7 +123,7 @@ public final class FaweProjectionIntegration implements Listener, AutoCloseable 
     }
 
     @Override
-    public void close() {
+    public synchronized void close() {
         closed = true;
         quiescence.prepare();
         invalidator.close();
@@ -128,25 +145,29 @@ public final class FaweProjectionIntegration implements Listener, AutoCloseable 
         if (world == null) {
             return;
         }
-        verifyNativeWorld(WorldWrapper.unwrap(event.getWorld()));
-        FaweEditQuiescence.Session session = quiescence.admit();
-        if (session == null) {
+        FaweEditQuiescence.Session session = mode == Mode.PATCHED ? quiescence.admit() : null;
+        if (mode == Mode.PATCHED && session == null) {
             event.setCancelled(true);
             return;
         }
         try {
-            event.onSessionClose(session::close);
+            if (session != null) {
+                event.onSessionClose(session::close);
+            }
             Extent extent = event.getExtent();
             FaweAppliedChunkProcessor.Binding binding = new FaweAppliedChunkProcessor.Binding(
-                    world.worldId(), world.generation(), invalidator, quiescence, session);
+                    world.worldId(), world.generation(), invalidator, quiescence, session,
+                    mode == Mode.PATCHED && supportsNativeWorld(WorldWrapper.unwrap(event.getWorld())));
             Extent processed = extent.addPostProcessor(new FaweAppliedChunkProcessor(binding));
             if (processed != extent) {
                 addExtentAllowance();
                 event.setExtent(processed);
             }
-        } catch (RuntimeException | Error failure) {
-            session.close();
-            throw failure;
+        } catch (RuntimeException | LinkageError failure) {
+            if (session != null) {
+                session.close();
+            }
+            disableTracking(failure);
         }
     }
 
@@ -167,16 +188,23 @@ public final class FaweProjectionIntegration implements Listener, AutoCloseable 
     }
 
     void start(Plugin plugin, EventBus bus) {
+        logger = plugin.getLogger();
         for (World world : plugin.getServer().getWorlds()) {
             rememberWorld(world);
         }
-        addExtentAllowance();
+        if (mode == Mode.PATCHED) {
+            addExtentAllowance();
+        }
         eventBus = bus;
         plugin.getServer().getPluginManager().registerEvents(this, plugin);
         eventBus.register(this);
     }
 
-    static void verifyCapabilities() {
+    static Mode detectMode() {
+        return detectMode(IBatchProcessor.class.getClassLoader());
+    }
+
+    static Mode detectMode(ClassLoader loader) {
         try {
             EditSessionEvent.class.getMethod("onSessionClose", Runnable.class);
             IBatchProcessor.class.getMethod("capturePostProcessor", IChunk.class);
@@ -185,23 +213,33 @@ public final class FaweProjectionIntegration implements Listener, AutoCloseable 
             IBatchProcessor.class.getMethod("applicationCompleted");
             BukkitWorld.class.getMethod("appliedChangeSupportVersion");
             Class.forName("com.fastasyncworldedit.core.util.task.NativeChangeScope", false,
-                    IBatchProcessor.class.getClassLoader());
-        } catch (ReflectiveOperationException | LinkageError exception) {
-            throw new IllegalStateException("FAWE projection tracking requires the patched FAWE 2.16.1 Wormholes build", exception);
+                    loader);
+            return Mode.PATCHED;
+        } catch (NoSuchMethodException | ClassNotFoundException exception) {
+            return Mode.STANDARD;
         }
     }
 
-    private static void verifyNativeWorld(Extent world) {
-        if (!(world instanceof BukkitWorld bukkitWorld) || bukkitWorld.appliedChangeSupportVersion() != 1) {
-            throw new IllegalStateException("FAWE native adapter does not support applied-change tracking for world "
-                    + world + "; install the patched FAWE 2.16.1 Wormholes build");
-        }
+    private static boolean supportsNativeWorld(Extent world) {
+        return world instanceof BukkitWorld bukkitWorld && bukkitWorld.appliedChangeSupportVersion() == 1;
     }
 
     private static void schedule(Plugin plugin, Runnable task) {
         if (!FoliaScheduler.runGlobal(plugin, task, 1L)) {
             throw new IllegalStateException("Cannot schedule FAWE projection invalidation while Wormholes is unavailable");
         }
+    }
+
+    private synchronized void disableTracking(Throwable failure) {
+        if (closed) {
+            return;
+        }
+        try {
+            close();
+        } catch (RuntimeException | LinkageError cleanupFailure) {
+            failure.addSuppressed(cleanupFailure);
+        }
+        logger.log(Level.WARNING, "FAWE projection tracking stopped after an integration failure; FAWE edits remain available", failure);
     }
 
     private void rememberWorld(World world) {
@@ -242,6 +280,15 @@ public final class FaweProjectionIntegration implements Listener, AutoCloseable 
         settings.ALLOWED_PLUGINS = allowed;
         allowedExtent = null;
     }
+
+    record Options(WorldChangeTracker tracker, Consumer<Runnable> scheduler, Mode mode) {
+    }
+
+    enum Mode {
+        STANDARD,
+        PATCHED
+    }
+
     private record WorldGeneration(UUID worldId, long generation) {
     }
 }

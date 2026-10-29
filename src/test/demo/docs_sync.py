@@ -215,10 +215,58 @@ def sync(docs: Path, now: str, only: tuple[str, ...] | list[str] | None = None,
     return sum(changed for _, _, changed in updates)
 
 
+def publish(docs: Path, output: Path, now: str, only: list[str] | None,
+            shortened: frozenset[str], reviewed: bool) -> int:
+    from studio import complete_publication, publish_exports, record_publication
+
+    if output.is_symlink():
+        raise ValueError('Studio output must not be a symbolic link')
+    receipt: Path = output / 'publication.json'
+    if receipt.is_file() and not json.loads(receipt.read_text())['complete']:
+        complete_publication(receipt, output, docs)
+    demos: dict[str, tuple[tuple[str, str], ...]] = select_demos(only)
+    exports: list[tuple[Path, Path]] = []
+    completed: list[str] = []
+    for page, demonstrations in demos.items():
+        render_page(docs / 'wormholes' / page, demonstrations, now, shortened)
+        for _, identifier in demonstrations:
+            for variant, _ in CLIENT_VARIANTS.get(identifier, CLIENTS):
+                names: list[str] = [identifier + '-' + variant + '-' + view + '.webm' for view in SHOT_VIEWS[identifier]]
+                staged: list[Path] = [output / 'exports' / name for name in names]
+                if any(path.exists() for path in staged):
+                    if not reviewed:
+                        raise ValueError('Review the staged clips, then publish with --reviewed')
+                    if not all(path.is_file() or (docs / 'wormholes-assets/demos' / path.name).is_file() for path in staged):
+                        raise MissingClips('Publication requires every camera for ' + identifier + '-' + variant)
+                    exports.extend((path, docs / 'wormholes-assets/demos' / path.name) for path in staged if path.is_file())
+                    completed.append(identifier + '-' + variant)
+                elif not all((docs / 'wormholes-assets/demos' / name).is_file() for name in names):
+                    raise MissingClips('Missing clips for ' + identifier + '-' + variant)
+    if not exports:
+        return sync(docs, now, only, shortened)
+    removable: list[Path] = []
+    for folder in ('intermediate', 'screenshots', 'exports'):
+        directory: Path = output / folder
+        if directory.is_symlink():
+            raise ValueError('Media directory must not be a symbolic link: ' + str(directory))
+        for path in directory.glob('*'):
+            if (path.suffix.lower() in ('.mp4', '.webm', '.png', '.jpg', '.jpeg')
+                    and any(path.name.startswith(prefix + '-') for prefix in completed)):
+                if path.is_symlink() or not path.is_file():
+                    raise ValueError('Media cleanup requires regular files: ' + str(path))
+                removable.append(path)
+    publish_exports(exports)
+    changed: int = sync(docs, now, only, shortened)
+    record_publication(receipt, output, exports, removable)
+    complete_publication(receipt, output, docs)
+    return changed
+
+
 def main(argv: list[str] | None = None) -> int:
     parser: argparse.ArgumentParser = argparse.ArgumentParser(description='Embed accepted Wormholes demonstration clips into their wiki reference sections.')
     parser.add_argument('--docs', type=Path, default=ROOT.parent / 'docs')
     parser.add_argument('--manifest', type=Path, help='Accepted recording manifest for loading-pause captions.')
+    parser.add_argument('--reviewed', action='store_true', help='Publish visually reviewed staged clips and remove their local media.')
     parser.add_argument('--only', action='append', choices=sorted(
         identifier for demonstrations in DEMOS.values() for _, identifier in demonstrations),
         help='Synchronize only this demonstration; repeat to select more than one.')
@@ -227,8 +275,10 @@ def main(argv: list[str] | None = None) -> int:
     try:
         manifest: Path = args.manifest or Path(os.environ.get('WORMHOLES_DEMO_OUTPUT', str(ROOT / 'build/demo'))) / 'manifest.json'
         shortened: frozenset[str] = shortened_demos(manifest) if args.manifest or manifest.is_file() else frozenset()
-        changed: int = sync(args.docs, now, args.only, shortened)
-    except (MissingClips, InvalidPage, ValueError, OSError) as error:
+        from studio import claim_studio
+        with claim_studio(manifest.parent / 'run.lock'):
+            changed: int = publish(args.docs, manifest.parent, now, args.only, shortened, args.reviewed)
+    except (MissingClips, InvalidPage, ValueError, OSError, AssertionError, RuntimeError) as error:
         print(str(error), file=sys.stderr)
         return 2
     print('Updated ' + str(changed) + ' demonstration block(s).')

@@ -18,9 +18,10 @@ final class FaweAppliedChunkProcessor implements IBatchProcessor {
     private final FaweEditQuiescence quiescence;
     private final FaweEditQuiescence.Session session;
     private final FaweAppliedChunkInvalidator invalidator;
+    private final boolean nativeTracking;
 
     FaweAppliedChunkProcessor(UUID worldId, FaweAppliedChunkInvalidator invalidator) {
-        this(new Binding(worldId, 0L, invalidator, new FaweEditQuiescence(), null));
+        this(new Binding(worldId, 0L, invalidator, new FaweEditQuiescence(), null, true));
     }
 
     FaweAppliedChunkProcessor(Binding binding) {
@@ -29,6 +30,7 @@ final class FaweAppliedChunkProcessor implements IBatchProcessor {
         this.invalidator = Objects.requireNonNull(binding.invalidator());
         this.quiescence = Objects.requireNonNull(binding.quiescence());
         this.session = binding.session();
+        this.nativeTracking = binding.nativeTracking();
     }
 
     @Override
@@ -71,7 +73,7 @@ final class FaweAppliedChunkProcessor implements IBatchProcessor {
 
     @Override
     public Extent construct(Extent child) {
-        return new FaweNativeChangeExtent(child, this);
+        return nativeTracking ? new FaweNativeChangeExtent(child, this) : child;
     }
 
     @Override
@@ -84,7 +86,7 @@ final class FaweAppliedChunkProcessor implements IBatchProcessor {
     }
 
     record Binding(UUID worldId, long generation, FaweAppliedChunkInvalidator invalidator,
-                   FaweEditQuiescence quiescence, FaweEditQuiescence.Session session) {
+                   FaweEditQuiescence quiescence, FaweEditQuiescence.Session session, boolean nativeTracking) {
     }
 
     private final class AppliedCompletion implements IBatchProcessor {

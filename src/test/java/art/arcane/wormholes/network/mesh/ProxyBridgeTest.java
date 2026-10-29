@@ -7,6 +7,7 @@ import art.arcane.wormholes.proxy.protocol.EnrollmentCodec;
 
 import org.bukkit.entity.Player;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -21,6 +22,13 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 class ProxyBridgeTest {
     private static final byte[] SECRET = "proxy-secret".getBytes(StandardCharsets.UTF_8);
@@ -128,6 +136,32 @@ class ProxyBridgeTest {
         bridge.onPluginMessageReceived(EnrollmentCodec.CHANNEL, (Player) null, new byte[] {1, 2, 3});
         assertEquals(1, bridge.receiptCount());
         assertTrue(bridge.enrollFrame().length > 0);
+    }
+
+    @Test
+    void reenrollGoesThroughOneOnlinePlayerAndTheRosterItSolicitsIsImported() throws Exception {
+        ServerCode local = code("survival");
+        ServerCode creative = code("creative");
+        List<ServerCode> imported = new ArrayList<>();
+        ProxyBridge bridge = bridge(local, imported::add);
+        Player offline = mock(Player.class);
+        Player first = mock(Player.class);
+        Player second = mock(Player.class);
+        when(first.isOnline()).thenReturn(true);
+        when(second.isOnline()).thenReturn(true);
+
+        bridge.reenroll(List.of());
+        bridge.reenroll(List.of(offline, first, second));
+
+        ArgumentCaptor<byte[]> frame = ArgumentCaptor.forClass(byte[].class);
+        verify(first).sendPluginMessage(any(), eq(EnrollmentCodec.CHANNEL), frame.capture());
+        verify(offline, never()).sendPluginMessage(any(), anyString(), any());
+        verify(second, never()).sendPluginMessage(any(), anyString(), any());
+        UUID nonce = assertInstanceOf(EnrollmentCodec.Enroll.class, EnrollmentCodec.decode(frame.getValue(), SECRET)).nonce();
+        bridge.onPluginMessageReceived(EnrollmentCodec.CHANNEL, first,
+            EnrollmentCodec.encode(new EnrollmentCodec.Roster(nonce, List.of(creative.encode())), SECRET));
+        assertEquals(1, imported.size());
+        assertEquals("creative", imported.get(0).serverName());
     }
 
     @Test

@@ -28,13 +28,16 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 /** Velocity entry point: enrolls backends, answers rosters, brokers handoffs, serves /whproxy. */
-@Plugin(id = "wormholesproxy", name = "WormholesProxy")
+@Plugin(id = "wormholes", name = "Wormholes")
 public final class WormholesVelocityPlugin {
     private static final ChannelIdentifier CHANNEL = MinecraftChannelIdentifier.from(EnrollmentCodec.CHANNEL);
     private static final long RESERVATION_TTL_MILLIS = 30_000L;
-    private static final long ENROLLMENT_TTL_MILLIS = 300_000L;
+    private static final long QUIET_MILLIS = 90_000L;
+    private static final long SWEEP_SECONDS = 30L;
 
     private final ProxyServer proxy;
     private final Logger logger;
@@ -55,10 +58,10 @@ public final class WormholesVelocityPlugin {
         try {
             secret = ProxySecret.of(ProxySecret.loadOrCreate(dataDirectory));
         } catch (IOException unwritable) {
-            logger.error("WormholesProxy could not read " + dataDirectory.resolve(ProxySecret.FILE) + ": " + unwritable.getMessage());
+            logger.error("Wormholes proxy could not read " + dataDirectory.resolve(ProxySecret.FILE) + ": " + unwritable.getMessage());
             return;
         }
-        logger.info("WormholesProxy secret in " + dataDirectory.resolve(ProxySecret.FILE) + "; copy it into [network.proxy] secret on every backend");
+        logger.info("Wormholes proxy secret in " + dataDirectory.resolve(ProxySecret.FILE) + "; copy it into [network.proxy] secret on every backend");
         proxy.getChannelRegistrar().register(CHANNEL);
         CommandMeta meta = proxy.getCommandManager().metaBuilder("whproxy").plugin(this).build();
         proxy.getCommandManager().register(meta, (SimpleCommand) invocation -> {
@@ -71,7 +74,8 @@ public final class WormholesVelocityPlugin {
                 invocation.source().sendMessage(Component.text(line));
             }
         });
-        logger.info("WormholesProxy ready on channel " + EnrollmentCodec.CHANNEL);
+        proxy.getScheduler().buildTask(this, this::sweep).delay(SWEEP_SECONDS, TimeUnit.SECONDS).repeat(SWEEP_SECONDS, TimeUnit.SECONDS).schedule();
+        logger.info("Wormholes proxy ready on channel " + EnrollmentCodec.CHANNEL);
     }
 
     @Subscribe
@@ -92,11 +96,9 @@ public final class WormholesVelocityPlugin {
         }
         long now = System.currentTimeMillis();
         broker.expire(now, RESERVATION_TTL_MILLIS);
-        registry.expire(now, ENROLLMENT_TTL_MILLIS, (serverName, proxyServer) ->
-            logger.info("WormholesProxy dropped stale backend " + serverName + " on " + proxyServer));
         if (frame instanceof EnrollmentCodec.Enroll enroll) {
             if (!registry.enroll(connection.getServerInfo().getName(), enroll.serverName(), enroll.serverCode(), enroll.capabilities(), enroll.portals(), now)) {
-                logger.warn("WormholesProxy refused enroll: " + connection.getServerInfo().getName() + " claims "
+                logger.warn("Wormholes proxy refused enroll: " + connection.getServerInfo().getName() + " claims "
                     + enroll.serverName() + ", already held by " + registry.proxyServerFor(enroll.serverName()));
                 return;
             }
@@ -107,6 +109,17 @@ public final class WormholesVelocityPlugin {
         if (frame instanceof EnrollmentCodec.Handoff handoff) {
             handoff(connection, handoff);
         }
+    }
+
+    private void sweep() {
+        registry.sweep(System.currentTimeMillis(), QUIET_MILLIS, this::reachable, (serverName, proxyServer) ->
+            logger.info("Wormholes proxy dropped unreachable backend " + serverName + " on " + proxyServer));
+    }
+
+    private CompletableFuture<Boolean> reachable(String proxyServer) {
+        return proxy.getServer(proxyServer)
+            .map(server -> server.ping().handle((ping, error) -> error == null))
+            .orElseGet(() -> CompletableFuture.completedFuture(false));
     }
 
     private void handoff(ServerConnection connection, EnrollmentCodec.Handoff handoff) {

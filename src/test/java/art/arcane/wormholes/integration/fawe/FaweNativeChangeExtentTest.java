@@ -106,7 +106,7 @@ class FaweNativeChangeExtentTest {
         FaweEditQuiescence quiescence = new FaweEditQuiescence();
         FaweEditQuiescence.Session session = quiescence.admit();
         FaweAppliedChunkProcessor processor = new FaweAppliedChunkProcessor(new FaweAppliedChunkProcessor.Binding(
-                fixture.worldId, 0L, fixture.invalidator, quiescence, session));
+                fixture.worldId, 0L, fixture.invalidator, quiescence, session, true));
         Extent extent = processor.construct(fixture.world);
         AtomicReference<NativeChangeScope> admitted = new AtomicReference<>();
         doAnswer(invocation -> {

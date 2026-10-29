@@ -275,11 +275,11 @@ public class NetworkConfig {
     public static class ProxyConfig {
         public static final String DEFAULT_CHANNEL = "wormholes:proxy";
 
-        @ConfigDescription("Use the proxy module channel when the WormholesProxy plugin is installed on the proxy.")
+        @ConfigDescription("Use the proxy module channel when the Wormholes jar is installed on the Velocity or BungeeCord proxy.")
         public boolean enabled = false;
         public String channel = DEFAULT_CHANNEL;
         @ConfigDescription({
-            "Shared secret for the enrollment channel, copied from plugins/WormholesProxy/secret.txt on the proxy.",
+            "Shared secret for the enrollment channel, copied from secret.txt in the proxy's Wormholes data folder.",
             "Clients can send on this channel too, so frames are signed with it; the module stays off while it is blank."
         })
         public String secret = "";

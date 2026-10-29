@@ -23,9 +23,11 @@ import art.arcane.volmlib.integration.ReloadAware;
 import art.arcane.volmlib.integration.ReloadPreparation;
 import com.fastasyncworldedit.core.internal.exception.FaweException;
 import com.sk89q.worldedit.EditSession;
+import com.sk89q.worldedit.EditSessionBuilder;
 import com.sk89q.worldedit.WorldEdit;
 import com.sk89q.worldedit.WorldEditException;
 import com.sk89q.worldedit.bukkit.BukkitWorld;
+import com.sk89q.worldedit.event.extent.EditSessionEvent;
 import com.sk89q.worldedit.math.BlockVector3;
 import com.sk89q.worldedit.world.block.BlockTypes;
 import org.bukkit.GameRule;
@@ -73,6 +75,9 @@ public final class FaweProjectionFixture extends JavaPlugin {
                 case "single" -> single(player);
                 case "section" -> section(player);
                 case "chunk" -> refreshChunk(player);
+                case "queued" -> startEdit(player, false);
+                case "native-direct" -> startEdit(player, true);
+                case "reload-refused" -> verifyReloadRefused(player);
                 case "native-start" -> startNative(player, args.length < 2 || !args[1].equals("noops"));
                 case "native-status" -> nativeStatus(player);
                 case "native-prepare" -> prepareNative(player);
@@ -123,7 +128,16 @@ public final class FaweProjectionFixture extends JavaPlugin {
         Wormholes.projectionChangeTracker.markChanged(world.getUID(), 96, 0);
         Plugin fawe = getServer().getPluginManager().getPlugin("FastAsyncWorldEdit");
         player.sendMessage("WHFAWE ready open=" + source.isOpen() + " linked=" + source.hasTunnel()
-            + " fawe=" + fawe.getDescription().getVersion());
+            + " fawe=" + fawe.getDescription().getVersion() + " completionHooks=" + hasCompletionHooks());
+    }
+
+    private boolean hasCompletionHooks() {
+        try {
+            EditSessionEvent.class.getMethod("onSessionClose", Runnable.class);
+            return true;
+        } catch (NoSuchMethodException exception) {
+            return false;
+        }
     }
 
     private void prepare(int offset) {
@@ -234,6 +248,55 @@ public final class FaweProjectionFixture extends JavaPlugin {
         source.setProjectionMode(ProjectionMode.OFF);
         source.save();
         player.sendMessage("WHFAWE released=true");
+    }
+
+    private void startEdit(Player player, boolean nativeAccess) {
+        BukkitWorld destination = new BukkitWorld(world);
+        String mode = nativeAccess ? "native-direct" : "queued";
+        CompletableFuture.runAsync(() -> applyEdit(destination, nativeAccess)).whenComplete((ignored, failure) ->
+                getServer().getScheduler().runTask(this, () -> reportEdit(player, mode, failure)));
+    }
+
+    private void applyEdit(BukkitWorld destination, boolean nativeAccess) {
+        EditSessionBuilder builder = WorldEdit.getInstance().newEditSessionBuilder()
+                .world(destination).maxBlocks(-1).fastMode(true);
+        if (nativeAccess) {
+            builder.forceWNA();
+        }
+        try (EditSession session = builder.build()) {
+            session.setBlock(BlockVector3.at(104, 193, 4), BlockTypes.GOLD_BLOCK.getDefaultState());
+        } catch (WorldEditException exception) {
+            throw new CompletionException(exception);
+        }
+    }
+
+    private void reportEdit(Player player, String mode, Throwable failure) {
+        if (failure != null) {
+            getLogger().log(Level.SEVERE, "FAWE fixture edit failed: " + mode, failure);
+            player.sendMessage("WHFAWE failure=" + failure.getClass().getSimpleName());
+            return;
+        }
+        player.sendMessage("WHFAWE " + mode + " applied=true");
+    }
+
+    private void verifyReloadRefused(Player player) {
+        Wormholes plugin = JavaPlugin.getPlugin(Wormholes.class);
+        try {
+            CompletableFuture<ReloadPreparation> pending = plugin.prepareReload(ReloadAware.PreUnloadReason.HOT_RELOAD)
+                    .toCompletableFuture();
+            if (!pending.isDone()) {
+                throw new IllegalStateException("Standard FAWE reload refusal must complete immediately");
+            }
+            ReloadPreparation preparation = pending.join();
+            if (preparation.ready() || !preparation.reason().contains("restart")) {
+                throw new IllegalStateException("Standard FAWE reload must explain the required restart");
+            }
+            player.sendMessage("WHFAWE reload-refused ready=false reason="
+                    + Base64.getUrlEncoder().withoutPadding().encodeToString(
+                            preparation.reason().getBytes(StandardCharsets.UTF_8)));
+        } finally {
+            plugin.cancelReload();
+        }
     }
 
     private void startNative(Player player, boolean reset) {

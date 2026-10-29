@@ -11,7 +11,7 @@ const SPOOFED = new Set(['minecraft:diamond_block', 'minecraft:emerald_block', '
 
 export default {
   name: 'wormholes-fawe-projection',
-  description: 'Apply queued and cancelled native FAWE edits through real portals, verify reload waiting and undo/redo, preserve claims across terrain packets, and check saved terrain.',
+  description: 'Apply queued FAWE edits through real portals, verify completion-aware reload behavior and undo/redo, preserve claims across terrain packets, and check saved terrain.',
   async run(context) {
     const { bot } = context
     context.expect(context.server.host === '127.0.0.1' && context.server.directory,
@@ -179,6 +179,8 @@ export default {
         context.expect(bot.game.gameMode === 'creative', 'The projection observer must be in creative mode')
         setupAttempted = true
         evidence.setup = await fixture('setup', /WHFAWE ready open=true linked=true/, 30000)
+        context.expect(/completionHooks=(true|false)/.test(evidence.setup), 'Fixture must report FAWE completion capabilities')
+        evidence.completionHooks = /completionHooks=true/.test(evidence.setup)
         await fixture('stage', /WHFAWE staged=true/)
         await context.waitUntil(() => bot.entity.position.distanceTo(point({ x: 8.5, y: 191, z: 13.5 })) < 0.2,
           { label: 'observer at source portal', timeoutMs: 10000 })
@@ -209,12 +211,35 @@ export default {
         /undo.*successful|undid|operation.*completed/i, 'diamond_block'))
       await context.step('FAWE redo promptly reapplies the projected destination', () => update('redo', '//redo',
         /redo.*successful|redid|operation.*completed/i, 'lapis_block'))
-      await context.step('cancelled detached native batch survives and reload preparation waits for its session', () => nativeBatch(false))
-      await context.step('reload cancellation reopens FAWE edit admission', () => update('after reload cancellation', '//set lapis_block',
+      if (evidence.completionHooks) {
+        await context.step('cancelled detached native batch survives and reload preparation waits for its session', () => nativeBatch(false))
+        await context.step('reload cancellation reopens FAWE edit admission', () => update('after reload cancellation', '//set lapis_block',
+          /blocks? (?:have been )?changed|operation.*completed|completed.*operation/i, 'lapis_block'))
+        await context.step('repeated cancelled native batch with unchanged neighbors still refreshes the marker', () => nativeBatch(true))
+        await context.step('repeated reload cancellation reopens FAWE edit admission', () => update('after repeated reload cancellation', '//set lapis_block',
+          /blocks? (?:have been )?changed|operation.*completed|completed.*operation/i, 'lapis_block'))
+      } else {
+        await context.step('standard FAWE refuses unsafe hot reload with a restart explanation', async () => {
+          const response = await fixture('reload-refused', /WHFAWE reload-refused ready=false reason=/)
+          evidence.reloadRefusal = Buffer.from(response.match(/reason=([^\s]+)/)[1], 'base64url').toString('utf8')
+          context.expect(/restart/i.test(evidence.reloadRefusal), 'Reload refusal must explain how to safely unload Wormholes')
+        })
+      }
+      await context.step('queued FAWE API edit still updates projection after reload preparation', () => update('queued API', '/whfawe queued',
+        /WHFAWE queued applied=true/, 'gold_block'))
+      await context.step('FAWE commands remain usable after queued API edits', () => update('after queued API', '//set lapis_block',
         /blocks? (?:have been )?changed|operation.*completed|completed.*operation/i, 'lapis_block'))
-      await context.step('repeated cancelled native batch with unchanged neighbors still refreshes the marker', () => nativeBatch(true))
-      await context.step('repeated reload cancellation reopens FAWE edit admission', () => update('after repeated reload cancellation', '//set lapis_block',
-        /blocks? (?:have been )?changed|operation.*completed|completed.*operation/i, 'lapis_block'))
+      if (!evidence.completionHooks) {
+        await context.step('standard FAWE native API edits remain usable', async () => {
+          await fixture('native-direct', /WHFAWE native-direct applied=true/)
+          evidence.nativeDirect = await context.waitUntil(async () => {
+            const state = await sample()
+            return state.destination === 'GOLD_BLOCK' ? state : false
+          }, { label: 'native FAWE edit commits real destination terrain', timeoutMs: PROMPT_UPDATE_MS })
+        })
+        await context.step('queued FAWE edit restores the destination after native access', () => update('after native access', '//set lapis_block',
+          /blocks? (?:have been )?changed|operation.*completed|completed.*operation/i, 'lapis_block'))
+      }
       await context.step('single real terrain update cannot erase unchanged claims', () => terrain('single block', 'single', 'single', 'iron_block'))
       await context.step('section real terrain update cannot erase unchanged claims or spoof unrelated blocks',
         () => terrain('section blocks', 'section', 'section', 'copper_block'))

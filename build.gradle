@@ -77,6 +77,25 @@ tasks.named('build').configure {
     dependsOn(shadowJarTask, apiJarTask)
 }
 
+evaluationDependsOn(':wormholes-proxy')
+def proxyJarTask = project(':wormholes-proxy').tasks.named('jar', Jar)
+def universalJarTask = tasks.register('universalJar', Jar) {
+    group = 'build'
+    description = 'Packages the Bukkit, Velocity, and BungeeCord entry points in one Wormholes plugin jar.'
+    archiveClassifier.set('')
+    archiveFileName.set("Wormholes v${project.version} [CraftBukkit] ${bukkitMinecraftRange}.jar")
+    duplicatesStrategy = DuplicatesStrategy.FAIL
+    dependsOn(shadowJarTask, proxyJarTask)
+    from(shadowJarTask.flatMap { it.archiveFile }.map { zipTree(it) }) {
+        exclude('META-INF/MANIFEST.MF')
+    }
+    from(proxyJarTask.flatMap { it.archiveFile }.map { zipTree(it) }) {
+        exclude('META-INF/MANIFEST.MF')
+    }
+}
+shadowJarTask.configure { finalizedBy(universalJarTask) }
+tasks.named('assemble') { dependsOn(universalJarTask) }
+
 shadowJarTask.configure {
     exclude('com/fren_gor/**')
     exclude('languages/**')
@@ -118,6 +137,7 @@ shadowJarTask.configure {
         return false
     }
     archiveClassifier.set('')
+    destinationDirectory.set(layout.buildDirectory.dir('tmp/bukkit'))
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     minimize {
         exclude(dependency('com.github.VolmitSoftware.VolmLib:.*:.*'))
@@ -487,9 +507,14 @@ pluginPackaging {
         create('distribution') {
             stripLocalVariables = true
             packed = true
-            taskName = 'shadowJar'
+            taskName = 'universalJar'
             policyName = 'Wormholes'
+            forbiddenPrefixes = forbiddenPrefixes + ['com/velocitypowered/', 'net/md_5/bungee/', 'com/google/inject/']
             requiredEntries = requiredEntries + [
+                'velocity-plugin.json',
+                'bungee.yml',
+                'art/arcane/wormholes/proxy/velocity/WormholesVelocityPlugin.class',
+                'art/arcane/wormholes/proxy/bungee/WormholesBungeePlugin.class',
                 'art/arcane/volmlib/nativelib/chunk/ChunkPacketAccess.class',
                 'art/arcane/volmlib/nativelib/chunk/ChunkPosition.class',
                 'art/arcane/volmlib/nativelib/chunk/ChunkPacketSnapshot.class',
@@ -513,6 +538,7 @@ pluginPackaging {
             keepPrefixes = ['art/arcane/volmlib/util/matter/slices/', 'art/arcane/volmlib/nativelib/']
             shrinkRules = [file('packaging/shrink.pro')]
             shrinkLibraries.from(nativeShrinkLibraryClasspath)
+            shrinkLibraries.from(project(':wormholes-proxy').configurations.compileClasspath.filter { File library -> library.isFile() })
             shrinkRelocations = [
                 'org.bstats'                       : "${lib}.bstats",
                 'com.github.retrooper.packetevents': "${lib}.packetevents.api",

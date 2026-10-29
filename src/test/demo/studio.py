@@ -1,6 +1,7 @@
 import concurrent.futures
 import contextlib
 import fcntl
+import hashlib
 import json
 import math
 import os
@@ -328,7 +329,7 @@ def prepare_client(number: int, port: int, token: str, variant: str) -> Path:
             installed.unlink()
     shutil.copy2(ROOT / 'build/client-automator/InstanceAutomator.jar', mods / 'InstanceAutomator.jar')
     if variant == 'clientview':
-        source_mod: Path = ROOT / 'adapters/fabric/build/libs/Wormholes v3.1.2 [Fabric] 26.3+0.19.5.jar'
+        source_mod: Path = ROOT / 'adapters/fabric/build/libs/Wormholes v3.1.3 [Fabric] 26.3+0.19.5.jar'
         shutil.copy2(source_mod, mods / source_mod.name)
     return instance
 
@@ -359,7 +360,7 @@ class Studio:
                 {'block': 'minecraft:dirt', 'height': 4}, {'block': 'minecraft:grass_block', 'height': 1}]}, separators=(',', ':'))})
         (self.server / 'server.properties').write_text(''.join(key + '=' + value + '\n' for key, value in properties.items()))
         plugins: Path = self.server / 'plugins'
-        shutil.copy2(ROOT / 'build/libs/Wormholes-3.1.2-packed.jar', plugins / 'Wormholes.jar')
+        shutil.copy2(ROOT / 'build/libs/Wormholes v3.1.3 [CraftBukkit] 26.1.2-26.3.jar', plugins / 'Wormholes.jar')
         shutil.copy2(ROOT / 'build/demo-fixture/WormholesDemoFixture.jar', plugins / 'WormholesDemoFixture.jar')
         (plugins / 'Wormholes').mkdir(exist_ok=True)
         (plugins / 'Wormholes/wormholes.toml').write_text('schema = 3\n\n[atmosphere]\nbiome-tint = true\nsky-light = true\n')
@@ -626,6 +627,90 @@ def export_filters(identifier: str, take: dict) -> dict[str, str]:
     return filters
 
 
+def validate_export(path: Path) -> None:
+    if not path.is_file() or not 0 < path.stat().st_size < 25 * 1024 * 1024:
+        raise AssertionError('Missing or oversized demonstration clip: ' + str(path))
+    probe: dict = json.loads(subprocess.check_output([str(FFPROBE), '-v', 'error', '-select_streams', 'v:0',
+        '-show_entries', 'stream=width,height,avg_frame_rate:format=duration', '-of', 'json', str(path)], text=True))
+    stream: dict = probe['streams'][0]
+    if (stream['width'], stream['height'], stream['avg_frame_rate']) != (1920, 1080, '30/1'):
+        raise AssertionError('Demonstration clip must be 1920x1080 at 30 fps: ' + str(path))
+    if float(probe['format']['duration']) <= 0:
+        raise AssertionError('Demonstration clip has no duration: ' + str(path))
+    subprocess.run([str(FFMPEG), '-v', 'error', '-xerror', '-i', str(path), '-f', 'null', '-'], check=True)
+
+
+def publish_exports(exports: list[tuple[Path, Path]]) -> None:
+    for source, target in exports:
+        if source.resolve() == target.resolve():
+            raise ValueError('Publication source and destination must differ')
+        validate_export(source)
+    for source, target in exports:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        temporary: Path | None = None
+        try:
+            with tempfile.NamedTemporaryFile(dir=target.parent, suffix='.webm', delete=False) as output:
+                temporary = Path(output.name)
+            shutil.copyfile(source, temporary)
+            validate_export(temporary)
+            temporary.replace(target)
+        finally:
+            if temporary is not None:
+                temporary.unlink(missing_ok=True)
+
+
+def media_hash(path: Path) -> str:
+    with path.open('rb') as source:
+        return hashlib.file_digest(source, 'sha256').hexdigest()
+
+
+def write_publication(receipt: Path, publication: dict) -> None:
+    receipt.parent.mkdir(parents=True, exist_ok=True)
+    temporary: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8', dir=receipt.parent, delete=False) as output:
+            temporary = Path(output.name)
+            json.dump(publication, output, indent=2)
+            output.write('\n')
+        temporary.replace(receipt)
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
+
+
+def record_publication(receipt: Path, root: Path, exports: list[tuple[Path, Path]], removable: list[Path]) -> None:
+    publication: dict = {'root': str(root.resolve()), 'complete': False,
+                         'docs': [{'path': str(target.resolve()), 'sha256': media_hash(target)} for _, target in exports],
+                         'sources': [{'path': str(path.absolute()), 'sha256': media_hash(path)} for path in removable]}
+    write_publication(receipt, publication)
+
+
+def complete_publication(receipt: Path, root: Path, docs: Path) -> None:
+    publication: dict = json.loads(receipt.read_text())
+    if publication['root'] != str(root.resolve()) or not publication['docs']:
+        raise ValueError('Publication receipt does not belong to this recording directory')
+    for entry in publication['docs']:
+        target: Path = Path(entry['path'])
+        if (target.is_symlink() or not target.resolve().is_relative_to(docs.resolve())
+                or not target.is_file() or media_hash(target) != entry['sha256']):
+            raise ValueError('Published documentation clip changed or is missing: ' + str(target))
+    if publication['complete']:
+        return
+    removable: list[Path] = []
+    for entry in publication['sources']:
+        source: Path = Path(entry['path'])
+        if source.is_symlink() or not source.resolve().is_relative_to(root.resolve()):
+            raise ValueError('Publication cleanup source is outside the recording directory: ' + str(source))
+        if source.exists():
+            if not source.is_file() or media_hash(source) != entry['sha256']:
+                raise ValueError('Recording changed after publication: ' + str(source))
+            removable.append(source)
+    for source in removable:
+        source.unlink()
+    publication['complete'] = True
+    write_publication(receipt, publication)
+
+
 def export(identifier: str, variant: str, only_views: tuple[str, ...] | None = None) -> list[Path]:
     manifest: dict = json.loads((OUTPUT / 'manifest.json').read_text())
     matches: list[dict] = [take for take in manifest['takes'] if take['id'] == identifier and take['variant'] == variant]
@@ -636,10 +721,11 @@ def export(identifier: str, variant: str, only_views: tuple[str, ...] | None = N
         if not only_views or not set(only_views).issubset(filters):
             raise ValueError('Select only published perspectives for this demonstration')
         filters = {view: filters[view] for view in only_views}
-    DOCS.mkdir(parents=True, exist_ok=True)
+    staged: Path = OUTPUT / 'exports'
+    staged.mkdir(parents=True, exist_ok=True)
     def encode(view: str) -> Path:
         source: Path = OUTPUT / 'intermediate' / (identifier + '-' + variant + '-' + view + '.mp4')
-        target: Path = DOCS / (identifier + '-' + variant + '-' + view + '.webm')
+        target: Path = staged / (identifier + '-' + variant + '-' + view + '.webm')
         limit: int = 25 * 1024 * 1024
         command: list[str] = [str(FFMPEG), '-y', '-i', str(source), '-vf', filters[view], '-r', '30',
             '-c:v', 'libvpx-vp9', '-row-mt', '1', '-threads', '4', '-deadline', 'good', '-cpu-used', '4',
@@ -663,6 +749,7 @@ def export(identifier: str, variant: str, only_views: tuple[str, ...] | None = N
                         raise RuntimeError('Bounded export failed: ' + result.stderr[-2000:])
         if target.stat().st_size > limit:
             raise AssertionError('Clip exceeds 25 MB: ' + str(target))
+        validate_export(target)
         return target
     with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
         return list(executor.map(encode, filters))

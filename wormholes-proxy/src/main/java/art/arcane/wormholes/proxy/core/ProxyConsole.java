@@ -16,7 +16,7 @@ public final class ProxyConsole {
         List<String> lines = new ArrayList<>();
         String command = subcommand == null ? "" : subcommand.trim().toLowerCase(Locale.ROOT);
         switch (command) {
-            case "status" -> lines.add("WormholesProxy: " + registry.backends().size() + " backend(s) enrolled, " + broker.pending() + " transfer(s) pending");
+            case "status" -> lines.add("Wormholes proxy: " + registry.backends().size() + " backend(s) enrolled, " + broker.pending() + " transfer(s) pending");
             case "servers" -> {
                 List<ProxyRegistry.Backend> backends = registry.backends();
                 if (backends.isEmpty()) {
