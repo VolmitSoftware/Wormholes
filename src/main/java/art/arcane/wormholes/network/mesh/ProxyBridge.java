@@ -125,7 +125,7 @@ public final class ProxyBridge implements PluginMessageListener, Listener {
     }
 
     public void enroll(Player player) {
-        if (player == null || !player.isOnline()) {
+        if (active != this || player == null || !player.isOnline()) {
             return;
         }
         player.sendPluginMessage(Wormholes.instance, channel, enrollFrame());
@@ -133,9 +133,11 @@ public final class ProxyBridge implements PluginMessageListener, Listener {
 
     /** Enrolls through the first online player, which keeps this backend fresh on the proxy and pulls in backends that enrolled since. */
     public void reenroll(Collection<? extends Player> online) {
+        if (active != this) {
+            return;
+        }
         for (Player player : online) {
-            if (player.isOnline()) {
-                enroll(player);
+            if (WormholesPlatform.scheduleEntity(Wormholes.instance, player, () -> enroll(player), () -> { }, 1L)) {
                 return;
             }
         }

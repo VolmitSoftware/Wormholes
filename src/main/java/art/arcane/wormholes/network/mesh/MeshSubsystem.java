@@ -95,7 +95,7 @@ public final class MeshSubsystem implements WormholesSubsystem {
         plugin.getServer().getPluginManager().registerEvents(fresh, plugin);
         bridge = fresh;
         ProxyBridge.setActive(fresh);
-        reenrollTask = J.ar(() -> fresh.reenroll(plugin.getServer().getOnlinePlayers()), ProxyBridge.REENROLL_INTERVAL_TICKS);
+        reenrollTask = J.sr(() -> fresh.reenroll(plugin.getServer().getOnlinePlayers()), ProxyBridge.REENROLL_INTERVAL_TICKS);
         plugin.getLogger().info("net: proxy module channel " + channel + " enrolled");
     }
 
