@@ -32,3 +32,4 @@
 -keep class art.arcane.volmlib.nativelib.**.scoreboard.NativeScoreboardPackets { public <init>(); }
 
 -keep class art.arcane.volmlib.nativelib.**.chunk.NativeChunkSendRateAccessor { public <init>(); }
+-keepclassmembers class art.arcane.wormholes.rules.RuleTemplateFile** { <fields>; }
