@@ -8,6 +8,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 import art.arcane.volmlib.util.localization.PluginLanguageEditor;
+import art.arcane.volmlib.util.localization.VolmitLocales;
 import art.arcane.wormholes.menu.MenuViewer;
 
 final class FakeLanguageMenuHost implements LanguageMenuHost {
@@ -28,6 +29,11 @@ final class FakeLanguageMenuHost implements LanguageMenuHost {
     @Override
     public String defaultLocale() {
         return defaultLocale;
+    }
+
+    @Override
+    public String displayName(String locale) {
+        return VolmitLocales.displayName(locale).orElse(locale);
     }
 
     @Override

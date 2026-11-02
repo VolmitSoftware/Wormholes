@@ -23,7 +23,7 @@ import java.util.List;
 
 @Director(name = "server", descriptionKey = "command.help.server", description = "Cross-server travel: connect to, list, and exchange linked servers")
 public class CommandServer {
-    @Director(name = "connect", sync = true, descriptionKey = "command.help.server.connect", description = "Transfer yourself to a linked server (shorthand: /wh server <name>)")
+    @Director(name = "connect", sync = true, descriptionKey = "command.help.server.connect", description = "Transfer yourself to a linked server (shorthand: /wh server \\<name>)")
     public void connect(@Param(name = "sender", contextual = true) CommandSender sender,
                         @Param(name = "name", descriptionKey = "command.help.server.connect.name", description = "Linked server name (see /wh server list)", customHandler = ServerNameHandler.class) String name) {
         connectAndReport(sender, name);

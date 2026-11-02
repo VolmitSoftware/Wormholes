@@ -37,6 +37,11 @@ public final class MinecraftLanguageMenuHost implements LanguageMenuHost {
     }
 
     @Override
+    public String displayName(String locale) {
+        return localization.displayName(locale);
+    }
+
+    @Override
     public Optional<LanguageMenuView> document(String locale) {
         return Optional.ofNullable(documents.get(locale));
     }

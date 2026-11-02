@@ -24,7 +24,6 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 
-import java.nio.file.Path;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -57,8 +56,8 @@ public final class WormholesLocalization {
         return builder.build();
     }
 
-    public synchronized LocalizationReloadResult reload(Path dataFolder, String locale, String fallbackLocales) {
-        LocalizationReloadResult result = manager.reload(() -> WormholesLocaleLoader.load(dataFolder, locale, fallbackLocales));
+    public synchronized LocalizationReloadResult reload(WormholesLanguages languages, String locale, String fallbackLocales) {
+        LocalizationReloadResult result = manager.reload(() -> languages.load(locale, fallbackLocales));
         if (result.applied()) {
             activeLocale = WormholesLocales.normalize(locale);
         }
@@ -74,19 +73,19 @@ public final class WormholesLocalization {
         activeLocale = snapshot.overlays().isEmpty() ? VolmitLocales.ENGLISH : snapshot.overlays().getFirst().locale();
     }
 
-    public LocalizationSnapshot loadSnapshot(Path dataFolder, String locale, String fallbackLocales) throws IOException {
-        return LocalizationSnapshot.create(WormholesLocaleLoader.load(dataFolder, locale, fallbackLocales));
+    public LocalizationSnapshot loadSnapshot(WormholesLanguages languages, String locale, String fallbackLocales) throws IOException {
+        return LocalizationSnapshot.create(languages.loadInstalling(locale, fallbackLocales));
     }
 
-    public PluginLanguageEditor.Options editorOptions(Path dataFolder, Supplier<String> fallbackLocales) {
+    public PluginLanguageEditor.Options editorOptions(WormholesLanguages languages, Supplier<String> fallbackLocales) {
         return new PluginLanguageEditor.Options(
-                locale -> loadSnapshot(dataFolder, locale, editorFallbacks(locale, fallbackLocales)),
-                edit -> saveEditor(dataFolder, edit, editorFallbacks(edit.locale(), fallbackLocales)));
+                locale -> loadSnapshot(languages, locale, editorFallbacks(locale, fallbackLocales)),
+                edit -> saveEditor(languages, edit, editorFallbacks(edit.locale(), fallbackLocales)));
     }
 
-    private synchronized LocalizationSnapshot saveEditor(Path dataFolder, PluginLanguageEditor.Edit edit,
+    private synchronized LocalizationSnapshot saveEditor(WormholesLanguages languages, PluginLanguageEditor.Edit edit,
                                                          String fallbackLocales) throws IOException {
-        LocalizationSnapshot prepared = WormholesLocaleLoader.edit(dataFolder, edit, fallbackLocales);
+        LocalizationSnapshot prepared = languages.edit(edit, fallbackLocales);
         if (activeLocale.equals(edit.locale())) {
             manager.install(prepared);
         }

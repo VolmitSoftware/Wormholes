@@ -150,6 +150,7 @@ public final class WormholesModRuntime {
             } catch (IOException error) {
                 throw new UncheckedIOException("Could not load Wormholes portal data", error);
             }
+            localization.startUpstreamCheck();
             nexus.start();
             construction.load();
             construction.vanilla().applyEndTravel();

@@ -14,10 +14,11 @@
 # === Variabelen ===
 # Behoud de namen van variabelen en gebruik alleen de variabelen die bij het bericht horen.
 #   {access}  Toegangsbeleid van het portaal
+#   {added}  Berichten toegevoegd door een taalupdate
 #   {address}  Adres van de netwerkpeer
 #   {after}  Berichtwaarde na bewerking
 #   {allocation}  Toewijzing van de pocketruimte
-#  {amount} Reiskosten in -valuta
+#   {amount}  Reiskosten in Vault-valuta
 #   {argument}  Onverwacht opdrachtargument
 #   {before}  Berichtwaarde vóór bewerking
 #   {biome}  Bioomidentificatie
@@ -39,7 +40,7 @@
 #   {detail}  Aanvullende diagnosegegevens
 #   {diagnostic}  Diagnosebericht
 #   {direction}  Reis- of kijkrichting
-#   {door}  Uitgangsdeur van de pocketruimte
+#   {door}  Uitgangsdeur van de pocket
 #   {duration}  Spelerspecifiek update-interval
 #   {endpoint}  Identificatie van het wormgat-eindpunt
 #   {entities}  Aantal betrokken entiteiten of update-interval in ticks
@@ -55,13 +56,14 @@
 #   {id}  Objectidentificatie
 #   {incoming}  Beleid voor inkomende reizen
 #   {item}  Vereist voorwerp voor de reis
+#   {kept}  Lokale bewerkingen behouden door een taalupdate
 #   {key}  Bericht- of configuratiesleutel
 #   {kind}  Toegangstype van de deur
 #   {label}  Weergegeven label
 #   {large_step}  Aanpassingsstap bij Shift-klikken
 #   {line}  Regelnummer binnen een bericht
 #   {locale}  Taalcode
-#   {material}  Wandmateriaal van de pocketruimte
+#   {material}  Wandmateriaal van de pocket
 #   {maximum}  Maximaal toegestane waarde
 #   {message}  Feedbackbericht
 #   {minimum}  Minimaal toegestane waarde
@@ -81,7 +83,7 @@
 #   {plugin}  Pluginnaam
 #   {portal}  Naam of identificatie van het portaal
 #   {prefix}  Begin van een portaalimportcode
-#   {previous}  Vorige grootte van de pocketruimte in blokken
+#   {previous}  Vorige grootte van de pocket in blokken
 #   {quality}  Kwaliteit van de projectiestroom
 #   {quantity}  Vereist aantal voorwerpen
 #   {range}  Activeringsbereik van het portaal in blokken
@@ -89,8 +91,9 @@
 #   {reason}  Reden voor een fout of beslissing
 #   {receive}  Ontvangststatus van de projectie
 #   {refresh}  Verversingsinterval van de projectie in ticks
+#   {remaining}  Resterende tijd tot de volgende taalcontrole
 #   {reserved}  Gereserveerde plaatsen voor willekeurige bestemmingen
-#   {resized}  Aantal herbouwde pocketruimtes
+#   {resized}  Aantal herbouwde pockets
 #   {rotation}  Rotatie van de projectie
 #   {route}  Geprobeerd reistraject
 #   {rtt}  Netwerklatentie voor heen- en terugreis
@@ -99,7 +102,7 @@
 #   {send}  Verzendstatus van de projectie
 #   {server}  Servernaam of -identificatie
 #   {shape}  Vorm van de portaalopening
-#   {size}  Grootte van de pocketruimte in blokken
+#   {size}  Grootte van de pocket in blokken
 #   {skin}  Geselecteerd portaaluiterlijk
 #   {skipped}  Aantal overgeslagen bewerkingen
 #   {space}  Identificatie van de pocketruimte
@@ -109,6 +112,7 @@
 #   {target}  Plugin waarop de taalkeuze wordt toegepast
 #   {type}  Object- of parametertype
 #   {up}  Richting aan de bovenkant van de projectie
+#   {updated}  Berichten gewijzigd door een taalupdate
 #   {value}  Huidige of geselecteerde waarde
 #   {variables}  Toegestane plaatshouders in het bericht
 #   {whitelisted}  Toegestane spelers
@@ -183,7 +187,7 @@ none = "Geen"
 editor-player-only = "Open de taalbewerker in het spel."
 no-providers = "Er zijn geen Volmit-taalaanbieders beschikbaar."
 numeric-page = "Voer een paginanummer in."
-personal-permission = "U hebt geen toestemming om uw taal te selecteren."
+personal-permission = "Je hebt geen toestemming om je taal te selecteren."
 personal-player-only = "Spelertaalvoorkeuren moeten in het spel worden geselecteerd."
 plugin-personal-permission = "Je hebt geen toestemming om je taal voor {plugin} te kiezen."
 plugin-server-permission = "Je hebt geen toestemming om de servertaal voor {plugin} te wijzigen."
@@ -192,7 +196,7 @@ stopping = "Taalselectie is niet beschikbaar terwijl de plugin stopt."
 unavailable-for-all = "De taal {locale} is niet voor alle geselecteerde plugins beschikbaar."
 
 [language.menu]
-all-volmit-plugins = "Alle Volmit-plugins"
+all-volmit-plugins = "alle Volmit-plugins"
 command = "Commando: {command}"
 current = "Huidig: {locale}"
 current_with_personal = "Huidig: {locale} (Jouw keuze: {personal})"
@@ -212,21 +216,30 @@ your_language = "Jouw taal"
 
 [language.selection]
 english-fallback = "{plugin}: {locale} is niet beschikbaar; Engels (en_US) wordt gebruikt."
-personal-selected = "{plugin}: uw taal is nu {locale}."
+personal-selected = "{plugin}: je taal is nu {locale}."
 preparing = "Taal {locale} wordt voorbereid voor {target}..."
 save-failed = "{plugin}: de taalkeuze kon niet worden opgeslagen; controleer de serverconsole."
 server-default-selected = "{plugin}: je taal volgt nu de standaardtaal van de server."
-server-selected = "{plugin}: servertaal is nu {locale}."
+server-selected = "{plugin}: de servertaal is nu {locale}."
+
+[language.update]
+applied = "{plugin}: {locale} bijgewerkt ({added} toegevoegd, {updated} gewijzigd, {kept} lokale bewerkingen behouden)."
+checking = "{plugin}: de taalrepository wordt gecontroleerd op wijzigingen..."
+cooldown = "{plugin}: de taalrepository is onlangs gecontroleerd; probeer het over {remaining} opnieuw."
+failed = "{plugin}: taalupdate mislukt: {reason}"
+locale-failed = "{plugin}: {locale} is niet bijgewerkt: {reason}"
+unchanged = "{plugin}: geïnstalleerde talen komen al overeen met de repository."
 
 [language.usage]
 editor = "Gebruik: /{command} language server edit [locale]"
-selection = "Gebruik: /{command} language self [locale|reset] or server [locale]"
+selection = "Gebruik: /{command} language self [locale|reset] of server [locale]"
+update = "Gebruik: /{command} language update"
 volmit-selection = "Gebruik: /volmit plugins languages [locale]"
 
 [command]
 unknown = "Onbekend commando. Gebruik /wormholes voor hulp."
 public_help = ["&8[&6Wormholes&8] &7Portaalhulp: &f/wormholes info", "&8[&6Wormholes&8] &7Gebruik de portaalstaf op een portaal om bestemming, weergave, reizen en toegang in te stellen."]
-info = ["&8[&6Wormholes&8] &7&lEen wormgat bouwen&r", "&81. &7Haal een portaalstaf en portaalrunen bij de server of een beheerder.", "&82. &7Plaats de runen in een verbonden vorm op één vlak oppervlak.", "&7   Elke verbonden vorm werkt: rechthoeken, lijnen (3x1), losse blokken, L-vormen en kruisen.", "&7   De runen moeten vlak op dezelfde as-uitgelijnde muur, vloer of plafond liggen.", "&83. &7Houd de portaalstaf vast en &fklik met links op een runeblok&7 om het portaal te vormen.", "&84. &7Bouw ergens anders een TWEEDE portaal (op elke afstand en in elke wereld).", "&85. &7Klik met de staf op het open portaal om het hoofdmenu te openen.", "&7   Kies &fBestemming&7 en selecteer het andere portaal. Herhaal dit vanaf de andere kant.", "&7   Oriëntatie en toegang staan in afzonderlijke, eenvoudige menu's.", "&86. &7Blijf binnen {range} blokken van een portaal — de doelwereld wordt in het frame geprojecteerd en naar binnen lopen teleporteert je.", "&7Beheerders kunnen voorwerpen maken met &f/wormholes wand"]
+info = ["&8[&6Wormholes&8] &7&lEen wormgat bouwen&r", "&81. &7Haal een portaalstaf en wormgatrunen bij de server of een beheerder.", "&82. &7Plaats de runen in een verbonden vorm op één vlak oppervlak.", "&7   Elke verbonden vorm werkt: rechthoeken, lijnen (3x1), losse blokken, L-vormen en kruisen.", "&7   De runen moeten vlak op één as-uitgelijnde muur, vloer of plafond liggen.", "&83. &7Houd de portaalstaf vast en &fklik met links op een runeblok&7 om het portaal te vormen.", "&84. &7Bouw ergens anders een TWEEDE portaal (op elke afstand en in elke wereld).", "&85. &7Open het portaalmenu met de staf terwijl je naar het portaal kijkt, of sluip met een lege hoofdhand en klik met rechts op een portaalblok (eigenaar of beheerder).", "&7   Kies &fBestemming&7 en selecteer het andere portaal. Herhaal dit vanaf de andere kant.", "&7   Oriëntatie- en toegangsinstellingen staan in eigen, eenvoudige menu's.", "&86. &7Blijf binnen {range} blokken van een van beide portalen (huidig globaal activeringsbereik) — de bestemmingswereld wordt in het frame geprojecteerd en als je erin loopt, word je geteleporteerd.", "&7Beheerders kunnen voorwerpen maken met &f/wormholes wand"]
 
 [command.debug]
 enabled = "Debuglogboek ingeschakeld."
@@ -244,57 +257,57 @@ wand = "Ontvang de portaalstaf en een wormgatrune"
 door = "Geef een dimensiedeur die in survival kan worden gebruikt"
 "door.type" = "pair | personal | public | pair_trapdoor | personal_trapdoor | public_trapdoor"
 debug_toggle = "Schakel uitgebreide consolelogs en telemetrie per seconde in of uit"
-stats = "Toon het pad naar de live statistiekmomentopname; vernieuw met now=true"
+stats = "Toon het pad naar het live statistiekbestand; forceer eventueel een vernieuwing met now=true"
 "stats.now" = "Bouw de momentopname direct en synchroon opnieuw op"
 info = "Toon instructies voor het bouwen van portalen"
 admin = "Destructieve onderhoudscommando's voor Wormholes"
-"admin.delete_portals" = "Verwijder alle lokale portalen en opgeslagen portaalverbindingen"
+"admin.delete_portals" = "Verwijder alle lokale portalen en opgeslagen portaalkoppelingen"
 "admin.delete_everything" = "Reset Wormholes-gegevens, configuratie, vertrouwen, identiteit en netwerkstatus"
 "admin.freeze" = "Bevries alle portaalprojecties ter plekke voor een aantal seconden (seconds=0 hervat)"
 "admin.freeze.seconds" = "Hoe lang het bevroren beeld wordt vastgehouden (5-300, 0 hervat direct)"
-"admin.flush" = "Zet de geprojecteerde blokken van elke waarnemer terug naar de werkelijke staat en bouwt ze opnieuw op"
+"admin.flush" = "Zet de geprojecteerde blokken van elke waarnemer terug naar de werkelijke staat en bouw ze opnieuw op"
 network = "Serveroverschrijdend wormgatnetwerk"
-"network.import" = "Importeer een portaalcode van een andere server (slaat een interne route op; koppel via het menu Verbinding van een gateway)"
-"network.import.code" = "Portaalcode van de knop Exporteren op de andere server"
+"network.import" = "Hetzelfde als /wh server import; accepteert een server- of portaalcode"
+"network.import.code" = "Server- of portaalcode uit de export van de andere server"
 "network.status" = "Toon de verbindingsstatus van gekoppelde servers"
 "network.doctor" = "Leg uit waarom gekoppelde servers geen verbinding maken"
 server = "Serveroverschrijdend reizen: maak verbinding met gekoppelde servers, toon ze en wissel ze uit"
 "server.connect" = "Verplaats jezelf naar een gekoppelde server (verkorte vorm: /wh server \\<name>)"
 "server.connect.name" = "Naam van de gekoppelde server (zie /wh server list)"
 "server.export" = "Exporteer deze server als een code die andere servers kunnen importeren"
-"server.import" = "Importeer een server- of portaalcode die door een andere server is geëxporteerd"
+"server.import" = "Importeer een server- (WHS2.) of portaalcode (WHP6.) die door een andere server is geëxporteerd"
 "server.import.code" = "Code uit de export van de andere server"
 "server.list" = "Toon gekoppelde servers en hun verbindingsstatus"
 "server.remove" = "Vergeet een gekoppelde server (verwijdert de route en de vertrouwde sleutel)"
 "server.remove.name" = "Naam van de gekoppelde server om te vergeten"
-pocket = "Zakdimensies bekijken en opnieuw vormgeven"
-"pocket.info" = "Toon de grootte, materialen en grenzen van de zak waarin je staat"
-"pocket.resize" = "Herbouw de zak waarin je staat met een nieuwe grootte of nieuw materiaal"
-"pocket.resize.size" = "Nieuwe kamerrand in blokken, of 0 om de huidige grootte te houden"
+pocket = "Pocketdimensies bekijken en opnieuw vormgeven"
+"pocket.info" = "Toon de grootte, materialen en grenzen van de pocket waarin je staat"
+"pocket.resize" = "Herbouw de pocket waarin je staat met een nieuwe grootte of nieuw materiaal"
+"pocket.resize.size" = "Nieuwe zijdelengte van de kamer in blokken, of 0 om de huidige grootte te behouden"
 "pocket.resize.material" = "Nieuw blok voor muren, vloer en plafond, of keep"
 "pocket.resize.door" = "Nieuw blok voor de uitgangsdeur, of keep"
 "pocket.resize.confirm" = "Vereist wanneer de wijziging iets zou vernietigen of verplaatsen"
-"pocket.resizeall" = "Herbouw elke bestaande zak met een nieuwe grootte of nieuw materiaal"
+"pocket.resizeall" = "Herbouw elke bestaande pocket met een nieuwe grootte of nieuw materiaal"
 
 [command.error]
 no_permission = "&8[&6Wormholes&8] &cJe hebt geen toestemming."
 no_permission_use = "&8[&6Wormholes&8] &cJe hebt geen toestemming om dat commando te gebruiken."
-only_players = "&8[&6Wormholes&8] &cAlleen spelers kunnen items ontvangen."
+only_players = "&8[&6Wormholes&8] &cAlleen spelers kunnen voorwerpen ontvangen."
 
 [command.wand]
 granted_wand = "&8[&6Wormholes&8] &aPortaalstaf gegeven."
-granted_starter = ["&8[&6Wormholes&8] &aJe hebt een portaalstaf en 1 wormgatrune ontvangen.", "&8[&6Wormholes&8] &7Bouw TWEE vormen van wormgatrunen (een willekeurige verbonden vorm op één vlak oppervlak), verbind ze en blijf binnen {range} blokken om de projectie te zien.", "&8[&6Wormholes&8] &7Voer &f/wormholes info&7 uit voor alle stappen."]
+granted_starter = ["&8[&6Wormholes&8] &aJe hebt een portaalstaf en 1 wormgatrune ontvangen.", "&8[&6Wormholes&8] &7Bouw TWEE vormen van wormgatrunen (een willekeurige verbonden vorm op één vlak oppervlak), koppel ze en blijf binnen {range} blokken om de projectie te zien.", "&8[&6Wormholes&8] &7Voer &f/wormholes info&7 uit voor alle stappen."]
 
 [command.door]
-unavailable = "&8[&6Wormholes&8] &cDimensionele deuren zijn niet beschikbaar."
-unknown_type = "&8[&6Wormholes&8] &cOnbekend deurtype. Gebruik pair, personal of public, pair_trapdoor, personal_trapdoor, public_trapdoor."
+unavailable = "&8[&6Wormholes&8] &cDimensiedeuren zijn niet beschikbaar."
+unknown_type = "&8[&6Wormholes&8] &cOnbekend deurtype. Gebruik pair, personal, public, pair_trapdoor, personal_trapdoor of public_trapdoor."
 empty_type = "Deurtype mag niet leeg zijn"
-granted = "&8[&6Wormholes&8] &aEen dimensionaal deurobject van type &f{type}&a gegeven."
+granted = "&8[&6Wormholes&8] &aDimensiedeur van het type &f{type}&a gegeven."
 
 [command.stats]
-unavailable = "&8[&6Wormholes&8] &cDe statistiekopname kan niet worden geschreven."
-refreshed = "&8[&6Wormholes&8] &aOpname bijgewerkt."
-path = ["&8[&6Wormholes&8] &7Opnamebestand: &f{path}", "&8[&6Wormholes&8] &8Volg dit bestand om de live status van het netwerk en de weergaven te delen. Het wordt bij elk interval vervangen."]
+unavailable = "&8[&6Wormholes&8] &cDe schrijver van de statistiekmomentopname is niet beschikbaar."
+refreshed = "&8[&6Wormholes&8] &aMomentopname vernieuwd."
+path = ["&8[&6Wormholes&8] &7Momentopnamebestand: &f{path}", "&8[&6Wormholes&8] &8Volg dit bestand met tail om de live netwerk- en weergavestatus te delen. Het bestand wordt bij elk interval ter plekke overschreven."]
 
 [command.admin]
 delete_failed = "&8[&6Wormholes&8] &cNiet alle portalen konden worden verwijderd. Bekijk de volledige stacktrace in de console."
@@ -307,31 +320,31 @@ projection_failed = "&8[&6Wormholes&8] &cKon de portaalprojecties niet bijwerken
 projection_schedule_failed = "&8[&6Wormholes&8] &cKon de projectie-update niet inplannen."
 
 [command.admin.deleted_portals]
-one = "&8[&6Wormholes&8] &a&f{count}&a portaal verwijderd en lokale portaalverbindingen opgeschoond."
-other = "&8[&6Wormholes&8] &a&f{count}&a portalen verwijderd en lokale portaalverbindingen opgeschoond."
+one = "&8[&6Wormholes&8] &a&f{count}&a portaal verwijderd en lokale portaalkoppelingen gewist."
+other = "&8[&6Wormholes&8] &a&f{count}&a portalen verwijderd en lokale portaalkoppelingen gewist."
 
 [command.admin.reset_everything]
 one = "&8[&6Wormholes&8] &aWormholes is teruggezet naar de standaardstatus. &f{count}&a portaal is verwijderd, netwerkverbindingen zijn gesloten en standaardconfiguratiebestanden zijn opnieuw gegenereerd."
 other = "&8[&6Wormholes&8] &aWormholes is teruggezet naar de standaardstatus. &f{count}&a portalen zijn verwijderd, netwerkverbindingen zijn gesloten en standaardconfiguratiebestanden zijn opnieuw gegenereerd."
 
 [command.admin.projection_flushed]
-one = "&8[&6Wormholes&8] &a&f{count}&a projectiewaarnemer geleegd; clients bouwen opnieuw op vanaf de werkelijke staat."
-other = "&8[&6Wormholes&8] &a&f{count}&a projectiewaarnemers geleegd; clients bouwen opnieuw op vanaf de werkelijke staat."
+one = "&8[&6Wormholes&8] &a&f{count}&a projectiewaarnemer gereset; clients bouwen opnieuw op vanaf de werkelijke staat."
+other = "&8[&6Wormholes&8] &a&f{count}&a projectiewaarnemers gereset; clients bouwen opnieuw op vanaf de werkelijke staat."
 
 [command.pocket]
-not_inside = "&8[&6Wormholes&8] &cGa in een zakdimensie staan om dit uit te voeren."
-invalid_size = "&8[&6Wormholes&8] &cDe zakgrootte moet tussen {minimum} en {maximum} blokken liggen."
-invalid_shell_material = "&8[&6Wormholes&8] &c{material} kan geen zakmuur zijn. Gebruik een vast blok dat niet valt."
-invalid_door_material = "&8[&6Wormholes&8] &c{material} kan geen uitgangsdeur zijn. Gebruik een deur die met de hand opengaat; ijzeren deuren worden geweigerd."
-unchanged = "&8[&6Wormholes&8] &eDie zak heeft deze grootte en deze materialen al."
-containers_not_empty = "&8[&6Wormholes&8] &cHet wijzigen van de zak is gestopt: &f{containers}&c niet-lege opslagblokken zouden worden vernietigd. Maak ze leeg en probeer opnieuw; &fconfirm=true&c kan deze veiligheidscontrole niet omzeilen."
-resized = "&8[&6Wormholes&8] &aZak herbouwd op &f{size}&a blokken (was &f{previous}&a), muren &f{material}&a, uitgangsdeur &f{door}."
-failed = "&8[&6Wormholes&8] &cDe zak kon niet worden herbouwd. Controleer de console."
-world_unavailable = "&8[&6Wormholes&8] &cDe zakdimensie is niet geladen."
-does_not_fit = "&8[&6Wormholes&8] &cEen kamer van {size} blokken past niet in de bouwhoogte van de zakdimensie."
-bulk_started = "&8[&6Wormholes&8] &7&f{count}&7 zakken worden herbouwd."
+not_inside = "&8[&6Wormholes&8] &cGa in een pocketdimensie staan om dit uit te voeren."
+invalid_size = "&8[&6Wormholes&8] &cDe pocketgrootte moet tussen {minimum} en {maximum} blokken liggen."
+invalid_shell_material = "&8[&6Wormholes&8] &c{material} kan geen pocketmuur zijn. Gebruik een vast blok dat niet valt."
+invalid_door_material = "&8[&6Wormholes&8] &c{material} kan geen uitgangsdeur van een pocket zijn. Gebruik een deur die met de hand opengaat; ijzeren deuren worden geweigerd."
+unchanged = "&8[&6Wormholes&8] &eDie pocket heeft deze grootte en deze materialen al."
+containers_not_empty = "&8[&6Wormholes&8] &cHet wijzigen van de pocket is gestopt: &f{containers}&c niet-lege opslagblokken zouden worden vernietigd. Maak ze leeg en probeer opnieuw; &fconfirm=true&c kan deze veiligheidscontrole niet omzeilen."
+resized = "&8[&6Wormholes&8] &aPocket herbouwd op &f{size}&a blokken (was &f{previous}&a), muren &f{material}&a, uitgangsdeur &f{door}."
+failed = "&8[&6Wormholes&8] &cDe pocket kon niet worden herbouwd. Controleer de console."
+world_unavailable = "&8[&6Wormholes&8] &cDe pocketdimensie is niet geladen."
+does_not_fit = "&8[&6Wormholes&8] &cEen kamer van {size} blokken past niet in de bouwhoogte van de pocketdimensie."
+bulk_started = "&8[&6Wormholes&8] &7&f{count}&7 pockets worden herbouwd."
 bulk_finished = "&8[&6Wormholes&8] &aHerbouwd &f{resized}&a, overgeslagen &f{skipped}&a, mislukt &f{failed}."
-info = ["&8[&6Wormholes&8] &7Zak &f{space}", "&8[&6Wormholes&8] &7Grootte &f{size}&7 blokken, muren &f{material}&7, uitgangsdeur &f{door}", "&8[&6Wormholes&8] &7Grenzen &f{minimum}&7 tot &f{maximum}"]
+info = ["&8[&6Wormholes&8] &7Pocket &f{space}", "&8[&6Wormholes&8] &7Grootte &f{size}&7 blokken, muren &f{material}&7, uitgangsdeur &f{door}", "&8[&6Wormholes&8] &7Grenzen &f{minimum}&7 tot &f{maximum}"]
 confirm_required = ["&8[&6Wormholes&8] &cHerbouwen op {size} blokken zou &f{blocks}&c geplaatste blokken vernietigen en &f{entities}&c entiteiten verplaatsen.", "&8[&6Wormholes&8] &7Blokken buiten de nieuwe muren worden vernietigd; verplaatste entiteiten gaan naar de ingang.", "&8[&6Wormholes&8] &7Voer hetzelfde commando uit met &fconfirm=true&7 om door te gaan."]
 
 [portal]
@@ -345,32 +358,32 @@ cost_transaction_failed = "&cHet portaal kon je reiskosten niet verwerken."
 transfer_holding = "&6Verbinding maken met de bestemmingsserver..."
 transfer_interrupted = "&cPortaaloverdracht onderbroken: je bent van het portaal weggelopen."
 transfer_source_unavailable = "&cPortaaloverdracht onderbroken: het bronportaal is niet meer beschikbaar."
-cooldown = "&6Het portaal heeft afkoeltijd"
-access_denied = "&cToegang tot het portaal wordt geweigerd"
+cooldown = "&6Het portaal koelt af"
+access_denied = "&cToegang tot het portaal geweigerd"
 destination_unavailable = "&cPortaalbestemming niet beschikbaar"
 arrival_denied = "&cHet bestemmingsportaal heeft je aankomst geweigerd."
 arrival_returned = "&cHet bestemmingsportaal heeft je aankomst geweigerd; je wordt teruggestuurd naar {server}"
 arrival_failed = "&cDe portaalaankomst kon niet worden geplaatst; je blijft bij het spawnpunt van de bestemming"
 transfer_cooldown = "&6Afkoeltijd van serveroverschrijdend portaal: {seconds}s"
-destination_unreachable = "&cDestinatie-server ontoegankelijk"
-destination_unreachable_detail = "&cDestinatie-server ontoegankelijk: {reason}"
-transfer_blocked = "&cPortaloverdracht geblokkeerd: {reason}"
+destination_unreachable = "&cBestemmingsserver onbereikbaar"
+destination_unreachable_detail = "&cBestemmingsserver onbereikbaar: {reason}"
+transfer_blocked = "&cPortaaloverdracht geblokkeerd: {reason}"
 transfer_blocked_retry = "&cPortaaloverdracht geblokkeerd: {reason} (nieuwe poging over {seconds}s)"
 
 [portal.prompt]
 cost_item = "&bHoud het exacte kostenvoorwerp in je hoofdhand en druk daarna op Weggooien. Het voorwerp verlaat je inventaris niet."
-cost_vault = "&bVoer het bedrag per doorgang in (of '{cancel}'):"
+cost_vault = "&bVoer het valutabedrag per doorgang in (of '{cancel}'):"
 invite = "&bPlak de portaaluitnodiging in de chat (of '{cancel}'):"
-block_state = "&bVoer een blokstatus in voor de netwerkweergave van dit portaal, of '{cancel}':"
-name = "&bTyp de nieuwe portaalnaam in chat (of '{cancel}'):"
-direction = ["&8[&6Wormholes&8] &7Kijk in een richting en klik dan links om te passen.", "&8[&6Wormholes&8] &7Shift + linkermuisknop om te annuleren."]
+block_state = "&bVoer een blokstatus in voor de rand van de netwerkweergave van dit portaal, of '{cancel}':"
+name = "&bTyp de nieuwe portaalnaam in de chat (of '{cancel}'):"
+direction = ["&8[&6Wormholes&8] &7Kijk in een richting en klik dan links om toe te passen.", "&8[&6Wormholes&8] &7Shift + linksklik om te annuleren."]
 
 [portal.notice]
 cost_item_set = "Reizen vereist nu {item}."
 cost_item_invalid = "Dat voorwerp kon niet als reiskosten worden opgeslagen."
 cost_cleared = "Reiskosten gewist."
 cost_quantity_changed = "Reiskostenaantal: {quantity}"
-cost_vault_changed = "Reiskosten: {amount}"
+cost_vault_changed = "Reiskosten in valuta: {amount}"
 cost_vault_invalid = "Voer een positief valutabedrag in van hoogstens {maximum}."
 cost_vault_unavailable = "Er moet een economieprovider beschikbaar zijn voordat je deze kosten kiest."
 dimensional_link_managed = "Dit dimensionale portaal behoudt de gegenereerde koppeling."
@@ -388,7 +401,7 @@ projection_receiver_inactive = "De aankomst in The End blijft visueel inactief."
 projection_changed = "Projectie: {mode}"
 settings_sync_changed = "Instellingensynchronisatie: {state}"
 access_changed = "Toegang: {mode}"
-mirror_select_first = "Kies Mirror voordat u het beeld draait."
+mirror_select_first = "Kies Spiegel voordat je het beeld draait."
 mirror_rotation_changed = "Spiegelrotatie: {degrees} graden"
 rtp_cannot_link = "Portalen voor willekeurige teleportatie worden niet aan bestemmingen gekoppeld."
 
@@ -467,7 +480,7 @@ ambient_color = "Omgevingskleur"
 surface_skin = "Oppervlakteskin"
 capture_radius = "Vangstraal"
 full_refresh = "Volledige verversing"
-entity_update = "Entiteit Update"
+entity_update = "Entiteitsupdate"
 view_grace = "Weergave-uitlooptijd"
 blackout = "Verduisterde achtergrond"
 blackout_color = "Verduisteringskleur"
@@ -483,84 +496,84 @@ view_grace = "Seconden dat de stream actief blijft nadat je wegkijkt."
 rtp_unsupported = "&cPortalen voor willekeurige teleportatie kunnen niet uit runen worden gevormd."
 forming = "&bPortaal wordt gevormd... {type}-runen moeten op één vlakke muur, vloer of plafond verbonden zijn."
 must_be_flat = "&cHet portaal moet vlak op één muur, vloer of plafond liggen."
-interrupted = "&cDe vorming van de portaal werd onderbroken; de gereserveerde runen werden hersteld."
-rune_placed = "&bRune geplaatst. Maak een aaneengesloten vorm op één vlak oppervlak en klik daarna met de portaalstaf links op een rune."
+interrupted = "&cDe vorming van het portaal is onderbroken; de gereserveerde runen zijn hersteld."
+rune_placed = "&bRune geplaatst. Bouw een verbonden vorm op één vlak oppervlak en klik daarna met de portaalstaf links op een rune."
 opened = "&aPortaal geopend. Houd de staf vast en KLIK op het portaal om het in te stellen."
 
 [portal.edit]
 denied = "&cAlleen de portaaleigenaar of een beheerder kan dit portaal bewerken."
 
 [portal.menu]
-destination = ["&6&lBestemming&r", "&7Kies een portaal om mee te verbinden.", "&7Huidige verbinding: {destination}", "", "&8Klik om de bestemmingskiezer te openen."]
+destination = ["&6&lBestemming&r", "&7Kies een portaal om aan te koppelen.", "&7Huidige koppeling: {destination}", "", "&8Klik om de bestemmingskiezer te openen."]
 "destination.sort_smart" = "Slim"
 "destination.sort_name" = "Naam"
 "destination.sort_world" = "Wereld"
 "destination.sort_distance" = "Afstand"
-"destination.local" = ["&6{portal}", "&7op {x}, {y}, {z} in {world}, richting {direction}"]
-"destination.remote" = ["&6{portal}", "&7op server &f{server}", "&7op {x}, {y}, {z} in {world}, richting {direction}", "&b{state}"]
-"destination.sort" = ["&e&lSorteren: &f&l{mode}&r", "&7Wijzig de volgorde van de bestemmingen.", "&eLinks klikken"]
-"destination.previous_page" = ["&e&lVorige pagina&r", "&7Toon de vorige bestemmingen.", "&eLinks klikken"]
-"destination.next_page" = ["&e&lVolgende pagina&r", "&7Toon de volgende bestemmingen.", "&eLinks klikken"]
+"destination.local" = ["&6{portal}", "&7op {x}, {y}, {z} in {world}, kijkrichting {direction}"]
+"destination.remote" = ["&6{portal}", "&7op server &f{server}", "&7op {x}, {y}, {z} in {world}, kijkrichting {direction}", "&b{state}"]
+"destination.sort" = ["&e&lSorteren: &f&l{mode}&r", "&7Wijzig de volgorde van de bestemmingen.", "&eLinksklik"]
+"destination.previous_page" = ["&e&lVorige pagina&r", "&7Toon de vorige bestemmingen.", "&eLinksklik"]
+"destination.next_page" = ["&e&lVolgende pagina&r", "&7Toon de volgende bestemmingen.", "&eLinksklik"]
 "destination.page" = ["&b&lPagina {page}/{pages}&r", "&7{count} bestemmingen"]
 "destination.empty" = ["&7Er zijn geen bestemmingen beschikbaar om te koppelen."]
-render_mode = ["&b&lWeergavemodus &f&l{mode}&r", "&7Hoeveel van het bestemmingsvolume dit portaal projecteert.", "", "&7Modus: &f{mode}", "", "&8PanOptic geeft het volledige bestemmingsvolume weer.", "&8Venticular verbergt geometrie achter zichtbare ondoorzichtige oppervlakken.", "", "&8Links: modus wisselen."]
-ambient_particles = ["&b&lOmgevingsdeeltjes&r", "&7Decoratief stof dat rond dit portaal zweeft.", "", "&7Stijl: &f{style} &8({color})", "", "&8Links: stijl wisselen.", "&8Rechts: een kleur kiezen."]
-aperture_shape = ["&b&lOpeningsvorm&r", "&7De omtrek van de opening binnen het frame.", "", "&7Vorm: &f{shape}", "&7Open cellen: &f{cells}", "", "&8Links: volgende vorm.", "&8Rechts: 45 graden draaien.", "&8Shift + rechts: terugzetten naar full."]
+render_mode = ["&b&lWeergavemodus &f&l{mode}&r", "&7Hoeveel van het bestemmingsvolume dit portaal projecteert.", "", "&7Modus: &f{mode}", "", "&8PanOptic geeft het volledige bestemmingsvolume weer.", "&8Venticular behoudt zichtbare oppervlakken en laat verborgen geometrie van de bestemming weg.", "", "&8Linksklik: modus wisselen."]
+ambient_particles = ["&b&lOmgevingsdeeltjes&r", "&7Decoratief stof dat rond dit portaal zweeft.", "", "&7Stijl: &f{style} &8({color})", "", "&8Linksklik: stijl wisselen.", "&8Rechtsklik: een kleur kiezen."]
+aperture_shape = ["&b&lOpeningsvorm&r", "&7De omtrek van de opening binnen het frame.", "", "&7Vorm: &f{shape}", "&7Open cellen: &f{cells}", "", "&8Linksklik: volgende vorm.", "&8Rechtsklik: 45 graden draaien.", "&8Shift + rechtsklik: terugzetten naar volledig."]
 "aperture_shape.label" = "Openingsvorm"
 "aperture_shape.too_small" = "&c{shape} laat in dit frame geen open cel over."
 "aperture_shape.invalid" = "&8[&6Wormholes&8] &cDe vorm kon niet worden gelezen: {reason}"
 "aperture_shape.current" = "&8[&6Wormholes&8] &f{portal}&7: openingsvorm &f{shape}&7 ({cells} open cellen)"
 "aperture_shape.set" = "&8[&6Wormholes&8] &f{portal}&a: openingsvorm ingesteld op &f{shape}&a ({cells} open cellen)."
-surface_skin = ["&b&lOppervlakteskin&r", "&7Bedek de portaalopening met een gerenderd blok- of vloeistofpaneel.", "", "&7Skin: &f{skin}", "", "&8Links: skin wissen.", "&8Rechts: skinopties openen."]
-"surface_skin.placard" = ["&6&lOppervlakteskin&r", "&7Rechtsklik op het portaal met een blok of emmer om een skin toe te passen.", "", "&7Skin: &f{skin}"]
+surface_skin = ["&b&lOppervlakteskin&r", "&7Bedek de portaalopening met een gerenderd blok- of vloeistofpaneel.", "", "&7Skin: &f{skin}", "", "&8Linksklik: skin wissen.", "&8Rechtsklik: skinopties openen."]
+"surface_skin.placard" = ["&6&lOppervlakteskin&r", "&7Klik met rechts op het portaal met een blok of emmer om een skin toe te passen.", "", "&7Skin: &f{skin}"]
 "surface_skin.glass" = ["&b&lGlazen skin&r", "&7Een helder glazen venster over de opening.", "", "&8Klik om glas toe te passen."]
-"surface_skin.clear" = ["&c&lSkin wissen&r", "&7Verwijdert de skin en herstelt projecties.", "", "&8Klik om de skin te verwijderen."]
-gateway_destination = ["&6&lKoppeling & Bestemming&r", "&7Koppel een andere server of kies een gateway.", "&7Huidige verbinding: {destination}", "", "&8Klik om het koppelingsscherm te openen."]
+"surface_skin.clear" = ["&c&lSkin wissen&r", "&7Verwijder de skin en herstel de projecties.", "", "&8Klik om de skin te verwijderen."]
+gateway_destination = ["&6&lKoppeling & bestemming&r", "&7Koppel een andere server of kies een gateway.", "&7Huidige koppeling: {destination}", "", "&8Klik om het koppelingsscherm te openen."]
 rtp_destination = ["&6&lWillekeurige bestemming&r", "&7Stel in waar en wanneer dit portaal een nieuwe bestemming kiest.", "&7Rotatie: &b{rotation}", "", "&8Klik om de instellingen voor willekeurige teleportatie te openen."]
-rename = ["&a&lPortaal hernoemen&r", "&7Wijzigt de naam die in verbindingen en menu's wordt getoond.", "&7Huidig: &f{portal}", "", "&8Klik om een nieuwe naam te typen."]
-delete = ["&c&lPortal verwijderen&r", "&7Verwijder dit portaal permanent.", "", "&c&nShift + linkermuisknop om te bevestigen&r"]
-advanced_settings = ["&3&lGeavanceerde streaminstellingen&r", "&7Directe instellingen voor diagnose en ongebruikelijke verbindingen.", "&7Door één waarde te wijzigen wordt Streamkwaliteit ingesteld op Aangepast."]
-back_settings = ["&e&lTerug naar instellingen&r", "&7Terug naar de portalinstellingen."]
-extensions = ["&b&lMeer instellingen&r", "&7Regels, toegang, netwerken en andere functie-instellingen.", "&eLinkerklik"]
-stream_quality = ["&b&lStreamkwaliteit: {quality}&r", "&7Een bediening voor afstandsbekijkbereik en cadentie.", "", "&7Diepte &b{depth}&7  Entiteiten &b{entities}t", "&7Vernieuwen &b{refresh}t&7  Uitlooptijd &b{grace}s", "", "&8Klik op: cycluskwaliteit.", "&8Shift-klik: geavanceerde afstelling."]
-orientation = ["&9&lOriëntatie&r", "&7Kijkrichting: &9{facing}", "&7Bovenkant scherm: &6{up}", "", "&8Klik om kijkrichting, omkering en rotatie in te stellen."]
+rename = ["&a&lPortaal hernoemen&r", "&7Wijzig de naam die in koppelingen en menu's wordt getoond.", "&7Huidig: &f{portal}", "", "&8Klik om een nieuwe naam te typen."]
+delete = ["&c&lPortaal verwijderen&r", "&7Verwijder dit portaal permanent.", "", "&c&nShift + linksklik om te bevestigen&r"]
+advanced_settings = ["&3&lGeavanceerde streaminstellingen&r", "&7Directe instellingen voor diagnose en ongebruikelijke koppelingen.", "&7Als je één waarde wijzigt, wordt Streamkwaliteit op Aangepast gezet."]
+back_settings = ["&e&lTerug naar instellingen&r", "&7Terug naar de portaalinstellingen."]
+extensions = ["&b&lMeer instellingen&r", "&7Regels, toegang, netwerken en andere functie-instellingen.", "&eLinksklik"]
+stream_quality = ["&b&lStreamkwaliteit: {quality}&r", "&7Eén instelling voor het bereik en de verversing van de externe weergave.", "", "&7Diepte &b{depth}&7  Entiteiten &b{entities}t", "&7Vernieuwen &b{refresh}t&7  Uitlooptijd &b{grace}s", "", "&8Klik: kwaliteit wisselen.", "&8Shift + klik: geavanceerde afstelling."]
+orientation = ["&9&lOriëntatie&r", "&7Kijkrichting: &9{facing}", "&7Bovenkant: &6{up}", "", "&8Klik om kijkrichting, omkering en rotatie in te stellen."]
 orientation_placard = ["&9&lPortaaloriëntatie&r", "&7Kijkrichting: &9{facing}", "&7Bovenkant scherm: &6{up}"]
 network_number = ["&b&l{label} &f&l{value}&r", "&7{description}", "", "&7Huidig: &b{value}", "", "&8Linksklik: +{step}", "&8Rechtsklik: -{step}", "&8Shift + linksklik: +{large_step}", "&8Shift + rechtsklik: -{large_step}"]
 fallback_block = ["&b&lReserveblok&r", "&7Blok dat voorbij de streamdiepte wordt getoond.", "", "&7Huidig: &f{block}", "", "&8Linksklik: voer een blokstatus in.", "&8Rechtsklik: herstel naar lucht."]
-blackout = ["&b&lVerduisterde achtergrond&r", "&7Sluit de verre en zijdelingse grenzen van de projectie af met massief beton zodat de lokale wereld er nooit doorheen schijnt.", "", "&7Huidig: &f{state} &8({color})", "", "&8Linksklik: aan/uit schakelen.", "&8Rechtsklik: kies een kleur."]
+blackout = ["&b&lVerduisterde achtergrond&r", "&7Sluit de verre en zijdelingse grenzen van de projectie af met massief beton zodat de lokale wereld er nooit doorheen te zien is.", "", "&7Huidig: &f{state} &8({color})", "", "&8Linksklik: aan/uit schakelen.", "&8Rechtsklik: kies een kleur."]
 activation_range = ["&b&lActiveringsbereik &f&l{value}&r", "&7Afstand in blokken waarop dit portaal begint te projecteren voor spelers in de buurt.", "", "&7Huidig: &b{value}", "", "&8Linksklik: +{step}", "&8Rechtsklik: -{step}", "&8Shift + linksklik: +{large_step}", "&8Shift + rechtsklik: -{large_step}", "&8Onder 8 wordt teruggezet naar Globaal."]
-settings_placard_gateway = ["&b&lPortalinstellingen&r", "&7Toegangs- en overdrachtscontroles.", "&7Plus afstemming van de serveroverschrijdende weergave.", "", "&7Grotere diepte / kortere tick-intervallen =", "&7gedetailleerder beeld, meer bandbreedte."]
-mode_placard = ["&e&lPortaalmodus&r", "&7Huidig: &e{mode}", "", "&7Portal: eenvoudig koppelbaar portaal.", "&7Wormhole: portaal met geprojecteerd kijkvenster.", "&7Gateway: gateway tussen servers.", "&7RTP: instelbare willekeurige bestemmingen.", "&7Mirror: spiegelt deze kant; reizen geblokkeerd."]
+settings_placard_gateway = ["&b&lPortaalinstellingen&r", "&7Toegangs- en overdrachtscontroles.", "&7Plus afstemming van de projectieweergave.", "", "&7Grotere diepte / kortere tick-intervallen =", "&7gedetailleerder beeld, meer bandbreedte."]
+mode_placard = ["&e&lPortaalmodus&r", "&7Huidig: &e{mode}", "", "&7Portaal: eenvoudig gekoppeld portaal.", "&7Wormgat: portaal met kijkvenster.", "&7Gateway: serveroverschrijdende gateway.", "&7RTP: instelbare willekeurige bestemmingen.", "&7Spiegel: weerspiegelt deze kant; reizen geblokkeerd."]
 mode_opener = ["&e&lModus&r", "&7{description}", "", "&7Op dit moment: &e{mode}", "", "&8Klik om de modus te veranderen."]
-direction = ["&9&lBeheer van de luchthaven&r", "&7Verander de richting van het portaal.", "", "&7Op dit moment geconfronteerd met: &9{direction}", "", "&8Klik dan op kijken, links klik om te toepassen."]
+direction = ["&9&lRichting&r", "&7Verander de richting van het portaal.", "", "&7Huidige kijkrichting: &9{direction}", "", "&8Klik, kijk in een richting en klik links om toe te passen."]
 flip_face = ["&b&lVoorkant omkeren&r", "&7Keert de voorkant van het portaal om.", "&7De schermrotatie blijft uitgelijnd.", "", "&7Huidige bovenkant: &b{up}", "", "&8Klik om om te keren."]
 rotate_counterclockwise = ["&6&lLinksom draaien&r", "&7Draait het kijkvenster van het portaal 90 graden,", "&7zonder de voorkant te wijzigen.", "", "&7Huidige bovenkant: &6{up}", "", "&8Klik om te draaien."]
 rotate_clockwise = ["&6&lRechtsom draaien&r", "&7Draait het kijkvenster van het portaal 90 graden,", "&7zonder de voorkant te wijzigen.", "", "&7Huidige bovenkant: &6{up}", "", "&8Klik om te draaien."]
-back = ["&e&lTerug&r", "&7Terug naar het menu van de portal."]
-settings_gateway = ["&b&lInstellingen&r", "&7Machtigingen, overdrachten", "&7en instellingen voor de serveroverschrijdende weergave.", "", "&7Toegang: &6{access}", "&7Verzenden &b{send}&7  Ontvangen &b{receive}", "&7Diepte &b{depth}&7  Entiteiten &b{entity}t", "", "&8Klik om de instellingen te openen."]
+back = ["&e&lTerug&r", "&7Terug naar het portaalmenu."]
+settings_gateway = ["&b&lInstellingen&r", "&7Machtigingen, overdrachten", "&7en afstemming van de projectieweergave.", "", "&7Toegang: &6{access}", "&7Verzenden &b{send}&7  Ontvangen &b{receive}", "&7Diepte &b{depth}&7  Entiteiten &b{entity}t", "", "&8Klik om de instellingen te openen."]
 settings_sync = ["&b&lInstellingensynchronisatie {state}&r", "&7Wanneer ingeschakeld worden de instellingen van dit portaal", "&7(diepte, ticks, projectie, machtigingen", "&7en overdrachten) met alle gekoppelde servers gesynchroniseerd.", "", "&7Huidig: &b{state}", "", "&8Klik om te wisselen."]
-permission = ["&6&lToegang {mode}&r", "&7{description}", "&7Knooppunt: &f{node}", "", "&7Huidig: &6{mode}", "", "&8Klik om tussen toestaanlijst en blokkeerlijst te wisselen.", "&8Operators omzeilen deze beperking altijd."]
-public_look_label = ["&b&lOpenbaar kijklabel: &f&l{state}&r", "&7Toon de naam van dit portaal wanneer spelers in de buurt ernaar kijken.", "&7Wanneer dit uitstaat, blijft het routelabel alleen zichtbaar met het portaalgereedschap.", "", "&eKlik links om te wisselen"]
+permission = ["&6&lToegang {mode}&r", "&7{description}", "&7Rechtennode: &f{node}", "", "&7Huidig: &6{mode}", "", "&8Klik om tussen toestaanlijst en blokkeerlijst te wisselen.", "&8Operators omzeilen deze beperking altijd."]
+public_look_label = ["&b&lOpenbaar kijklabel: &f&l{state}&r", "&7Toon de naam van dit portaal wanneer spelers in de buurt ernaar kijken.", "&7Wanneer dit uitstaat, blijft het routelabel alleen zichtbaar met het portaalgereedschap.", "", "&eLinksklik om te wisselen"]
 
 [portal.menu.gateway]
 server = "&7Server: &f{server}"
-link = "&7Link: &b{state}"
-choose = ["&6&lKies bestemming&r", "&7Kies uit ontdekte lokale en afgelegen gateways.", "", "&8Klik om de bestemminglijst te openen."]
+link = "&7Koppeling: &b{state}"
+choose = ["&6&lKies bestemming&r", "&7Kies uit gevonden lokale en externe gateways.", "", "&8Klik om de bestemmingslijst te openen."]
 unpaired = ["&6&lGatewaykoppeling&r", "&7Status: &cNiet gekoppeld"]
-paired = ["&6&lDoorgangspareen&r", "&7Bestemming: &6{destination}"]
-export = ["&6&lEen uitnodiging maken&r", "&7Maak een gesigneerde gatewaycode voor andere servers.", "", "&8Klik om een nieuwe code te kopiëren."]
-import = ["&b&lGebruik uitnodiging&r", "&7Een getekend code van een andere gateway plakken.", "", "&8Klik en plak de code in chat."]
+paired = ["&6&lGatewaykoppeling&r", "&7Bestemming: &6{destination}"]
+export = ["&6&lUitnodiging maken&r", "&7Maak een ondertekende gatewaycode voor een andere server.", "", "&8Klik om een nieuwe code te kopiëren."]
+import = ["&b&lUitnodiging gebruiken&r", "&7Plak een ondertekende code van een andere gateway.", "", "&8Klik en plak de code in de chat."]
 
 [portal.menu.mirror]
 rotation = "&7Beeldrotatie: &b{degrees} graden"
 rotate_clockwise = "&8Rechtsklik: met de klok mee draaien."
-rotate_counterclockwise = "&8Shift + rechtermuisknop: tegen de klok in draaien."
-selected = ["&e&lSpiegel&r", "&7Bekijk de lokale wereld terug.", "&7Zie jezelf door het frame kijken.", "&7Geen reis tijdens de spiegel.", "", "&aMomenteel geselecteerd"]
-available = ["&e&lSpiegel&r", "&7Bekijk de lokale wereld terug.", "&7Zie jezelf door het frame kijken.", "&7Geen reis tijdens de spiegel.", "", "&7Links klik om te selecteren"]
-flip = ["&7Muurspiegels draaien in 180 graden stappen", "&7zodat weerspiegelde entiteiten in lijn blijven.", "&8Rechte klik: het afgebeeld beeld omdraaien."]
+rotate_counterclockwise = "&8Shift + rechtsklik: tegen de klok in draaien."
+selected = ["&e&lSpiegel&r", "&7Weerspiegelt de lokale wereld.", "&7Zie jezelf door het frame kijken.", "&7Niet reizen in spiegelmodus.", "", "&aMomenteel geselecteerd"]
+available = ["&e&lSpiegel&r", "&7Weerspiegelt de lokale wereld.", "&7Zie jezelf door het frame kijken.", "&7Niet reizen in spiegelmodus.", "", "&7Linksklik om te selecteren"]
+flip = ["&7Muurspiegels draaien in stappen van 180 graden", "&7zodat weerspiegelde entiteiten in lijn blijven.", "&8Rechtsklik: het gespiegelde beeld omdraaien."]
 
 [portal.menu.cost]
-opener = ["&6&lReiskosten&r", "&7Vereis een exact voorwerp of-valuta", "&7wanneer een speler dit portaal gebruikt.", "", "&7Modus: &f{mode}", "&7Kosten: &f{cost}", "", "&8Klik om te configureren."]
+opener = ["&6&lReiskosten&r", "&7Vereis een exact voorwerp of valuta", "&7wanneer een speler dit portaal gebruikt.", "", "&7Modus: &f{mode}", "&7Kosten: &f{cost}", "", "&8Klik om te configureren."]
 placard = ["&6&lReiskosten&r", "&7Spelers moeten betalen voordat dit portaal", "&7ze laat reizen.", "", "&7Modus: &f{mode}", "&7Kosten: &f{cost}"]
 mode_free = ["&a&lGratis&r", "&7Er is geen betaling vereist.", "", "&8Klik om reizen gratis te maken."]
 mode_vanilla = ["&b&lVanilla-voorwerp&r", "&7Verbruikt een exact overeenkomend voorwerp.", "", "&8Klik, houd het voorwerp vast en druk daarna op Weggooien."]
@@ -568,9 +581,9 @@ mode_vault = ["&a&lEconomie&r", "&7Schrijf valuta af via een economieprovider.",
 mode_vault_unavailable = ["&c&lEconomie niet beschikbaar&r", "&7Een economieprovider is vereist.", "", "&8Schakel een economieprovider in voor deze modus."]
 free_detail = ["&a&lGeen kosten&r", "&7Reizen door dit portaal is gratis."]
 secondary_empty = ["&8&lGeen extra instelling&r"]
-item = ["&b&l{item}&r", "&7Precies dit voorwerp is vereist om te reizen.", "&7Het selectievoorwerp wordt nooit verbruikt.", "", "&8Links: kies een ander vastgehouden voorwerp.", "&8Rechts: wis de kosten."]
+item = ["&b&l{item}&r", "&7Precies dit voorwerp is vereist om te reizen.", "&7Het selectievoorwerp wordt nooit verbruikt.", "", "&8Linksklik: kies een ander vastgehouden voorwerp.", "&8Rechtsklik: wis de kosten."]
 quantity = ["&b&lAantal {quantity}&r", "&7Hoeveel exact overeenkomende voorwerpen", "&7per doorgang worden verbruikt.", "", "&8Linksklik: +1", "&8Rechtsklik: -1", "&8Shift + linksklik: +8", "&8Shift + rechtsklik: -8", "&8Maximum: {maximum}"]
-vault_amount = ["&a&l{amount}&r", "&7Valuta afgeschreven per doorgang.", "", "&8Links: voer een ander bedrag in.", "&8Rechts: wis de kosten."]
+vault_amount = ["&a&l{amount}&r", "&7Valuta afgeschreven per doorgang.", "", "&8Linksklik: voer een ander bedrag in.", "&8Rechtsklik: wis de kosten."]
 
 [portal.menu.ambient_color]
 placard = ["&6&lOmgevingskleur&r", "&7Kleur van de omgevingsstofdeeltjes.", "", "&7Huidig: &f{color}"]
@@ -592,8 +605,8 @@ linked = ["&6&l{portal}&r", "&7Type: &e{type}", "&7Kijkrichting: &9{facing}", "&
 unlinked = ["&6&l{portal}&r", "&7Type: &e{type}", "&7Kijkrichting: &9{facing}", "&7Gekoppeld aan: &c{none}", "", "&8Operators omzeilen de toestaan- en blokkeerlijsten."]
 
 [portal.menu.projection]
-on = ["&6&lProjectie aan&r", "&7Laat de live-uitzichten van dit portaal zien.", "&7Doel of spiegelbeelden zijn zichtbaar.", "", "&7Momenteel: &bProjectie aan&r", "", "&8Klik om te schakelen op / uit."]
-off = ["&8&lProjectie uit&r", "&7Het frame blijft leeg.", "&7Geen bestemming, geen spiegel.", "", "&7Momenteel: &bProjectie uit&r", "", "&8Klik om te schakelen op / uit."]
+on = ["&6&lProjectie aan&r", "&7Toon de live weergave van dit portaal.", "&7Bestemmings- of spiegelbeelden zijn zichtbaar.", "", "&7Momenteel: &bProjectie aan&r", "", "&8Klik om aan / uit te schakelen."]
+off = ["&8&lProjectie uit&r", "&7Het frame blijft leeg.", "&7Geen bestemmingsweergave, geen spiegel.", "", "&7Momenteel: &bProjectie uit&r", "", "&8Klik om aan / uit te schakelen."]
 
 [portal.menu.mode_option]
 selected = ["&e&l{mode}&r", "&7{description}", "", "&aMomenteel geselecteerd"]
@@ -608,7 +621,7 @@ editor_title = "RTP: {portal}"
 [portal.rtp.notice]
 setting_rejected = "Kan deze instelling niet toepassen: {reason}"
 applied = "Instellingen voor de willekeurige bestemming toegepast."
-reset_defaults = "Willekeurige-teleportinstellingen teruggezet naar standaardwaarden."
+reset_defaults = "Instellingen voor willekeurige teleportatie teruggezet naar de standaardwaarden."
 editor_refreshed = "De instellingen zijn gewijzigd; de editor is vernieuwd."
 runtime_unavailable = "Het systeem voor willekeurige teleportatie is niet beschikbaar."
 reroll_failed = "Handmatig een nieuwe bestemming kiezen is mislukt; bekijk het serverlogboek."
@@ -623,18 +636,18 @@ traversal_failed = "&cHet portaal kon niet stabiliseren; probeer het opnieuw."
 private = "Privé elke {duration}"
 
 [portal.mode]
-changed = "&a{portal} modus ingesteld op {mode}."
+changed = "&aModus van {portal} ingesteld op {mode}."
 
 [portal.mode.description]
-portal = "Basis verlinkbaar portaal."
+portal = "Eenvoudig koppelbaar portaal."
 wormhole = "Koppelbaar portaal met geprojecteerd kijkvenster."
-gateway = "Voor de koppeling tussen netwerken gereserveerd."
+gateway = "Gereserveerd voor koppelingen tussen netwerken."
 rtp = "Lokaal portaal voor willekeurige teleportatie."
 mirror = "Spiegelt de lokale wereld terwijl reizen is geblokkeerd."
 
 [portal.permission.description]
-whitelist = "Spelers hebben het knooppunt nodig om dit portaal te gebruiken."
-blacklist = "Spelers met het knooppunt worden geblokkeerd."
+whitelist = "Spelers hebben de rechtennode nodig om dit portaal te gebruiken."
+blacklist = "Spelers met de rechtennode worden geblokkeerd."
 
 [portal.direction]
 cancelled = "&8[&6Wormholes&8] &7Geannuleerd"
@@ -644,7 +657,7 @@ set = "&8[&6Wormholes&8] &7Richting ingesteld"
 notification = "&a{portal}: &r{message}"
 
 [portal.link]
-linked = "&a{portal} verbonden aan {destination}."
+linked = "&a{portal} gekoppeld aan {destination}."
 linked_remote = "&a{portal} gekoppeld aan {destination} op {server}."
 unlinked = "&eKoppeling tussen {portal} en {destination} verwijderd."
 
@@ -655,11 +668,11 @@ rotated_clockwise = "&a{portal} met de klok mee gedraaid."
 direction_changed = "&aRichting van {portal} gewijzigd naar {direction}."
 
 [director.help]
-no_subcommands = "Geen subopdrachten op deze pagina."
+no_subcommands = "Geen subcommando's op deze pagina."
 no_description = "Geen beschrijving opgegeven"
-command_group = "Opdrachtgroep. Klik om te openen."
+command_group = "Commandogroep. Klik om te openen."
 category = "Commandocategorie"
-no_parameters = "Geen parameters. Klik om de opdracht vooraf in te vullen."
+no_parameters = "Geen parameters. Klik om het commando vooraf in te vullen."
 parameters_hover = "Beweeg de muis over de parameters voor meer informatie."
 
 [director.help.navigation]
@@ -667,7 +680,7 @@ back = "Terug"
 page = "Pagina"
 
 [director.help.navigation.parent]
-hover = "Terug naar de bovenliggende opdrachtgroep"
+hover = "Terug naar de bovenliggende commandogroep"
 
 [director.help.navigation.previous]
 hover = "Vorige pagina"
@@ -682,14 +695,14 @@ default = "Standaard \"{value}\" indien niet opgegeven."
 type = "Deze parameter is van het type {type}."
 
 [director.runtime.error]
-invalid_origin = "Deze opdracht kan niet vanuit deze bron worden uitgevoerd."
+invalid_origin = "Dit commando kan niet vanuit deze bron worden uitgevoerd."
 unknown_parameter = "Onbekende parametersleutel: {key}"
 unexpected_argument = "Onverwacht argument \"{argument}\". Optionele parameters moeten met een sleutel worden opgegeven, bijv. seed=123"
 unclosed_group = "Ontbrekende sluitende \"]\" voor parameter {key}"
 conversion_failed = "Kan \"{value}\" voor {parameter} niet naar {type} converteren"
 default_parse_failed = "Kan de standaardwaarde voor parameter {parameter} niet verwerken"
 missing_argument = "Ontbrekend argument \"{parameter}\" ({type})"
-execution_failed = "Opdracht {command} kon niet worden uitgevoerd: {reason}"
+execution_failed = "Commando {command} kon niet worden uitgevoerd: {reason}"
 
 [network]
 not_initialized = "&8[&6Wormholes&8] &cHet netwerk is nog niet geïnitialiseerd."
@@ -698,11 +711,11 @@ not_initialized = "&8[&6Wormholes&8] &cHet netwerk is nog niet geïnitialiseerd.
 disabled = "&8[&6Wormholes&8] &7Het netwerk is &cuitgeschakeld&7 (wormholes.toml)."
 not_running = "&8[&6Wormholes&8] &cHet netwerk is ingeschakeld maar draait niet. Controleer de identiteitsopslag en netwerkpoort."
 listening = "&8[&6Wormholes&8] &7Deze server: &f{server}&7, luistert op &f{address}"
-outbound_only = "&8[&6Wormholes&8] &7Deze server: &f{server}&7, Boat-modus alleen uitgaand"
+outbound_only = "&8[&6Wormholes&8] &7Deze server: &f{server}&7, alleen uitgaand in Boat-modus"
 public_key = "&8[&6Wormholes&8] &8Openbare sleutel: {fingerprint}"
-no_routes = "&8[&6Wormholes&8] &7Er zijn nog geen routes naar gekoppelde servers verbonden."
+no_routes = "&8[&6Wormholes&8] &7Er zijn nog geen routes naar gekoppelde servers."
 peer = "&8[&6Wormholes&8] &f{server}&7 {state} &7{address}{rtt}"
-last_attempt = "&8[&6Wormholes&8] &8  Laatste poging: {error}"
+last_attempt = "&8[&6Wormholes&8] &8  laatste poging: {error}"
 
 [network.doctor]
 clear = "&8[&6Wormholes&8] &aGeen problemen met de netwerkconfiguratie gevonden."
@@ -719,12 +732,12 @@ invalid = "&cOngeldige portaalcode. Codes beginnen met {prefix}; bij plakken in 
 same_server = "&cDie code komt van deze server."
 same_identity = "&cDeze code verwijst naar de identiteit van deze server ({server}). Start beide servers opnieuw met hun eigen Wormholes-identiteit en exporteer de code opnieuw vanaf de andere server."
 linked = "&a&f{portal}&7 -> &f{destination}&a gekoppeld op &f{server}&a. Het portaal opent zodra de servers verbonden zijn."
-route_saved = "&aRoute naar {server} opgeslagen met openbare sleutel {fingerprint}. '{portal}' verschijnt na verbinding in het linkmenu van de gateway."
+route_saved = "&aRoute naar {server} opgeslagen met openbare sleutel {fingerprint}. '{portal}' verschijnt na verbinding in het koppelingsmenu van gateways."
 check_status = "&8Controleer de verbindingsstatus met /wh network status."
 using_address = "&7Deze portaalcode gebruikt {address}; als het openbare adres verandert, detecteert en herstelt het ondertekende protocol dit automatisch."
 
 [server]
-unknown = "&8[&6Wormholes&8] &cOnbekende server '&f{server}&c'. Importeer eerst de code of zie /wh server list."
+unknown = "&8[&6Wormholes&8] &cOnbekende server '&f{server}&c'. Importeer eerst de code of bekijk /wh server list."
 removed = "&8[&6Wormholes&8] &aServer &f{server}&a en de bijbehorende vertrouwde sleutel verwijderd."
 name_empty = "Servernaam mag niet leeg zijn"
 
@@ -746,60 +759,60 @@ empty = "&8[&6Wormholes&8] &7Nog geen servers gekoppeld. Gebruik &f/wh server im
 entry = "&8[&6Wormholes&8] &f{server}&7 {state} &8{address}"
 
 [door.transit]
-shutdown = "Dimensionale deuren zijn afgesloten voordat de doorreis voltooid was."
+shutdown = "Dimensiedeuren zijn uitgeschakeld voordat de doorgang voltooid was."
 message = "&8[&6Wormholes&8] &7{message}"
-link_not_placed = "De verbonden wormgatdeur is nog niet geplaatst."
-link_unavailable = "De verbonden wormgatdeur is niet beschikbaar of belemmerd."
-nested_pocket = "Een pocketdeur kan geen andere pocketdimensie openen binnen de gedeelde leegtedimensie."
-pocket_not_ready = "De zakdimensie is nog niet klaar."
-pocket_allocation_failed = "De zakdimensie kon niet worden toegewezen."
-safe_return_not_found = "Een veilige terugkeerroute kon niet gevonden worden aan deze kant van de deur."
-pocket_prepare_failed = "De pocketdimensie kon niet veilig worden voorbereid."
+link_not_placed = "De gekoppelde wormgatdeur is nog niet geplaatst."
+link_unavailable = "De gekoppelde wormgatdeur is niet beschikbaar of geblokkeerd."
+nested_pocket = "Een pocketdeur kan vanuit de gedeelde leegtedimensie geen andere pocket openen."
+pocket_not_ready = "De pocketdimensie is nog niet klaar."
+pocket_allocation_failed = "De pocketdimensie kon niet worden toegewezen."
+safe_return_not_found = "Aan deze kant van de deur is geen veilige terugkeerroute gevonden."
+pocket_prepare_failed = "De pocket kon niet veilig worden voorbereid."
 return_ticket_save_failed = "Er kon geen veilige terugkeerroute worden opgeslagen."
-pocket_entry_unsafe = "De ingang van de pocketdimensie is niet veilig."
+pocket_entry_unsafe = "De ingang van de pocket is niet veilig."
 pocket_entry_chunk_failed = "De ingangschunk van de pocketdimensie kon niet worden geladen."
-no_return_route = "Voor deze pocketdimensie is geen terugkeerroute opgeslagen."
-return_unavailable = "De terugkeerdeur is aan de bijbehorende kant niet beschikbaar of geblokkeerd."
-return_world_unloaded = "De terugkeerwereld is niet geladen."
-return_point_obstructed = "Het opgeslagen terugkeerpunt is geblokkeerd."
-return_chunk_failed = "De opgeslagen terugkeerchunk kon niet worden geladen."
-closed = "De dimensionale deur is gesloten voor de doorgang voltooid."
+no_return_route = "Je hebt geen terugkeerroute opgeslagen voor deze pocket."
+return_unavailable = "Je terugkeerdeur is aan de bijbehorende kant niet beschikbaar of geblokkeerd."
+return_world_unloaded = "Je terugkeerwereld is niet geladen."
+return_point_obstructed = "Je opgeslagen terugkeerpunt is geblokkeerd."
+return_chunk_failed = "Je opgeslagen terugkeerchunk kon niet worden geladen."
+closed = "De dimensiedeur is gesloten voordat de doorgang voltooid was."
 cycle_consumed = "De openingscyclus van deze deur is al gebruikt. Sluit de deur en open hem opnieuw."
 source_missing = "De dimensiedeur is er niet meer."
 source_close_failed = "De brondeur kon niet veilig worden gesloten."
 source_region_unavailable = "De regio van de brondeur is niet beschikbaar."
 start_failed = "De dimensionale doorgang kon niet worden gestart."
-cancelled = "De dimensionale doorreis is geannuleerd."
+cancelled = "De dimensionale doorgang is geannuleerd."
 
 [door.craft]
-one_at_a_time = "&8[&6Wormholes&8] &7Maak Dimensionale Deuren één voor één, zodat elke deur een unieke identiteit krijgt."
+one_at_a_time = "&8[&6Wormholes&8] &7Maak dimensiedeuren één voor één, zodat elke deur een unieke identiteit krijgt."
 
 [door.pair]
 unpack_failed = "&8[&6Wormholes&8] &7Het deurpaar kon niet worden uitgepakt; de set is niet verbruikt."
-unpacked = "&8[&6Wormholes&8] &7Het verstrengelde paar is gesplitst in de gekoppelde Wormgatdeuren A en B."
+unpacked = "&8[&6Wormholes&8] &7Het verstrengelde paar is gesplitst in de gekoppelde wormgatdeuren A en B."
 missing = "&8[&6Wormholes&8] &7Voor deze gekoppelde deur is geen identiteit van de tegenhanger geregistreerd."
 
 [door.legacy]
-combine = "&8[&6Wormholes&8] &7Combineer deze oude dimensionale deur met een houten deur voordat je het plaatst."
+combine = "&8[&6Wormholes&8] &7Combineer deze oude dimensiedeur met een houten deur voordat je hem plaatst."
 
 [door.place]
-already_placed = "&8[&6Wormholes&8] &7Deze Dimensionale Deur is al geplaatst of de toestand kon niet worden opgeslagen."
+already_placed = "&8[&6Wormholes&8] &7Deze dimensiedeur is al geplaatst of de toestand kon niet worden opgeslagen."
 
 [door.break]
-exit_anchored = "&8[&6Wormholes&8] &7De dimensionale uitgang is aan deze pocketdimensie verankerd."
-support = "&8[&6Wormholes&8] &7Breek de dimensionale deur door voordat je het steunblok verwijdert."
+exit_anchored = "&8[&6Wormholes&8] &7De dimensionale uitgang is aan deze pocket verankerd."
+support = "&8[&6Wormholes&8] &7Breek de dimensiedeur af voordat je het steunblok verwijdert."
 
 [door.disable]
-warning = "&8[&6Wormholes&8] &7Dimensionale deuren worden uitgeschakeld. Verlaat nu de pocketdimensie via de terugkeerdeur."
+warning = "&8[&6Wormholes&8] &7Dimensiedeuren worden uitgeschakeld. Verlaat de pocket nu via de terugkeerdeur."
 
 [door.rescue]
-cancelled = "&8[&6Wormholes&8] &7De noodevacuatie is geannuleerd; de route is behouden."
+cancelled = "&8[&6Wormholes&8] &7Je noodevacuatie is geannuleerd; de route is behouden."
 failed = "&8[&6Wormholes&8] &7{route} {fallback} Je blijft beschermd met één hart."
 
 [door.rescue.reason]
-no_route = "De pocketdimensie heeft geen opgeslagen terugkeerroute."
+no_route = "De pocket heeft geen opgeslagen terugkeerroute."
 return_world_unavailable = "De opgeslagen terugkeerwereld is niet beschikbaar."
-return_point_obstructed = "Het opgeslagen terugkeerpunt is belemmerd."
+return_point_obstructed = "Het opgeslagen terugkeerpunt is geblokkeerd."
 return_chunk_failed = "De opgeslagen terugkeerchunk kon niet worden geladen."
 start_failed = "De noodevacuatie kon niet worden gestart."
 
@@ -807,7 +820,7 @@ start_failed = "De noodevacuatie kon niet worden gestart."
 no_world = "Er is geen uitwijkwereld buiten een pocketdimensie geladen."
 obstructed = "De uitwijk-spawn is geblokkeerd."
 chunk_failed = "De uitwijk-spawn kon niet worden geladen."
-schedule_failed = "De nooduitwerping kon niet worden gepland."
+schedule_failed = "De noodevacuatie naar de uitwijk-spawn kon niet worden gepland."
 
 [door.access]
 unknown_player = "Onbekend ({id})"
@@ -819,7 +832,7 @@ owner_always = "&7De eigenaar van de deur heeft altijd toegang."
 already_listed = "&7{name} staat al op de lijst van deze deur."
 added = "&a{name} is toegevoegd aan de lijst van deze deur."
 removed = "&a{name} is verwijderd van de lijst van deze deur."
-state_changed = "&a{name} staat nu op {state} voor deze deur."
+state_changed = "&a{name} is nu {state} voor deze deur."
 prompt_player = "&bTyp de naam van de speler die je voor deze deur wilt vermelden (of '{cancel}'):"
 denied = "&cDeze dimensiedeur weigert je."
 transit_denied = "Je hebt geen toegang tot deze dimensiedeur."
@@ -844,19 +857,19 @@ title = "Deurtoegang: {kind}"
 placard = ["&6&lDimensiedeur: {kind}&r", "&7Eigenaar: &f{owner}", "&7Op de toestaanlijst: &a{whitelisted}", "&7Op de blokkeerlijst: &c{blacklisted}", "&7Vermelde spelers: &b{count}", "&8Eigenaars en beheerders bewerken deze deur."]
 add_player = ["&a&lSpeler toevoegen&r", "&7Typ een spelersnaam in de chat om die te vermelden.", "", "&8Klik om een speler toe te voegen."]
 open_state = ["&b&lOpenState: &f&l{state}", "&7Het portaal volgt de fysieke toestand van dit blok.", "&7Actieve toestand: &f{state}&7.", "", "&8Volgende: {next}. Klik om te wisselen."]
-entry = ["&f{name}", "&7Status: &b{state}", "", "&8Linkerklik: toestaan. Rechterklik: blokkeren.", "&8Middelklik of Shift + linkerklik: verwijderen."]
+entry = ["&f{name}", "&7Status: &b{state}", "", "&8Linksklik: toestaanlijst. Rechtsklik: blokkeerlijst.", "&8Middelklik of Shift + linksklik: verwijderen."]
 
 [wand.selection]
 corner_a = "&bHoek A ingesteld. Klik met rechts op de tegenoverliggende hoek."
 corner_b = "&bHoek B ingesteld. Klik met links op de tegenoverliggende hoek."
-not_flat = "&cDe selectie moet een blok dik zijn. Klik opnieuw op een hoek om het vlak te maken."
-too_large = "&cSelectie te groot: {count} blokken (maximaal {maximum})."
+not_flat = "&cDe selectie moet één blok dik zijn. Klik opnieuw op een hoek om haar plat te maken."
+too_large = "&cSelectie te groot: {count} cellen (maximaal {maximum})."
 opening = "&bPortaal wordt geopend..."
-open_failed = "&cHet portaal kon hier niet geopend worden."
+open_failed = "&cHet portaal kon hier niet worden geopend."
 
 [wand.selection.selected]
-one = "&b{count} blok geselecteerd. Klik met links op het glaspaneel om het portaal te openen."
-other = "&b{count} blokken geselecteerd. Klik met links op het glaspaneel om het portaal te openen."
+one = "&b{count} cel geselecteerd. Klik met links op het glaspaneel om het portaal te openen."
+other = "&b{count} cellen geselecteerd. Klik met links op het glaspaneel om het portaal te openen."
 
 [label]
 none = "Geen"
@@ -869,7 +882,7 @@ closed = "Gesloten"
 
 [rtp.routing]
 action_confirm = "Opent een afzonderlijk bevestigingsscherm."
-header = ["&b&lRotatie & Bestemmingspool&r", "&7Kies de modi rechtstreeks en pas daarna alle wijzigingen samen toe."]
+header = ["&b&lRotatie & Bestemmingspool&r", "&7Kies de modi direct en pas daarna alle wijzigingen in één keer toe."]
 shared_selected = ["&a&lGedeelde bestemming&r", "&7Iedereen ziet en gebruikt dezelfde route.", "&aGeselecteerd"]
 shared_available = ["&b&lGedeelde bestemming&r", "&7Iedereen ziet en gebruikt dezelfde route.", "&eLinksklik om te selecteren"]
 private_selected = ["&a&lBestemmingen per speler&r", "&7Elke speler krijgt een eigen reservering.", "&aGeselecteerd"]
@@ -884,9 +897,9 @@ manual_reroll = ["&e&lNieuwe bestemming kiezen&r", "&7{description}", "&eLinkskl
 rebuild_pool = ["&e&lBestemmingspool herbouwen&r", "&7{description}", "&eLinksklik"]
 
 [rtp.status]
-ready = "Klaar"
-warming = "Voorbereiden"
-rerolling = "Nieuwe bestemming wordt gekozen"
+ready = "Gereed"
+warming = "Opwarmen"
+rerolling = "Nieuwe bestemming kiezen"
 backoff = "Wachttijd voor nieuwe poging"
 world_unavailable = "Doelwereld niet beschikbaar"
 integration_failed = "Toegangsintegratie mislukt"
@@ -903,7 +916,7 @@ header = ["&6&lStatus van willekeurige bestemming&r", "&7Status: {state}"]
 
 [rtp.rotation]
 static = "Statisch"
-timed = "Tijdgestuurd"
+timed = "Getimed"
 trip = "Na elke reis"
 
 [rtp.numeric]
@@ -915,11 +928,11 @@ lower_y = "Onderste Y-grens"
 upper_y = "Bovenste Y-grens"
 preferred_y = "Voorkeurs-Y"
 cycle = "Cyclusduur"
-private_rotation = "Privé rotatietijd"
-lease = "Respijtijd inactieve reservering"
-release = "Privé vrijlating"
-link = ["&e&l{label} &f&l{value}&r", "&7Open duidelijke decrease/increasie-controles.", "&eLinks klikken"]
-target_unavailable = ["&b&lDoelwereld niet beschikbaar&r", "&7Laad de doelwereld voordat u deze waarde bewerkt."]
+private_rotation = "Privérotatietijd"
+lease = "Respijttijd inactieve reservering"
+release = "Privévrijgave"
+link = ["&e&l{label} &f&l{value}&r", "&7Open duidelijke knoppen om te verlagen en te verhogen.", "&eLinksklik"]
+target_unavailable = ["&b&lDoelwereld niet beschikbaar&r", "&7Laad de doelwereld voordat je deze waarde bewerkt."]
 value = ["&b&l{value}&r", "&7Huidige conceptwaarde."]
 adjust = ["&e&l{direction}{step}&r", "&7Pas het concept aan met {direction}{step}.", "&eLinksklik"]
 header = ["&b&l{label}&r", "&7{description}"]
@@ -929,10 +942,10 @@ center = "Verplaats het aangepaste centrum langs deze as."
 minimum_radius = "Binnenrand van de bestemmingsring."
 maximum_radius = "Buitenrand van de bestemmingsring."
 y = "Zoekgrens voor een geldige stahoogte."
-cycle = "Tijd tussen gedeelde tijdsrotaties."
+cycle = "Tijd tussen gedeelde getimede rotaties."
 private_rotation = "Maximale leeftijd van de voorbereide bestemming voor elke speler."
 lease = "Houd voorbereide bestemmingen kort actief nadat iedereen is vertrokken."
-release = "Vertraging van de vrijgave voor een ongebruikte reservering."
+release = "Vertraging voordat een ongebruikte privéreservering vrijkomt."
 
 [rtp.duration]
 hours = "{value}h"
@@ -945,32 +958,32 @@ any_label = "Elk"
 unavailable_label = "Niet beschikbaar"
 header = ["&b&lDoelbioom&r", "&7De zoekopdracht geeft de voorkeur aan dit bioom en valt terug op elke veilige plek wanneer het niet in de buurt gevonden kan worden."]
 any_selected = ["&a&lElk bioom&r", "&7Geen bioomvoorkeur.", "&aGeselecteerd"]
-any_available = ["&b&lElk bioom&r", "&7Wis de bioomvoorkeur.", "&eLinks klik om te selecteren"]
+any_available = ["&b&lElk bioom&r", "&7Wis de bioomvoorkeur.", "&eLinksklik om te selecteren"]
 current = ["&a&l{biome}&r", "&7{key}", "&aGeselecteerd"]
-available = ["&b&l{biome}&r", "&7{key}", "&eLinks klik om te selecteren"]
+available = ["&b&l{biome}&r", "&7{key}", "&eLinksklik om te selecteren"]
 empty = ["&7Er zijn geen biomen beschikbaar voor de doelwereld."]
-previous = ["&e&lVorige biomen&r", "&7Vertoon de vorige pagina.", "&eLinks klikken"]
-next = ["&e&lVolgende biomen&r", "&7Toon de volgende pagina.", "&eLinks klikken"]
+previous = ["&e&lVorige biomen&r", "&7Toon de vorige pagina.", "&eLinksklik"]
+next = ["&e&lVolgende biomen&r", "&7Toon de volgende pagina.", "&eLinksklik"]
 
 [rtp.overview]
-destination = ["&e&lBestemming & Gebied&r", "&7Wereld, centrum en straal.", "&eLinksklik"]
+destination = ["&e&lBestemming & gebied&r", "&7Wereld, centrum en straal.", "&eLinksklik"]
 landing = ["&e&lLandingsregels&r", "&7Gedrag van oppervlak en hoogte.", "&eLinksklik"]
 routing = ["&e&lRotatie & Bestemmingspool&r", "&7Delen, roteren en reserveringstijden.", "&eLinksklik"]
-effects = ["&e&lEffecten&r", "&7Gereedheidsrand aan / Portaalgeluiden aan.", "&eLinksklik"]
+effects = ["&e&lEffecten&r", "&7Projectierand en portaalgeluid.", "&eLinksklik"]
 reset_defaults = ["&e&lStandaardwaarden herstellen&r", "&7Zet de willekeurige-teleportinstellingen van dit portaal direct terug naar de standaardwaarden.", "&eLinksklik"]
 
 [rtp.navigation]
-back_portal = ["&e&lTerug naar Portal&r", "&7Terug naar het menu van de portal.", "&eLinks klikken"]
+back_portal = ["&e&lTerug naar portaal&r", "&7Terug naar het portaalmenu.", "&eLinksklik"]
 overview = ["&e&lOverzicht&r", "&7Terug naar het RTP-overzicht.", "&eLinksklik"]
-back_category = ["&e&lTerug&r", "&7Terug naar de vorige categorie.", "&eLinks klikken"]
+back_category = ["&e&lTerug&r", "&7Terug naar de vorige categorie.", "&eLinksklik"]
 
 [rtp.destination]
-header = ["&b&lBestemming & Gebied&r", "&7Linksklik om te selecteren"]
-world_current = ["&a&l{world}&r", "&7Momenteel doelwereld.", "&aGeselecteerd"]
-world_available = ["&b&l{world}&r", "&7Gebruik deze beladen wereld.", "&eLinks klik om te selecteren"]
-previous_worlds = ["&e&lVorige werelden&r", "&7Vertoon de vorige pagina.", "&eLinks klikken"]
-next_worlds = ["&e&lVolgende Werelden&r", "&7Toon de volgende pagina.", "&eLinks klikken"]
-biome_link = ["&e&lDoelbioom &f&l{value}&r", "&7Geef de voorkeur aan landen in een gekozen bioom.", "&eLinks klikken"]
+header = ["&b&lBestemming & gebied&r", "&7Elke optie gebruikt een gewone linksklik."]
+world_current = ["&a&l{world}&r", "&7Huidige doelwereld.", "&aGeselecteerd"]
+world_available = ["&b&l{world}&r", "&7Gebruik deze geladen wereld.", "&eLinksklik om te selecteren"]
+previous_worlds = ["&e&lVorige werelden&r", "&7Toon de vorige pagina.", "&eLinksklik"]
+next_worlds = ["&e&lVolgende werelden&r", "&7Toon de volgende pagina.", "&eLinksklik"]
+biome_link = ["&e&lDoelbioom &f&l{value}&r", "&7Land bij voorkeur in een gekozen bioom.", "&eLinksklik"]
 center_portal_selected = ["&a&lPortaalgebonden centrum&r", "&7Centreert de bestemmingsring op dit portaal.", "&aGeselecteerd"]
 center_portal_available = ["&b&lPortaalgebonden centrum&r", "&7Centreert de bestemmingsring op dit portaal.", "&eLinksklik om te selecteren"]
 center_custom_selected = ["&a&lAangepast centrum&r", "&7Gebruikt bewerkbare X- en Z-coördinaten.", "&aGeselecteerd"]
@@ -980,13 +993,13 @@ reset_center = ["&e&lCentrum / bestemming herstellen&r", "&7Gebruik de bronwerel
 [rtp.landing]
 header = ["&b&lLandingsregels&r", "&7Kies het oppervlak of de gewenste hoogte en de bijbehorende veiligheidsmodus."]
 surface_selected = ["&a&lOppervlak&r", "&7SAFE vermijdt water en boomtoppen. UNSAFE gebruikt het hoogste oppervlak.", "&aGeselecteerd"]
-surface_available = ["&b&lOppervlak&r", "&7SAFE vermijdt water en boomtoppen. UNSAFE gebruikt het hoogste oppervlak.", "&eKlik links om te selecteren"]
+surface_available = ["&b&lOppervlak&r", "&7SAFE vermijdt water en boomtoppen. UNSAFE gebruikt het hoogste oppervlak.", "&eLinksklik om te selecteren"]
 preferred_selected = ["&a&lGewenste / exacte hoogte&r", "&7SAFE zoekt steeds verder naar buiten. UNSAFE gebruikt de exacte gewenste Y.", "&aGeselecteerd"]
-preferred_available = ["&b&lGewenste / exacte hoogte&r", "&7SAFE zoekt steeds verder naar buiten. UNSAFE gebruikt de exacte gewenste Y.", "&eKlik links om te selecteren"]
-safe_policy = ["&b&lLandingsveiligheid: &f&l{mode}&r", "&7SAFE weigert water, gevaren, bomen, botsingen en plekken zonder steun onder de voeten.", "&7UNSAFE accepteert het gekozen oppervlak of de exacte gewenste Y zonder aanpassingen.", "&eKlik links om te wisselen"]
+preferred_available = ["&b&lGewenste / exacte hoogte&r", "&7SAFE zoekt steeds verder naar buiten. UNSAFE gebruikt de exacte gewenste Y.", "&eLinksklik om te selecteren"]
+safe_policy = ["&b&lLandingsveiligheid: &f&l{mode}&r", "&7SAFE weigert water, gevaren, bomen, botsingen en plekken zonder steun onder de voeten.", "&7UNSAFE accepteert het gekozen oppervlak of de exacte gewenste Y zonder aanpassingen.", "&eLinksklik om te wisselen"]
 
 [rtp.effects]
-header = ["&b&lEffecten&r", "&7Weergavewijzigingen maken bestemmingen niet opnieuw."]
+header = ["&b&lEffecten&r", "&7Weergavewijzigingen genereren bestemmingen niet opnieuw."]
 rim_on_selected = ["&a&lGereedheidsrand aan&r", "&7Toont persoonlijke gereedheid rond de portaalrand.", "&aGeselecteerd"]
 rim_on_available = ["&b&lGereedheidsrand aan&r", "&7Toont persoonlijke gereedheid rond de portaalrand.", "&eLinksklik om te selecteren"]
 rim_off_selected = ["&a&lGereedheidsrand uit&r", "&7Verbergt de gereedheidsrand.", "&aGeselecteerd"]
@@ -1008,23 +1021,23 @@ portal_rune = ["&6&lPortaalrune&r"]
 wormhole_rune = ["&6&lWormgatrune&r"]
 
 [item.door]
-entangled_pair = ["&6Verstrengeld Deurenpaar", "&7Bevat twee automatisch verbonden wormgatdeuren.", "&7Gebruik het om eindpunten A en B te scheiden."]
-paired = ["&6Wormgatdeur {endpoint}", "&7Automatisch verbonden met eindpunt {other}.", "&7Open de deur en stap fysiek over de drempel."]
-personal = ["&bPersoonlijke Dimensiedeur", "&7Elke reiziger betreedt een eigen blijvende dimensie.", "&7Dezelfde reiziger bereikt altijd dezelfde plaats."]
-public = ["&6Gedeelde Dimensiedeur", "&7Elke reiziger betreedt de gedeelde dimensie van deze deur.", "&7Breken en verplaatsen behoudt de gedeelde bestemming."]
-return = ["&aDimensionale Uitgangsdeur", "&7Brengt reizigers terug uit deze pocketdimensie.", "&7Deze deur is aan zijn pocketdimensie gebonden."]
-skin = ["&6Uiterlijk van Dimensiedeur", "&7Combineer een dimensiedeur met een deur die een speler kan bedienen."]
-entangled_pair_recipe = ["&6Verstrengeld Deurenpaar", "&7Bevat twee automatisch verbonden wormgatdeuren."]
-personal_recipe = ["&bPersoonlijke Dimensiedeur", "&7Elke reiziger betreedt een eigen blijvende dimensie."]
-public_recipe = ["&6Gedeelde Dimensiedeur", "&7Elke reiziger betreedt de gedeelde dimensie van deze deur."]
-entangled_trapdoor_pair = ["&6Verstrengeld Valluikenpaar", "&7Bevat twee automatisch verbonden wormgatvalluiken.", "&7Gebruik het om eindpunten A en B te scheiden."]
-paired_trapdoor = ["&6Wormgatvalluik {endpoint}", "&7Automatisch verbonden met eindpunt {other}.", "&7Open het valluik en laat je erdoorheen vallen."]
-personal_trapdoor = ["&bPersoonlijk Dimensievalluik", "&7Elke reiziger betreedt een eigen blijvende dimensie.", "&7Dezelfde reiziger bereikt altijd dezelfde plaats."]
-public_trapdoor = ["&6Gedeeld Dimensievalluik", "&7Elke reiziger betreedt de gedeelde dimensie van dit valluik.", "&7Breken en verplaatsen behoudt de gedeelde bestemming."]
-trapdoor_skin = ["&6Uiterlijk van Dimensievalluik", "&7Combineer een dimensievalluik met een valluik dat met de hand te openen is."]
-entangled_trapdoor_pair_recipe = ["&6Verstrengeld Valluikenpaar", "&7Bevat twee automatisch verbonden wormgatvalluiken."]
-personal_trapdoor_recipe = ["&bPersoonlijk Dimensievalluik", "&7Elke reiziger betreedt een eigen blijvende dimensie."]
-public_trapdoor_recipe = ["&6Gedeeld Dimensievalluik", "&7Elke reiziger betreedt de gedeelde dimensie van dit valluik."]
+entangled_pair = ["&6Verstrengeld deurenpaar", "&7Bevat twee automatisch gekoppelde wormgatdeuren.", "&7Gebruik het om eindpunten A en B uit te pakken."]
+paired = ["&6Wormgatdeur {endpoint}", "&7Automatisch gekoppeld aan eindpunt {other}.", "&7Open de deur en stap fysiek over de drempel."]
+personal = ["&bPersoonlijke dimensiedeur", "&7Elke reiziger betreedt een eigen blijvende dimensie.", "&7Dezelfde reiziger bereikt altijd dezelfde plaats."]
+public = ["&6Gedeelde dimensiedeur", "&7Elke reiziger betreedt de gedeelde dimensie van deze deur.", "&7Breken en verplaatsen behoudt de gedeelde bestemming."]
+return = ["&aDimensionale uitgangsdeur", "&7Brengt reizigers terug uit deze pocket.", "&7Deze deur is aan zijn pocket gebonden."]
+skin = ["&6Uiterlijk van dimensiedeur", "&7Combineer een dimensiedeur met een deur die een speler kan bedienen."]
+entangled_pair_recipe = ["&6Verstrengeld deurenpaar", "&7Bevat twee automatisch gekoppelde wormgatdeuren."]
+personal_recipe = ["&bPersoonlijke dimensiedeur", "&7Elke reiziger betreedt een eigen blijvende dimensie."]
+public_recipe = ["&6Gedeelde dimensiedeur", "&7Elke reiziger betreedt de gedeelde dimensie van deze deur."]
+entangled_trapdoor_pair = ["&6Verstrengeld valluikenpaar", "&7Bevat twee automatisch gekoppelde wormgatvalluiken.", "&7Gebruik het om eindpunten A en B uit te pakken."]
+paired_trapdoor = ["&6Wormgatvalluik {endpoint}", "&7Automatisch gekoppeld aan eindpunt {other}.", "&7Open het valluik en laat je erdoorheen vallen."]
+personal_trapdoor = ["&bPersoonlijk dimensievalluik", "&7Elke reiziger betreedt een eigen blijvende dimensie.", "&7Dezelfde reiziger bereikt altijd dezelfde plaats."]
+public_trapdoor = ["&6Gedeeld dimensievalluik", "&7Elke reiziger betreedt de gedeelde dimensie van dit valluik.", "&7Breken en verplaatsen behoudt de gedeelde bestemming."]
+trapdoor_skin = ["&6Uiterlijk van dimensievalluik", "&7Combineer een dimensievalluik met een valluik dat met de hand te openen is."]
+entangled_trapdoor_pair_recipe = ["&6Verstrengeld valluikenpaar", "&7Bevat twee automatisch gekoppelde wormgatvalluiken."]
+personal_trapdoor_recipe = ["&bPersoonlijk dimensievalluik", "&7Elke reiziger betreedt een eigen blijvende dimensie."]
+public_trapdoor_recipe = ["&6Gedeeld dimensievalluik", "&7Elke reiziger betreedt de gedeelde dimensie van dit valluik."]
 
 # ==== Headline lane blocks. Each lane adds its tables between its own markers only. ====
 
@@ -1034,18 +1047,18 @@ route_card = "{portal} > {destination} | {amount} | {state}"
 
 [rules.menu]
 entry = ["&6Regels", "&7Wie erdoor mag, wat het kost en wat er daarna gebeurt."]
-cooldown = ["&6Afkoeltijd: {seconds}s", "&7Linker en rechter klik wijzigt, shift voor 10s."]
-warmup = ["&6Voorbereiding: {seconds}s", "&7Linker en rechter klik wijzigt, shift voor 10s."]
+cooldown = ["&6Afkoeltijd: {seconds}s", "&7Linksklik en rechtsklik wijzigen, Shift voor stappen van 10s."]
+warmup = ["&6Opwarmtijd: {seconds}s", "&7Linksklik en rechtsklik wijzigen, Shift voor stappen van 10s."]
 group = ["&6Afkoelgroep: {value}", "&7Klik om een groepsnaam te typen."]
-pushback = ["&6Terugduwen: {value}", "&7Linker en rechter klik wijzigt de waarde."]
-sound = ["&6Volume van weigering: {value}", "&7Linker en rechter klik wijzigt de waarde."]
-charges = ["&6Ladingen: {count}", "&7Linker en rechter klik wijzigt de voorraad."]
+pushback = ["&6Terugduwen: {value}", "&7Linksklik en rechtsklik wijzigen de waarde."]
+sound = ["&6Volume van weigering: {value}", "&7Linksklik en rechtsklik wijzigen de waarde."]
+charges = ["&6Ladingen: {count}", "&7Linksklik en rechtsklik wijzigen de voorraad."]
 default_outcome = ["&6Standaard: {mode}", "&7Klik om te wisselen tussen toestaan en weigeren."]
 rules = ["&6Regels ({count})", "&7Klik om de regellijst te openen."]
-rule = ["&6{name}", "&7{value} &8- shift klik verwijdert de regel."]
+rule = ["&6{name}", "&7{value} &8- Shift + klik verwijdert de regel."]
 add_rule = ["&aRegel toevoegen", "&7Klik om een regel-id te typen."]
-line = ["&f{value}", "&7Shift klik verwijdert deze regel."]
-add_line = ["&aRegel toevoegen", "&7Klik en typ kind=PERMISSION;node=groep.vip."]
+line = ["&f{value}", "&7Shift + klik verwijdert deze voorwaarde."]
+add_line = ["&aVoorwaarde toevoegen", "&7Klik en typ kind=PERMISSION;node=group.vip."]
 templates = ["&6Sjablonen", "&7Klik om een opgeslagen sjabloon toe te passen."]
 template = ["&f{name}", "&7Klik om dit sjabloon toe te passen."]
 back = ["&7Terug", "&8Naar de vorige pagina."]
@@ -1075,14 +1088,14 @@ applied = "Sjabloon {name} toegepast."
 [rules.prompt]
 group = "&bTyp de naam van de afkoelgroep (of \"{cancel}\"):"
 rule_id = "&bTyp een id voor de nieuwe regel (of \"{cancel}\"):"
-line = "&bTyp een regelregel, bijvoorbeeld kind=PERMISSION;node=groep.vip (of \"{cancel}\"):"
+line = "&bTyp een voorwaarde, bijvoorbeeld kind=PERMISSION;node=group.vip (of \"{cancel}\"):"
 
 [rules.warmup]
 countdown = "Blijf stilstaan: {seconds}s"
-cancelled = "Voorbereiding geannuleerd."
+cancelled = "Opwarmtijd geannuleerd."
 
 [rules.command]
-exported = "Regels van {portal} geschreven naar sjabloon {name}."
+exported = "Regels van {portal} geëxporteerd naar sjabloon {name}."
 imported = "Sjabloon {name} toegepast op {portal}."
 templates = "Regelsjablonen: {value}"
 no_templates = "Er zijn geen regelsjablonen opgeslagen."
@@ -1092,22 +1105,22 @@ portal_missing = "Er is geen portaal met de naam {name}."
 portal_ambiguous = "{count} portalen heten {name}; hernoem er een."
 not_in_portal = "Ga in een portaal staan of noem er een met de optie portal."
 key_given = "Je hebt een sleutel voor {portal} gekregen."
-failed = "Kon niet voltooien: {reason}"
+failed = "Kon niet worden voltooid: {reason}"
 
 [rules.command.help]
 rules = "Doorgangsregels: sjablonen, sleutels en portaalprofielen"
-export = "Schrijf de regels van een portaal naar een sjabloon"
+export = "Schrijf de regels van een portaal naar een sjabloonbestand"
 "export.name" = "Naam van het te schrijven sjabloon"
 "export.portal" = "Portaalnaam, of het portaal waarin je staat"
 import = "Pas een sjabloon toe op het portaal waarin je staat"
 "import.name" = "Naam van het te lezen sjabloon"
 "import.portal" = "Portaalnaam, of het portaal waarin je staat"
-apply = "Pas een sjabloon overal vandaan toe op een benoemd portaal"
+apply = "Pas vanaf elke plek een sjabloon toe op een portaal met een naam"
 "apply.name" = "Naam van het te lezen sjabloon"
-"apply.portal" = "Naam van het portaal waarop het sjabloon komt"
+"apply.portal" = "Naam van het portaal waarop het sjabloon wordt toegepast"
 list = "Toon opgeslagen regelsjablonen"
 key = "Geef jezelf een sleutel voor een portaal"
-"key.portal" = "Naam van het portaal waarvoor de sleutel geldt"
+"key.portal" = "Naam van het portaal waarvoor de sleutel wordt gemaakt"
 "key.uses" = "Hoeveel doorgangen de sleutel toestaat, 0 voor onbeperkt"
 # ---- end lane:rules ----
 
@@ -1145,7 +1158,7 @@ removed = "&a{name} heeft geen rol meer op {portal}."
 owner_always = "&7De eigenaar heeft altijd volledige toegang."
 
 [access.listed]
-changed = "&a{portal} staat nu {state} in de openbare lijst."
+changed = "&a{portal} is nu {state} in de openbare lijst."
 
 [access.group]
 added = "&a{portal} verleent nu toegang aan {node}."
@@ -1172,7 +1185,7 @@ unlisted = "Verborgen"
 entry = ["&b&lToegang&r", "&7Rollen, groepen en de rechtensleutel."]
 placard = ["&b&lToegang: {portal}&r", "&7Eigenaar: &f{owner}", "&7Rollen: &f{count}", "&7Sleutel: &f{key}"]
 add = ["&a&lSpeler toevoegen&r", "&7Typ een naam in de chat om een rol te geven."]
-role = ["&f&l{name}&r", "&7Rol: &f{state}", "&7Links- of rechtsklik verandert de rol.", "&7Shift + linksklik verwijdert hem."]
+role = ["&f&l{name}&r", "&7Rol: &f{state}", "&7Linksklik of rechtsklik verandert de rol.", "&7Shift + linksklik verwijdert hem."]
 groups = ["&e&lToegestane groepen&r", "&7{count} rechtennodes verlenen toegang.", "&7Linksklik voegt toe, rechtsklik wist alles."]
 key = ["&b&lRechtensleutel&r", "&7{key}", "&7Linksklik om hem te wijzigen."]
 listed = ["&b&lOpenbare lijst&r", "&7{state}", "&7Linksklik om te wisselen."]
@@ -1191,7 +1204,7 @@ limits = "Toon hoeveel portalen een speler bezit en mag bezitten"
 
 # ---- lane:nexus (nexus.* and atlas.*) ----
 [nexus]
-dialed = "&8[&6Wormholes&8] &a{portal} gekozen op {address}: &f{destination}"
+dialed = "&8[&6Wormholes&8] &a{portal} heeft {address} gekozen: &f{destination}"
 created = "&8[&6Wormholes&8] &aNetwerk {name} aangemaakt."
 deleted = "&8[&6Wormholes&8] &aNetwerk {name} verwijderd."
 joined = "&8[&6Wormholes&8] &a{portal} is toegetreden tot {name} op adres {address}."
@@ -1201,11 +1214,11 @@ left = "&8[&6Wormholes&8] &a{portal} heeft {name} verlaten."
 unknown = "&8[&6Wormholes&8] &cGeen portaal op adres {address}."
 none = "&8[&6Wormholes&8] &c{portal} zit niet in een netwerk."
 debounced = "&8[&6Wormholes&8] &7Je kiest te snel; wacht even."
-managed = "&8[&6Wormholes&8] &c{portal} is een beheerd portaal en kan niet gekozen worden."
+managed = "&8[&6Wormholes&8] &c{portal} is een beheerd portaal en kan niet worden gekozen."
 
 [nexus.address]
 taken = "&8[&6Wormholes&8] &cAdres {address} is al in gebruik in {name}."
-set = "&8[&6Wormholes&8] &a{portal} luistert naar {address}."
+set = "&8[&6Wormholes&8] &a{portal} is bereikbaar op adres {address}."
 invalid = "&8[&6Wormholes&8] &cAdressen gebruiken alleen deze tekens: {value}"
 
 [nexus.network]
@@ -1222,7 +1235,7 @@ not_member = "&8[&6Wormholes&8] &c{portal} zit niet in {name}."
 set = "&8[&6Wormholes&8] &a{name} is nu {value}."
 
 [nexus.hub]
-set = "&8[&6Wormholes&8] &a{portal} is het knooppunt van {name}."
+set = "&8[&6Wormholes&8] &a{portal} is de hub van {name}."
 
 [nexus.list]
 empty = "&8[&6Wormholes&8] &7Nog geen netwerken."
@@ -1233,8 +1246,8 @@ header = "&6{name} &8- &f{count} portalen&7, {value}, {mode}"
 member = "&e{address} &f{portal} &7in {world} &8{state}"
 
 [nexus.doctor]
-header = "&8[&6Wormholes&8] &6Verbindingsdokter: {count} bevindingen."
-clean = "&8[&6Wormholes&8] &aGeen verbindingsproblemen gevonden."
+header = "&8[&6Wormholes&8] &6Koppelingsdiagnose: {count} bevindingen."
+clean = "&8[&6Wormholes&8] &aGeen koppelingsproblemen gevonden."
 oneway = "&e{portal} -> {destination} heeft geen terugkoppeling."
 dangling = "&c{portal} wijst naar een ontbrekende bestemming."
 unloaded = "&e{portal} wijst naar de niet-geladen wereld {world}."
@@ -1244,8 +1257,7 @@ offline = "&c{portal} wijst naar {server}, al {count} dagen offline."
 set = "&8[&6Wormholes&8] &a{portal} redstone: {value}."
 
 [nexus.reciprocal]
-paired = "&8[&6Wormholes&8] &a{portal} en {destination} verbinden nu beide kanten op."
-unpaired = "&8[&6Wormholes&8] &a{portal} en {destination} verbinden niet meer terug."
+paired = "&8[&6Wormholes&8] &a{portal} en {destination} zijn nu in beide richtingen gekoppeld."
 denied = "&8[&6Wormholes&8] &cJe kunt niet zowel {portal} als {destination} beheren."
 
 [nexus.prompt]
@@ -1253,20 +1265,20 @@ network_name = "&bTyp de netwerknaam in de chat (of '{cancel}'):"
 address = "&bTyp het nieuwe adres in de chat (of '{cancel}'):"
 
 [nexus.menu]
-entry = ["&b&lNetwerk&r", "&7Netwerken, adressen, kiezen, bestemmingsregels, redstone.", "&7Netwerk: &f{name}", "&7Adres: &f{address}", "&eLinkerklik"]
+entry = ["&b&lNetwerk&r", "&7Netwerken, adressen, kiezen, bestemmingsregels, redstone.", "&7Netwerk: &f{name}", "&7Adres: &f{address}", "&eLinksklik"]
 placard = ["&b&lNetwerk: {name}&r", "&7Adres: &f{address}", "&7Leden: &f{count}"]
-join = ["&a&lNetwerk binnengaan&r", "&7Voeg dit portaal toe aan een netwerk en geef het een adres.", "&eLinkerklik"]
-leave = ["&c&l{name} verlaten&r", "&7Haal dit portaal en zijn adres uit het netwerk.", "&eLinkerklik"]
-create = ["&a&lNetwerk maken&r", "&7Geef een nieuw netwerk een naam en zet dit portaal erin.", "&eLinkerklik"]
-address = ["&e&lAdres: {address}&r", "&7Korte code die andere portalen kiezen om hier te komen.", "&eLinkerklik om opnieuw te typen. &eRechterklik om opnieuw te trekken."]
-visibility = ["&e&lZichtbaarheid: {value}&r", "&7Openbare netwerken ziet iedereen, ledennetwerken alleen leden, verborgen netwerken niemand.", "&eLinkerklik om te wisselen"]
-topology = ["&e&lTopologie: {value}&r", "&7Mesh kiest elk lid, knooppunt loopt via één portaal, ketting en ring kiezen buren.", "&eLinkerklik om te wisselen"]
-reciprocal = ["&e&lTerugkoppeling: {state}&r", "&7Houd de bestemming naar dit portaal wijzen.", "&eLinkerklik om te schakelen"]
-policy = ["&e&lBestemmingen: {mode}&r", "&7{count} regels. Op volgorde, gewogen, gepland, per speler of terugkeer.", "&eLinkerklik wisselt de modus. &eRechterklik wist de lijst."]
-redstone = ["&e&lRedstone: {value}&r", "&7Wat een stijgende flank naast het frame doet en wat een comparator uitleest.", "&eLinkerklik voor de actie. &eRechterklik voor comparatoruitvoer."]
-dial = ["&b&lKiezen&r", "&7Richt dit portaal op een ander adres in zijn netwerk.", "&eLinkerklik"]
+join = ["&a&lLid worden van een netwerk&r", "&7Voeg dit portaal toe aan een netwerk en geef het een adres.", "&eLinksklik"]
+leave = ["&c&l{name} verlaten&r", "&7Haal dit portaal en zijn adres uit het netwerk.", "&eLinksklik"]
+create = ["&a&lNetwerk maken&r", "&7Geef een nieuw netwerk een naam en zet dit portaal erin.", "&eLinksklik"]
+address = ["&e&lAdres: {address}&r", "&7Korte code die andere portalen kiezen om hier te komen.", "&eLinksklik om opnieuw te typen. &eRechtsklik voor een willekeurig nieuw adres."]
+visibility = ["&e&lZichtbaarheid: {value}&r", "&7Openbare netwerken ziet iedereen, ledennetwerken alleen leden, verborgen netwerken niemand.", "&eLinksklik om te wisselen"]
+topology = ["&e&lTopologie: {value}&r", "&7Mesh kiest elk lid, hub loopt via één portaal, ketting en ring kiezen buren.", "&eLinksklik om te wisselen"]
+reciprocal = ["&e&lTerugkoppeling: {state}&r", "&7Laat de bestemming naar dit portaal terugwijzen.", "&eLinksklik om te schakelen"]
+policy = ["&e&lBestemmingen: {mode}&r", "&7{count} vermeldingen. Op volgorde, gewogen, gepland, per speler of terugkeer.", "&eLinksklik wisselt de modus. &eRechtsklik wist de lijst."]
+redstone = ["&e&lRedstone: {value}&r", "&7Wat een stijgende flank naast het frame doet en wat een comparator uitleest.", "&eLinksklik voor de actie. &eRechtsklik voor comparatoruitvoer."]
+dial = ["&b&lKiezen&r", "&7Richt dit portaal op een ander adres in zijn netwerk.", "&eLinksklik"]
 dial_entry = ["&e{address} &f{portal}", "&7{world}", "&b{state}"]
-link_and_return = ["&d&lKoppelen en terug&r", "&7Laat {destination} ook terugwijzen naar {portal}.", "&eLinkerklik"]
+link_and_return = ["&d&lKoppelen met terugkoppeling&r", "&7Laat {destination} ook terugwijzen naar {portal}.", "&eLinksklik"]
 
 [atlas]
 title = "&8Atlas &7- &f{count} portalen"
@@ -1275,7 +1287,7 @@ empty = "&8[&6Wormholes&8] &7Nog geen portalen ontdekt."
 disabled = "&8[&6Wormholes&8] &cDe atlas staat uit op deze server."
 only_players = "&8[&6Wormholes&8] &cAlleen spelers hebben een atlas."
 no_permission = "&8[&6Wormholes&8] &cJe hebt geen toestemming om de atlas te openen."
-usage = ["&8[&6Wormholes&8] &7/atlas &8- &7open je portalenlijst", "&8[&6Wormholes&8] &7/atlas favorites &8- &7alleen vastgezette portalen", "&8[&6Wormholes&8] &7/atlas recents &8- &7portalen die je pas gebruikte", "&8[&6Wormholes&8] &7/atlas guide \\<portal> &8- &7toon een koers; /atlas guide off stopt hem"]
+usage = ["&8[&6Wormholes&8] &7/atlas &8- &7open je portalenlijst", "&8[&6Wormholes&8] &7/atlas favorites &8- &7alleen vastgezette portalen", "&8[&6Wormholes&8] &7/atlas recents &8- &7portalen die je onlangs hebt gebruikt", "&8[&6Wormholes&8] &7/atlas guide \\<portal> &8- &7toon een koers; /atlas guide off stopt hem"]
 
 [atlas.favorite]
 added = "&8[&6Wormholes&8] &a{portal} vastgezet."
@@ -1289,10 +1301,10 @@ cleared = "&8[&6Wormholes&8] &aKoers uit."
 unknown = "&8[&6Wormholes&8] &cGeen portaal met de naam {portal} in je atlas."
 
 [atlas.menu]
-row = ["&6{portal}", "&7{world} &8- &f{destination}", "&b{state}", "", "&eLinkerklik om te kiezen. &eRechterklik om vast te zetten. &eShift+linkerklik voor de koers."]
-favorites = ["&d&lAlleen vastgezet: {state}&r", "&7Toon alleen de portalen die je vastzette.", "&eLinkerklik"]
-recents = ["&b&lAlleen recent: {state}&r", "&7Toon alleen de portalen die je pas gebruikte.", "&eLinkerklik"]
-guide = ["&a&lKoers: {portal}&r", "&7Toon de koers naar het gekozen portaal in de actiebalk.", "&eLinkerklik om te stoppen"]
+row = ["&6{portal}", "&7{world} &8- &f{destination}", "&b{state}", "", "&eLinksklik om te kiezen. &eRechtsklik om vast te zetten. &eShift + linksklik voor de koers."]
+favorites = ["&d&lAlleen vastgezet: {state}&r", "&7Toon alleen de portalen die je hebt vastgezet.", "&eLinksklik"]
+recents = ["&b&lAlleen recent: {state}&r", "&7Toon alleen de portalen die je onlangs hebt gebruikt.", "&eLinksklik"]
+guide = ["&a&lKoers: {portal}&r", "&7Toon de koers naar het gekozen portaal in de actiebalk.", "&eLinksklik om de koers te stoppen"]
 # ---- end lane:nexus ----
 
 # ---- lane:doors (doorview.* and pockets.*) ----
@@ -1307,26 +1319,26 @@ guide = ["&a&lKoers: {portal}&r", "&7Toon de koers naar het gekozen portaal in d
 "menu.projection" = ["&b&lProjectie: {state}&r", "&7Toont de bestemming door deze deuropening.", "&eLinksklik om te wisselen"]
 
 [pockets]
-"confirm.overwrite" = ["&8[&6Wormholes&8] &cDit vervangt alles in zak &f{space}&c.", "&8[&6Wormholes&8] &7Voer hetzelfde commando uit met &fconfirm=true&7 om door te gaan."]
-"denied.build" = "&8[&6Wormholes&8] &cJe bent geen bouwer in deze zak."
-"denied.pvp" = "&8[&6Wormholes&8] &cVechten staat uit in deze zak."
-"instance.none" = "&8[&6Wormholes&8] &cDeze zak is geen instantie."
-"instance.reset" = "&8[&6Wormholes&8] &aZakinstantie &f{space}&a is gereset."
-"room.added" = "&8[&6Wormholes&8] &aKamer &f{count}&a toegevoegd aan zak &f{space}&a."
+"confirm.overwrite" = ["&8[&6Wormholes&8] &cDit vervangt alles in pocket &f{space}&c.", "&8[&6Wormholes&8] &7Voer hetzelfde commando uit met &fconfirm=true&7 om door te gaan."]
+"denied.build" = "&8[&6Wormholes&8] &cJe bent geen bouwer in deze pocket."
+"denied.pvp" = "&8[&6Wormholes&8] &cVechten staat uit in deze pocket."
+"instance.none" = "&8[&6Wormholes&8] &cDeze pocket is geen instantie."
+"instance.reset" = "&8[&6Wormholes&8] &aPocketinstantie &f{space}&a is gereset."
+"room.added" = "&8[&6Wormholes&8] &aKamer &f{count}&a toegevoegd aan pocket &f{space}&a."
 "room.blocked" = "&8[&6Wormholes&8] &cPlaats de deur op een binnenmuur."
-"room.limit" = "&8[&6Wormholes&8] &cDeze zak heeft al het maximum van &f{count}&c kamers."
-"roster.added" = "&8[&6Wormholes&8] &a{name}&a staat nu als &f{value}&a op de zaklijst."
-"roster.missing" = "&8[&6Wormholes&8] &c{name}&c staat niet op de lijst van deze zak."
-"roster.removed" = "&8[&6Wormholes&8] &e{name}&e is van de zaklijst gehaald."
-"roster.role" = "&8[&6Wormholes&8] &a{name}&a is nu &f{value}&a in deze zak."
-"rules.invalid" = "&8[&6Wormholes&8] &cOnbekende zakregel &f{key}&c."
+"room.limit" = "&8[&6Wormholes&8] &cDeze pocket heeft al het maximum van &f{count}&c kamers."
+"roster.added" = "&8[&6Wormholes&8] &a{name}&a staat nu als &f{value}&a op de ledenlijst van de pocket."
+"roster.missing" = "&8[&6Wormholes&8] &c{name}&c staat niet op de ledenlijst van deze pocket."
+"roster.removed" = "&8[&6Wormholes&8] &e{name}&e is van de ledenlijst van de pocket gehaald."
+"roster.role" = "&8[&6Wormholes&8] &a{name}&a is nu &f{value}&a in deze pocket."
+"rules.invalid" = "&8[&6Wormholes&8] &cOnbekende pocketregel &f{key}&c."
 "rules.set" = "&8[&6Wormholes&8] &a{key} &7= &f{value}"
-"snapshot.missing" = "&8[&6Wormholes&8] &cDeze zak heeft geen momentopname met de naam &f{name}&c."
-"snapshot.restored" = "&8[&6Wormholes&8] &aMomentopname &f{name}&a hersteld in zak &f{space}&a."
-"snapshot.saved" = "&8[&6Wormholes&8] &aMomentopname &f{name}&a van zak &f{space}&a opgeslagen."
-"template.applied" = "&8[&6Wormholes&8] &aSjabloon &f{name}&a toegepast op zak &f{space}&a."
+"snapshot.missing" = "&8[&6Wormholes&8] &cDeze pocket heeft geen momentopname met de naam &f{name}&c."
+"snapshot.restored" = "&8[&6Wormholes&8] &aMomentopname &f{name}&a hersteld in pocket &f{space}&a."
+"snapshot.saved" = "&8[&6Wormholes&8] &aMomentopname &f{name}&a van pocket &f{space}&a opgeslagen."
+"template.applied" = "&8[&6Wormholes&8] &aSjabloon &f{name}&a toegepast op pocket &f{space}&a."
 "template.list" = "&8[&6Wormholes&8] &7Sjablonen (&f{count}&7): &f{value}"
-"template.missing" = "&8[&6Wormholes&8] &cEr is geen zaksjabloon met de naam &f{name}&c."
+"template.missing" = "&8[&6Wormholes&8] &cEr is geen pocketsjabloon met de naam &f{name}&c."
 # ---- end lane:doors ----
 
 # ---- lane:mesh (mesh.*) ----
@@ -1358,7 +1370,7 @@ invalid = "&8[&6Wormholes&8] &cDe drain-status moet on of off zijn, ontvangen: {
 
 [mesh.queue]
 position = "&7Wachten op een vrije server: positie &f{count}&7, &f{seconds}&7s"
-timeout = "&cGeen enkele bestemmingsserver had op tijd plaats."
+timeout = "&cGeen enkele bestemmingsserver had op tijd ruimte."
 
 [mesh.policy]
 none = "&cEr is op dit moment geen bestemming beschikbaar."
@@ -1387,7 +1399,7 @@ state = "on of off; weglaten toont de huidige status"
 
 [mesh.command.param.policy]
 portal = "Naam of id van het lokale portaal"
-candidates = "Door komma's gescheiden server:portaal[:gewicht]-items; leeg verwijdert het beleid"
+candidates = "Door komma's gescheiden vermeldingen server:portal[:weight]; leeg verwijdert het beleid"
 strategy = "FIRST_AVAILABLE, LEAST_LOADED, ROUND_ROBIN, STICKY of NEAREST"
 headroom = "Vrije spelersplaatsen die een kandidaat moet melden"
 tps = "Minimale TPS die een kandidaat moet melden; 0 negeert TPS"
@@ -1409,16 +1421,16 @@ waiting = "Breng je hele konvooi door {portal}."
 failed = "Konvooioverdracht mislukt: {reason}."
 
 [transit.menu]
-entry = ["&b&lDoorgang&r", "&7Vaart, oriëntatie, membraan, terugkaatsing en effecten.", "&eLinkerklik"]
-momentum = ["&6&lVaart: {mode}&r", "&7Factor {value}. Hoe de uitgangssnelheid wordt afgeleid van de ingangssnelheid.", "&eLinkerklik om de modus te wisselen", "&eRechterklik om de factor in te stellen"]
-orientation = ["&6&lOriëntatie: {mode}&r", "&7Welke kant reizigers op kijken bij aankomst.", "&eLinkerklik om te wisselen"]
-membrane = ["&6&lMembraan: {state}&r", "&7Alleen de voorkant laat reizigers binnen; de achterkant duwt ze weg.", "&eLinkerklik om te schakelen"]
-bounce = ["&6&lTerugkaatsing: {state}&r", "&7Reizigers terugkaatsen in plaats van verplaatsen.", "&eLinkerklik om te schakelen"]
-profile = ["&6&lOvergangseffecten&r", "&7Drempel {mode}", "&7Aankomst {state}", "&eLinkerklik: drempeleffect, Rechterklik: aankomstgeluid", "&eShift + Linkerklik: maskerticks"]
+entry = ["&b&lDoorgang&r", "&7Vaart, oriëntatie, membraan, terugkaatsing en effecten.", "&eLinksklik"]
+momentum = ["&6&lVaart: {mode}&r", "&7Factor {value}. Hoe de uitgangssnelheid wordt afgeleid van de ingangssnelheid.", "&eLinksklik om de modus te wisselen", "&eRechtsklik om de factor in te stellen"]
+orientation = ["&6&lOriëntatie: {mode}&r", "&7Welke kant reizigers op kijken bij aankomst.", "&eLinksklik om te wisselen"]
+membrane = ["&6&lMembraan: {state}&r", "&7Alleen de voorkant laat reizigers binnen; de achterkant duwt ze weg.", "&eLinksklik om te schakelen"]
+bounce = ["&6&lTerugkaatsing: {state}&r", "&7Reizigers terugkaatsen in plaats van verplaatsen.", "&eLinksklik om te schakelen"]
+profile = ["&6&lOvergangseffecten&r", "&7Drempel {mode}", "&7Aankomst {state}", "&eLinksklik: drempeleffect, Rechtsklik: aankomstgeluid", "&eShift + linksklik: maskerticks"]
 prompt = "&bTyp de nieuwe waarde in de chat (of '{cancel}'):"
 scale = ["&6&lReizigersschaal: {mode}&r", "&7Groottebereik {value}. Past reizen tussen portalen van verschillende grootte aan.", "&eLinksklik om de modus te wisselen", "&eRechtsklik: minimum, Shift + rechtsklik: maximum"]
 
-gravity = ["&6&lGerichte zwaartekracht: {state}&r", "&7Bij reizigers met de mod draaien de vloer, beweging en het model mee met het portaal.", "&eKlik links om aan of uit te zetten"]
+gravity = ["&6&lGerichte zwaartekracht: {state}&r", "&7Bij reizigers met de mod draaien de vloer, beweging en het model mee met het portaal.", "&eLinksklik om te schakelen"]
 
 [transit.scale]
 current = "&8[&6Wormholes&8] &f{portal}&7 reizigersschaal: &f{mode}&7 ({value})"
@@ -1436,7 +1448,7 @@ client_required = "&8[&6Wormholes&8] &cDit portaal vereist de Wormholes-clientmo
 
 # ---- lane:view (fidelity.*) ----
 [fidelity.menu]
-entry = ["&b&lGetrouwheid&r", "&7Atmosfeer, akoestiek, detail en blokentiteiten van dit portaal.", "&eLinkermuisklik"]
+entry = ["&b&lGetrouwheid&r", "&7Atmosfeer, akoestiek, detail en blokentiteiten van dit portaal.", "&eLinksklik"]
 placard = ["&b&lProjectiegetrouwheid&r", "&7Kanalen per portaal die over de projectie worden gelegd."]
 atmosphere = "&bAtmosfeer: &f{mode}"
 acoustics = "&bAkoestiek: &f{mode}"
@@ -1452,9 +1464,9 @@ profile = "Bedrock-profiel actief voor {count} kijkers"
 
 # ---- lane:ops (ops.*) ----
 [ops.console]
-started = "Metriek-eindpunt luistert op {value}."
-no_token = "Metriek-eindpunt niet gestart: stel [ops.console] token in."
-failed = "Metriek-eindpunt kon {value} niet binden: {reason}"
+started = "Metrics-eindpunt luistert op {value}."
+no_token = "Metrics-eindpunt niet gestart: stel [ops.console] token in."
+failed = "Metrics-eindpunt kon {value} niet binden: {reason}"
 
 [ops.webmap]
 published = "{count} portaalmarkeringen naar {name} gepubliceerd."
@@ -1474,7 +1486,7 @@ signature_untrusted = "&8[&6Wormholes&8] &c&f{id}&c geweigerd: ondertekend door 
 signature_ok = "&8[&6Wormholes&8] &7Ondertekend door &f{name}&7 (&f{fingerprint}&7)."
 
 [ops.import]
-report = "&8[&6Wormholes&8] &f{name}&7: &f{count}&7 portalen geimporteerd, &f{value}&7 overgeslagen."
+report = "&8[&6Wormholes&8] &f{name}&7: &f{count}&7 portalen geïmporteerd, &f{value}&7 overgeslagen."
 skipped_row = "&8[&6Wormholes&8] &7{portal}&8: &f{reason}"
 not_detected = "&8[&6Wormholes&8] &cGeen {name}-gegevens gevonden in &f{path}&c."
 
@@ -1501,16 +1513,16 @@ backup = "Portaalback-ups maken, tonen, herstellen en uitwisselen"
 "backup.restore.id" = "Back-up-id uit /wormholes admin backup list"
 "backup.restore.dry" = "Melden wat zou veranderen zonder iets te schrijven"
 "backup.restore.world_map" = "Wereldhernoemingen als oud=nieuw,oud=nieuw"
-"backup.restore.owner_map" = "Eigenaarhernoemingen als oude-uuid=nieuwe-uuid"
+"backup.restore.owner_map" = "Eigenaarhernoemingen als oude-uuid=nieuwe-uuid,oude-uuid=nieuwe-uuid"
 "backup.restore.confirm" = "Nodig om bestanden te schrijven bij dry=false"
 "backup.allow_unsigned" = "Een bundel toepassen die geen vertrouwde sleutel heeft ondertekend"
-"backup.export" = "Een back-uppakket naar een bestand schrijven dat tussen servers kan reizen"
+"backup.export" = "Een bundel naar een bestand schrijven dat je tussen servers kunt verplaatsen"
 "backup.export.file" = "Doelbestand; leeg schrijft in de back-upmap"
-"backup.import" = "Een pakket importeren dat op een andere server is geexporteerd"
-"backup.import.file" = "Te lezen pakketbestand"
+"backup.import" = "Een bundel importeren die op een andere server is geëxporteerd"
+"backup.import.file" = "Te lezen bundelbestand"
 "backup.import.dry" = "Melden wat zou veranderen zonder iets te schrijven"
 "backup.import.world_map" = "Wereldhernoemingen als oud=nieuw,oud=nieuw"
-"backup.import.owner_map" = "Eigenaarhernoemingen als oude-uuid=nieuwe-uuid"
+"backup.import.owner_map" = "Eigenaarhernoemingen als oude-uuid=nieuwe-uuid,oude-uuid=nieuwe-uuid"
 "backup.import.confirm" = "Nodig om bestanden te schrijven bij dry=false"
 "backup.import_from" = "Portalen importeren uit de bestanden van een andere portaalplugin"
 "backup.import_from.source" = "stargate, advancedportals, multiverse, betterportals of essentials"
@@ -1530,8 +1542,8 @@ portals = "Portalen tonen, bekijken en in bulk bewerken"
 "portals.tp" = "Naar een portaal teleporteren en veilig landen"
 "portals.tp.portal" = "Portaalnaam of id"
 "portals.retarget" = "Een portaal naar een ander lokaal portaal laten wijzen"
-"portals.retarget.portal" = "Portaalnaam of id die verandert"
-"portals.retarget.destination" = "Portaalnaam of id om naar te wijzen"
+"portals.retarget.portal" = "Naam of id van het te wijzigen portaal"
+"portals.retarget.destination" = "Naam of id van het portaal waarnaar moet worden gewezen"
 "portals.unlink" = "De bestemming van een portaal verwijderen"
 "portals.unlink.portal" = "Portaalnaam of id"
 "portals.prune" = "Koppelingen verwijderen waarvan de bestemming niet meer bestaat"
@@ -1590,7 +1602,7 @@ cost = "Reiskosten"
 extensions = "Meer instellingen"
 destinations = "Bestemmingen"
 select = "Kies een portaal"
-rtp = "Willekeurige teleport"
+rtp = "Willekeurige teleportatie"
 rtp_destination = "Willekeurige bestemming"
 rtp_biome = "Doelbioom"
 rtp_landing = "Landing"
@@ -1635,18 +1647,18 @@ reset = "Herstellen"
 clear = "Wissen"
 colors = "Kleuren"
 advanced = "Geavanceerd"
-reroll = "Opnieuw rollen"
+reroll = "Nieuwe bestemming"
 remove = "Verwijderen"
 favorite = "Favoriet"
-guide = "Gids"
-whitelist = "Witte lijst"
-blacklist = "Zwarte lijst"
+guide = "Koers"
+whitelist = "Toestaanlijst"
+blacklist = "Blokkeerlijst"
 use_default = "Serverstandaard gebruiken"
 
 [menu.native.confirm]
 delete_portal = ["{portal} verwijderen?", "Hiermee wordt het portaal verwijderd en worden portalen die ernaartoe leiden ontkoppeld.", "Dit kan niet ongedaan worden gemaakt."]
 "delete_portal.accept" = "Verwijderen"
-rtp_reset = ["{portal} herstellen?", "Alle instellingen voor willekeurige teleport keren terug naar hun standaardwaarde."]
+rtp_reset = ["{portal} herstellen?", "Alle instellingen voor willekeurige teleportatie keren terug naar hun standaardwaarde."]
 "rtp_reset.accept" = "Herstellen"
 rules_template = ["{name} laden?", "Het sjabloon vervangt alle regels van dit portaal."]
 "rules_template.accept" = "Laden"
@@ -1671,7 +1683,7 @@ group = "Groepsnaam"
 network = "Netwerknaam"
 address = "Adres"
 rule_id = "Regel-ID"
-line = "Regelregel"
+line = "Voorwaarde"
 factor = "Factor"
 sound = "Geluids-ID"
 ticks = "Ticks"
@@ -1690,5 +1702,5 @@ scale_max = "Maximale schaal"
 comparator = "Comparatoruitvoer"
 
 [menu.native.list]
-page = ["&b&lPagina {page}/{pages}&r", "&7{count} items"]
+page = ["&b&lPagina {page}/{pages}&r", "&7{count} vermeldingen"]
 # ---- end lane:menu ----

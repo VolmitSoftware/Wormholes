@@ -17,12 +17,26 @@ import art.arcane.volmlib.util.localization.MessageKey;
 import art.arcane.volmlib.util.localization.PluralKey;
 import art.arcane.volmlib.util.localization.TextKey;
 import art.arcane.volmlib.util.localization.VolmitLocales;
+import art.arcane.volmlib.util.localization.LanguageUpstreamSync;
+import art.arcane.volmlib.util.localization.TomlLanguageEditor;
+import art.arcane.volmlib.util.localization.TomlLanguageParser;
+import com.sun.net.httpserver.HttpExchange;
+import com.sun.net.httpserver.HttpServer;
 import net.kyori.adventure.text.Component;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.net.URI;
+import java.time.Duration;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.logging.Logger;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -47,8 +61,12 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class WormholesLocalizationTest {
+    private static final Logger TEST_LOGGER = Logger.getAnonymousLogger();
+
     @TempDir
     Path tempDir;
+
+    private WormholesLanguages languages;
 
     @BeforeEach
     void installRepositoryTranslations() throws IOException {
@@ -56,12 +74,149 @@ class WormholesLocalizationTest {
         for (String locale : VolmitLocales.nonEnglish()) {
             Files.copy(Path.of("src/main/resources/languages", locale + ".toml"), installed.resolve(locale + ".toml"));
         }
+        languages = new WormholesLanguages(tempDir, TEST_LOGGER);
+    }
+
+    @AfterEach
+    void closeLanguages() {
+        languages.close();
+    }
+
+    @Test
+    void upstreamSyncInstallsMergesAndKeepsManualEditsAndCustomFiles() throws Exception {
+        LoopbackRepository repository = new LoopbackRepository();
+        Path dataFolder = tempDir.resolve("sync");
+        repository.files.put(LoopbackRepository.REVISION_ONE + "/fr_FR",
+                "# fr v1\n\n[command]\nunknown = \"Commande inconnue v1\"\n");
+        WormholesLanguages service = repository.service(dataFolder);
+        List<String> selfWrites = new CopyOnWriteArrayList<>();
+        List<String> updates = new CopyOnWriteArrayList<>();
+        service.setSelfWriteListener((file, content) -> selfWrites.add(file.getFileName().toString()));
+        service.setUpdateListener(updates::add);
+        try {
+            Path custom = dataFolder.resolve("languages/pirate.toml");
+            Files.createDirectories(custom.getParent());
+            String customContent = "[meta]\nname = \"Pirate Speak\"\nbase = \"fr_FR\"\n\n[command]\nunknown = \"Arr\"\n";
+            Files.writeString(custom, customContent);
+
+            assertTrue(service.installAsync("fr_FR").get(10L, TimeUnit.SECONDS).contains("Commande inconnue v1"));
+            assertTrue(Files.isRegularFile(dataFolder.resolve("languages/fr_FR.toml")));
+            assertTrue(Files.isRegularFile(dataFolder.resolve("languages/.upstream/fr_FR.toml")));
+            assertTrue(Files.isRegularFile(dataFolder.resolve("languages/.upstream/upstream.properties")));
+            assertTrue(selfWrites.contains("fr_FR.toml"));
+
+            WormholesLocalization localization = new WormholesLocalization();
+            PluginLanguageEditor.Options editor = localization.editorOptions(service, () -> "");
+            TextKey key = WormholesMessages.COMMAND_UNKNOWN;
+            MessageValue installed = editor.loader().load("fr_FR").value(key);
+            editor.writer().write(new PluginLanguageEditor.Edit("fr_FR", key.id(), installed,
+                    new TextValue("Commande modifiée")));
+
+            repository.revision.set(LoopbackRepository.REVISION_TWO);
+            repository.files.put(LoopbackRepository.REVISION_TWO + "/fr_FR",
+                    "# fr v2\n\n[command]\nunknown = \"Commande inconnue v2\"\n\n[command.debug]\n"
+                            + "enabled = \"Débogage activé.\"\n");
+
+            LanguageUpstreamSync.SyncReport report = service.checkAsync().get(10L, TimeUnit.SECONDS);
+
+            assertTrue(report.failure().isEmpty(), String.valueOf(report.failure()));
+            assertEquals(List.of("fr_FR"), report.changedLocales());
+            assertEquals(List.of(key.id()), report.merged().get("fr_FR").kept());
+            assertEquals(List.of(WormholesMessages.COMMAND_DEBUG_ENABLED.id()), report.merged().get("fr_FR").added());
+            String merged = Files.readString(dataFolder.resolve("languages/fr_FR.toml"));
+            assertTrue(merged.startsWith("# fr v2\n"), merged);
+            assertTrue(merged.contains("Commande modifiée"));
+            assertTrue(merged.contains("Débogage activé."));
+            assertFalse(merged.contains("Commande inconnue v2"));
+            assertTrue(Files.readString(dataFolder.resolve("languages/.upstream/fr_FR.toml")).contains("Commande inconnue v2"));
+            assertEquals(customContent, Files.readString(custom));
+            assertTrue(updates.contains("fr_FR"));
+            assertEquals(LoopbackRepository.REVISION_TWO, service.status().orElseThrow().revision().orElseThrow());
+
+            assertTrue(localization.reload(service, "pirate", "").applied());
+            assertEquals("Arr", localization.plain(key));
+            assertEquals("Débogage activé.", localization.plain(WormholesMessages.COMMAND_DEBUG_ENABLED));
+
+            LanguageUpstreamSync.SyncReport unchanged = service.checkAsync().get(10L, TimeUnit.SECONDS);
+
+            assertTrue(unchanged.unchanged());
+            assertTrue(unchanged.changedLocales().isEmpty());
+            assertEquals(merged, Files.readString(dataFolder.resolve("languages/fr_FR.toml")));
+        } finally {
+            service.close();
+            repository.close();
+        }
+    }
+
+    @Test
+    void customLocaleMetaProvidesDisplayNameAndBaseChainBeforeFallbacksAndEnglish() throws IOException {
+        writeLocale("pirate", """
+                [meta]
+                name = "Pirate Speak"
+                base = "de_DE"
+
+                [command]
+                unknown = "Arr, unknown command."
+                """);
+        writeLocale("loop_a", """
+                [meta]
+                base = "loop_b"
+
+                [command]
+                unknown = "Loop A"
+                """);
+        writeLocale("loop_b", """
+                [meta]
+                base = "loop_a"
+                """);
+        WormholesLocalization localization = new WormholesLocalization();
+
+        assertTrue(localization.reload(languages, "pirate", "fr_FR").applied());
+        assertEquals("Arr, unknown command.", localization.plain(WormholesMessages.COMMAND_UNKNOWN));
+        assertEquals("de_DE", localization.snapshot().sourceLocale(WormholesMessages.COMMAND_DEBUG_ENABLED));
+        assertTrue(languages.availableLocales().contains("pirate"));
+        assertEquals("Pirate Speak", languages.displayName("pirate"));
+        assertEquals("German (Germany)", languages.displayName("de_DE"));
+        assertTrue(languages.metaName("de_DE").isEmpty());
+        assertEquals("loop_a", languages.displayName("loop_a"));
+
+        assertTrue(localization.reload(languages, "loop_a", "").applied());
+        assertEquals("Loop A", localization.plain(WormholesMessages.COMMAND_UNKNOWN));
+        assertEquals("en_US", localization.snapshot().sourceLocale(WormholesMessages.COMMAND_DEBUG_ENABLED));
+    }
+
+    @Test
+    void englishReferenceGainsNewCatalogKeysWhileKeepingEdits() throws IOException {
+        WormholesLocalization localization = new WormholesLocalization();
+        assertTrue(localization.reload(languages, "en_US", "").applied());
+        Path english = tempDir.resolve("languages/en_US.toml");
+        Path sidecar = tempDir.resolve("languages/.upstream/en_US.toml");
+        String olderReference = TomlLanguageEditor.remove(Files.readString(sidecar),
+                WormholesMessages.COMMAND_DEBUG_DISABLED.id()).content();
+        Files.writeString(sidecar, olderReference);
+        Files.writeString(english, TomlLanguageEditor.upsertText(olderReference,
+                WormholesMessages.COMMAND_UNKNOWN.id(), "Edited unknown command.").content());
+
+        WormholesLanguages restarted = new WormholesLanguages(tempDir, TEST_LOGGER);
+        try {
+            assertTrue(localization.reload(restarted, "en_US", "").applied());
+            Map<String, MessageValue> values = TomlLanguageParser.parseValidValues(Files.readString(english),
+                    WormholesMessages.catalog());
+
+            assertTrue(values.containsKey(WormholesMessages.COMMAND_DEBUG_DISABLED.id()));
+            assertEquals(new TextValue("Edited unknown command."), values.get(WormholesMessages.COMMAND_UNKNOWN.id()));
+            assertEquals("Edited unknown command.", localization.plain(WormholesMessages.COMMAND_UNKNOWN));
+            assertTrue(TomlLanguageParser.parseValidValues(Files.readString(sidecar), WormholesMessages.catalog())
+                    .containsKey(WormholesMessages.COMMAND_DEBUG_DISABLED.id()));
+        } finally {
+            restarted.close();
+        }
     }
 
     @Test
     void editorPersistsEnglishTextLinesAndPluralFormsInTheLanguageFile() throws Exception {
         WormholesLocalization localization = new WormholesLocalization();
-        PluginLanguageEditor.Options editor = localization.editorOptions(tempDir, () -> "missing_custom");
+        PluginLanguageEditor.Options editor = localization.editorOptions(languages, () -> "missing_custom");
         LocalizationSnapshot initial = editor.loader().load("en_US");
         List<MessageKey> changed = new ArrayList<>();
         for (MessageKey key : initial.catalog().keys()) {
@@ -97,7 +252,7 @@ class WormholesLocalizationTest {
     @Test
     void editorLeavesActiveSelectionUnchangedAndRejectsInvalidOrStaleValues() throws Exception {
         WormholesLocalization localization = new WormholesLocalization();
-        PluginLanguageEditor.Options editor = localization.editorOptions(tempDir, () -> "");
+        PluginLanguageEditor.Options editor = localization.editorOptions(languages, () -> "");
         Files.writeString(tempDir.resolve("languages/fr_FR.toml"), """
                 "command.unknown" = "Commande inconnue"
                 """);
@@ -127,7 +282,7 @@ class WormholesLocalizationTest {
     void everyInstalledLocaleFullyCoversTheTypedCatalog() {
         WormholesLocalization localization = new WormholesLocalization();
         for (String locale : VolmitLocales.nonEnglish()) {
-            LocalizationReloadResult result = localization.reload(tempDir, locale, "");
+            LocalizationReloadResult result = localization.reload(languages, locale, "");
 
             assertTrue(result.applied(), locale + ": " + result.failure());
             for (MessageKey key : WormholesMessages.catalog().keys()) {
@@ -190,7 +345,7 @@ class WormholesLocalizationTest {
             """);
 
         WormholesLocalization localization = new WormholesLocalization();
-        LocalizationReloadResult result = localization.reload(tempDir, "custom_ES", "fr_FR");
+        LocalizationReloadResult result = localization.reload(languages, "custom_ES", "fr_FR");
 
         assertTrue(result.applied(), String.valueOf(result.failure()));
         assertEquals("Entrada eliminado", localization.plain(
@@ -221,7 +376,7 @@ class WormholesLocalizationTest {
     @Test
     void nonEnglishStartupCreatesEnglishAndPreservesOperatorEdits() throws Exception {
         WormholesLocalization localization = new WormholesLocalization();
-        assertTrue(localization.reload(tempDir, "fr_FR", "").applied());
+        assertTrue(localization.reload(languages, "fr_FR", "").applied());
         Path english = tempDir.resolve("languages/en_US.toml");
         String generated = Files.readString(english);
         assertTrue(generated.startsWith("# Wormholes — en_US"));
@@ -229,7 +384,7 @@ class WormholesLocalizationTest {
         assertTrue(generated.contains("&b&lOpenState: &f&l{state}"));
         String content = "\"command.unknown\" = \"Edited feedback\"\n";
         Files.writeString(english, content);
-        assertTrue(localization.reload(tempDir, "en_US", "").applied());
+        assertTrue(localization.reload(languages, "en_US", "").applied());
         assertEquals("Edited feedback", localization.plain(WormholesMessages.COMMAND_UNKNOWN));
         assertEquals(content, Files.readString(english));
     }
@@ -248,7 +403,7 @@ class WormholesLocalizationTest {
                 """);
         WormholesLocalization localization = new WormholesLocalization();
 
-        assertTrue(localization.reload(tempDir, "custom_ES", "fr_FR,../invalid").applied());
+        assertTrue(localization.reload(languages, "custom_ES", "fr_FR,../invalid").applied());
         assertEquals("Depuración activada.", localization.plain(WormholesMessages.COMMAND_DEBUG_ENABLED));
         assertEquals("Commande inconnue.", localization.plain(WormholesMessages.COMMAND_UNKNOWN));
         assertEquals("Edited debug disabled.", localization.plain(WormholesMessages.COMMAND_DEBUG_DISABLED));
@@ -259,7 +414,7 @@ class WormholesLocalizationTest {
         writeLocale("en_US", """
                 "command.debug.disabled" = "Updated English feedback."
                 """);
-        assertTrue(localization.reload(tempDir, "custom_ES", "fr_FR").applied());
+        assertTrue(localization.reload(languages, "custom_ES", "fr_FR").applied());
         assertEquals("Updated English feedback.", localization.plain(WormholesMessages.COMMAND_DEBUG_DISABLED));
     }
 
@@ -272,7 +427,7 @@ class WormholesLocalizationTest {
                 """);
         WormholesLocalization localization = new WormholesLocalization();
 
-        assertTrue(localization.reload(tempDir, "missing_custom", "").applied());
+        assertTrue(localization.reload(languages, "missing_custom", "").applied());
         assertEquals("Edited unknown command.", localization.plain(WormholesMessages.COMMAND_UNKNOWN));
         assertEquals("Debug logging enabled.", localization.plain(WormholesMessages.COMMAND_DEBUG_ENABLED));
         assertEquals("Debug logging disabled.", localization.plain(WormholesMessages.COMMAND_DEBUG_DISABLED));
@@ -284,10 +439,10 @@ class WormholesLocalizationTest {
         WormholesLocalization localization = new WormholesLocalization();
         String[] invalidLocales = {null, "", " \t", "../outside", "fr/FR", "en_US", " EN-us "};
         for (String locale : invalidLocales) {
-            assertTrue(localization.reload(tempDir, "fr_FR", "").applied());
+            assertTrue(localization.reload(languages, "fr_FR", "").applied());
             assertEquals("fr_FR", localization.snapshot().sourceLocale(WormholesMessages.COMMAND_UNKNOWN));
 
-            assertTrue(localization.reload(tempDir, locale, "fr_FR").applied());
+            assertTrue(localization.reload(languages, locale, "fr_FR").applied());
             assertEquals("en_US", localization.snapshot().sourceLocale(WormholesMessages.COMMAND_UNKNOWN));
             assertEquals("Unknown command, please use /wormholes for help.",
                     localization.plain(WormholesMessages.COMMAND_UNKNOWN));
@@ -309,7 +464,7 @@ class WormholesLocalizationTest {
                 """);
         WormholesLocalization localization = new WormholesLocalization();
 
-        assertTrue(localization.reload(tempDir, "custom_ES", "").applied());
+        assertTrue(localization.reload(languages, "custom_ES", "").applied());
         for (MessageKey key : List.of(WormholesMessages.COMMAND_UNKNOWN, WormholesMessages.COMMAND_DEBUG_ENABLED,
                 WormholesMessages.COMMAND_DEBUG_DISABLED, WormholesMessages.COMMAND_PUBLIC_HELP,
                 WormholesMessages.COMMAND_DELETED_PORTALS)) {
@@ -328,7 +483,7 @@ class WormholesLocalizationTest {
         writeLocale("en_US", "[command\nunknown = \"Unclosed table\"\n");
         WormholesLocalization localization = new WormholesLocalization();
 
-        assertTrue(localization.reload(tempDir, "custom_ES", "").applied());
+        assertTrue(localization.reload(languages, "custom_ES", "").applied());
         assertEquals("Depuración activada.", localization.plain(WormholesMessages.COMMAND_DEBUG_ENABLED));
         assertEquals("Unknown command, please use /wormholes for help.",
                 localization.plain(WormholesMessages.COMMAND_UNKNOWN));
@@ -354,7 +509,7 @@ class WormholesLocalizationTest {
                 "portal.deleted" = "&c&l{portal} &f&lWhite&c Plain&r End"
                 """);
         WormholesLocalization localization = new WormholesLocalization();
-        assertTrue(localization.reload(tempDir, "custom_colors", "").applied());
+        assertTrue(localization.reload(languages, "custom_colors", "").applied());
         MessageArgs arguments = WormholesLocalization.args(
                 MessageArgument.untrusted("portal", "<red>Portal</red> &bName"));
 
@@ -387,7 +542,7 @@ class WormholesLocalizationTest {
             "portal.deleted" = "<red>{portal} eliminado"
             """);
         WormholesLocalization localization = new WormholesLocalization();
-        LocalizationReloadResult applied = localization.reload(tempDir, "es_ES", "");
+        LocalizationReloadResult applied = localization.reload(languages, "es_ES", "");
         assertTrue(applied.applied(), String.valueOf(applied.failure()));
         LocalizationSnapshot lastGood = localization.snapshot();
 
@@ -395,7 +550,7 @@ class WormholesLocalizationTest {
             "portal.deleted" = "<red>{name} eliminado"
             "command.unknown" = "Comando desconocido."
             """);
-        LocalizationReloadResult rejected = localization.reload(tempDir, "es_ES", "");
+        LocalizationReloadResult rejected = localization.reload(languages, "es_ES", "");
 
         assertTrue(rejected.applied());
         assertEquals(WormholesMessages.PORTAL_DELETED.englishValue(), localization.snapshot().value(WormholesMessages.PORTAL_DELETED));
@@ -412,16 +567,69 @@ class WormholesLocalizationTest {
         WormholesLocalization localization = new WormholesLocalization();
         LocalizationSnapshot initial = localization.snapshot();
 
-        LocalizationReloadResult malformedRejected = localization.reload(tempDir, "es_ES", "");
+        LocalizationReloadResult malformedRejected = localization.reload(languages, "es_ES", "");
         assertTrue(malformedRejected.applied());
         assertEquals(WormholesMessages.PORTAL_DELETED.englishValue(), localization.snapshot().value(WormholesMessages.PORTAL_DELETED));
 
         writeLocale("es_ES", """
             "portal.unknown" = "Desconocido"
             """);
-        LocalizationReloadResult keyRejected = localization.reload(tempDir, "es_ES", "");
+        LocalizationReloadResult keyRejected = localization.reload(languages, "es_ES", "");
         assertTrue(keyRejected.applied());
         assertNull(keyRejected.current().catalog().key("portal.unknown"));
+    }
+
+    private static final class LoopbackRepository {
+        private static final String REVISION_ONE = "1111111111111111111111111111111111111111";
+        private static final String REVISION_TWO = "2222222222222222222222222222222222222222";
+
+        private final HttpServer server;
+        private final AtomicReference<String> revision = new AtomicReference<>(REVISION_ONE);
+        private final Map<String, String> files = new ConcurrentHashMap<>();
+
+        private LoopbackRepository() throws IOException {
+            server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+            server.createContext("/api/", this::api);
+            server.createContext("/raw/", this::raw);
+            server.start();
+        }
+
+        private WormholesLanguages service(Path dataFolder) {
+            URI root = URI.create("http://127.0.0.1:" + server.getAddress().getPort() + "/");
+            return new WormholesLanguages(dataFolder, TEST_LOGGER, root.resolve("api/"), root.resolve("raw/"), Duration.ZERO);
+        }
+
+        private void close() {
+            server.stop(0);
+        }
+
+        private void api(HttpExchange exchange) throws IOException {
+            String etag = "\"" + revision.get() + "\"";
+            if (etag.equals(exchange.getRequestHeaders().getFirst("If-None-Match"))) {
+                exchange.sendResponseHeaders(304, -1);
+                exchange.close();
+                return;
+            }
+            exchange.getResponseHeaders().set("ETag", etag);
+            byte[] response = ("[{\"sha\":\"" + revision.get() + "\"}]").getBytes(StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(200, response.length);
+            exchange.getResponseBody().write(response);
+            exchange.close();
+        }
+
+        private void raw(HttpExchange exchange) throws IOException {
+            String[] parts = exchange.getRequestURI().getPath().split("/");
+            String content = files.get(parts[4] + "/" + parts[parts.length - 1].replace(".toml", ""));
+            if (content == null) {
+                exchange.sendResponseHeaders(404, -1);
+                exchange.close();
+                return;
+            }
+            byte[] response = content.getBytes(StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(200, response.length);
+            exchange.getResponseBody().write(response);
+            exchange.close();
+        }
     }
 
     private void writeLocale(String locale, String contents) throws IOException {

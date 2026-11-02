@@ -109,6 +109,13 @@ final class WormholesReloadCoordinator {
         }
     }
 
+    void noteLanguageWrite(Path file, String content) {
+        WormholesResourceWatcher resources = resourceWatcher;
+        if (resources != null) {
+            resources.noteSelfWrite(file, content);
+        }
+    }
+
     void stopHotloadManagerDuringDrain() {
         stopHotloadManager();
     }
@@ -315,7 +322,7 @@ final class WormholesReloadCoordinator {
         }
     }
 
-    private void refreshLanguageConsumers() {
+    void refreshLanguageConsumers() {
         BlockManager activeBlockManager = Wormholes.blockManager;
         if (activeBlockManager != null) {
             activeBlockManager.onLanguageReload();
@@ -365,7 +372,7 @@ final class WormholesReloadCoordinator {
             : activeLocalization.defaultSnapshot();
         WormholesLocalization preparedLocalization = new WormholesLocalization();
         LocalizationReloadResult preparedResult = preparedLocalization.reload(
-            plugin.getDataFolder().toPath(),
+            plugin.getLanguages(),
             reloaded.getLanguage(),
             reloaded.getLanguageFallbacks()
         );
@@ -406,7 +413,7 @@ final class WormholesReloadCoordinator {
             Wormholes.localization = activeLocalization;
         }
         LocalizationReloadResult result = activeLocalization.reload(
-            plugin.getDataFolder().toPath(),
+            plugin.getLanguages(),
             reloaded.getLanguage(),
             reloaded.getLanguageFallbacks()
         );

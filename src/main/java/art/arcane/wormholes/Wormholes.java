@@ -39,6 +39,7 @@ import art.arcane.wormholes.chunk.ChunkSendRateTuner;
 import art.arcane.wormholes.chunk.presend.BukkitChunkPreSendProvider;
 import art.arcane.wormholes.config.WormholesSettings;
 import art.arcane.wormholes.door.DimensionalDoorManager;
+import art.arcane.wormholes.localization.WormholesLanguages;
 import art.arcane.wormholes.localization.WormholesLocalization;
 import art.arcane.wormholes.menu.BukkitMenuHost;
 import art.arcane.wormholes.menu.MenuRoute;
@@ -124,6 +125,7 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
     public static volatile DimensionalDoorManager dimensionalDoorManager;
     public static volatile WormholesLocalization localization;
     public static volatile MenuService menus;
+    private WormholesLanguages languages;
     private PluginLanguageService languageService;
     private PluginLanguageEditor languageEditor;
     private BukkitLanguageSwitcher languageSwitcher;
@@ -183,6 +185,9 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
             settings = loadedSettings;
             Settings.refresh(settings);
             vaultEconomy = new VaultEconomy(this);
+            languages = new WormholesLanguages(getDataFolder().toPath(), getLogger());
+            languages.setSelfWriteListener(reloads::noteLanguageWrite);
+            languages.setUpdateListener(this::languageUpdated);
             localization = new WormholesLocalization();
             reloads.reloadLocalization(settings);
             enableLanguageSwitcher();
@@ -191,7 +196,7 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
                             "wormholes.update", () -> settings.isUpdateNotifications()));
             debugDump = BukkitDebugDump.create(this, new BukkitDebugDump.Options(
                 () -> true,
-                () -> () -> "",
+                () -> languages::diagnostics,
                 new BukkitDebugDump.Presentation(
                     "/wormholes debug dump",
                     "/wormholes",
@@ -289,6 +294,7 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
             diagnostics.start();
             network.startCaptureRuntime();
             reloads.startHotloadManager(appliedSettingsSnapshot);
+            startLanguageSync();
         } catch (Exception ex) {
             success = false;
             errorMessage = ex.getMessage() == null ? ex.getClass().getSimpleName() : ex.getMessage();
@@ -351,6 +357,10 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
             languageService = null;
         }
         tearDownBeforeDrain();
+        if (languages != null) {
+            languages.close();
+            languages = null;
+        }
     }
 
     @Override
@@ -642,6 +652,10 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
         return languageService;
     }
 
+    public WormholesLanguages getLanguages() {
+        return languages;
+    }
+
     public BukkitDebugDump debugDump() {
         return debugDump;
     }
@@ -667,20 +681,72 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
     private void enableLanguageSwitcher() {
         languageService = new PluginLanguageService(new PluginLanguageService.Options(
                 getDataFolder().toPath().resolve("languages/language-preferences.properties"),
-                VolmitLocales::all,
+                languages::availableLocales,
                 () -> settings.getLanguage(),
                 () -> localization.defaultSnapshot(),
-                locale -> localization.loadSnapshot(getDataFolder().toPath(), locale,
+                locale -> localization.loadSnapshot(languages, locale,
                         VolmitLocales.ENGLISH.equals(locale) ? "" : settings.getLanguageFallbacks()),
                 this::selectLanguage,
                 getLogger()));
+        languages.attach(languageService);
         languageEditor = new PluginLanguageEditor(languageService,
-                localization.editorOptions(getDataFolder().toPath(), () -> settings.getLanguageFallbacks()));
+                localization.editorOptions(languages, () -> settings.getLanguageFallbacks()));
         languageSwitcher = BukkitLanguageSwitcher.register(this, languageService,
                 new BukkitLanguageSwitcher.Options("wormholes", "wormholes.admin",
                         DirectorMiniMenu.Theme.fromDirectorTheme(DirectorThemes.forProduct(DirectorProduct.WORMHOLES)),
                         localization.directorResolver(),
-                        localization.editorOptions(getDataFolder().toPath(), () -> settings.getLanguageFallbacks())));
+                        localization.editorOptions(languages, () -> settings.getLanguageFallbacks()),
+                        null,
+                        languages::checkAsync,
+                        locale -> languages.metaName(locale).orElse(null)));
+    }
+
+    private void startLanguageSync() {
+        languages.sourceFailure().ifPresent(failure -> getLogger().log(Level.WARNING,
+                "Language source is unavailable; built-in English and installed language files remain active", failure));
+        languages.checkAsync();
+        String locale = settings.getLanguage();
+        if (languages.isInstalled(locale) || !languages.isRepositoryLocale(locale)) {
+            return;
+        }
+        languages.installAsync(locale).whenComplete((content, failure) -> {
+            if (failure != null) {
+                getLogger().log(Level.WARNING, "Unable to install language " + locale
+                        + "; built-in English and installed language files remain active", failure);
+                return;
+            }
+            if (!isEnabled() || !locale.equals(settings.getLanguage())) {
+                return;
+            }
+            scheduleLanguageReload();
+        });
+    }
+
+    private void languageUpdated(String locale) {
+        PluginLanguageService service = languageService;
+        if (service != null) {
+            service.invalidate();
+        }
+        if (isEnabled()) {
+            scheduleLanguageReload();
+        }
+    }
+
+    private void scheduleLanguageReload() {
+        if (!FoliaScheduler.runGlobal(this, this::reloadInstalledLanguage)) {
+            getLogger().warning("Updated language files will activate on the next reload or restart because scheduling was unavailable.");
+        }
+    }
+
+    private void reloadInstalledLanguage() {
+        if (languages == null || !reloads.reloadLocalization(settings).applied()) {
+            return;
+        }
+        PluginLanguageService service = languageService;
+        if (service != null) {
+            service.invalidate();
+        }
+        reloads.refreshLanguageConsumers();
     }
 
     private synchronized void selectLanguage(String locale, LocalizationSnapshot snapshot) {

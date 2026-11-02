@@ -1,6 +1,5 @@
 import org.gradle.api.artifacts.Configuration
 import org.gradle.api.attributes.Attribute
-import org.gradle.api.tasks.WriteProperties
 import org.gradle.api.tasks.compile.JavaCompile
 import org.gradle.jvm.toolchain.JavaLanguageVersion
 
@@ -43,11 +42,6 @@ String jitpackAuthToken = authTokenProperty ?: providers.gradleProperty('jitpack
 List<String> languageLocales = fileTree('src/main/resources/languages') {
     include('*.toml')
 }.files.collect { File source -> source.name.substring(0, source.name.length() - 5) }.sort()
-def languageSourceManifestTask = tasks.register('generateLanguageSourceManifest', WriteProperties) {
-    destinationFile.set(layout.buildDirectory.file('generated/language-source/wormholes-language-source.properties'))
-    property('revision', 'main')
-    property('locales', languageLocales.join(','))
-}
 
 def shadowJarTask = tasks.named('shadowJar', com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar)
 apply from: 'gradle/runtime-test.gradle'
@@ -155,7 +149,6 @@ shadowJarTask.configure {
 
 tasks.named('processResources').configure {
     exclude('languages/**')
-    from(languageSourceManifestTask)
     def pluginProperties = [
         name        : rootProject.name,
         version     : project.version,
@@ -454,6 +447,24 @@ tasks.register('verifyLanguagePackaging') {
             }.collect { java.util.jar.JarEntry entry -> entry.name }
             if (!translations.isEmpty()) {
                 throw new GradleException("Runtime jar contains translation resources: ${translations}")
+            }
+            java.util.jar.JarEntry manifestEntry = archive.getJarEntry('wormholes-language-source.properties')
+            if (manifestEntry == null) {
+                throw new GradleException('Runtime jar is missing wormholes-language-source.properties')
+            }
+            Properties languageManifest = new Properties()
+            archive.getInputStream(manifestEntry).withCloseable { InputStream input -> languageManifest.load(input) }
+            if (languageManifest.stringPropertyNames().any { String key ->
+                key == 'revision' || key == 'mode' || key.startsWith('sha256.')
+            }) {
+                throw new GradleException('Runtime language source manifest must track the repository branch, not a pinned revision')
+            }
+            if (!(languageManifest.getProperty('repository', '') ==~ /[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+/)
+                || languageManifest.getProperty('branch', '').isBlank()
+                || languageManifest.getProperty('path') != 'src/main/resources/languages'
+                || languageManifest.getProperty('extension') != '.toml'
+                || languageManifest.getProperty('locales') != languageLocales.join(',')) {
+                throw new GradleException('Runtime language source manifest does not match the build source set')
             }
         }
     }

@@ -63,7 +63,8 @@ abstract class VerifyModdedArtifact extends DefaultTask {
         File artifact = getArtifact().get().asFile
         new java.util.jar.JarFile(artifact).withCloseable { java.util.jar.JarFile archive ->
             String metadata = getMetadata().get()
-            for (String required : [metadata, 'wormholes-target.properties', 'wormholes-build.properties', 'art/arcane/wormholes/modded/WormholesModRuntime.class',
+            for (String required : [metadata, 'wormholes-target.properties', 'wormholes-build.properties',
+                                    'wormholes-language-source.properties', 'art/arcane/wormholes/modded/WormholesModRuntime.class',
                                     'art/arcane/wormholes/network/WireCodec.class',
                                     'art/arcane/optics/frame/Frame.class',
                                     'art/arcane/optics/spi/OpticsMetrics.class']) {
@@ -111,8 +112,25 @@ abstract class VerifyModdedArtifact extends DefaultTask {
                     throw new GradleException("${artifact.name} declares an incorrect Minecraft or mod loader version range")
                 }
             }
+            Properties languageManifest = new Properties()
+            archive.getInputStream(archive.getJarEntry('wormholes-language-source.properties')).withCloseable { InputStream stream ->
+                languageManifest.load(stream)
+            }
+            if (languageManifest.stringPropertyNames().any { String key ->
+                key == 'revision' || key == 'mode' || key.startsWith('sha256.')
+            }) {
+                throw new GradleException("${artifact.name} language source manifest must track the repository branch, not a pinned revision")
+            }
+            for (String key : ['repository', 'branch', 'path', 'extension', 'locales']) {
+                if (languageManifest.getProperty(key, '').isBlank()) {
+                    throw new GradleException("${artifact.name} language source manifest is missing ${key}")
+                }
+            }
             Set<String> classes = new HashSet<>()
             archive.entries().each { java.util.jar.JarEntry entry ->
+                if (!entry.directory && entry.name.startsWith('languages/')) {
+                    throw new GradleException("${artifact.name} contains translation resource ${entry.name}")
+                }
                 if (entry.name.endsWith('.class') && !classes.add(entry.name)) {
                     throw new GradleException("${artifact.name} contains duplicate class ${entry.name}")
                 }

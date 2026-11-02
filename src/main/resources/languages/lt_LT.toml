@@ -14,10 +14,11 @@
 # === Kintamieji ===
 # Nekeiskite kintamųjų pavadinimų ir naudokite tik konkrečiame pranešime esančius kintamuosius.
 #   {access}  Prieigos prie portalo taisyklė
+#   {added}  Kalbos atnaujinimo pridėtų pranešimų skaičius
 #   {address}  Kito tinklo mazgo adresas
 #   {after}  Pranešimo reikšmė po redagavimo
 #   {allocation}  Kišeninės erdvės paskirstymas
-#  {amount} Kelionės kaina valiuta
+#   {amount}  Kelionės kaina valiuta
 #   {argument}  Netikėtas komandos argumentas
 #   {before}  Pranešimo reikšmė prieš redagavimą
 #   {biome}  Biomo identifikatorius
@@ -31,7 +32,7 @@
 #   {command}  Komandos kelias
 #   {containers}  Perstatymo paveiktos netuščios talpyklos
 #   {cost}  Portalo sukūrimo arba kelionės kaina
-#   {count}  Portalų, paskirties vietų arba pranešimų skaičius
+#   {count}  Portalų, tikslų arba pranešimų skaičius
 #   {degrees}  Vaizdo pasukimas laipsniais
 #   {depth}  Projekcijos gylis
 #   {description}  Pranešimo aprašymas
@@ -42,20 +43,21 @@
 #   {door}  Kišeninės erdvės išėjimo durys
 #   {duration}  Žaidėjui taikomas atnaujinimo intervalas
 #   {endpoint}  Kirmgraužos galinio taško identifikatorius
-#   {entities}  Paveiktų esybių skaičius arba atnaujinimo intervalas taktais
-#   {entity}  Esybių atnaujinimo intervalas taktais
+#   {entities}  Paveiktų esybių skaičius arba atnaujinimo intervalas tickais
+#   {entity}  Esybių atnaujinimo intervalas tickais
 #   {error}  Paskutinės operacijos klaida
 #   {facing}  Portalo orientacija
 #   {failed}  Nepavykusių operacijų skaičius
 #   {fallback}  Alternatyvus kelionės rezultatas
 #   {fingerprint}  Viešojo rakto kontrolinis atspaudas
-#   {free}  Laisvos atsitiktinių paskirties vietų vietos
+#   {free}  Laisvos atsitiktinių tikslų vietos
 #   {grace}  Projekcijos atidėjimo laikotarpis sekundėmis
-#   {group}  Kalbos redaktoriaus kategorija
+#   {group}  Kalbos rengyklės kategorija
 #   {id}  Objekto identifikatorius
 #   {incoming}  Atvykstančių kelionių taisyklė
 #   {item}  Kelionei reikalingas daiktas
-#   {key}  Pranešimo arba nustatymo raktas
+#   {kept}  Kalbos atnaujinimo išsaugoti vietiniai pakeitimai
+#   {key}  Pranešimo arba nuostatos raktas
 #   {kind}  Prieigos prie durų tipas
 #   {label}  Rodoma žyma
 #   {large_step}  Keitimo dydis spustelėjus laikant Shift
@@ -69,7 +71,7 @@
 #   {name}  Portalo pavadinimas arba žaidėjo vardas
 #   {next}  Kita galima parinktis
 #   {node}  Tinklo mazgo identifikatorius
-#   {none}  Žyma, kai nėra susietos paskirties vietos
+#   {none}  Žyma, kai nėra susieto tikslo
 #   {other}  Susieto galinio taško identifikatorius
 #   {outgoing}  Išvykstančių kelionių taisyklė
 #   {owner}  Portalo savininkas
@@ -84,18 +86,19 @@
 #   {previous}  Ankstesnis kišeninės erdvės dydis blokais
 #   {quality}  Projekcijos srauto kokybė
 #   {quantity}  Reikalingų daiktų skaičius
-#   {range}  Portalo aktyvinimo nuotolis blokais
-#   {readiness}  Atsitiktinės paskirties vietos parengties būsena
+#   {range}  Portalo aktyvavimo atstumas blokais
+#   {readiness}  Atsitiktinio tikslo parengties būsena
 #   {reason}  Klaidos arba sprendimo priežastis
 #   {receive}  Projekcijos gavimo būsena
-#   {refresh}  Projekcijos atnaujinimo intervalas taktais
-#   {reserved}  Rezervuotos atsitiktinių paskirties vietų vietos
+#   {refresh}  Projekcijos atnaujinimo intervalas tickais
+#   {remaining}  Laikas iki kito leidžiamo kalbų tikrinimo
+#   {reserved}  Rezervuotos atsitiktinių tikslų vietos
 #   {resized}  Perstatytų kišeninių erdvių skaičius
 #   {rotation}  Projekcijos pasukimas
 #   {route}  Bandytas kelionės maršrutas
 #   {rtt}  Tinklo užklausos ir atsakymo delsa
 #   {seconds}  Laikas sekundėmis
-#   {section}  Kalbos redaktoriaus skyrius
+#   {section}  Kalbos rengyklės skyrius
 #   {send}  Projekcijos siuntimo būsena
 #   {server}  Serverio pavadinimas arba identifikatorius
 #   {shape}  Portalo angos forma
@@ -109,6 +112,7 @@
 #   {target}  Kalbos pasirinkimą gaunantis papildinys
 #   {type}  Objekto arba parametro tipas
 #   {up}  Kryptis projekcijos viršuje
+#   {updated}  Kalbos atnaujinimo pakeistų pranešimų skaičius
 #   {value}  Dabartinė arba pasirinkta reikšmė
 #   {variables}  Pranešime leidžiami kintamieji
 #   {whitelisted}  Leidžiami žaidėjai
@@ -122,7 +126,7 @@ title = "{plugin} › {section}"
 loading = "Įkeliami kalbos {locale} pranešimai..."
 
 [language.editor.category]
-message-count = "&7{count} pranešimai&r"
+message-count = "&7Pranešimų: {count}&r"
 open = "&8Spustelėkite norėdami atverti šią kategoriją.&r"
 
 [language.editor.error]
@@ -131,11 +135,11 @@ unable-to-edit = "Nepavyko redaguoti: {reason}"
 
 [language.editor.input]
 expired = "Baigėsi kalbos rengyklės įvesties laikas."
-too-long = "Įvestyje gali būti ne daugiau kaip {maximum} simbolių."
+too-long = "Didžiausias leistinas įvesties simbolių skaičius: {maximum}."
 unable-to-save = "Nepavyko išsaugoti: {reason}"
 
 [language.editor.locale]
-open = "&8Spauskite norėdami atverti šią kalbą.&r"
+open = "&8Spustelėkite norėdami atverti šią kalbą.&r"
 
 [language.editor.message]
 current-value = "&7Dabartinė reikšmė:&r"
@@ -180,11 +184,11 @@ empty = "(tuščia)"
 none = "Nėra"
 
 [language.error]
-editor-player-only = "Atverti kalbos rengyklę žaidime."
+editor-player-only = "Atverkite kalbos rengyklę žaidime."
 no-providers = "Nėra prieinamų Volmit kalbų teikėjų."
 numeric-page = "Įveskite puslapio numerį."
 personal-permission = "Jūs neturite leidimo pasirinkti savo kalbą."
-personal-player-only = "Žaidžiant turi būti pasirinkti žaidėjų kalbos nustatymai."
+personal-player-only = "Žaidėjo kalbos nuostatas reikia pasirinkti žaidime."
 plugin-personal-permission = "Neturite leidimo pasirinkti savo kalbos papildiniui {plugin}."
 plugin-server-permission = "Neturite leidimo keisti papildinio {plugin} serverio kalbos."
 server-locale-required = "Pasirinkite numatytosios serverio kalbos kodą, pavyzdžiui, en_US."
@@ -196,12 +200,12 @@ all-volmit-plugins = "Visi Volmit papildiniai"
 command = "Komanda: {command}"
 current = "Dabartinė: {locale}"
 current_with_personal = "Dabartinė: {locale} (Jūsų: {personal})"
-edit_description = "Atverkite kiekvienos kalbos pranešimų redaktorių."
+edit_description = "Atverkite kiekvienos kalbos pranešimų rengyklę."
 edit_messages = "Redaguoti kalbos pranešimus"
-no_controls = "Jums nepasiekiami kalbos nustatymai."
+no_controls = "Jums nepasiekiamos kalbos nuostatos."
 remove_personal_description = "Pašalinkite asmeninį kalbos pasirinkimą."
 reset_description = "Naudokite numatytąją serverio kalbą."
-reset_your_language = "Atkurti jūsų kalbą"
+reset_your_language = "Atkurti savo kalbą"
 select_description = "Spustelėkite, kad pasirinktumėte šią kalbą."
 selected = "pasirinkta"
 server_default = "Numatytoji serverio kalba"
@@ -216,17 +220,26 @@ personal-selected = "{plugin}: dabar jūsų kalba {locale}."
 preparing = "Ruošiama kalba {locale} papildiniui {target}..."
 save-failed = "{plugin}: nepavyko išsaugoti kalbos pasirinkimo; patikrinkite serverio konsolę."
 server-default-selected = "{plugin}: jūsų kalba dabar atitinka numatytąją serverio kalbą."
-server-selected = "{plugin}: serverio kalba yra dabar {locale}."
+server-selected = "{plugin}: serverio kalba dabar yra {locale}."
+
+[language.update]
+applied = "{plugin}: Kalba {locale} atnaujinta (pridėta: {added}, pakeista: {updated}, išsaugota vietinių pakeitimų: {kept})."
+checking = "{plugin}: Tikrinami kalbų saugyklos pakeitimai..."
+cooldown = "{plugin}: Kalbų saugykla neseniai tikrinta; bandykite dar kartą po {remaining}."
+failed = "{plugin}: Kalbų atnaujinti nepavyko: {reason}"
+locale-failed = "{plugin}: Kalba {locale} neatnaujinta: {reason}"
+unchanged = "{plugin}: Įdiegtos kalbos jau atitinka saugyklą."
 
 [language.usage]
 editor = "Naudojimas: /{command} language server edit [locale]"
 selection = "Naudojimas: /{command} language self [locale|reset] or server [locale]"
+update = "Naudojimas: /{command} language update"
 volmit-selection = "Naudojimas: /volmit plugins languages [locale]"
 
 [command]
 unknown = "Nežinoma komanda. Pagalbai naudokite /wormholes."
-public_help = ["&8[&6Wormholes&8] &7Portalų pagalba: &f/wormholes info", "&8[&6Wormholes&8] &7Naudokite portalo lazdelę portale, kad keistumėte jo tikslą, vaizdą, keliavimą ir prieigą."]
-info = ["&8[&6Wormholes&8] &7&lKaip pastatyti kirmgraužą&r", "&81. &7Gaukite portalo lazdelę ir portalo runų iš serverio arba administratoriaus.", "&82. &7Sudėkite runas į bet kokią sujungtą formą ant vieno lygaus paviršiaus.", "&7   Tinka bet kokia sujungta forma: stačiakampis, linija (3x1), vienas blokas, L forma ar kryžius.", "&7   Runos turi gulėti ant tos pačios su ašimis lygiagrečios sienos, grindų arba lubų.", "&83. &7Laikykite portalo lazdelę ir &fkairiuoju pelės mygtuku spustelėkite runos bloką&7, kad sukurtumėte portalą.", "&84. &7Kitur pastatykite ANTRĄ portalą (bet kokiu atstumu ir bet kuriame pasaulyje).", "&85. &7Spustelėkite atvertą portalą lazdele, kad atidarytumėte pagrindinį meniu.", "&7   Pasirinkite &fTikslas&7 ir kitą portalą. Pakartokite iš kitos pusės.", "&7   Krypties ir prieigos valdikliai pateikiami atskiruose paprastuose meniu.", "&86. &7Stovėkite ne toliau kaip {range} blokų nuo vieno portalo — tikslinis pasaulis bus projektuojamas rėme, o įžengę teleportuositės.", "&7Administratoriai gali kurti daiktus su &f/wormholes wand"]
+public_help = ["&8[&6Wormholes&8] &7Portalų pagalba: &f/wormholes info", "&8[&6Wormholes&8] &7Naudokite portalo lazdelę portale, kad atvertumėte jo tikslo, vaizdo, kelionių ir prieigos valdiklius."]
+info = ["&8[&6Wormholes&8] &7&lKaip pastatyti kirmgraužą&r", "&81. &7Gaukite portalo lazdelę ir kirmgraužos runų iš serverio arba administratoriaus.", "&82. &7Sudėkite runas į bet kokią sujungtą formą ant vieno lygaus paviršiaus.", "&7   Tinka bet kokia sujungta forma: stačiakampis, linija (3x1), vienas blokas, L forma ar kryžius.", "&7   Runos turi gulėti ant tos pačios su ašimis lygiagrečios sienos, grindų arba lubų.", "&83. &7Laikykite portalo lazdelę ir &fkairiuoju pelės mygtuku spustelėkite bet kurį runos bloką&7, kad sukurtumėte portalą.", "&84. &7Kitur pastatykite ANTRĄ portalą (bet kokiu atstumu ir bet kuriame pasaulyje).", "&85. &7Atverkite portalo meniu žiūrėdami į portalą su lazdele rankoje arba sėlinkite tuščia pagrindine ranka ir dešiniuoju pelės mygtuku spustelėkite portalo bloką (savininkas arba administratorius).", "&7   Pasirinkite &fTikslas&7 ir kitą portalą. Pakartokite iš kitos pusės.", "&7   Krypties ir prieigos valdikliai pateikiami atskiruose paprastuose meniu.", "&86. &7Stovėkite ne toliau kaip {range} blokų atstumu nuo vieno iš portalų (dabartinis bendras aktyvavimo atstumas) — tikslinis pasaulis bus projektuojamas rėme, o įžengę teleportuositės.", "&7Administratoriai gali kurti daiktus su &f/wormholes wand"]
 
 [command.debug]
 enabled = "Derinimo žurnalas įjungtas."
@@ -239,12 +252,12 @@ debug_dump = "Sukurti diagnostikos ataskaitą ir pasirinktinai ją įkelti"
 debug_dump_upload = "Įkelti ataskaitą į mclo.gs"
 language = "Pasirinkite savo arba numatytąją serverio kalbą"
 root = "Pagrindinė Wormholes komanda"
-wand = "Gauti portalo lazdele ir kirmgrauzos runa"
-"wand.rune" = "Iteikti ir kirmgrauzos runa (rune=false duoda tik lazdele)"
-door = "Gauti išgyvenimo režime naudojamas dimensijų duris"
+wand = "Gauti portalo lazdelę ir kirmgraužos runą"
+"wand.rune" = "Kartu įteikti kirmgraužos runą (rune=false duoda tik lazdelę)"
+door = "Gauti išgyvenimo režime naudojamą dimensijų durų daiktą"
 "door.type" = "pair | personal | public | pair_trapdoor | personal_trapdoor | public_trapdoor"
 debug_toggle = "Perjungti išsamius konsolės žurnalus ir vienos sekundės telemetriją"
-stats = "Rodyti tiesioginės statistikos failo kelią; atnaujinti su now=true"
+stats = "Rodyti tiesioginės statistikos failo kelią; now=true priverstinai atnaujina"
 "stats.now" = "Nedelsiant sinchroniškai atkurti statistikos failą"
 info = "Rodyti portalo statymo instrukcijas"
 admin = "Naikinančios Wormholes priežiūros komandos"
@@ -254,27 +267,27 @@ admin = "Naikinančios Wormholes priežiūros komandos"
 "admin.freeze.seconds" = "Kiek laiko laikyti užšaldytą kadrą (5-300, 0 tęsia iškart)"
 "admin.flush" = "Grąžinti kiekvieno stebėtojo projektuojamus blokus į tikrąją būseną ir juos atkurti"
 network = "Tarpserverinis kirmgraužų tinklas"
-"network.import" = "Importuoti portalo kodą iš kito serverio (išsaugo vidinį maršrutą; susieti per tinklo vartų meniu Jungtis)"
-"network.import.code" = "Portalo kodas iš kito serverio mygtuko Eksportuoti"
-"network.status" = "Rodyti susieto serverio ryšio būseną"
+"network.import" = "Tas pats kaip /wh server import; priima serverio arba portalo kodą"
+"network.import.code" = "Serverio arba portalo kodas iš kito serverio eksporto"
+"network.status" = "Rodyti susietų serverių ryšio būseną"
 "network.doctor" = "Paaiškinti, kodėl susieti serveriai neprisijungia"
 server = "Tarpserverinės kelionės: prisijungti prie susietų serverių, peržiūrėti jų sąrašą ir jais keistis"
 "server.connect" = "Persikelti į susietą serverį (trumpinys: /wh server \\<name>)"
 "server.connect.name" = "Susieto serverio pavadinimas (žr. /wh server list)"
 "server.export" = "Eksportuoti šį serverį kaip kodą, kurį gali importuoti kiti serveriai"
-"server.import" = "Importuoti kito serverio eksportuotą serverio arba portalo kodą"
+"server.import" = "Importuoti kito serverio eksportuotą serverio (WHS2.) arba portalo (WHP6.) kodą"
 "server.import.code" = "Kodas iš kito serverio eksporto"
 "server.list" = "Rodyti susietų serverių sąrašą ir jų ryšio būseną"
 "server.remove" = "Pamiršti susietą serverį (ištrina jo maršrutą ir patikimą raktą)"
 "server.remove.name" = "Pamirštamo susieto serverio pavadinimas"
-pocket = "Perziureti ir perstatyti kisenines dimensijas"
-"pocket.info" = "Parodyti kisenes, kurioje stovi, dydi, medziagas ir ribas"
-"pocket.resize" = "Perstatyti kisene, kurioje stovi, nauju dydziu arba medziaga"
-"pocket.resize.size" = "Nauja kambario briauna blokais arba 0, kad liktu dabartinis dydis"
-"pocket.resize.material" = "Naujas sienu, grindu ir lubu blokas arba keep"
-"pocket.resize.door" = "Naujas isejimo duru blokas arba keep"
-"pocket.resize.confirm" = "Butinas, kai pakeitimas ka nors sunaikintu arba perkeltu"
-"pocket.resizeall" = "Perstatyti kiekviena esama kisene nauju dydziu arba medziaga"
+pocket = "Peržiūrėti ir perstatyti kišenines dimensijas"
+"pocket.info" = "Rodyti kišenės, kurioje stovite, dydį, medžiagas ir ribas"
+"pocket.resize" = "Perstatyti kišenę, kurioje stovite, nauju dydžiu arba medžiaga"
+"pocket.resize.size" = "Nauja kambario briauna blokais arba 0, kad liktų dabartinis dydis"
+"pocket.resize.material" = "Naujas sienų, grindų ir lubų blokas arba keep"
+"pocket.resize.door" = "Naujas išėjimo durų blokas arba keep"
+"pocket.resize.confirm" = "Būtinas, kai pakeitimas ką nors sunaikintų arba perkeltų"
+"pocket.resizeall" = "Perstatyti kiekvieną esamą kišenę nauju dydžiu arba medžiaga"
 
 [command.error]
 no_permission = "&8[&6Wormholes&8] &cJūs neturite leidimo."
@@ -282,14 +295,14 @@ no_permission_use = "&8[&6Wormholes&8] &cNeturite leidimo naudoti šią komandą
 only_players = "&8[&6Wormholes&8] &cTik žaidėjai gali gauti daiktus."
 
 [command.wand]
-granted_wand = "&8[&6Wormholes&8] &aPortalo lazdele iteikta."
-granted_starter = ["&8[&6Wormholes&8] &aGavote portalo lazdelę ir 1 kirmgraužos runą.", "&8[&6Wormholes&8] &7Sukurkite DVI kirmgraužos runų formas (bet kokią sujungtą formą ant vieno lygaus paviršiaus), susiekite jas ir stovėkite ne toliau kaip {range} blokų, kad matytumėte projekciją.", "&8[&6Wormholes&8] &7Visus veiksmus rasite įvykdę &f/wormholes info&7."]
+granted_wand = "&8[&6Wormholes&8] &aPortalo lazdelė įteikta."
+granted_starter = ["&8[&6Wormholes&8] &aGavote portalo lazdelę ir 1 kirmgraužos runą.", "&8[&6Wormholes&8] &7Sukurkite DVI kirmgraužos runų formas (bet kokią sujungtą formą ant vieno lygaus paviršiaus), susiekite jas ir stovėkite ne toliau kaip {range} blokų atstumu, kad matytumėte projekciją.", "&8[&6Wormholes&8] &7Vykdykite &f/wormholes info&7, kad pamatytumėte visus veiksmus."]
 
 [command.door]
-unavailable = "&8[&6Wormholes&8] &cNegalima naudoti matmeninių durų."
-unknown_type = "&8[&6Wormholes&8] &cNežinomas durų tipas. Naudokite pair, personal arba public, pair_trapdoor, personal_trapdoor, public_trapdoor."
+unavailable = "&8[&6Wormholes&8] &cDimensijų durys nepasiekiamos."
+unknown_type = "&8[&6Wormholes&8] &cNežinomas durų tipas. Naudokite pair, personal, public, pair_trapdoor, personal_trapdoor arba public_trapdoor."
 empty_type = "Durų tipas negali būti tuščias"
-granted = "&8[&6Wormholes&8] &aSuteiktas &f{type}&a tipo matmenų durų daiktas."
+granted = "&8[&6Wormholes&8] &aSuteiktas &f{type}&a tipo dimensijų durų daiktas."
 
 [command.stats]
 unavailable = "&8[&6Wormholes&8] &cNepavyko įrašyti statistikos momentinės kopijos."
@@ -301,38 +314,38 @@ delete_failed = "&8[&6Wormholes&8] &cNepavyko ištrinti visų portalų. Visą kl
 delete_schedule_failed = "&8[&6Wormholes&8] &cNepavyko suplanuoti portalų atkūrimo."
 reset_failed = "&8[&6Wormholes&8] &cNepavyko atkurti Wormholes. Visą klaidos išklotinę rasite konsolėje."
 reset_schedule_failed = "&8[&6Wormholes&8] &cNepavyko suplanuoti Wormholes atkūrimo."
-projection_frozen = "&8[&6Wormholes&8] &aVisos portalo projekcijos užšaldytos &f{seconds}&a sekundėms. Jos atsinaujins automatiškai."
-projection_resumed = "&8[&6Wormholes&8] &aPortalo projekcijos atnaujintos."
-projection_failed = "&8[&6Wormholes&8] &cNepavyko atnaujinti portalo projekcijų. Patikrinkite konsolę dėl viso steko pėdsako."
+projection_frozen = "&8[&6Wormholes&8] &aVisos portalų projekcijos užšaldytos vietoje &f{seconds}&a s. Jos automatiškai vėl pradės veikti."
+projection_resumed = "&8[&6Wormholes&8] &aPortalų projekcijos vėl veikia."
+projection_failed = "&8[&6Wormholes&8] &cNepavyko atnaujinti portalų projekcijų. Visą klaidos išklotinę rasite konsolėje."
 projection_schedule_failed = "&8[&6Wormholes&8] &cNepavyko suplanuoti projekcijos atnaujinimo."
 
 [command.admin.deleted_portals]
 one = "&8[&6Wormholes&8] &aIštrintas &f{count}&a portalas ir išvalytos vietinės portalo jungtys."
-other = "&8[&6Wormholes&8] &aIštrinti &f{count}&a portalai ir išvalytos vietinės portalų jungtys."
+other = "&8[&6Wormholes&8] &aIštrinta portalų: &f{count}&a; išvalytos vietinės portalų jungtys."
 
 [command.admin.reset_everything]
 one = "&8[&6Wormholes&8] &aAtkurta numatytoji Wormholes būsena. Ištrintas &f{count}&a portalas, uždaryti tinklo ryšiai ir iš naujo sukurti numatytieji konfigūracijos failai."
-other = "&8[&6Wormholes&8] &aAtkurta numatytoji Wormholes būsena. Ištrinti &f{count}&a portalai, uždaryti tinklo ryšiai ir iš naujo sukurti numatytieji konfigūracijos failai."
+other = "&8[&6Wormholes&8] &aAtkurta numatytoji Wormholes būsena. Ištrinta portalų: &f{count}&a; uždaryti tinklo ryšiai ir iš naujo sukurti numatytieji konfigūracijos failai."
 
 [command.admin.projection_flushed]
 one = "&8[&6Wormholes&8] &aIšvalytas &f{count}&a projekcijos stebėtojas; klientai atkuriami iš tikrosios būsenos."
-other = "&8[&6Wormholes&8] &aIšvalyta &f{count}&a projekcijos stebėtojų; klientai atkuriami iš tikrosios būsenos."
+other = "&8[&6Wormholes&8] &aIšvalyta projekcijos stebėtojų: &f{count}&a; klientai atkuriami iš tikrosios būsenos."
 
 [command.pocket]
-not_inside = "&8[&6Wormholes&8] &cStovek kiseninej dimensijoje, kad tai paleistum."
-invalid_size = "&8[&6Wormholes&8] &cKisenes dydis turi buti nuo {minimum} iki {maximum} bloku."
-invalid_shell_material = "&8[&6Wormholes&8] &c{material} netinka kisenes sienai. Naudok kieta bloka, kuris nekrinta."
-invalid_door_material = "&8[&6Wormholes&8] &c{material} netinka kisenes isejimo durims. Naudok ranka atidaromas duris; gelezines durys atmetamos."
-unchanged = "&8[&6Wormholes&8] &eTa kisene jau yra sio dydzio ir is siu medziagu."
-containers_not_empty = "&8[&6Wormholes&8] &cKisenes dydzio keitimas sustabdytas: butu sunaikinta &f{containers}&c netusciu talpyklu. Istustink jas pries bandydamas dar karta; &fconfirm=true&c negali apeiti sios saugos patikros."
-resized = "&8[&6Wormholes&8] &aKisene perstatyta i &f{size}&a bloku (buvo &f{previous}&a), sienos &f{material}&a, isejimo durys &f{door}."
-failed = "&8[&6Wormholes&8] &cKisenes perstatyti nepavyko. Patikrink konsole."
-world_unavailable = "&8[&6Wormholes&8] &cKiseniniu dimensiju pasaulis neikeltas."
-does_not_fit = "&8[&6Wormholes&8] &c{size} bloku kambarys netelpa i kiseninio pasaulio statybos auksti."
-bulk_started = "&8[&6Wormholes&8] &7Perstatoma &f{count}&7 kiseniu."
-bulk_finished = "&8[&6Wormholes&8] &aPerstatyta &f{resized}&a, praleista &f{skipped}&a, nepavyko &f{failed}."
-info = ["&8[&6Wormholes&8] &7Kisene &f{space}", "&8[&6Wormholes&8] &7Dydis &f{size}&7 bloku, sienos &f{material}&7, isejimo durys &f{door}", "&8[&6Wormholes&8] &7Ribos nuo &f{minimum}&7 iki &f{maximum}"]
-confirm_required = ["&8[&6Wormholes&8] &cPerstatymas i {size} bloku sunaikintu &f{blocks}&c padetu bloku ir perkeltu &f{entities}&c esybiu.", "&8[&6Wormholes&8] &7Blokai uz nauju sienu sunaikinami; perkeliamos esybes nugabenamos prie iejimo.", "&8[&6Wormholes&8] &7Paleisk ta pacia komanda su &fconfirm=true&7, kad testum."]
+not_inside = "&8[&6Wormholes&8] &cStovėkite kišeninėje dimensijoje, kad tai įvykdytumėte."
+invalid_size = "&8[&6Wormholes&8] &cKišenės dydis turi būti nuo {minimum} iki {maximum} blokų."
+invalid_shell_material = "&8[&6Wormholes&8] &c{material} netinka kišenės sienai. Naudokite kietą bloką, kuris nekrenta."
+invalid_door_material = "&8[&6Wormholes&8] &c{material} netinka kišenės išėjimo durims. Naudokite ranka atidaromas duris; geležinės durys atmetamos."
+unchanged = "&8[&6Wormholes&8] &eŠi kišenė jau yra tokio dydžio ir iš šių medžiagų."
+containers_not_empty = "&8[&6Wormholes&8] &cKišenės dydžio keitimas sustabdytas: būtų sunaikinta netuščių talpyklų: &f{containers}&c. Ištuštinkite jas prieš bandydami dar kartą; &fconfirm=true&c negali apeiti šios saugos patikros."
+resized = "&8[&6Wormholes&8] &aKišenė perstatyta, dydis blokais: &f{size}&a (buvo &f{previous}&a), sienos &f{material}&a, išėjimo durys &f{door}."
+failed = "&8[&6Wormholes&8] &cKišenės perstatyti nepavyko. Patikrinkite konsolę."
+world_unavailable = "&8[&6Wormholes&8] &cKišeninė dimensija neįkelta."
+does_not_fit = "&8[&6Wormholes&8] &c{size} blokų kambarys netelpa į kišeninės dimensijos statybos aukštį."
+bulk_started = "&8[&6Wormholes&8] &7Perstatoma kišenių: &f{count}&7."
+bulk_finished = "&8[&6Wormholes&8] &aPerstatyta: &f{resized}&a, praleista: &f{skipped}&a, nepavyko: &f{failed}."
+info = ["&8[&6Wormholes&8] &7Kišenė &f{space}", "&8[&6Wormholes&8] &7Dydis blokais: &f{size}&7, sienos &f{material}&7, išėjimo durys &f{door}", "&8[&6Wormholes&8] &7Ribos nuo &f{minimum}&7 iki &f{maximum}"]
+confirm_required = ["&8[&6Wormholes&8] &cPerstačius {size} blokų dydžiu būtų sunaikinta padėtų blokų: &f{blocks}&c, perkelta esybių: &f{entities}&c.", "&8[&6Wormholes&8] &7Blokai už naujų sienų sunaikinami; išstumtos esybės perkeliamos prie įėjimo.", "&8[&6Wormholes&8] &7Paleiskite tą pačią komandą su &fconfirm=true&7, kad tęstumėte."]
 
 [portal]
 deleted = "&c{portal} ištrintas"
@@ -347,7 +360,7 @@ full_refresh = "Visiškas atnaujinimas"
 entity_update = "Esybių atnaujinimas"
 view_grace = "Vaizdo delsos laikas"
 blackout = "Neperšviečiamas fonas"
-blackout_color = "Neperšviečiama spalva"
+blackout_color = "Užtemdymo spalva"
 activation_range = "Aktyvavimo atstumas"
 
 [portal.network.description]
@@ -357,7 +370,7 @@ entity_update = "Tickai tarp esybių atnaujinimų."
 view_grace = "Sekundės, kurias srautas išlaikomas aktyvus nusukus žvilgsnį."
 
 [portal.travel]
-transfer_holding = "&6Jungiamasi prie paskirties serverio..."
+transfer_holding = "&6Jungiamasi prie tikslo serverio..."
 transfer_interrupted = "&cPortalo perkėlimas nutrauktas: pasitraukėte nuo portalo."
 transfer_source_unavailable = "&cPortalo perkėlimas nutrauktas: pradinis portalas nebepasiekiamas."
 cooldown = "&6Vyksta portalo pakartotinio naudojimo delsa"
@@ -367,18 +380,18 @@ cost_vault_insufficient = "&cJums reikia {amount}, kad galėtumėte naudotis ši
 cost_vault_unavailable = "&cŠio portalo ekonomikos kaina nepasiekiama."
 cost_transaction_failed = "&cPortalas negalėjo apdoroti jūsų kelionės kainos."
 destination_unavailable = "&cPortalo tikslas nepasiekiamas"
-arrival_denied = "&cPaskirties portalas atmetė tavo atvykimą."
-arrival_returned = "&cPaskirties portalas atmetė tavo atvykimą; grąžiname tave į {server}"
+arrival_denied = "&cTikslo portalas atmetė jūsų atvykimą."
+arrival_returned = "&cTikslo portalas atmetė jūsų atvykimą; grąžiname jus į {server}"
 arrival_failed = "&cNepavyko nustatyti atvykimo į portalą; liekate tikslo atsiradimo vietoje"
 transfer_cooldown = "&6Tarpserverinio portalo pakartotinio naudojimo delsa: {seconds}s"
 destination_unreachable = "&cTikslo serveris nepasiekiamas"
 destination_unreachable_detail = "&cTikslo serveris nepasiekiamas: {reason}"
-transfer_blocked = "&cPortalo perdavimas užblokuotas: {reason}"
-transfer_blocked_retry = "&cPortalo perdavimas užblokuotas: {reason} (kartoti po {seconds}s)"
+transfer_blocked = "&cPortalo perkėlimas užblokuotas: {reason}"
+transfer_blocked_retry = "&cPortalo perkėlimas užblokuotas: {reason} (kartoti po {seconds}s)"
 
 [portal.label]
 activation_global = "Bendras ({range})"
-public_look_label = "Vieša žiūrėjimo žyma"
+public_look_label = "Vieša žvilgsnio etiketė"
 
 [portal.label.ambient]
 red = "Raudona"
@@ -463,14 +476,14 @@ destination = ["&6&lTikslas&r", "&7Pasirinkite susietiną portalą.", "&7Dabarti
 "destination.sort_distance" = "Atstumas"
 "destination.local" = ["&6{portal}", "&7{x}, {y}, {z} pasaulyje {world}, kryptis {direction}"]
 "destination.remote" = ["&6{portal}", "&7serveryje &f{server}", "&7{x}, {y}, {z} pasaulyje {world}, kryptis {direction}", "&b{state}"]
-"destination.sort" = ["&e&lRikiavimas: &f&l{mode}&r", "&7Keisti paskirties vietų tvarką.", "&eKairysis spustelėjimas"]
-"destination.previous_page" = ["&e&lAnkstesnis puslapis&r", "&7Rodyti ankstesnes paskirties vietas.", "&eKairysis spustelėjimas"]
-"destination.next_page" = ["&e&lKitas puslapis&r", "&7Rodyti kitas paskirties vietas.", "&eKairysis spustelėjimas"]
-"destination.page" = ["&b&lPuslapis {page}/{pages}&r", "&7{count} paskirties vietų"]
-"destination.empty" = ["&7Nėra paskirties vietų, kurias būtų galima susieti."]
-render_mode = ["&b&lAtvaizdavimo režimas &f&l{mode}&r", "&7Kiek paskirties tūrio projektuoja šis portalas.", "", "&7Režimas: &f{mode}", "", "&8PanOptic atvaizduoja visą paskirties tūrį.", "&8Venticular paslepia geometriją už matomų nepermatomų paviršių.", "", "&8Kairysis: keisti režimą."]
+"destination.sort" = ["&e&lRikiavimas: &f&l{mode}&r", "&7Keisti tikslų tvarką.", "&eKairysis spustelėjimas"]
+"destination.previous_page" = ["&e&lAnkstesnis puslapis&r", "&7Rodyti ankstesnius tikslus.", "&eKairysis spustelėjimas"]
+"destination.next_page" = ["&e&lKitas puslapis&r", "&7Rodyti kitus tikslus.", "&eKairysis spustelėjimas"]
+"destination.page" = ["&b&lPuslapis {page}/{pages}&r", "&7Tikslų: {count}"]
+"destination.empty" = ["&7Nėra tikslų, kuriuos būtų galima susieti."]
+render_mode = ["&b&lAtvaizdavimo režimas &f&l{mode}&r", "&7Kiek tikslo tūrio projektuoja šis portalas.", "", "&7Režimas: &f{mode}", "", "&8PanOptic atvaizduoja visą tikslo tūrį.", "&8Venticular išlaiko matomus paviršius ir praleidžia paslėptą tikslo geometriją.", "", "&8Kairysis: keisti režimą."]
 ambient_particles = ["&b&lAplinkos dalelės&r", "&7Dekoratyvios dulkės, sklandančios aplink šį portalą.", "", "&7Stilius: &f{style} &8({color})", "", "&8Kairys: keisti stilių.", "&8Dešinys: pasirinkti spalvą."]
-aperture_shape = ["&b&lAngos forma&r", "&7Angos kontūras rėmo viduje.", "", "&7Forma: &f{shape}", "&7Atviri langeliai: &f{cells}", "", "&8Kairys: kita forma.", "&8Dešinys: pasukti 45 laipsnius.", "&8Shift + dešinys: atkurti full."]
+aperture_shape = ["&b&lAngos forma&r", "&7Angos kontūras rėmo viduje.", "", "&7Forma: &f{shape}", "&7Atviri langeliai: &f{cells}", "", "&8Kairys: kita forma.", "&8Dešinys: pasukti 45 laipsnius.", "&8Shift + dešinys: atkurti formą full."]
 "aperture_shape.label" = "Angos forma"
 "aperture_shape.too_small" = "&c{shape} šiame rėme nepalieka nė vieno atviro langelio."
 "aperture_shape.invalid" = "&8[&6Wormholes&8] &cNepavyko perskaityti formos: {reason}"
@@ -485,25 +498,25 @@ rtp_destination = ["&6&lAtsitiktinis tikslas&r", "&7Nustatykite, kur ir kada por
 rename = ["&a&lPervadinti portalą&r", "&7Pakeičia jungtyse ir meniu rodomą pavadinimą.", "&7Dabartinis: &f{portal}", "", "&8Spustelėkite, kad įvestumėte naują pavadinimą."]
 delete = ["&c&lIštrinti portalą&r", "&7Visam laikui pašalina šį portalą.", "", "&c&nPatvirtinkite paspausdami Shift + kairįjį pelės mygtuką&r"]
 advanced_settings = ["&3&lIšsamus srauto derinimas&r", "&7Tiesioginiai diagnostikos ir neįprastų jungčių valdikliai.", "&7Pakeitus vieną reikšmę srauto kokybė pažymima kaip pasirinktinė."]
-back_settings = ["&e&lGrįžti prie nustatymų&r", "&7Grįžti prie portalo nustatymų."]
-extensions = ["&b&lDaugiau nustatymų&r", "&7Taisyklės, prieiga, tinklai ir kiti funkcijų nustatymai.", "&eKairysis spustelėjimas"]
+back_settings = ["&e&lGrįžti prie nuostatų&r", "&7Grįžti prie portalo nuostatų."]
+extensions = ["&b&lDaugiau nuostatų&r", "&7Taisyklės, prieiga, tinklai ir kitos funkcijų nuostatos.", "&eKairysis spustelėjimas"]
 stream_quality = ["&b&lSrauto kokybė: {quality}&r", "&7Vienas nuotolinio vaizdo nuotolio ir atnaujinimo dažnio valdiklis.", "", "&7Gylis &b{depth}&7  Esybės &b{entities}t", "&7Atnaujinimas &b{refresh}t&7  Delsa &b{grace}s", "", "&8Spustelėkite: keisti kokybę.", "&8Shift + spustelėjimas: išsamios nuostatos."]
 orientation = ["&9&lOrientacija&r", "&7Kryptis: &9{facing}", "&7Ekrano viršus: &6{up}", "", "&8Spustelėkite, kad nustatytumėte kryptį, apvertimą ir pasukimą."]
 orientation_placard = ["&9&lPortalo orientacija&r", "&7Kryptis: &9{facing}", "&7Ekrano viršus: &6{up}"]
 network_number = ["&b&l{label} &f&l{value}&r", "&7{description}", "", "&7Dabartinė reikšmė: &b{value}", "", "&8Kairysis spustelėjimas: +{step}", "&8Dešinysis spustelėjimas: -{step}", "&8Shift + kairysis spustelėjimas: +{large_step}", "&8Shift + dešinysis spustelėjimas: -{large_step}"]
-fallback_block = ["&b&lAtsarginis blokas&r", "&7Blokas, rodomas už srauto gylio.", "", "&7Dabartinis: &f{block}", "", "&8Kairysis paspaudimas: įveskite bloko būseną.", "&8Dešinysis paspaudimas: atkurkite orą."]
-blackout = ["&b&lNeperšviečiamas fonas&r", "&7Užsandarina tolimąją ir šonines projekcijos ribas kietu betonu, kad vietinis pasaulis niekada nepersišviestų.", "", "&7Dabartinis: &f{state} &8({color})", "", "&8Kairysis paspaudimas: įjungti/išjungti.", "&8Dešinysis paspaudimas: pasirinkite spalvą."]
-activation_range = ["&b&lAktyvavimo atstumas &f&l{value}&r", "&7Atstumas blokais, kuriuo šis portalas pradeda projekciją netoliese esantiems žaidėjams.", "", "&7Dabartinė reikšmė: &b{value}", "", "&8Kairysis spustelėjimas: +{step}", "&8Dešinysis spustelėjimas: -{step}", "&8Shift + kairysis spustelėjimas: +{large_step}", "&8Shift + dešinysis spustelėjimas: -{large_step}", "&8Mažiau nei 8 grąžina į Bendras."]
-settings_placard_gateway = ["&b&lPortalo nuostatos&r", "&7Prieigos ir perdavimo valdikliai.", "&7Taip pat vaizdo tarp serverių derinimas.", "", "&7Didesnis gylis ir trumpesni tickų intervalai =", "&7išsamesnis vaizdas ir didesnis duomenų srautas."]
-mode_placard = ["&e&lPortalo režimas&r", "&7Dabartinis: &e{mode}", "", "&7Portal: paprastas susiejamas portalas.", "&7Wormhole: portalas su projektuojamu vaizdu.", "&7Gateway: tarpserveriniai tinklo vartai.", "&7RTP: konfigūruojami atsitiktiniai tikslai.", "&7Mirror: atspindi šią pusę; keliauti negalima."]
+fallback_block = ["&b&lAtsarginis blokas&r", "&7Blokas, rodomas už srauto gylio.", "", "&7Dabartinis: &f{block}", "", "&8Kairysis spustelėjimas: įvesti bloko būseną.", "&8Dešinysis spustelėjimas: atkurti orą."]
+blackout = ["&b&lNeperšviečiamas fonas&r", "&7Užsandarina tolimąją ir šonines projekcijos ribas kietu betonu, kad vietinis pasaulis niekada nepersišviestų.", "", "&7Dabartinis: &f{state} &8({color})", "", "&8Kairysis spustelėjimas: įjungti/išjungti.", "&8Dešinysis spustelėjimas: pasirinkti spalvą."]
+activation_range = ["&b&lAktyvavimo atstumas &f&l{value}&r", "&7Atstumas blokais, kuriuo šis portalas pradeda projekciją netoliese esantiems žaidėjams.", "", "&7Dabartinė reikšmė: &b{value}", "", "&8Kairysis spustelėjimas: +{step}", "&8Dešinysis spustelėjimas: -{step}", "&8Shift + kairysis spustelėjimas: +{large_step}", "&8Shift + dešinysis spustelėjimas: -{large_step}", "&8Mažesnė nei 8 reikšmė grąžina Bendras."]
+settings_placard_gateway = ["&b&lPortalo nuostatos&r", "&7Prieigos ir perkėlimo valdikliai.", "&7Taip pat projekcijos vaizdo derinimas.", "", "&7Didesnis gylis ir trumpesni tickų intervalai =", "&7išsamesnis vaizdas ir didesnis duomenų srautas."]
+mode_placard = ["&e&lPortalo režimas&r", "&7Dabartinis: &e{mode}", "", "&7Portalas: paprastas susiejamas portalas.", "&7Kirmgrauža: portalas su projektuojamu vaizdu.", "&7Vartai: tarpserveriniai tinklo vartai.", "&7RTP: konfigūruojami atsitiktiniai tikslai.", "&7Veidrodis: atspindi šią pusę; keliauti negalima."]
 mode_opener = ["&e&lRežimas&r", "&7{description}", "", "&7Dabartinis: &e{mode}", "", "&8Spustelėkite, kad pakeistumėte režimą."]
 direction = ["&9&lKryptis&r", "&7Pakeičia portalo kryptį.", "", "&7Dabartinė kryptis: &9{direction}", "", "&8Spustelėkite, pažvelkite norima kryptimi ir pritaikykite kairiuoju spustelėjimu."]
 flip_face = ["&b&lApversti priekinę pusę&r", "&7Apverčia portalo priekinės pusės kryptį.", "&7Ekrano pasukimas lieka sulygiuotas.", "", "&7Dabartinė ekrano viršaus kryptis: &b{up}", "", "&8Spustelėkite, kad apverstumėte."]
 rotate_counterclockwise = ["&6&lSukti prieš laikrodžio rodyklę&r", "&7Pasuka portalo vaizdą 90 laipsnių,", "&7nepakeičiant priekinės pusės.", "", "&7Dabartinė ekrano viršaus kryptis: &6{up}", "", "&8Spustelėkite, kad pasuktumėte."]
 rotate_clockwise = ["&6&lSukti pagal laikrodžio rodyklę&r", "&7Pasuka portalo vaizdą 90 laipsnių,", "&7nepakeičiant priekinės pusės.", "", "&7Dabartinė ekrano viršaus kryptis: &6{up}", "", "&8Spustelėkite, kad pasuktumėte."]
-back = ["&e&lAtgal&r", "&7Grįžti į portalų meniu."]
-settings_gateway = ["&b&lNuostatos&r", "&7Leidimai, perdavimai", "&7ir vaizdo tarp serverių derinimas.", "", "&7Prieiga: &6{access}", "&7Siuntimas &b{send}&7  Gavimas &b{receive}", "&7Gylis &b{depth}&7  Esybės &b{entity}t", "", "&8Spustelėkite, kad atvertumėte nuostatas."]
-settings_sync = ["&b&lNuostatų sinchronizavimas {state}&r", "&7Kai įjungta, šio portalo nuostatos", "&7(gylis, tickai, projekcija, leidimai ir", "&7perdavimai) sinchronizuojamos su visais susietais portalais.", "", "&7Dabartinė būsena: &b{state}", "", "&8Spustelėkite, kad perjungtumėte."]
+back = ["&e&lAtgal&r", "&7Grįžti į portalo meniu."]
+settings_gateway = ["&b&lNuostatos&r", "&7Leidimai, perkėlimai", "&7ir projekcijos vaizdo derinimas.", "", "&7Prieiga: &6{access}", "&7Siuntimas &b{send}&7  Gavimas &b{receive}", "&7Gylis &b{depth}&7  Esybės &b{entity}t", "", "&8Spustelėkite, kad atvertumėte nuostatas."]
+settings_sync = ["&b&lNuostatų sinchronizavimas {state}&r", "&7Kai įjungta, šio portalo nuostatos", "&7(gylis, tickai, projekcija, leidimai ir", "&7perkėlimai) sinchronizuojamos su visais susietais serveriais.", "", "&7Dabartinė būsena: &b{state}", "", "&8Spustelėkite, kad perjungtumėte."]
 permission = ["&6&lPrieiga {mode}&r", "&7{description}", "&7Mazgas: &f{node}", "", "&7Dabartinė būsena: &6{mode}", "", "&8Spustelėkite, kad perjungtumėte leidžiamųjų ir blokuojamųjų sąrašų režimus.", "&8Operatoriai visada apeina šį ribojimą."]
 public_look_label = ["&b&lVieša žvilgsnio etiketė: &f&l{state}&r", "&7Rodyti portalo pavadinimą, kai į jį žiūri netoliese esantys žaidėjai.", "&7Išjungus, maršruto etiketė rodoma tik naudojant portalų įrankį.", "", "&eSpustelėkite kairiuoju mygtuku, kad perjungtumėte"]
 
@@ -517,7 +530,7 @@ export = ["&6&lSukurti kvietimą&r", "&7Sukuria pasirašytą tinklo vartų kodą
 import = ["&b&lNaudoti kvietimą&r", "&7Įklijuokite pasirašytą kodą iš kitų tinklo vartų.", "", "&8Spustelėkite, tada įklijuokite kodą pokalbyje."]
 
 [portal.menu.mirror]
-rotation = "&7Vaizdo pasukimas: &b{degrees} laipsniai"
+rotation = "&7Vaizdo pasukimas: &b{degrees}°"
 rotate_clockwise = "&8Dešinysis spustelėjimas: pasukti pagal laikrodžio rodyklę."
 rotate_counterclockwise = "&8Shift + dešinysis spustelėjimas: pasukti prieš laikrodžio rodyklę."
 selected = ["&e&lVeidrodis&r", "&7Atspindi vietinį pasaulį.", "&7Žiūrėdami pro rėmą matysite save.", "&7Veidrodžio režimu keliauti negalima.", "", "&aPasirinkta"]
@@ -525,21 +538,21 @@ available = ["&e&lVeidrodis&r", "&7Atspindi vietinį pasaulį.", "&7Žiūrėdami
 flip = ["&7Sieniniai veidrodžiai apverčiami 180 laipsnių žingsniais,", "&7kad atspindėtos esybės išliktų sulygiuotos.", "&8Dešinysis spustelėjimas: apversti atspindėtą vaizdą."]
 
 [portal.menu.ambient_color]
-placard = ["&6&lAplinkos spalva&r", "&7Aplinkos dulkių dalelių spalva.", "", "&7Dabartinis: &f{color}"]
+placard = ["&6&lAplinkos spalva&r", "&7Aplinkos dulkių dalelių spalva.", "", "&7Dabartinė: &f{color}"]
 channel = ["&b&l{label} &f&l{value}&r", "", "&8Kairysis spustelėjimas: +{step}", "&8Dešinysis spustelėjimas: -{step}", "&8Shift + kairysis spustelėjimas: +{large_step}", "&8Shift + dešinysis spustelėjimas: -{large_step}"]
 option = ["&b&l{color}&r", "", "&8Spustelėkite, kad pasirinktumėte."]
 
 [portal.menu.travel]
 managed = ["&6&lKelionė: {direction}&r", "&7Valdoma dimensijų portalo kelionės kryptis.", "&7{detail}"]
-mirror = ["&c&lKeliavimas: veidrodis užrakintas&r", "&7Veidrodžio režimas skirtas tik vaizdui.", "&7Esybės negali pro jį įeiti ar išeiti."]
-standard = ["&b&lKeliavimas: {mode}&r", "&7Valdo keliavimą per šį portalą.", "", "&7Išeinantis: &b{outgoing}&7  Įeinantis: &b{incoming}", "", "&8Spustelėkite, kad pakeistumėte keliavimo kryptį."]
+mirror = ["&c&lKelionė: užrakinta veidrodžio&r", "&7Veidrodžio režimas skirtas tik vaizdui.", "&7Esybės negali pro jį įeiti ar išeiti."]
+standard = ["&b&lKelionė: {mode}&r", "&7Valdo keliones per šį portalą.", "", "&7Išvykstančios: &b{outgoing}&7  Atvykstančios: &b{incoming}", "", "&8Spustelėkite, kad pakeistumėte kelionės kryptį."]
 
 [portal.menu.blackout_color]
-placard = ["&6&lNeperšviečiama spalva&r", "&7Betono spalva, naudojama užtemdymo apvalkalui.", "", "&7Dabartinis: &f{color}"]
+placard = ["&6&lUžtemdymo spalva&r", "&7Betono spalva, naudojama užtemdymo apvalkalui.", "", "&7Dabartinė: &f{color}"]
 option = ["&b&l{color}&r", "", "&8Spustelėkite, kad pasirinktumėte."]
 
 [portal.menu.placard]
-rtp = ["&6&l{portal}&r", "&7Tipas: &e{type}", "&7Kryptis: &9{facing}", "&7Paskirstymas: &b{allocation}", "&7Keitimas: &b{rotation}", "", "&8Operatoriams leidimų ir draudimų sąrašai netaikomi."]
+rtp = ["&6&l{portal}&r", "&7Tipas: &e{type}", "&7Kryptis: &9{facing}", "&7Paskirstymas: &b{allocation}", "&7Keitimas: &b{rotation}", "", "&8Operatoriai apeina leidžiamųjų ir blokuojamųjų sąrašų ribojimus."]
 linked = ["&6&l{portal}&r", "&7Tipas: &e{type}", "&7Kryptis: &9{facing}", "&7Susieta su: &6{destination}", "", "&8Operatoriai apeina leidžiamųjų ir blokuojamųjų sąrašų ribojimus."]
 unlinked = ["&6&l{portal}&r", "&7Tipas: &e{type}", "&7Kryptis: &9{facing}", "&7Susieta su: &c{none}", "", "&8Operatoriai apeina leidžiamųjų ir blokuojamųjų sąrašų ribojimus."]
 
@@ -551,14 +564,14 @@ mode_vanilla = ["&b&lVanilla daiktas&r", "&7Sunaudoja tiksliai atitinkantį daik
 mode_vault = ["&a&lEkonomika&r", "&7Nuskaito valiutą per ekonomikos teikėją.", "", "&8Spustelėkite, kad įvestumėte sumą."]
 mode_vault_unavailable = ["&c&lEkonomika nepasiekiama&r", "&7Reikalingas ekonomikos teikėjas.", "", "&8Šiam režimui įjunkite ekonomikos teikėją."]
 free_detail = ["&a&lBe kainos&r", "&7Kelionė per šį portalą yra nemokama."]
-secondary_empty = ["&8&lNėra papildomo nustatymo&r"]
+secondary_empty = ["&8&lNėra papildomos nuostatos&r"]
 item = ["&b&l{item}&r", "&7Kelionei reikalingas šis tikslus daiktas.", "&7Pasirinkimo daiktas niekada nesunaudojamas.", "", "&8Kairys: pasirinkite kitą laikomą daiktą.", "&8Dešinys: pašalinkite kainą."]
 quantity = ["&b&lKiekis {quantity}&r", "&7Kiek tiksliai atitinkančių daiktų", "&7sunaudojama per perėjimą.", "", "&8Kairysis spustelėjimas: +1", "&8Dešinysis spustelėjimas: -1", "&8Shift + kairysis spustelėjimas: +8", "&8Shift + dešinysis spustelėjimas: -8", "&8Maksimumas: {maximum}"]
 vault_amount = ["&a&l{amount}&r", "&7Valiuta, nuskaitoma per perėjimą.", "", "&8Kairys: įveskite kitą sumą.", "&8Dešinys: pašalinkite kainą."]
 
 [portal.menu.projection]
 on = ["&6&lProjekcija įjungta&r", "&7Rodo tiesioginį šio portalo vaizdą.", "&7Matomas susieto tikslo arba veidrodžio vaizdas.", "", "&7Dabartinė būsena: &bProjekcija įjungta&r", "", "&8Spustelėkite, kad įjungtumėte arba išjungtumėte."]
-off = ["&8&lProjekcija išjungta&r", "&7Rėmas lieka tuščias.", "&7Nerodomas nei nuotolinis vaizdas, nei veidrodis.", "", "&7Dabartinė būsena: &bProjekcija išjungta&r", "", "&8Spustelėkite, kad įjungtumėte arba išjungtumėte."]
+off = ["&8&lProjekcija išjungta&r", "&7Rėmas lieka tuščias.", "&7Nerodomas nei tikslo vaizdas, nei veidrodis.", "", "&7Dabartinė būsena: &bProjekcija išjungta&r", "", "&8Spustelėkite, kad įjungtumėte arba išjungtumėte."]
 
 [portal.menu.mode_option]
 selected = ["&e&l{mode}&r", "&7{description}", "", "&aŠiuo metu pasirinktas"]
@@ -566,7 +579,7 @@ available = ["&e&l{mode}&r", "&7{description}", "", "&7Spustelėkite, kad pasiri
 
 [portal.prompt]
 invite = "&bĮklijuokite portalo kvietimą pokalbyje (arba '{cancel}'):"
-block_state = "&bĮveskite blokų būseną šio portalo tinklo matymo kraštyje arba '{cancel}':"
+block_state = "&bĮveskite bloko būseną šio portalo tinklo vaizdo kraštui arba '{cancel}':"
 name = "&bĮveskite naują portalo pavadinimą pokalbyje (arba '{cancel}'):"
 cost_item = "&bLaikykite tikslų kainos daiktą pagrindinėje rankoje ir paspauskite Išmesti. Daiktas nepaliks jūsų inventoriaus."
 cost_vault = "&bĮveskite sumą už perėjimą (arba '{cancel}'):"
@@ -581,8 +594,8 @@ editor_title = "RTP: {portal}"
 [portal.rtp.notice]
 setting_rejected = "Nepavyko pritaikyti šios nuostatos: {reason}"
 applied = "Atsitiktinio tikslo nuostatos pritaikytos."
-reset_defaults = "Atsitiktinės teleportacijos nustatymai atkurti į numatytuosius."
-editor_refreshed = "Nuostatos pasikeitė; redaktorius atnaujintas."
+reset_defaults = "Atsitiktinio teleportavimo nuostatos atkurtos į numatytąsias."
+editor_refreshed = "Nuostatos pasikeitė; rengyklė atnaujinta."
 runtime_unavailable = "Atsitiktinio teleportavimo sistema nepasiekiama."
 reroll_failed = "Nepavyko rankiniu būdu parinkti naujo tikslo; žr. serverio žurnalą."
 reroll_preparing = "Ruošiamas naujas atsitiktinis tikslas."
@@ -600,14 +613,14 @@ dimensional_link_managed = "Šis dimensijų portalas išlaiko sugeneruotą jungt
 not_rtp = "Šis portalas nebėra atsitiktinio teleportavimo režime."
 region_unavailable = "Portalo regionas nepasiekiamas; bandykite dar kartą."
 travel_managed = "Kelionės per dimensijų portalus valdomos automatiškai."
-travel_mirror_locked = "Spyglo režimas niekada neleidžia keliauti."
+travel_mirror_locked = "Veidrodžio režimas niekada neleidžia keliauti."
 travel_changed = "Kelionė: {mode}"
 stream_quality_changed = "Srauto kokybė: {quality}"
 network_value_changed = "{label}: {value}"
 fallback_set = "Atsarginis blokas nustatytas į {block}"
 fallback_reset = "Atsarginis blokas atkurtas į {block}"
 managed_mode = "Valdomi dimensijų portalai lieka portalo režime."
-projection_receiver_inactive = "Atvykimas į The End lieka vizualiai neaktyvus."
+projection_receiver_inactive = "Atvykimas į Pabaigą lieka vizualiai neaktyvus."
 projection_changed = "Projekcija: {mode}"
 settings_sync_changed = "Nuostatų sinchronizavimas: {state}"
 access_changed = "Prieiga: {mode}"
@@ -618,18 +631,18 @@ cost_quantity_changed = "Kelionės kainos kiekis: {quantity}"
 cost_vault_changed = "Kelionės kaina: {amount}"
 cost_vault_invalid = "Įveskite teigiamą valiutos sumą, ne didesnę nei {maximum}."
 cost_vault_unavailable = "Prieš pasirenkant šią kainą turi būti pasiekiamas ekonomikos teikėjas."
-mirror_select_first = "Prieš sukdami vaizdą pasirinkite veidrodį."
-mirror_rotation_changed = "Veidrodžio pasukimas: {degrees} laipsniai"
+mirror_select_first = "Prieš sukdami vaizdą pasirinkite Veidrodžio režimą."
+mirror_rotation_changed = "Veidrodžio pasukimas: {degrees}°"
 rtp_cannot_link = "Atsitiktinio teleportavimo portalai nesiejami su tikslais."
 
 [portal.mode]
-changed = "&a{portal} režimas nustatomas į {mode}."
+changed = "&aPortalo {portal} režimas nustatytas į {mode}."
 
 [portal.mode.description]
 portal = "Paprastas susiejamas portalas."
 wormhole = "Susiejamas portalas su projektuojamu vaizdu."
 gateway = "Skirtas jungtims tarp tinklų."
-rtp = "Vietinis atsitiktinio teleporto portalas."
+rtp = "Vietinis atsitiktinio teleportavimo portalas."
 mirror = "Atspindi vietinį pasaulį ir blokuoja keliones."
 
 [portal.permission.description]
@@ -637,7 +650,7 @@ whitelist = "Žaidėjams reikia šio mazgo, kad galėtų naudotis portalu."
 blacklist = "Žaidėjai, turintys šį mazgą, blokuojami."
 
 [portal.direction]
-cancelled = "&8[&6Wormholes&8] &7Atšauktas"
+cancelled = "&8[&6Wormholes&8] &7Atšaukta"
 set = "&8[&6Wormholes&8] &7Kryptis nustatyta"
 
 [portal.setting]
@@ -646,7 +659,7 @@ notification = "&a{portal}: &r{message}"
 [portal.link]
 linked = "&a{portal} susietas su {destination}."
 linked_remote = "&a{portal} susietas su {destination} serveryje {server}."
-unlinked = "&eRyšys tarp {portal} ir {destination} pašalintas."
+unlinked = "&eJungtis tarp {portal} ir {destination} pašalinta."
 
 [portal.orientation]
 face_flipped = "&aPortalo {portal} priekinė pusė apversta į {direction}."
@@ -700,7 +713,7 @@ not_running = "&8[&6Wormholes&8] &cTinklas įjungtas, bet neveikia. Patikrinkite
 listening = "&8[&6Wormholes&8] &7Šis serveris: &f{server}&7, klausosi adresu &f{address}"
 outbound_only = "&8[&6Wormholes&8] &7Šis serveris: &f{server}&7, tik išeinantis Boat režimas"
 public_key = "&8[&6Wormholes&8] &8Viešasis raktas: {fingerprint}"
-no_routes = "&8[&6Wormholes&8] &7Dar nesusieta nė viena partnerių maršruto jungtis."
+no_routes = "&8[&6Wormholes&8] &7Dar nėra susietų partnerių maršrutų."
 peer = "&8[&6Wormholes&8] &f{server}&7 {state} &7{address}{rtt}"
 last_attempt = "&8[&6Wormholes&8] &8  Paskutinis bandymas: {error}"
 
@@ -718,8 +731,8 @@ too_long = "&eŠis kodas per ilgas pokalbiui. Kitame serveryje naudokite /wh ser
 invalid = "&cNetinkamas portalo kodas. Kodai prasideda {prefix}; įklijavus pokalbyje kodas galėjo būti sutrumpintas. Bandykite /wh server import \\<code>. Senesnių papildinio versijų kodus reikia eksportuoti iš naujo."
 same_server = "&cŠis kodas yra iš šio serverio."
 same_identity = "&cŠis kodas nurodo šio serverio tapatybę ({server}). Paleiskite abu serverius iš naujo su atskiromis Wormholes tapatybėmis ir dar kartą eksportuokite kodą iš kito serverio."
-linked = "&a&f{portal}&7 -> &f{destination}&a susieta serveryje &f{server}&a. Portalas atsidarys serveriams prisijungus."
-route_saved = "&aMaršrutas į {server} su viešuoju raktu {fingerprint} išsaugotas. Prisijungus '{portal}' bus rodomas vartų nuorodų meniu."
+linked = "&aSusieta &f{portal}&7 -> &f{destination}&a serveryje &f{server}&a. Portalas atsidarys serveriams prisijungus."
+route_saved = "&aMaršrutas į {server} su viešuoju raktu {fingerprint} išsaugotas. Prisijungus '{portal}' bus rodomas vartų jungčių meniu."
 check_status = "&8Ryšio būseną patikrinkite komanda /wh network status."
 using_address = "&7Šis portalo kodas naudoja {address}; pasirašytas protokolas automatiškai aptiks ir pataisys viešojo adreso pakeitimą."
 
@@ -746,7 +759,7 @@ empty = "&8[&6Wormholes&8] &7Dar nėra susietų serverių. Naudokite &f/wh serve
 entry = "&8[&6Wormholes&8] &f{server}&7 {state} &8{address}"
 
 [door.transit]
-shutdown = "Matmenų durys buvo išjungtos nepabaigus perėjimo."
+shutdown = "Dimensijų durys buvo išjungtos nepabaigus perėjimo."
 message = "&8[&6Wormholes&8] &7{message}"
 link_not_placed = "Susietos Kirmgraužos durys dar nepastatytos."
 link_unavailable = "Susietos Kirmgraužos durys nepasiekiamos arba užblokuotos."
@@ -765,14 +778,14 @@ return_point_obstructed = "Išsaugotas grįžimo taškas užblokuotas."
 return_chunk_failed = "Nepavyko įkelti išsaugoto grįžimo chunko."
 closed = "Dimensijų durys užsidarė dar nebaigus perėjimo."
 cycle_consumed = "Šių durų atidarymo ciklas jau panaudotas. Uždarykite ir vėl atidarykite duris."
-source_missing = "Dimensinių durų nebėra."
+source_missing = "Dimensijų durų nebėra."
 source_close_failed = "Nepavyko saugiai uždaryti pradinių durų."
 source_region_unavailable = "Pradinių durų regionas nepasiekiamas."
 start_failed = "Nepavyko pradėti perėjimo tarp dimensijų."
 cancelled = "Perėjimas tarp dimensijų atšauktas."
 
 [door.craft]
-one_at_a_time = "&8[&6Wormholes&8] &7Dimensijų duris gaminkite po vienas, kad kiekvienos gautų unikalią tapatybę."
+one_at_a_time = "&8[&6Wormholes&8] &7Dimensijų duris gaminkite po vienas, kad kiekvienos durys gautų unikalią tapatybę."
 
 [door.pair]
 unpack_failed = "&8[&6Wormholes&8] &7Nepavyko išskirti durų poros; rinkinys nesunaudotas."
@@ -790,11 +803,11 @@ exit_anchored = "&8[&6Wormholes&8] &7Dimensijų išėjimas pritvirtintas prie š
 support = "&8[&6Wormholes&8] &7Prieš pašalindami atraminį bloką sunaikinkite dimensijų duris."
 
 [door.disable]
-warning = "&8[&6Wormholes&8] &7Matmenų durys išjungiamos. Dabar išeikite pro kišeninio matmens grįžimo duris."
+warning = "&8[&6Wormholes&8] &7Dimensijų durys išjungiamos. Dabar išeikite pro kišeninės dimensijos grįžimo duris."
 
 [door.rescue]
 cancelled = "&8[&6Wormholes&8] &7Avarinė evakuacija atšaukta; maršrutas išsaugotas."
-failed = "&8[&6Wormholes&8] &7{route} {fallback} Jūs liekate apsaugoti su viena širdele."
+failed = "&8[&6Wormholes&8] &7{route} {fallback} Liekate apsaugoti su viena širdele."
 
 [door.rescue.reason]
 no_route = "Kišeninei dimensijai neišsaugotas grįžimo maršrutas."
@@ -804,7 +817,7 @@ return_chunk_failed = "Nepavyko įkelti išsaugoto grįžimo chunko."
 start_failed = "Nepavyko pradėti avarinės evakuacijos."
 
 [door.rescue.fallback]
-no_world = "Neįkeltas joks atsarginis pasaulis, kuris nėra kišeninis matmuo."
+no_world = "Neįkeltas joks atsarginis pasaulis už kišeninės dimensijos ribų."
 obstructed = "Atsarginė atsiradimo vieta užblokuota."
 chunk_failed = "Atsarginės atsiradimo vietos nepavyko įkelti."
 schedule_failed = "Nepavyko suplanuoti atsarginio perkėlimo."
@@ -841,7 +854,7 @@ closed = "Uždaryta"
 
 [door.menu.access]
 title = "Durų prieiga: {kind}"
-placard = ["&6&l{kind} Dimensijų Durys&r", "&7Savininkas: &f{owner}", "&7Leidžiamųjų sąraše: &a{whitelisted}", "&7Blokuojamųjų sąraše: &c{blacklisted}", "&7Sąraše žaidėjų: &b{count}", "&8Šias duris redaguoja tik savininkai ir administratoriai."]
+placard = ["&6&l{kind} Dimensijų Durys&r", "&7Savininkas: &f{owner}", "&7Leidžiamųjų sąraše: &a{whitelisted}", "&7Blokuojamųjų sąraše: &c{blacklisted}", "&7Žaidėjų sąraše: &b{count}", "&8Šias duris redaguoja savininkai ir administratoriai."]
 add_player = ["&a&lPridėti žaidėją&r", "&7Įrašykite žaidėjo vardą pokalbyje, kad įtrauktumėte jį į sąrašą.", "", "&8Spustelėkite, kad pridėtumėte žaidėją."]
 open_state = ["&b&lOpenState: &f&l{state}", "&7Portalas seka šio bloko fizinę būseną.", "&7Aktyvi būsena: &f{state}&7.", "", "&8Toliau: {next}. Spustelėkite, kad pakeistumėte."]
 entry = ["&f{name}", "&7Būsena: &b{state}", "", "&8Kairysis spustelėjimas: leisti. Dešinysis: blokuoti.", "&8Vidurinis spustelėjimas arba Shift + kairysis: pašalinti."]
@@ -850,13 +863,13 @@ entry = ["&f{name}", "&7Būsena: &b{state}", "", "&8Kairysis spustelėjimas: lei
 corner_a = "&bNustatytas A kampas. Dešiniuoju mygtuku spustelėkite priešingą kampą."
 corner_b = "&bNustatytas B kampas. Kairiuoju mygtuku spustelėkite priešingą kampą."
 not_flat = "&cPasirinkimas turi būti vieno bloko storio. Dar kartą spustelėkite kampą, kad jį išlygintumėte."
-too_large = "&cPasirinkimas per didelis: {count} blokai (daugiausia {maximum})."
+too_large = "&cPasirinkimas per didelis (blokų: {count}, daugiausia {maximum})."
 opening = "&bAtveriamas portalas..."
 open_failed = "&cČia portalo atverti nepavyko."
 
 [wand.selection.selected]
 one = "&bPasirinktas {count} blokas. Kairiuoju mygtuku spustelėkite stiklo plokštę, kad atvertumėte portalą."
-other = "&bPasirinkti {count} blokai. Kairiuoju mygtuku spustelėkite stiklo plokštę, kad atvertumėte portalą."
+other = "&bPasirinkta blokų: {count}. Kairiuoju mygtuku spustelėkite stiklo plokštę, kad atvertumėte portalą."
 
 [label]
 none = "Nėra"
@@ -880,8 +893,8 @@ timed_selected = ["&a&lKeičiamas pagal laiką&r", "&7Pakeičia tikslą po nusta
 timed_available = ["&b&lKeičiamas pagal laiką&r", "&7Pakeičia tikslą po nustatytos trukmės.", "&eSpustelėkite kairiuoju, kad pasirinktumėte"]
 trip_selected = ["&a&lPo kiekvienos kelionės&r", "&7Po naudojimo įjungia paruoštą pakaitinį tikslą.", "&aPasirinkta"]
 trip_available = ["&b&lPo kiekvienos kelionės&r", "&7Po naudojimo įjungia paruoštą pakaitinį tikslą.", "&eSpustelėkite kairiuoju, kad pasirinktumėte"]
-manual_reroll = ["&e&lParinkti naują tikslą&r", "&7{description}", "&eKairysis paspaudimas"]
-rebuild_pool = ["&e&lAtkurti tikslų rezervą&r", "&7{description}", "&eKairysis paspaudimas"]
+manual_reroll = ["&e&lParinkti naują tikslą&r", "&7{description}", "&eKairysis spustelėjimas"]
+rebuild_pool = ["&e&lAtkurti tikslų rezervą&r", "&7{description}", "&eKairysis spustelėjimas"]
 
 [rtp.status]
 ready = "Paruošta"
@@ -902,8 +915,8 @@ access_failed = "&cTikslo prieigos patikra nepavyko ir prieiga buvo atmesta."
 header = ["&6&lAtsitiktinio tikslo būsena&r", "&7Būsena: {state}"]
 
 [rtp.rotation]
-static = "Statinis"
-timed = "Laikmatis"
+static = "Pastovus"
+timed = "Keičiamas pagal laiką"
 trip = "Po kiekvienos kelionės"
 
 [rtp.numeric]
@@ -917,11 +930,11 @@ preferred_y = "Pageidaujamas Y"
 cycle = "Ciklo trukmė"
 private_rotation = "Asmeninio keitimo laikas"
 lease = "Neaktyvios rezervacijos delsos laikas"
-release = "Asmeninio rezervo atlaisvinimas"
+release = "Asmeninės rezervacijos atlaisvinimas"
 link = ["&e&l{label} &f&l{value}&r", "&7Atveria aiškius mažinimo ir didinimo valdiklius.", "&eKairysis spustelėjimas"]
 target_unavailable = ["&b&lTikslo pasaulis nepasiekiamas&r", "&7Prieš redaguodami šią reikšmę įkelkite tikslo pasaulį."]
 value = ["&b&l{value}&r", "&7Dabartinė juodraščio reikšmė."]
-adjust = ["&e&l{direction}{step}&r", "&7Pakeisti juodraštį dydžiu {direction}{step}.", "&eKairysis paspaudimas"]
+adjust = ["&e&l{direction}{step}&r", "&7Pakeisti juodraštį dydžiu {direction}{step}.", "&eKairysis spustelėjimas"]
 header = ["&b&l{label}&r", "&7{description}"]
 
 [rtp.numeric.description]
@@ -931,8 +944,8 @@ maximum_radius = "Išorinis tikslo žiedo kraštas."
 y = "Tinkamo stovėjimo aukščio paieškos riba."
 cycle = "Laikas tarp bendrų suplanuotų tikslo pakeitimų."
 private_rotation = "Didžiausias kiekvieno žaidėjo paruošto tikslo amžius."
-lease = "Trumpai išlaikykite paruoštas paskirties vietas aktyvias, kai visi išeina."
-release = "Delsa prieš atlaisvinant nenaudojamą asmeninį rezervą."
+lease = "Trumpai išlaiko paruoštus tikslus aktyvius, kai visi išeina."
+release = "Delsa prieš atlaisvinant nenaudojamą asmeninę rezervaciją."
 
 [rtp.duration]
 hours = "{value}h"
@@ -953,21 +966,21 @@ previous = ["&e&lAnkstesni biomai&r", "&7Rodyti ankstesnį puslapį.", "&eKairys
 next = ["&e&lKiti biomai&r", "&7Rodyti kitą puslapį.", "&eKairysis spustelėjimas"]
 
 [rtp.overview]
-destination = ["&e&lTikslas & Sritis&r", "&7Pasaulis, centras ir spindulys.", "&eKairysis paspaudimas"]
-landing = ["&e&lNusileidimo taisyklės&r", "&7Paviršiaus ir aukščio veikimas.", "&eKairysis paspaudimas"]
-routing = ["&e&lKeitimas & Tikslų rezervas&r", "&7Bendrinimas, tikslų keitimas ir rezervavimo trukmė.", "&eKairysis paspaudimas"]
-effects = ["&e&lEfektai&r", "&7Parengties kraštas įjungtas / Portalo garsai įjungti.", "&eKairysis paspaudimas"]
-reset_defaults = ["&e&lAtkurti numatytuosius&r", "&7Nedelsiant atkuria šio portalo atsitiktinės teleportacijos nustatymus į numatytuosius.", "&eKairysis spustelėjimas"]
+destination = ["&e&lTikslas & Sritis&r", "&7Pasaulis, centras ir spindulys.", "&eKairysis spustelėjimas"]
+landing = ["&e&lNusileidimo taisyklės&r", "&7Paviršiaus ir aukščio veikimas.", "&eKairysis spustelėjimas"]
+routing = ["&e&lKeitimas & Tikslų rezervas&r", "&7Bendrinimas, tikslų keitimas ir rezervavimo trukmė.", "&eKairysis spustelėjimas"]
+effects = ["&e&lEfektai&r", "&7Projekcijos kraštas ir portalo garsas.", "&eKairysis spustelėjimas"]
+reset_defaults = ["&e&lAtkurti numatytuosius&r", "&7Nedelsiant atkuria šio portalo atsitiktinio teleportavimo nuostatas į numatytąsias.", "&eKairysis spustelėjimas"]
 
 [rtp.navigation]
-back_portal = ["&e&lGrįžti į portalą&r", "&7Grįžti į portalų meniu.", "&eKairysis spustelėjimas"]
+back_portal = ["&e&lGrįžti į portalą&r", "&7Grįžti į portalo meniu.", "&eKairysis spustelėjimas"]
 overview = ["&e&lApžvalga&r", "&7Grįžti į RTP apžvalgą.", "&eKairysis spustelėjimas"]
 back_category = ["&e&lAtgal&r", "&7Grįžti į ankstesnę kategoriją.", "&eKairysis spustelėjimas"]
 
 [rtp.destination]
-header = ["&b&lTikslas & Sritis&r", "&7Spustelėkite kairiuoju, kad pasirinktumėte"]
+header = ["&b&lTikslas & Sritis&r", "&7Kiekviena parinktis pasirenkama įprastu kairiuoju spustelėjimu."]
 world_current = ["&a&l{world}&r", "&7Dabartinis tikslo pasaulis.", "&aPasirinkta"]
-world_available = ["&b&l{world}&r", "&7Naudoti šį įkeltą pasaulį.", "&eKairysis spustelėjimas"]
+world_available = ["&b&l{world}&r", "&7Naudoti šį įkeltą pasaulį.", "&eSpustelėkite kairiuoju, kad pasirinktumėte"]
 previous_worlds = ["&e&lAnkstesni pasauliai&r", "&7Rodyti ankstesnį puslapį.", "&eKairysis spustelėjimas"]
 next_worlds = ["&e&lKiti pasauliai&r", "&7Rodyti kitą puslapį.", "&eKairysis spustelėjimas"]
 biome_link = ["&e&lTikslinis biomas &f&l{value}&r", "&7Pirmenybė nusileidimui pasirinktame biome.", "&eKairysis spustelėjimas"]
@@ -999,8 +1012,8 @@ sound_off_available = ["&b&lPortalo garsai išjungti&r", "&7Nutildo šį RTP por
 [rtp.confirm]
 reroll = ["&b&lParinkti naują bendrą maršrutą?&r", "&7Dabartinė projekcija lieka aktyvi, kol paruošiamas naujas tikslas."]
 rebuild = ["&b&lAtkurti asmeninį tikslų rezervą?&r", "&7Esamos rezervacijos išlieka, kol atkuriami laisvi tikslai."]
-confirm = ["&e&lPatvirtinti&r", "&7Vykdyti veiksmą dabar.", "&eKairysis paspaudimas"]
-cancel = ["&e&lAtšaukti&r", "&7Grįžti nekeičiant vykdymo būsenos.", "&eKairysis paspaudimas"]
+confirm = ["&e&lPatvirtinti&r", "&7Vykdyti veiksmą dabar.", "&eKairysis spustelėjimas"]
+cancel = ["&e&lAtšaukti&r", "&7Grįžti nekeičiant vykdymo būsenos.", "&eKairysis spustelėjimas"]
 
 [item]
 portal_wand = ["&6&lPortalo Lazdelė&r"]
@@ -1038,14 +1051,14 @@ cooldown = ["&6Atvėsimas: {seconds}s", "&7Kairysis ir dešinysis spustelėjimas
 warmup = ["&6Pasiruošimas: {seconds}s", "&7Kairysis ir dešinysis spustelėjimas keičia, Shift 10s žingsniais."]
 group = ["&6Atvėsimo grupė: {value}", "&7Spustelėkite, kad įvestumėte grupės pavadinimą."]
 pushback = ["&6Atstūmimas: {value}", "&7Kairysis ir dešinysis spustelėjimas keičia reikšmę."]
-sound = ["&6Atmetimo garsas: {value}", "&7Kairysis ir dešinysis spustelėjimas keičia reikšmę."]
+sound = ["&6Atmetimo garsumas: {value}", "&7Kairysis ir dešinysis spustelėjimas keičia reikšmę."]
 charges = ["&6Įkrovos: {count}", "&7Kairysis ir dešinysis spustelėjimas keičia talpą."]
 default_outcome = ["&6Numatytasis: {mode}", "&7Spustelėkite, kad perjungtumėte leisti ir drausti."]
 rules = ["&6Taisyklės ({count})", "&7Spustelėkite, kad atidarytumėte taisyklių sąrašą."]
 rule = ["&6{name}", "&7{value} &8- Shift spustelėjimas pašalina taisyklę."]
 add_rule = ["&aPridėti taisyklę", "&7Spustelėkite, kad įvestumėte taisyklės id."]
 line = ["&f{value}", "&7Shift spustelėjimas pašalina šią eilutę."]
-add_line = ["&aPridėti eilutę", "&7Spustelėkite ir įveskite kind=PERMISSION;node=grupe.vip."]
+add_line = ["&aPridėti eilutę", "&7Spustelėkite ir įveskite kind=PERMISSION;node=group.vip."]
 templates = ["&6Šablonai", "&7Spustelėkite, kad pritaikytumėte išsaugotą šabloną."]
 template = ["&f{name}", "&7Spustelėkite, kad pritaikytumėte šį šabloną."]
 back = ["&7Atgal", "&8Į ankstesnį puslapį."]
@@ -1062,7 +1075,7 @@ default = "Šis portalas jus atmetė."
 entity_class = "Šiuo portalu gali naudotis tik {mode}."
 key = "Jums reikia {portal} rakto."
 time = "{portal} šiuo metu uždarytas."
-cooldown = "Palaukite {seconds}s, kol vėl naudosite {portal}."
+cooldown = "Palaukite {seconds}s, prieš vėl naudodami {portal}."
 charges = "{portal} nebeturi įkrovų."
 cost = "Negalite sumokėti {amount}, kad naudotumėte {portal}."
 
@@ -1075,50 +1088,50 @@ applied = "Šablonas {name} pritaikytas."
 [rules.prompt]
 group = "&bĮveskite atvėsimo grupės pavadinimą (arba \"{cancel}\"):"
 rule_id = "&bĮveskite naujos taisyklės id (arba \"{cancel}\"):"
-line = "&bĮveskite taisyklės eilutę, pvz. kind=PERMISSION;node=grupe.vip (arba \"{cancel}\"):"
+line = "&bĮveskite taisyklės eilutę, pvz. kind=PERMISSION;node=group.vip (arba \"{cancel}\"):"
 
 [rules.warmup]
 countdown = "Stovėkite ramiai: {seconds}s"
 cancelled = "Pasiruošimas atšauktas."
 
 [rules.command]
-exported = "{portal} taisykles irasytos i sablona {name}."
-imported = "Sablonas {name} pritaikytas portalui {portal}."
-templates = "Taisykliu sablonai: {value}"
-no_templates = "Neissaugota jokiu taisykliu sablonu."
-template_missing = "Nera taisykliu sablono pavadinimu {name}."
-template_invalid = "Sablonas {name} netinkamas: {reason}"
-portal_missing = "Nera portalo pavadinimu {name}."
-portal_ambiguous = "{count} portalai vadinasi {name}; pervadinkite viena."
-not_in_portal = "Atsistokite portale arba nurodykite ji parinktimi portal."
-key_given = "Gavote {portal} rakta."
-failed = "Nepavyko uzbaigti: {reason}"
+exported = "{portal} taisyklės įrašytos į šabloną {name}."
+imported = "Šablonas {name} pritaikytas portalui {portal}."
+templates = "Taisyklių šablonai: {value}"
+no_templates = "Neišsaugota jokių taisyklių šablonų."
+template_missing = "Nėra taisyklių šablono pavadinimu {name}."
+template_invalid = "Šablonas {name} netinkamas: {reason}"
+portal_missing = "Nėra portalo pavadinimu {name}."
+portal_ambiguous = "Pavadinimą {name} turi keli portalai ({count}); pervadinkite vieną."
+not_in_portal = "Atsistokite portale arba nurodykite jį parinktimi portal."
+key_given = "Gavote {portal} raktą."
+failed = "Nepavyko užbaigti: {reason}"
 
 [rules.command.help]
 rules = "Perėjimo taisyklės: šablonai, raktai ir portalų profiliai"
-export = "Irasyti portalo taisykles i sablono faila"
-"export.name" = "Irasomo sablono pavadinimas"
+export = "Įrašyti portalo taisykles į šablono failą"
+"export.name" = "Įrašomo šablono pavadinimas"
 "export.portal" = "Portalo pavadinimas arba portalas, kuriame stovite"
-import = "Pritaikyti sablona portalui, kuriame stovite"
-"import.name" = "Skaitomo sablono pavadinimas"
+import = "Pritaikyti šabloną portalui, kuriame stovite"
+"import.name" = "Skaitomo šablono pavadinimas"
 "import.portal" = "Portalo pavadinimas arba portalas, kuriame stovite"
-apply = "Pritaikyti sablona ivardytam portalui is bet kur"
-"apply.name" = "Skaitomo sablono pavadinimas"
-"apply.portal" = "Portalo, kuriam taikomas sablonas, pavadinimas"
-list = "Isvardyti issaugotus taisykliu sablonus"
-key = "Duoti sau portalo rakta"
+apply = "Pritaikyti šabloną nurodytam portalui iš bet kur"
+"apply.name" = "Skaitomo šablono pavadinimas"
+"apply.portal" = "Portalo, kuriam taikomas šablonas, pavadinimas"
+list = "Išvardyti išsaugotus taisyklių šablonus"
+key = "Duoti sau portalo raktą"
 "key.portal" = "Portalo, kuriam kuriamas raktas, pavadinimas"
-"key.uses" = "Kiek perejimu leidzia raktas, 0 neribotai"
+"key.uses" = "Kiek perėjimų leidžia raktas; 0 – neribotai"
 # ---- end lane:rules ----
 
 # ---- lane:access (access.*) ----
 [access.denied]
 role = "&cJums neleidžiama naudotis {portal}."
 claim = "&cŽemės valda blokuoja {portal}."
-limit = "&cJau turite {count} vartų; riba yra {maximum}."
+limit = "&cJau turite portalų: {count}; riba yra {maximum}."
 
 [access.construct]
-denied = "&cČia negalite statyti vartų: {reason}."
+denied = "&cČia negalite statyti portalo: {reason}."
 
 [access.claim]
 reason = "{plugin} saugo šią žemę"
@@ -1136,12 +1149,12 @@ invalid = "&cTeisių raktuose naudojami a-z, 0-9, taškas, brūkšnys ir pabrauk
 not_found = "&cNėra žaidėjo vardu {name}."
 
 [access.portal]
-not_found = "&8[&6Wormholes&8] &cNėra vartų pavadinimu {portal}."
-ambiguous = "&8[&6Wormholes&8] &c{count} vartai atitinka {portal}; naudokite vartų ID."
+not_found = "&8[&6Wormholes&8] &cNėra portalo pavadinimu {portal}."
+ambiguous = "&8[&6Wormholes&8] &c{portal} atitinka kelis portalus ({count}); naudokite portalo ID."
 
 [access.role]
-changed = "&a{name} dabar yra {state} vartuose {portal}."
-removed = "&a{name} nebeturi vaidmens vartuose {portal}."
+changed = "&a{name} dabar yra {state} portale {portal}."
+removed = "&a{name} nebeturi vaidmens portale {portal}."
 owner_always = "&7Savininkas visada turi visišką prieigą."
 
 [access.listed]
@@ -1152,8 +1165,8 @@ added = "&a{portal} dabar suteikia prieigą pagal {node}."
 cleared = "&a{portal} nebesuteikia prieigos pagal grupes."
 
 [access.limits]
-report = "&8[&6Wormholes&8] &7{name} turi {count} vartų; riba yra {maximum}."
-unlimited = "&8[&6Wormholes&8] &7{name} turi {count} vartų ir neturi ribos."
+report = "&8[&6Wormholes&8] &7{name} turi portalų: {count}; riba yra {maximum}."
+unlimited = "&8[&6Wormholes&8] &7{name} turi portalų: {count}; ribos nėra."
 
 [access.prompt]
 player = "&7Parašykite žaidėjo vardą pokalbyje arba {cancel}, kad nutrauktumėte."
@@ -1173,19 +1186,19 @@ entry = ["&b&lPrieiga&r", "&7Vaidmenys, grupės ir teisių raktas."]
 placard = ["&b&lPrieiga: {portal}&r", "&7Savininkas: &f{owner}", "&7Vaidmenys: &f{count}", "&7Raktas: &f{key}"]
 add = ["&a&lPridėti žaidėją&r", "&7Parašykite vardą pokalbyje, kad suteiktumėte vaidmenį."]
 role = ["&f&l{name}&r", "&7Vaidmuo: &f{state}", "&7Kairysis arba dešinysis spustelėjimas keičia vaidmenį.", "&7Shift + kairysis spustelėjimas jį pašalina."]
-groups = ["&e&lLeidžiamos grupės&r", "&7{count} teisių mazgai suteikia prieigą.", "&7Kairysis spustelėjimas prideda, dešinysis išvalo."]
+groups = ["&e&lLeidžiamos grupės&r", "&7Prieigą suteikiančių teisių mazgų: {count}.", "&7Kairysis spustelėjimas prideda, dešinysis išvalo."]
 key = ["&b&lTeisių raktas&r", "&7{key}", "&7Kairysis spustelėjimas jį pakeičia."]
 listed = ["&b&lViešas katalogas&r", "&7{state}", "&7Kairysis spustelėjimas perjungia."]
 
 [access.command.help]
-access = "Vartų prieigos sąrašai, nuosavybė ir ribos"
-transfer = "Atiduoti vartus kitam žaidėjui"
-"transfer.portal" = "Vartų pavadinimas arba ID"
+access = "Portalų prieigos sąrašai, nuosavybė ir ribos"
+transfer = "Atiduoti portalą kitam žaidėjui"
+"transfer.portal" = "Portalo pavadinimas arba ID"
 "transfer.player" = "Naujo savininko vardas"
-key = "Nustatyti pastovų vartų teisių raktą"
-"key.portal" = "Vartų pavadinimas arba ID"
+key = "Nustatyti pastovų portalo teisių raktą"
+"key.portal" = "Portalo pavadinimas arba ID"
 "key.key" = "Naujas teisių raktas"
-limits = "Parodyti, kiek vartų žaidėjas turi ir gali turėti"
+limits = "Parodyti, kiek portalų žaidėjas turi ir gali turėti"
 "limits.player" = "Tikrinamas žaidėjas; numatytasis esate jūs"
 # ---- end lane:access ----
 
@@ -1194,8 +1207,8 @@ limits = "Parodyti, kiek vartų žaidėjas turi ir gali turėti"
 dialed = "&8[&6Wormholes&8] &a{portal} surinko {address}: &f{destination}"
 created = "&8[&6Wormholes&8] &aTinklas {name} sukurtas."
 deleted = "&8[&6Wormholes&8] &aTinklas {name} ištrintas."
-joined = "&8[&6Wormholes&8] &a{portal} prisijungė prie {name} adresu {address}."
-left = "&8[&6Wormholes&8] &a{portal} paliko {name}."
+joined = "&8[&6Wormholes&8] &a{portal} prisijungė prie tinklo {name} adresu {address}."
+left = "&8[&6Wormholes&8] &a{portal} paliko tinklą {name}."
 
 [nexus.dial]
 unknown = "&8[&6Wormholes&8] &cAdresu {address} portalo nėra."
@@ -1211,8 +1224,8 @@ invalid = "&8[&6Wormholes&8] &cAdresuose naudojami tik šie simboliai: {value}"
 [nexus.network]
 unknown = "&8[&6Wormholes&8] &cTinklo pavadinimu {name} nėra."
 exists = "&8[&6Wormholes&8] &cTinklas pavadinimu {name} jau yra."
-full = "&8[&6Wormholes&8] &cTinkle {name} jau yra {count} portalų."
-limit = "&8[&6Wormholes&8] &cJau turite {count} tinklų."
+full = "&8[&6Wormholes&8] &cTinklas {name} pilnas (portalų: {count})."
+limit = "&8[&6Wormholes&8] &cJau turite tinklų: {count}."
 
 [nexus.portal]
 unknown = "&8[&6Wormholes&8] &cPortalo pavadinimu {portal} nėra."
@@ -1226,26 +1239,25 @@ set = "&8[&6Wormholes&8] &a{portal} yra tinklo {name} centras."
 
 [nexus.list]
 empty = "&8[&6Wormholes&8] &7Tinklų dar nėra."
-entry = "&7{name} &8- &f{count} portalų&7, {value}, savininkas &f{owner}"
+entry = "&7{name} &8- &fportalų: {count}&7, {value}, savininkas &f{owner}"
 
 [nexus.info]
-header = "&6{name} &8- &f{count} portalų&7, {value}, {mode}"
+header = "&6{name} &8- &fportalų: {count}&7, {value}, {mode}"
 member = "&e{address} &f{portal} &7pasaulyje {world} &8{state}"
 
 [nexus.doctor]
-header = "&8[&6Wormholes&8] &6Nuorodų patikra: {count} radinių."
-clean = "&8[&6Wormholes&8] &aNuorodų problemų nerasta."
-oneway = "&e{portal} -> {destination} neturi grįžtamosios nuorodos."
-dangling = "&c{portal} rodo į dingusią paskirtį."
+header = "&8[&6Wormholes&8] &6Jungčių patikra, radinių: {count}."
+clean = "&8[&6Wormholes&8] &aJungčių problemų nerasta."
+oneway = "&e{portal} -> {destination} neturi grįžtamosios jungties."
+dangling = "&c{portal} rodo į dingusį tikslą."
 unloaded = "&e{portal} rodo į neįkeltą pasaulį {world}."
-offline = "&c{portal} rodo į {server}, neprisijungusį {count} dienų."
+offline = "&c{portal} rodo į {server}, kuris neprisijungęs (dienų: {count})."
 
 [nexus.redstone]
 set = "&8[&6Wormholes&8] &a{portal} raudonakmenis: {value}."
 
 [nexus.reciprocal]
 paired = "&8[&6Wormholes&8] &a{portal} ir {destination} dabar susieti abiem kryptimis."
-unpaired = "&8[&6Wormholes&8] &a{portal} ir {destination} nebesusieti atgal."
 denied = "&8[&6Wormholes&8] &cNegalite valdyti ir {portal}, ir {destination}."
 
 [nexus.prompt]
@@ -1253,7 +1265,7 @@ network_name = "&bĮrašykite tinklo pavadinimą pokalbyje (arba '{cancel}'):"
 address = "&bĮrašykite naują adresą pokalbyje (arba '{cancel}'):"
 
 [nexus.menu]
-entry = ["&b&lTinklas&r", "&7Tinklai, adresai, rinkimas, paskirties taisyklės, raudonakmenis.", "&7Tinklas: &f{name}", "&7Adresas: &f{address}", "&eKairysis spustelėjimas"]
+entry = ["&b&lTinklas&r", "&7Tinklai, adresai, rinkimas, tikslų politika, raudonakmenis.", "&7Tinklas: &f{name}", "&7Adresas: &f{address}", "&eKairysis spustelėjimas"]
 placard = ["&b&lTinklas: {name}&r", "&7Adresas: &f{address}", "&7Nariai: &f{count}"]
 join = ["&a&lPrisijungti prie tinklo&r", "&7Įtraukite šį portalą į tinklą ir suteikite jam adresą.", "&eKairysis spustelėjimas"]
 leave = ["&c&lPalikti {name}&r", "&7Pašalinkite šį portalą ir jo adresą iš tinklo.", "&eKairysis spustelėjimas"]
@@ -1261,26 +1273,26 @@ create = ["&a&lSukurti tinklą&r", "&7Pavadinkite naują tinklą ir įdėkite į
 address = ["&e&lAdresas: {address}&r", "&7Trumpas kodas, kurį kiti portalai renka, kad pasiektų šį.", "&eKairysis spustelėjimas perrašo. &eDešinysis parenka iš naujo."]
 visibility = ["&e&lMatomumas: {value}&r", "&7Vieši tinklai matomi visiems, narių tinklai nariams, paslėpti niekam.", "&eKairysis spustelėjimas keičia"]
 topology = ["&e&lTopologija: {value}&r", "&7Tinklelis renka bet kurį narį, centras nukreipia per vieną portalą, grandinė ir žiedas renka kaimynus.", "&eKairysis spustelėjimas keičia"]
-reciprocal = ["&e&lGrįžtamoji nuoroda: {state}&r", "&7Paskirtis ir toliau rodo atgal į šį portalą.", "&eKairysis spustelėjimas perjungia"]
-policy = ["&e&lPaskirtys: {mode}&r", "&7{count} įrašų. Iš eilės, pagal svorį, pagal tvarkaraštį, pagal žaidėją arba grįžimas.", "&eKairysis keičia režimą. &eDešinysis išvalo."]
+reciprocal = ["&e&lGrįžtamoji jungtis: {state}&r", "&7Tikslas ir toliau rodo atgal į šį portalą.", "&eKairysis spustelėjimas perjungia"]
+policy = ["&e&lTikslai: {mode}&r", "&7Įrašų: {count}. Iš eilės, pagal svorį, pagal tvarkaraštį, pagal žaidėją arba grįžimas.", "&eKairysis keičia režimą. &eDešinysis išvalo."]
 redstone = ["&e&lRaudonakmenis: {value}&r", "&7Ką daro kylantis signalas prie rėmo ir ką nuskaito lygintuvas.", "&eKairysis parenka veiksmą. &eDešinysis lygintuvo išvestį."]
 dial = ["&b&lRinkti&r", "&7Nukreipkite šį portalą į kitą savo tinklo adresą.", "&eKairysis spustelėjimas"]
 dial_entry = ["&e{address} &f{portal}", "&7{world}", "&b{state}"]
 link_and_return = ["&d&lSusieti ir grąžinti&r", "&7Taip pat nukreipkite {destination} atgal į {portal}.", "&eKairysis spustelėjimas"]
 
 [atlas]
-title = "&8Atlasas &7- &f{count} portalų"
+title = "&8Atlasas &7- &fportalų: {count}"
 row = "&f{portal} &8| &7{destination} &8| &b{state}"
 empty = "&8[&6Wormholes&8] &7Portalų dar neaptikta."
 disabled = "&8[&6Wormholes&8] &cAtlasas šiame serveryje išjungtas."
 only_players = "&8[&6Wormholes&8] &cAtlasą turi tik žaidėjai."
-no_permission = "&8[&6Wormholes&8] &cNeturite teisės atverti atlaso."
+no_permission = "&8[&6Wormholes&8] &cNeturite leidimo atverti atlaso."
 usage = ["&8[&6Wormholes&8] &7/atlas &8- &7atverti portalų sąrašą", "&8[&6Wormholes&8] &7/atlas favorites &8- &7tik prisegti portalai", "&8[&6Wormholes&8] &7/atlas recents &8- &7neseniai naudoti portalai", "&8[&6Wormholes&8] &7/atlas guide \\<portal> &8- &7rodyti kryptį; /atlas guide off sustabdo"]
 
 [atlas.favorite]
 added = "&8[&6Wormholes&8] &a{portal} prisegtas."
 removed = "&8[&6Wormholes&8] &a{portal} atsegtas."
-full = "&8[&6Wormholes&8] &cJau prisegėte {count} portalų."
+full = "&8[&6Wormholes&8] &cPasiekta prisegtų portalų riba ({count})."
 
 [atlas.guide]
 bearing = "&b{portal} &f{value}"
@@ -1289,7 +1301,7 @@ cleared = "&8[&6Wormholes&8] &aVedimas išjungtas."
 unknown = "&8[&6Wormholes&8] &cJūsų atlase nėra portalo pavadinimu {portal}."
 
 [atlas.menu]
-row = ["&6{portal}", "&7{world} &8- &f{destination}", "&b{state}", "", "&eKairysis renka. &eDešinysis prisega. &eLyg2+kairysis veda."]
+row = ["&6{portal}", "&7{world} &8- &f{destination}", "&b{state}", "", "&eKairysis renka. &eDešinysis prisega. &eShift + kairysis nurodo kelią."]
 favorites = ["&d&lTik prisegti: {state}&r", "&7Rodyti tik prisegtus portalus.", "&eKairysis spustelėjimas"]
 recents = ["&b&lTik neseni: {state}&r", "&7Rodyti tik neseniai naudotus portalus.", "&eKairysis spustelėjimas"]
 guide = ["&a&lVedimas: {portal}&r", "&7Rodyti kryptį į vedamą portalą veiksmų juostoje.", "&eKairysis spustelėjimas sustabdo"]
@@ -1297,43 +1309,43 @@ guide = ["&a&lVedimas: {portal}&r", "&7Rodyti kryptį į vedamą portalą veiksm
 
 # ---- lane:doors (doorview.* and pockets.*) ----
 [doorview]
-"disabled" = "&8[&6Wormholes&8] &cDuru projekcija isjungta faile wormholes.toml."
-"toggle.inherit" = "&8[&6Wormholes&8] &7Siu duru projekcija: &fpaveldima&7."
-"toggle.on" = "&8[&6Wormholes&8] &aSiu duru projekcija: ijungta."
-"toggle.off" = "&8[&6Wormholes&8] &eSiu duru projekcija: isjungta."
+"disabled" = "&8[&6Wormholes&8] &cDurų projekcija išjungta faile wormholes.toml."
+"toggle.inherit" = "&8[&6Wormholes&8] &7Šių durų projekcija: &fpaveldima&7."
+"toggle.on" = "&8[&6Wormholes&8] &aŠių durų projekcija: įjungta."
+"toggle.off" = "&8[&6Wormholes&8] &eŠių durų projekcija: išjungta."
 "state.inherit" = "paveldima"
-"state.on" = "ijungta"
-"state.off" = "isjungta"
-"menu.projection" = ["&b&lProjekcija: {state}&r", "&7Rodo tiksla pro sias duris.", "&eKairysis paspaudimas keicia"]
+"state.on" = "įjungta"
+"state.off" = "išjungta"
+"menu.projection" = ["&b&lProjekcija: {state}&r", "&7Rodo tikslą pro šias duris.", "&eKairysis spustelėjimas keičia"]
 
 [pockets]
-"confirm.overwrite" = ["&8[&6Wormholes&8] &cTai pakeis viska kiseneje &f{space}&c.", "&8[&6Wormholes&8] &7Paleisk ta pacia komanda su &fconfirm=true&7, kad testum."]
-"denied.build" = "&8[&6Wormholes&8] &cTu nesi statytojas sioje kiseneje."
-"denied.pvp" = "&8[&6Wormholes&8] &cKova sioje kiseneje isjungta."
-"instance.none" = "&8[&6Wormholes&8] &cSi kisene nera egzempliorius."
-"instance.reset" = "&8[&6Wormholes&8] &aKisenes egzempliorius &f{space}&a atstatytas."
-"room.added" = "&8[&6Wormholes&8] &aKambarys &f{count}&a pridetas prie kisenes &f{space}&a."
-"room.blocked" = "&8[&6Wormholes&8] &cPastatyk duris ant vidines sienos."
-"room.limit" = "&8[&6Wormholes&8] &cSi kisene jau turi didziausia &f{count}&c kambariu skaiciu."
-"roster.added" = "&8[&6Wormholes&8] &a{name}&a itrauktas i kisenes sarasa kaip &f{value}&a."
-"roster.missing" = "&8[&6Wormholes&8] &c{name}&c nera sios kisenes sarase."
-"roster.removed" = "&8[&6Wormholes&8] &e{name}&e pasalintas is kisenes saraso."
-"roster.role" = "&8[&6Wormholes&8] &a{name}&a dabar yra &f{value}&a sioje kiseneje."
-"rules.invalid" = "&8[&6Wormholes&8] &cNezinoma kisenes taisykle &f{key}&c."
+"confirm.overwrite" = ["&8[&6Wormholes&8] &cTai pakeis viską kišenėje &f{space}&c.", "&8[&6Wormholes&8] &7Paleiskite tą pačią komandą su &fconfirm=true&7, kad tęstumėte."]
+"denied.build" = "&8[&6Wormholes&8] &cNesate šios kišenės statytojas."
+"denied.pvp" = "&8[&6Wormholes&8] &cKova šioje kišenėje išjungta."
+"instance.none" = "&8[&6Wormholes&8] &cŠi kišenė nėra egzempliorius."
+"instance.reset" = "&8[&6Wormholes&8] &aKišenės egzempliorius &f{space}&a atkurtas."
+"room.added" = "&8[&6Wormholes&8] &aKambarys Nr. &f{count}&a pridėtas prie kišenės &f{space}&a."
+"room.blocked" = "&8[&6Wormholes&8] &cPastatykite duris ant vidinės sienos."
+"room.limit" = "&8[&6Wormholes&8] &cŠi kišenė jau turi didžiausią kambarių skaičių (&f{count}&c)."
+"roster.added" = "&8[&6Wormholes&8] &a{name}&a įtrauktas į kišenės sąrašą kaip &f{value}&a."
+"roster.missing" = "&8[&6Wormholes&8] &c{name}&c nėra šios kišenės sąraše."
+"roster.removed" = "&8[&6Wormholes&8] &e{name}&e paliko kišenės sąrašą."
+"roster.role" = "&8[&6Wormholes&8] &a{name}&a dabar yra &f{value}&a šioje kišenėje."
+"rules.invalid" = "&8[&6Wormholes&8] &cNežinoma kišenės taisyklė &f{key}&c."
 "rules.set" = "&8[&6Wormholes&8] &a{key} &7= &f{value}"
-"snapshot.missing" = "&8[&6Wormholes&8] &cSi kisene neturi momentines kopijos pavadinimu &f{name}&c."
-"snapshot.restored" = "&8[&6Wormholes&8] &aMomentine kopija &f{name}&a atkurta kiseneje &f{space}&a."
-"snapshot.saved" = "&8[&6Wormholes&8] &aKisenes &f{space}&a momentine kopija &f{name}&a issaugota."
-"template.applied" = "&8[&6Wormholes&8] &aSablonas &f{name}&a pritaikytas kisenei &f{space}&a."
-"template.list" = "&8[&6Wormholes&8] &7Sablonai (&f{count}&7): &f{value}"
-"template.missing" = "&8[&6Wormholes&8] &cNera kisenes sablono pavadinimu &f{name}&c."
+"snapshot.missing" = "&8[&6Wormholes&8] &cŠi kišenė neturi momentinės kopijos pavadinimu &f{name}&c."
+"snapshot.restored" = "&8[&6Wormholes&8] &aMomentinė kopija &f{name}&a atkurta kišenėje &f{space}&a."
+"snapshot.saved" = "&8[&6Wormholes&8] &aKišenės &f{space}&a momentinė kopija &f{name}&a išsaugota."
+"template.applied" = "&8[&6Wormholes&8] &aŠablonas &f{name}&a pritaikytas kišenei &f{space}&a."
+"template.list" = "&8[&6Wormholes&8] &7Šablonai (&f{count}&7): &f{value}"
+"template.missing" = "&8[&6Wormholes&8] &cNėra kišenės šablono pavadinimu &f{name}&c."
 # ---- end lane:doors ----
 
 # ---- lane:mesh (mesh.*) ----
 [mesh]
 pending = "&8[&6Wormholes&8] &e{server}&7 nori prisijungti per &f{name}&7: /wh network accept {server}"
-accepted = "&8[&6Wormholes&8] &a&f{server}&a priimtas į tinklą."
-rejected = "&8[&6Wormholes&8] &c&f{server}&c atmestas, o jo pristatymas išmestas."
+accepted = "&8[&6Wormholes&8] &aServeris &f{server}&a priimtas į tinklą."
+rejected = "&8[&6Wormholes&8] &cServeris &f{server}&c atmestas, o jo pristatymas išmestas."
 tombstoned = "&8[&6Wormholes&8] &f{server}&7 pašalintas iš viso tinklo."
 disabled = "&8[&6Wormholes&8] &7Tinklo federacija &cišjungta&7 ([network.mesh] enabled = false)."
 
@@ -1346,8 +1358,8 @@ none = "&8[&6Wormholes&8] &7Tinklo narių dar nežinoma."
 row = "&8[&6Wormholes&8] &f{server}&7 {state} &8{fingerprint}"
 
 [mesh.versions]
-none = "&8[&6Wormholes&8] &7Dar nė vienas mazgas neprisijungė."
-row = "&8[&6Wormholes&8] &f{server}&7: protokolas &f{value}&7, įskiepis &f{name}&7, galimybės &f{state}"
+none = "&8[&6Wormholes&8] &7Dar nė vienas partneris neprisijungė."
+row = "&8[&6Wormholes&8] &f{server}&7: protokolas &f{value}&7, papildinys &f{name}&7, galimybės &f{state}"
 reduced = "&8[&6Wormholes&8] &e{server}&7 jungiasi su sumažintomis galimybėmis: &f{reason}"
 
 [mesh.drain]
@@ -1358,12 +1370,12 @@ invalid = "&8[&6Wormholes&8] &cIštuštinimo būsena turi būti on arba off, gau
 
 [mesh.queue]
 position = "&7Laukiama laisvo serverio: vieta &f{count}&7, &f{seconds}&7s"
-timeout = "&cNė viename paskirties serveryje laiku neatsirado vietos."
+timeout = "&cNė viename tikslo serveryje laiku neatsirado vietos."
 
 [mesh.policy]
-none = "&cŠiuo metu nėra pasiekiamos paskirties vietos."
+none = "&cŠiuo metu nėra pasiekiamo tikslo."
 set = "&8[&6Wormholes&8] &aPolitika portale &f{portal}&a: {value}"
-cleared = "&8[&6Wormholes&8] &7Politika pašalinta iš &f{portal}&7; jis vėl susietas su įprasta paskirtimi."
+cleared = "&8[&6Wormholes&8] &7Politika pašalinta iš &f{portal}&7; jis vėl susietas su įprastu tikslu."
 portal_unknown = "&8[&6Wormholes&8] &cNėra vietinio portalo pavadinimu {portal}."
 invalid = "&8[&6Wormholes&8] &cNetinkama politika: {reason}"
 
@@ -1372,9 +1384,9 @@ members = "Išvardyti visus tinklo narius su ryšio būsena ir rakto atspaudu"
 pending = "Išvardyti pristatytus serverius, laukiančius patvirtinimo"
 accept = "Pasitikėti pristatytu serveriu ir išsaugoti jo maršrutą"
 reject = "Atmesti laukiantį serverio pristatymą"
-versions = "Rodyti kiekvieno mazgo protokolą, įskiepio versiją ir galimybes"
-drain = "Išimti šį serverį iš paskirties rotacijos arba grąžinti"
-policy = "Nustatyti arba pašalinti vartų paskirties politiką"
+versions = "Rodyti kiekvieno partnerio protokolą, papildinio versiją ir galimybes"
+drain = "Išimti šį serverį iš tikslų rotacijos arba grąžinti"
+policy = "Nustatyti arba pašalinti vartų tikslų politiką"
 
 [mesh.command.param.accept]
 server = "Pristatyto serverio pavadinimas (žr. /wh network pending)"
@@ -1387,7 +1399,7 @@ state = "on arba off; nenurodžius rodoma dabartinė būsena"
 
 [mesh.command.param.policy]
 portal = "Vietinio portalo pavadinimas arba ID"
-candidates = "Kableliais atskirti serveris:portalas[:svoris] įrašai; tuščia pašalina politiką"
+candidates = "Kableliais atskirti server:portal[:weight] įrašai; tuščia pašalina politiką"
 strategy = "FIRST_AVAILABLE, LEAST_LOADED, ROUND_ROBIN, STICKY arba NEAREST"
 headroom = "Laisvos žaidėjų vietos, kurias turi pranešti kandidatas"
 tps = "Mažiausias TPS, kurį turi pranešti kandidatas; 0 ignoruoja TPS"
@@ -1400,7 +1412,7 @@ bounced = "{portal} jus atstūmė."
 
 [transit.denied]
 membrane = "Į {portal} galima įeiti tik iš priekio."
-convoy_size = "Jūsų vilkstinėje yra {count} esybių; riba yra {value}."
+convoy_size = "Esybių jūsų vilkstinėje: {count}; riba yra {value}."
 convoy_fit = "Jūsų vilkstinė netelpa pro {portal}."
 convoy_member = "Dalis jūsų vilkstinės negali naudotis {portal}."
 
@@ -1414,7 +1426,7 @@ momentum = ["&6&lJudesio kiekis: {mode}&r", "&7Koeficientas {value}. Kaip išėj
 orientation = ["&6&lKryptis: {mode}&r", "&7Kur keliautojai žiūri atvykę.", "&eKairysis spustelėjimas keičia"]
 membrane = ["&6&lMembrana: {state}&r", "&7Tik priekinė pusė įleidžia keliautojus; galinė juos atstumia.", "&eKairysis spustelėjimas perjungia"]
 bounce = ["&6&lAtšokimas: {state}&r", "&7Atstumti keliautojus, o ne juos perkelti.", "&eKairysis spustelėjimas perjungia"]
-profile = ["&6&lPerėjimo efektai&r", "&7Slenkstis {mode}", "&7Atvykimas {state}", "&eKairysis spustelėjimas: slenksčio efektas, Dešinysis: atvykimo garsas", "&eShift + kairysis: kaukės tikai"]
+profile = ["&6&lPerėjimo efektai&r", "&7Slenkstis {mode}", "&7Atvykimas {state}", "&eKairysis spustelėjimas: slenksčio efektas, Dešinysis: atvykimo garsas", "&eShift + kairysis: kaukės tickai"]
 prompt = "&bĮveskite naują reikšmę pokalbyje (arba '{cancel}'):"
 scale = ["&6&lKeliautojo mastelis: {mode}&r", "&7Dydžio intervalas {value}. Pritaiko kelionę tarp skirtingo dydžio portalų.", "&eKairysis spustelėjimas keičia režimą", "&eDešinysis spustelėjimas: minimumas, Shift + dešinysis: maksimumas"]
 
@@ -1424,8 +1436,8 @@ gravity = ["&6&lGravitacijos kryptis: {state}&r", "&7Žaidėjų su modifikacija 
 current = "&8[&6Wormholes&8] &f{portal}&7 keliautojo mastelis: &f{mode}&7 ({value})"
 set = "&8[&6Wormholes&8] &f{portal}&a keliautojo mastelis nustatytas į &f{mode}&a ({value})."
 invalid = "&8[&6Wormholes&8] &cNepavyko perskaityti keliautojo mastelio: {reason}"
-reset = "&8[&6Wormholes&8] &aAtkurtas įprastas {count} esybių dydis."
-reset_radius = "&8[&6Wormholes&8] &ctarget=all reikia spindulio nuo 1 iki {value}."
+reset = "&8[&6Wormholes&8] &aĮprastas dydis atkurtas esybėms: {count}."
+reset_radius = "&8[&6Wormholes&8] &ctarget=all reikalingas spindulys nuo 1 iki {value}."
 reset_player = "&8[&6Wormholes&8] &cNėra prisijungusio žaidėjo vardu {name}."
 
 [transit.gravity]
@@ -1447,117 +1459,117 @@ back = ["&e&lAtgal&r", "&7Grįžti į portalo meniu."]
 default = "numatytoji"
 
 [fidelity.bedrock]
-profile = "Bedrock profilis aktyvus {count} žiūrovams"
+profile = "Bedrock profilis aktyvus (žiūrovų: {count})"
 # ---- end lane:view ----
 
 # ---- lane:ops (ops.*) ----
 [ops.console]
-started = "Metriku galinis taskas klauso {value}."
-no_token = "Metriku galinis taskas nepasileido: nustatykite [ops.console] token."
-failed = "Metriku galinis taskas negalejo susieti {value}: {reason}"
+started = "Metrikų galinis taškas klausosi {value}."
+no_token = "Metrikų galinis taškas nepasileido: nustatykite [ops.console] token."
+failed = "Metrikų galinis taškas negalėjo susieti {value}: {reason}"
 
 [ops.webmap]
-published = "Paskelbta {count} portalu zymiu i {name}."
+published = "Paskelbta portalų žymių: {count} į {name}."
 
 [ops.backup]
-created = "&8[&6Wormholes&8] &aAtsargine kopija &f{id}&a irasyta i &f{path}&a."
-restored = "&8[&6Wormholes&8] &aAtkurta &f{count}&a portalu is &f{id}&a."
-dry_run = "&8[&6Wormholes&8] &7Bandymas: pasikeistu &f{count}&7 portalu."
-list_row = "&8[&6Wormholes&8] &f{id} &8| &f{count}&7 portalu &8| &7{path}"
-list_empty = "&8[&6Wormholes&8] &7Nera kopiju kataloge &f{path}&7."
-not_found = "&8[&6Wormholes&8] &cNe viena kopija neatitinka &f{id}&c."
-confirm_required = "&8[&6Wormholes&8] &cPaleiskite dar karta su &fconfirm=true&c, kad pritaikytumete, arba su &fdry=true&c, kad pamatytumete plana."
+created = "&8[&6Wormholes&8] &aAtsarginė kopija &f{id}&a įrašyta į &f{path}&a."
+restored = "&8[&6Wormholes&8] &aAtkurta portalų: &f{count}&a iš &f{id}&a."
+dry_run = "&8[&6Wormholes&8] &7Bandymas: pasikeistų portalų: &f{count}&7."
+list_row = "&8[&6Wormholes&8] &f{id} &8| &7portalų: &f{count} &8| &7{path}"
+list_empty = "&8[&6Wormholes&8] &7Kataloge &f{path}&7 kopijų nėra."
+not_found = "&8[&6Wormholes&8] &cNė viena kopija neatitinka &f{id}&c."
+confirm_required = "&8[&6Wormholes&8] &cPaleiskite dar kartą su &fconfirm=true&c, kad pritaikytumėte, arba su &fdry=true&c, kad pamatytumėte planą."
 failed = "&8[&6Wormholes&8] &cKopijos operacija nepavyko: &f{reason}"
-reload_required = "&8[&6Wormholes&8] &7Portalu failai pakeisti. Paleiskite &f/wormholes reload&7, kad juos ikeltumete."
-signature_broken = "&8[&6Wormholes&8] &cAtmesta &f{id}&c: parasas neatitinka turinio."
-signature_untrusted = "&8[&6Wormholes&8] &cAtmesta &f{id}&c: pasirase &f{fingerprint}&c, kuriuo sis serveris nepasitiki. Pridekite &fallow-unsigned=true&c, kad vis tiek pritaikytumete."
-signature_ok = "&8[&6Wormholes&8] &7Pasirase &f{name}&7 (&f{fingerprint}&7)."
+reload_required = "&8[&6Wormholes&8] &7Portalų failai pakeisti. Paleiskite &f/wormholes reload&7, kad juos įkeltumėte."
+signature_broken = "&8[&6Wormholes&8] &cAtmesta &f{id}&c: parašas neatitinka turinio."
+signature_untrusted = "&8[&6Wormholes&8] &cAtmesta &f{id}&c: pasirašė &f{fingerprint}&c, kuriuo šis serveris nepasitiki. Pridėkite &fallow-unsigned=true&c, kad vis tiek pritaikytumėte."
+signature_ok = "&8[&6Wormholes&8] &7Pasirašė &f{name}&7 (&f{fingerprint}&7)."
 
 [ops.import]
-report = "&8[&6Wormholes&8] &f{name}&7: importuota &f{count}&7 portalu, praleista &f{value}&7."
+report = "&8[&6Wormholes&8] &f{name}&7: importuota portalų: &f{count}&7, praleista: &f{value}&7."
 skipped_row = "&8[&6Wormholes&8] &7{portal}&8: &f{reason}"
-not_detected = "&8[&6Wormholes&8] &cKataloge &f{path}&c nerasta {name} duomenu."
+not_detected = "&8[&6Wormholes&8] &cKataloge &f{path}&c nerasta {name} duomenų."
 
 [ops.portals]
 row = "&8[&6Wormholes&8] &f{portal} &8| &7{world} &8| &7{state} &8| &7{destination}"
 page = "&8[&6Wormholes&8] &7Puslapis &f{page}&7/&f{pages}"
-empty = "&8[&6Wormholes&8] &7Nei vienas portalas neatitinka siu filtru."
-not_found = "&8[&6Wormholes&8] &cNe vienas portalas neatitinka &f{name}&c."
-ambiguous = "&8[&6Wormholes&8] &c{count} portalai atitinka &f{name}&c; naudokite identifikatoriu."
-info = ["&8[&6Wormholes&8] &7Portalas &f{portal} &8| &7{id}", "&8[&6Wormholes&8] &7Pasaulis &f{world}&7 ties &f{value}", "&8[&6Wormholes&8] &7Busena &f{state}&7, tikslas &f{destination}&7, savininkas &f{owner}"]
-teleported = "&8[&6Wormholes&8] &aTeleportuota i &f{portal}&a."
-teleport_unsafe = "&8[&6Wormholes&8] &eSalia &f{portal}&e nera saugaus nusileidimo; naudojamas portalo centras."
-retargeted = "&8[&6Wormholes&8] &a&f{portal}&a dabar rodo i &f{destination}&a."
-unlinked = "&8[&6Wormholes&8] &a&f{portal}&a dabar be sasajos."
-pruned = "&8[&6Wormholes&8] &aPasalinta &f{count}&a nasleiciu sasaju."
-prune_dry_run = "&8[&6Wormholes&8] &7Bandymas: butu pasalinta &f{count}&7 nasleiciu sasaju."
-renamed_server = "&8[&6Wormholes&8] &aPerrasyta &f{count}&a vartu sasaju is &f{name}&a i &f{server}&a."
+empty = "&8[&6Wormholes&8] &7Nė vienas portalas neatitinka šių filtrų."
+not_found = "&8[&6Wormholes&8] &cNė vienas portalas neatitinka &f{name}&c."
+ambiguous = "&8[&6Wormholes&8] &c&f{name}&c atitinka kelis portalus ({count}); naudokite identifikatorių."
+info = ["&8[&6Wormholes&8] &7Portalas &f{portal} &8| &7{id}", "&8[&6Wormholes&8] &7Pasaulis &f{world}&7 ties &f{value}", "&8[&6Wormholes&8] &7Būsena &f{state}&7, tikslas &f{destination}&7, savininkas &f{owner}"]
+teleported = "&8[&6Wormholes&8] &aTeleportuota į &f{portal}&a."
+teleport_unsafe = "&8[&6Wormholes&8] &eŠalia &f{portal}&e nėra saugios nusileidimo vietos; naudojamas portalo centras."
+retargeted = "&8[&6Wormholes&8] &aPortalas &f{portal}&a dabar rodo į &f{destination}&a."
+unlinked = "&8[&6Wormholes&8] &aPortalas &f{portal}&a dabar nesusietas."
+pruned = "&8[&6Wormholes&8] &aPašalinta našlaičių jungčių: &f{count}&a."
+prune_dry_run = "&8[&6Wormholes&8] &7Bandymas: būtų pašalinta našlaičių jungčių: &f{count}&7."
+renamed_server = "&8[&6Wormholes&8] &aPerrašyta vartų jungčių: &f{count}&a iš &f{name}&a į &f{server}&a."
 
 [ops.command.help]
-backup = "Kurti, isvardyti, atkurti ir perkelti portalu kopijas"
-"backup.now" = "Dabar irasyti portalu duomenu kopija"
-"backup.list" = "Isvardyti diske esancias kopijas"
-"backup.restore" = "Atkurti portalu failus is kopijos (dry=true parodo plana)"
-"backup.restore.id" = "Kopijos identifikatorius is /wormholes admin backup list"
-"backup.restore.dry" = "Pranesti, kas pasikeistu, nieko neirasant"
-"backup.restore.world_map" = "Pasauliu pervadinimai kaip senas=naujas,senas=naujas"
-"backup.restore.owner_map" = "Savininku pervadinimai kaip senas-uuid=naujas-uuid"
-"backup.restore.confirm" = "Butinas failams irasyti, kai dry=false"
-"backup.allow_unsigned" = "Pritaikyti paketa, kurio nepasirase joks patikimas raktas"
-"backup.export" = "Irasyti kopijos rinkini i faila, kuri galima perkelti tarp serveriu"
-"backup.export.file" = "Paskirties failas; tuscias irašo i kopiju aplanka"
-"backup.import" = "Importuoti is kito serverio eksportuota rinkini"
+backup = "Kurti, išvardyti, atkurti ir perkelti portalų kopijas"
+"backup.now" = "Dabar įrašyti portalų duomenų kopiją"
+"backup.list" = "Išvardyti diske esančias kopijas"
+"backup.restore" = "Atkurti portalų failus iš kopijos (dry=true parodo planą)"
+"backup.restore.id" = "Kopijos identifikatorius iš /wormholes admin backup list"
+"backup.restore.dry" = "Pranešti, kas pasikeistų, nieko neįrašant"
+"backup.restore.world_map" = "Pasaulių pervadinimai formatu senas=naujas,senas=naujas"
+"backup.restore.owner_map" = "Savininkų pervadinimai formatu senas-uuid=naujas-uuid,senas-uuid=naujas-uuid"
+"backup.restore.confirm" = "Būtinas failams įrašyti, kai dry=false"
+"backup.allow_unsigned" = "Pritaikyti rinkinį, kurio nepasirašė joks patikimas raktas"
+"backup.export" = "Įrašyti kopijos rinkinį į failą, kurį galima perkelti tarp serverių"
+"backup.export.file" = "Tikslo failas; tuščias įrašo į kopijų aplanką"
+"backup.import" = "Importuoti iš kito serverio eksportuotą rinkinį"
 "backup.import.file" = "Skaitomas rinkinio failas"
-"backup.import.dry" = "Pranesti, kas pasikeistu, nieko neirasant"
-"backup.import.world_map" = "Pasauliu pervadinimai kaip senas=naujas,senas=naujas"
-"backup.import.owner_map" = "Savininku pervadinimai kaip senas-uuid=naujas-uuid"
-"backup.import.confirm" = "Butinas failams irasyti, kai dry=false"
-"backup.import_from" = "Importuoti portalus is kito portalu papildinio failu"
+"backup.import.dry" = "Pranešti, kas pasikeistų, nieko neįrašant"
+"backup.import.world_map" = "Pasaulių pervadinimai formatu senas=naujas,senas=naujas"
+"backup.import.owner_map" = "Savininkų pervadinimai formatu senas-uuid=naujas-uuid,senas-uuid=naujas-uuid"
+"backup.import.confirm" = "Būtinas failams įrašyti, kai dry=false"
+"backup.import_from" = "Importuoti portalus iš kito portalų papildinio failų"
 "backup.import_from.source" = "stargate, advancedportals, multiverse, betterportals arba essentials"
-"backup.import_from.dry" = "Pranesti, kas butu sukurta, nieko nekuriant"
-"backup.import_from.frame" = "Remo dydis kaip plotis,aukstis saltiniams be remo"
-portals = "Isvardyti, perziureti ir masiskai keisti portalus"
-"portals.list" = "Isvardyti portalus su pasirenkamais filtrais"
-"portals.list.world" = "Tik portalai siame pasaulyje"
-"portals.list.type" = "Tik sio tipo portalai: portal, wormhole, gateway arba rtp"
-"portals.list.owner" = "Tik sio zaidejo vardo arba uuid portalai"
-"portals.list.state" = "Tik sios busenos portalai: open, closed, linked arba unlinked"
+"backup.import_from.dry" = "Pranešti, kas būtų sukurta, nieko nekuriant"
+"backup.import_from.frame" = "Rėmo dydis kaip plotis,aukštis šaltiniams be rėmo"
+portals = "Išvardyti, peržiūrėti ir masiškai keisti portalus"
+"portals.list" = "Išvardyti portalus su pasirenkamais filtrais"
+"portals.list.world" = "Tik portalai šiame pasaulyje"
+"portals.list.type" = "Tik šio tipo portalai: portal, wormhole, gateway arba rtp"
+"portals.list.owner" = "Tik žaidėjo su šiuo vardu arba UUID portalai"
+"portals.list.state" = "Tik šios būsenos portalai: open, closed, linked arba unlinked"
 "portals.list.page" = "Puslapio numeris"
-"portals.find" = "Rasti portalus, kuriu pavadinime yra tekstas"
-"portals.find.name" = "Ieskomas tekstas"
-"portals.info" = "Parodyti portalo pasauli, busena, tiksla ir savininka"
+"portals.find" = "Rasti portalus, kurių pavadinime yra tekstas"
+"portals.find.name" = "Ieškomas tekstas"
+"portals.info" = "Parodyti portalo pasaulį, būseną, tikslą ir savininką"
 "portals.info.portal" = "Portalo pavadinimas arba identifikatorius"
-"portals.tp" = "Teleportuotis i portala nusileidziant ant saugaus pagrindo"
+"portals.tp" = "Teleportuotis į portalą nusileidžiant ant saugaus pagrindo"
 "portals.tp.portal" = "Portalo pavadinimas arba identifikatorius"
-"portals.retarget" = "Nukreipti portala i kita vietini portala"
-"portals.retarget.portal" = "Keiciamo portalo pavadinimas arba identifikatorius"
+"portals.retarget" = "Nukreipti portalą į kitą vietinį portalą"
+"portals.retarget.portal" = "Keičiamo portalo pavadinimas arba identifikatorius"
 "portals.retarget.destination" = "Tikslo portalo pavadinimas arba identifikatorius"
-"portals.unlink" = "Pasalinti portalo tiksla"
+"portals.unlink" = "Pašalinti portalo tikslą"
 "portals.unlink.portal" = "Portalo pavadinimas arba identifikatorius"
-"portals.prune" = "Pasalinti sasajas, kuriu tikslo nebera"
-"portals.prune.dry" = "Pranesti, kas butu pasalinta, nieko nekeiciant"
-"portals.prune.confirm" = "Butinas salinimui, kai dry=false"
-"portals.rename_server" = "Perrasyti tarpserverines sasajas is vieno serverio pavadinimo i kita"
-"portals.rename_server.old" = "Serverio pavadinimas, siandien esantis sasajose"
-"portals.rename_server.new" = "Serverio pavadinimas, kuri irasyti vietoje jo"
-"portals.rename_server.confirm" = "Butinas sasajoms perrasyti"
-"portals.shape" = "Rodyti arba nustatyti portalo angos forma"
+"portals.prune" = "Pašalinti jungtis, kurių tikslo nebėra"
+"portals.prune.dry" = "Pranešti, kas būtų pašalinta, nieko nekeičiant"
+"portals.prune.confirm" = "Būtinas šalinimui, kai dry=false"
+"portals.rename_server" = "Perrašyti tarpserverines jungtis iš vieno serverio pavadinimo į kitą"
+"portals.rename_server.old" = "Serverio pavadinimas, šiuo metu įrašytas jungtyse"
+"portals.rename_server.new" = "Serverio pavadinimas, kurį įrašyti vietoje jo"
+"portals.rename_server.confirm" = "Būtinas jungtims perrašyti"
+"portals.shape" = "Rodyti arba nustatyti portalo angos formą"
 "portals.shape.portal" = "Portalo pavadinimas arba identifikatorius"
-"portals.shape.shape" = "Formos tekstas, pvz., circle, flower(petals=7) arba full; tuscias rodo dabartine forma"
-"portals.scale" = "Rodyti arba nustatyti portalo keliautojo mastelio taisykle"
-"portals.scale.portal" = "Portalo pavadinimas arba id"
-"portals.scale.mode" = "off, motion arba ratio; be reiksmiu rodo dabartine taisykle"
-"portals.scale.min" = "Maziausias dydzio koeficientas, kuri gali pasiekti ratio perejimas (0.0625-16)"
-"portals.scale.max" = "Didziausias dydzio koeficientas, kuri gali pasiekti ratio perejimas (0.0625-16)"
-"scale" = "Atkurti iprasta keliautoju, kuriu dydi pakeite portalai, dydi"
-"scale.reset" = "Pasalinti portalo masteli nuo zaidejo arba nuo visu netoliese esanciu esybiu"
-"scale.reset.target" = "self, zaidejo vardas arba all"
-"scale.reset.radius" = "Paieskos spindulys blokais, kai target=all (1-256)"
+"portals.shape.shape" = "Formos tekstas, pvz., circle, flower(petals=7) arba full; nenurodžius rodoma dabartinė forma"
+"portals.scale" = "Rodyti arba nustatyti portalo keliautojo mastelio taisyklę"
+"portals.scale.portal" = "Portalo pavadinimas arba identifikatorius"
+"portals.scale.mode" = "off, motion arba ratio; be reikšmių rodo dabartinę taisyklę"
+"portals.scale.min" = "Mažiausias dydžio koeficientas, kurį gali pasiekti ratio perėjimas (0.0625-16)"
+"portals.scale.max" = "Didžiausias dydžio koeficientas, kurį gali pasiekti ratio perėjimas (0.0625-16)"
+"scale" = "Atkurti įprastą keliautojų, kurių dydį pakeitė portalai, dydį"
+"scale.reset" = "Pašalinti portalo mastelį nuo žaidėjo arba nuo visų netoliese esančių esybių"
+"scale.reset.target" = "self, žaidėjo vardas arba all"
+"scale.reset.radius" = "Paieškos spindulys blokais, kai target=all (1-256)"
 # ---- end lane:ops ----
 
 # ---- lane:clientview (clientview.*) ----
 [clientview.command]
-header = "&6ClientView &7vykdymas {state}, nustatyta {mode}, {count} sesijos"
+header = "&6ClientView &7vykdymas {state}, nustatyta {mode}, sesijų: {count}"
 row = "&e{name} &7{state} &8| &7{value}"
 none = "&7Nė vienas žaidėjas neturi ClientView sesijos."
 enabled = "&aClientView vėl siūlomas. Nustatyta: {mode}."
@@ -1583,14 +1595,14 @@ orientation = "Orientacija"
 gateway = "Vartų susiejimas"
 settings = "Nuostatos"
 advanced = "Išsamus srauto derinimas"
-blackout = "Neperšviečiama spalva"
+blackout = "Užtemdymo spalva"
 ambient = "Aplinkos spalva"
 skin = "Paviršiaus apdanga"
 cost = "Kelionės kaina"
-extensions = "Daugiau nustatymų"
+extensions = "Daugiau nuostatų"
 destinations = "Tikslai"
 select = "Pasirinkite portalą"
-rtp = "Atsitiktinis teleportas"
+rtp = "Atsitiktinis teleportavimas"
 rtp_destination = "Atsitiktinis tikslas"
 rtp_biome = "Tikslinis biomas"
 rtp_landing = "Nusileidimas"
@@ -1631,26 +1643,26 @@ timeout = "Serveris neatsakė."
 rotate = "Pasukti"
 rotate_clockwise = "Pasukti pagal laikrodžio rodyklę"
 rotate_counterclockwise = "Pasukti prieš laikrodžio rodyklę"
-reset = "Atstatyti"
+reset = "Atkurti"
 clear = "Išvalyti"
 colors = "Spalvos"
 advanced = "Išsamiau"
-reroll = "Perridenti"
+reroll = "Parinkti iš naujo"
 remove = "Pašalinti"
 favorite = "Mėgstamas"
-guide = "Vedlys"
+guide = "Nurodyti kelią"
 whitelist = "Leidžiamųjų sąrašas"
-blacklist = "Draudžiamųjų sąrašas"
+blacklist = "Blokuojamųjų sąrašas"
 use_default = "Naudoti serverio numatytąją"
 
 [menu.native.confirm]
 delete_portal = ["Ištrinti {portal}?", "Portalas bus pašalintas, o į jį vedantys portalai atsieti.", "To negalima atšaukti."]
 "delete_portal.accept" = "Ištrinti"
-rtp_reset = ["Atstatyti {portal}?", "Visi atsitiktinio teleporto nustatymai grįš į numatytąsias reikšmes."]
-"rtp_reset.accept" = "Atstatyti"
+rtp_reset = ["Atkurti {portal}?", "Visos atsitiktinio teleportavimo nuostatos grįš į numatytąsias reikšmes."]
+"rtp_reset.accept" = "Atkurti"
 rules_template = ["Įkelti {name}?", "Šablonas pakeis visas šio portalo taisykles."]
 "rules_template.accept" = "Įkelti"
-nexus_leave = ["Palikti {name}?", "Šis portalas nebeskambins ir nebepriims per tinklą."]
+nexus_leave = ["Palikti {name}?", "Šis portalas nebegalės rinkti adresų ir priimti kelionių per tinklą."]
 "nexus_leave.accept" = "Palikti"
 
 [menu.native.feedback]
@@ -1666,15 +1678,15 @@ code = "Kvietimo kodas"
 block_state = "Bloko būsena, pavyzdžiui, minecraft:glass"
 amount = "Suma"
 player = "Žaidėjo vardas"
-key = "Leidimo raktas"
+key = "Teisių raktas"
 group = "Grupės pavadinimas"
 network = "Tinklo pavadinimas"
 address = "Adresas"
 rule_id = "Taisyklės ID"
 line = "Taisyklės eilutė"
-factor = "Daugiklis"
+factor = "Koeficientas"
 sound = "Garso ID"
-ticks = "Tikai"
+ticks = "Tickai"
 scale = "Mastelis"
 search = "Ieškoti"
 
@@ -1682,7 +1694,7 @@ search = "Ieškoti"
 factor = "Judesio kiekio koeficientas"
 threshold_effect = "Slenksčio efektas"
 arrival_sound = "Atvykimo garsas"
-mask_ticks = "Kaukės tikai"
+mask_ticks = "Kaukės tickai"
 scale_min = "Mažiausias mastelis"
 scale_max = "Didžiausias mastelis"
 

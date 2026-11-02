@@ -47,7 +47,7 @@ class BukkitLanguageMenuHostTest {
     void setUp() {
         languages = mock(PluginLanguageService.class);
         editor = mock(PluginLanguageEditor.class);
-        host = new BukkitLanguageMenuHost(new BukkitLanguageMenuHost.Options(languages, editor, exits::add, logger));
+        host = new BukkitLanguageMenuHost(new BukkitLanguageMenuHost.Options(languages, editor, locale -> locale, exits::add, logger));
     }
 
     @Test

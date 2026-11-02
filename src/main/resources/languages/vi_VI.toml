@@ -14,17 +14,18 @@
 # === Biến ===
 # Giữ nguyên tên biến và chỉ dùng những biến có sẵn trong từng thông báo.
 #   {access}  Chính sách truy cập cổng
+#   {added}  Thông báo được thêm bởi bản cập nhật ngôn ngữ
 #   {address}  Địa chỉ nút mạng đối tác
 #   {after}  Giá trị thông báo sau khi sửa
 #   {allocation}  Phân bổ không gian túi
-#  {amount} Phí di chuyển bằng tiền
+#   {amount}  Phí di chuyển bằng tiền
 #   {argument}  Đối số lệnh không mong đợi
 #   {before}  Giá trị thông báo trước khi sửa
 #   {biome}  Mã định danh quần xã
 #   {blacklisted}  Người chơi bị chặn
 #   {block}  Vật liệu khối đã chọn
 #   {blocks}  Số khối đã đặt bị ảnh hưởng khi xây lại
-#   {cancel}  Từ để hủy nhập trong trò chuyện
+#   {cancel}  Từ để hủy nhập trong khung chat
 #   {cells}  Số ô mở của lỗ mở
 #   {code}  Mã máy chủ hoặc lời mời cổng
 #   {color}  Màu hiển thị đã chọn
@@ -41,7 +42,7 @@
 #   {direction}  Hướng di chuyển hoặc hướng nhìn
 #   {door}  Cửa thoát không gian túi
 #   {duration}  Chu kỳ cập nhật riêng của người chơi
-#   {endpoint}  Mã định danh đầu mút lỗ sâu
+#   {endpoint}  Mã định danh điểm cuối lỗ sâu
 #   {entities}  Số thực thể bị ảnh hưởng hoặc chu kỳ cập nhật thực thể theo tick
 #   {entity}  Chu kỳ cập nhật thực thể theo tick
 #   {error}  Lỗi của thao tác gần nhất
@@ -55,6 +56,7 @@
 #   {id}  Mã định danh đối tượng
 #   {incoming}  Chính sách di chuyển vào
 #   {item}  Vật phẩm cần để di chuyển
+#   {kept}  Chỉnh sửa cục bộ được giữ lại sau bản cập nhật ngôn ngữ
 #   {key}  Khóa thông báo hoặc cấu hình
 #   {kind}  Loại truy cập cửa
 #   {label}  Nhãn hiển thị
@@ -70,7 +72,7 @@
 #   {next}  Tùy chọn khả dụng tiếp theo
 #   {node}  Mã định danh nút mạng
 #   {none}  Nhãn cho trạng thái chưa liên kết điểm đến
-#   {other}  Mã định danh đầu mút đã liên kết
+#   {other}  Mã định danh điểm cuối đã liên kết
 #   {outgoing}  Chính sách di chuyển ra
 #   {owner}  Chủ sở hữu cổng
 #   {page}  Số trang hiện tại
@@ -89,6 +91,7 @@
 #   {reason}  Lý do lỗi hoặc quyết định
 #   {receive}  Trạng thái nhận hình chiếu
 #   {refresh}  Chu kỳ làm mới hình chiếu theo tick
+#   {remaining}  Thời gian còn lại đến lần kiểm tra ngôn ngữ tiếp theo
 #   {reserved}  Số chỗ điểm đến ngẫu nhiên đã giữ
 #   {resized}  Số không gian túi đã xây lại
 #   {rotation}  Độ xoay hình chiếu
@@ -109,6 +112,7 @@
 #   {target}  Plugin nhận lựa chọn ngôn ngữ
 #   {type}  Loại đối tượng hoặc tham số
 #   {up}  Hướng ở phía trên hình chiếu
+#   {updated}  Thông báo được thay đổi bởi bản cập nhật ngôn ngữ
 #   {value}  Giá trị hiện tại hoặc đã chọn
 #   {variables}  Các biến được phép dùng trong thông báo
 #   {whitelisted}  Người chơi được phép
@@ -119,11 +123,11 @@
 
 [language.editor]
 title = "{plugin} › {section}"
-loading = "Đang tải tin nhắn cho {locale}..."
+loading = "Đang tải thông báo của {locale}..."
 
 [language.editor.category]
-message-count = "&7{count} tin nhắn&r"
-open = "&8Nhấn vào để mở phân loại này.&r"
+message-count = "&7{count} thông báo&r"
+open = "&8Nhấp để mở danh mục này.&r"
 
 [language.editor.error]
 no-permission = "Bạn không có quyền chỉnh sửa ngôn ngữ của {plugin}."
@@ -135,19 +139,19 @@ too-long = "Nội dung nhập chỉ được có tối đa {maximum} ký tự."
 unable-to-save = "Không thể lưu: {reason}"
 
 [language.editor.locale]
-open = "&8Nhấn vào để mở ngôn ngữ này.&r"
+open = "&8Nhấp để mở ngôn ngữ này.&r"
 
 [language.editor.message]
-current-value = "&7Giá trị hiện có:&r"
-edit-chat = "&7Nhấp để chỉnh sửa trong trò chuyện.&r"
+current-value = "&7Giá trị hiện tại:&r"
+edit-chat = "&7Nhấp để chỉnh sửa trong khung chat.&r"
 edit-lines = "&7Nhấp để chỉnh sửa từng dòng.&r"
 edit-plural = "&7Nhấp để chỉnh sửa một dạng số nhiều.&r"
 variables = "&8{variables}&r"
 
 [language.editor.navigation]
-back = "&eQuay lại&r"
+back = "&eTrở lại&r"
 close = "&cĐóng&r"
-next-page = "&eTrang kế&r"
+next-page = "&eTrang tiếp theo&r"
 previous-page = "&eTrang trước&r"
 
 [language.editor.part]
@@ -156,8 +160,8 @@ line = "Dòng {line}"
 [language.editor.prompt]
 current = "Giá trị hiện tại: {value}"
 guidance = "Dùng \\n để xuống dòng, \\\\ để nhập dấu gạch chéo ngược, hoặc nhập cancel để quay lại."
-search = "Tìm khóa hoặc nội dung tin nhắn. Nhập cancel để quay lại."
-value = "Nhập giá trị mới cho {key} trong trò chuyện."
+search = "Tìm khóa hoặc nội dung thông báo. Nhập cancel để quay lại."
+value = "Nhập giá trị mới cho {key} trong khung chat."
 variables = "Biến: {variables}"
 
 [language.editor.saved]
@@ -166,8 +170,8 @@ summary = "Đã lưu {locale}. Các lựa chọn ngôn ngữ không thay đổi.
 
 [language.editor.search]
 clear = "Xóa tìm kiếm"
-messages = "Tìm tin nhắn"
-messages-lore = "Nhấn vào để tìm kiếm mọi tin nhắn."
+messages = "Tìm thông báo"
+messages-lore = "Nhấp để tìm trong mọi thông báo."
 
 [language.editor.section]
 group-title = "{locale} / {group}"
@@ -180,7 +184,7 @@ empty = "(trống)"
 none = "Không có"
 
 [language.error]
-editor-player-only = "Mở trình soạn thảo ngôn ngữ trong trò chơi."
+editor-player-only = "Hãy mở trình chỉnh sửa ngôn ngữ trong trò chơi."
 no-providers = "Không có nhà cung cấp ngôn ngữ Volmit nào khả dụng."
 numeric-page = "Nhập số trang bằng chữ số."
 personal-permission = "Bạn không có quyền chọn ngôn ngữ của mình."
@@ -188,11 +192,11 @@ personal-player-only = "Bạn phải chọn ngôn ngữ cá nhân trong trò ch�
 plugin-personal-permission = "Bạn không có quyền chọn ngôn ngữ cá nhân cho {plugin}."
 plugin-server-permission = "Bạn không có quyền thay đổi ngôn ngữ máy chủ cho {plugin}."
 server-locale-required = "Chọn mã ngôn ngữ như en_US làm ngôn ngữ mặc định của máy chủ."
-stopping = "Không có khả năng chọn ngôn ngữ trong khi bổ sung đang dừng."
+stopping = "Không thể chọn ngôn ngữ trong khi plugin đang dừng."
 unavailable-for-all = "Ngôn ngữ {locale} không khả dụng cho tất cả plugin đã chọn."
 
 [language.menu]
-all-volmit-plugins = "Tất cả plugin Volmit"
+all-volmit-plugins = "tất cả plugin Volmit"
 command = "Câu lệnh: {command}"
 current = "Hiện tại: {locale}"
 current_with_personal = "Hiện tại: {locale} (Của bạn: {personal})"
@@ -203,7 +207,7 @@ remove_personal_description = "Xóa lựa chọn ngôn ngữ cá nhân của b�
 reset_description = "Dùng ngôn ngữ mặc định của máy chủ."
 reset_your_language = "Đặt lại ngôn ngữ của bạn"
 select_description = "Nhấp để chọn ngôn ngữ này."
-selected = "Đã chọn"
+selected = "đã chọn"
 server_default = "Ngôn ngữ mặc định của máy chủ"
 server_description = "Thay đổi ngôn ngữ mặc định của máy chủ."
 use_server_default = "Dùng ngôn ngữ mặc định của máy chủ"
@@ -218,15 +222,24 @@ save-failed = "{plugin}: không thể lưu lựa chọn ngôn ngữ; hãy kiểm
 server-default-selected = "{plugin}: ngôn ngữ của bạn hiện theo ngôn ngữ mặc định của máy chủ."
 server-selected = "{plugin}: ngôn ngữ máy chủ hiện là {locale}."
 
+[language.update]
+applied = "{plugin}: đã cập nhật {locale} (thêm {added}, thay đổi {updated}, giữ lại {kept} chỉnh sửa cục bộ)."
+checking = "{plugin}: đang kiểm tra thay đổi trong kho ngôn ngữ..."
+cooldown = "{plugin}: kho ngôn ngữ vừa được kiểm tra; hãy thử lại sau {remaining}."
+failed = "{plugin}: cập nhật ngôn ngữ thất bại: {reason}"
+locale-failed = "{plugin}: {locale} chưa được cập nhật: {reason}"
+unchanged = "{plugin}: các ngôn ngữ đã cài đặt đã khớp với kho."
+
 [language.usage]
 editor = "Cách dùng: /{command} language server edit [locale]"
-selection = "Cách dùng: /{command} language self [locale|reset] or server [locale]"
+selection = "Cách dùng: /{command} language self [locale|reset] hoặc server [locale]"
+update = "Cách dùng: /{command} language update"
 volmit-selection = "Cách dùng: /volmit plugins languages [locale]"
 
 [command]
 unknown = "Lệnh không xác định. Vui lòng dùng /wormholes để xem trợ giúp."
 public_help = ["&8[&6Wormholes&8] &7Trợ giúp cổng dịch chuyển: &f/wormholes info", "&8[&6Wormholes&8] &7Dùng gậy cổng dịch chuyển lên cổng để mở các tùy chọn điểm đến, khung nhìn, di chuyển và truy cập."]
-info = ["&8[&6Wormholes&8] &7&lCách xây lỗ sâu&r", "&81. &7Nhận gậy cổng dịch chuyển và rune cổng từ máy chủ hoặc quản trị viên.", "&82. &7Đặt rune thành một hình nối liền trên cùng bề mặt phẳng.", "&7   Mọi hình nối liền đều dùng được: hình chữ nhật, đường thẳng (3x1), một khối, hình chữ L và hình chữ thập.", "&7   Rune phải nằm phẳng trên cùng một mặt tường, sàn hoặc trần thẳng theo trục tọa độ.", "&83. &7Cầm gậy cổng dịch chuyển và &fnhấp trái vào rune bất kỳ&7 để tạo cổng.", "&84. &7Xây cổng thứ hai ở nơi khác (không giới hạn khoảng cách hoặc thế giới).", "&85. &7Dùng gậy nhấp vào cổng đang mở để mở trình đơn chính.", "&7   Chọn &fĐiểm đến&7 rồi chọn cổng còn lại. Lặp lại ở phía bên kia.", "&7   Hướng và quyền truy cập nằm trong các trình đơn riêng, đơn giản.", "&86. &7Đứng trong phạm vi {range} khối của một trong hai cổng; thế giới đích sẽ chiếu qua khung và bạn sẽ dịch chuyển khi bước vào.", "&7Quản trị viên có thể tạo vật phẩm bằng &f/wormholes wand"]
+info = ["&8[&6Wormholes&8] &7&lCách xây lỗ sâu&r", "&81. &7Nhận gậy cổng dịch chuyển và rune lỗ sâu từ máy chủ hoặc quản trị viên.", "&82. &7Đặt rune thành một hình nối liền trên cùng bề mặt phẳng.", "&7   Mọi hình nối liền đều dùng được: hình chữ nhật, đường thẳng (3x1), một khối, hình chữ L và hình chữ thập.", "&7   Rune phải nằm phẳng trên cùng một mặt tường, sàn hoặc trần thẳng theo trục tọa độ.", "&83. &7Cầm gậy cổng dịch chuyển và &fnhấp trái vào khối rune bất kỳ&7 để tạo cổng.", "&84. &7Xây cổng thứ hai ở nơi khác (không giới hạn khoảng cách hoặc thế giới).", "&85. &7Mở trình đơn cổng bằng gậy khi đang nhìn vào cổng, hoặc ngồi xuống với tay chính trống rồi nhấp phải vào một khối cổng (chủ sở hữu hoặc quản trị viên).", "&7   Chọn &fĐiểm đến&7 rồi chọn cổng còn lại. Lặp lại ở phía bên kia.", "&7   Hướng và quyền truy cập nằm trong các trình đơn riêng, đơn giản.", "&86. &7Đứng trong phạm vi {range} khối của một trong hai cổng (phạm vi kích hoạt toàn cục hiện tại); thế giới đích sẽ chiếu qua khung và bạn sẽ dịch chuyển khi bước vào.", "&7Quản trị viên có thể tạo vật phẩm bằng &f/wormholes wand"]
 
 [command.debug]
 enabled = "Đã bật nhật ký gỡ lỗi."
@@ -239,8 +252,8 @@ debug_dump = "Tạo báo cáo chẩn đoán và tải lên nếu muốn"
 debug_dump_upload = "Tải báo cáo lên mclo.gs"
 language = "Chọn ngôn ngữ của bạn hoặc ngôn ngữ mặc định của máy chủ"
 root = "Lệnh gốc của Wormholes"
-wand = "Nhan gay portal va mot rune wormhole"
-"wand.rune" = "Kem theo mot rune wormhole (rune=false chi dua gay)"
+wand = "Nhận gậy cổng dịch chuyển và một rune lỗ sâu"
+"wand.rune" = "Kèm theo một rune lỗ sâu (rune=false chỉ đưa gậy)"
 door = "Nhận một vật phẩm Cửa Không Gian dùng trong sinh tồn"
 "door.type" = "pair | personal | public | pair_trapdoor | personal_trapdoor | public_trapdoor"
 debug_toggle = "Bật/tắt nhật ký bảng điều khiển chi tiết và dữ liệu đo mỗi giây"
@@ -254,40 +267,40 @@ admin = "Các lệnh bảo trì Wormholes có tính hủy dữ liệu"
 "admin.freeze.seconds" = "Giữ khung hình đã đóng băng trong bao lâu (5-300, 0 tiếp tục ngay)"
 "admin.flush" = "Khôi phục các khối được chiếu của mọi người quan sát về trạng thái thực và dựng lại chúng"
 network = "Mạng lỗ sâu giữa các máy chủ"
-"network.import" = "Nhập mã cổng từ máy chủ khác (lưu tuyến nội bộ; liên kết qua trình đơn Liên kết của cổng liên máy chủ)"
-"network.import.code" = "Mã cổng từ nút Xuất trên máy chủ kia"
+"network.import" = "Giống /wh server import; chấp nhận mã máy chủ hoặc mã cổng"
+"network.import.code" = "Mã máy chủ hoặc mã cổng từ bản xuất của máy chủ kia"
 "network.status" = "Hiển thị trạng thái kết nối máy ngang hàng"
 "network.doctor" = "Giải thích lý do các máy ngang hàng không kết nối"
 server = "Di chuyển liên máy chủ: kết nối, liệt kê và trao đổi các máy chủ đã liên kết"
 "server.connect" = "Chuyển bạn đến một máy chủ đã liên kết (viết tắt: /wh server \\<name>)"
 "server.connect.name" = "Tên máy chủ đã liên kết (xem /wh server list)"
 "server.export" = "Xuất máy chủ này thành mã mà các máy chủ khác có thể nhập"
-"server.import" = "Nhập mã máy chủ hoặc mã cổng do máy chủ khác xuất"
+"server.import" = "Nhập mã máy chủ (WHS2.) hoặc mã cổng (WHP6.) do máy chủ khác xuất"
 "server.import.code" = "Mã từ bản xuất của máy chủ kia"
 "server.list" = "Liệt kê các máy chủ đã liên kết và trạng thái kết nối của chúng"
 "server.remove" = "Quên một máy chủ đã liên kết (xóa tuyến và khóa tin cậy của nó)"
 "server.remove.name" = "Tên máy chủ đã liên kết cần quên"
-pocket = "Xem va dinh hinh lai cac chieu khong gian tui"
-"pocket.info" = "Hien kich thuoc, vat lieu va gioi han cua tui ban dang dung"
-"pocket.resize" = "Xay lai tui ban dang dung voi kich thuoc hoac vat lieu moi"
-"pocket.resize.size" = "Canh phong moi tinh bang khoi, hoac 0 de giu kich thuoc hien tai"
-"pocket.resize.material" = "Khoi moi cho tuong, san va tran, hoac keep"
-"pocket.resize.door" = "Khoi moi cho cua thoat, hoac keep"
-"pocket.resize.confirm" = "Bat buoc khi thay doi se pha huy hoac di chuyen thu gi do"
-"pocket.resizeall" = "Xay lai moi tui hien co voi kich thuoc hoac vat lieu moi"
+pocket = "Xem và định hình lại các chiều không gian túi"
+"pocket.info" = "Hiện kích thước, vật liệu và giới hạn của túi bạn đang đứng"
+"pocket.resize" = "Xây lại túi bạn đang đứng với kích thước hoặc vật liệu mới"
+"pocket.resize.size" = "Cạnh phòng mới tính bằng khối, hoặc 0 để giữ kích thước hiện tại"
+"pocket.resize.material" = "Khối mới cho tường, sàn và trần, hoặc keep"
+"pocket.resize.door" = "Khối mới cho cửa thoát, hoặc keep"
+"pocket.resize.confirm" = "Bắt buộc khi thay đổi sẽ phá hủy hoặc di chuyển thứ gì đó"
+"pocket.resizeall" = "Xây lại mọi túi hiện có với kích thước hoặc vật liệu mới"
 
 [command.error]
 no_permission = "&8[&6Wormholes&8] &cBạn không có quyền."
-no_permission_use = "&8[&6Wormholes&8] &cAnh không được phép sử dụng lệnh đó."
+no_permission_use = "&8[&6Wormholes&8] &cBạn không có quyền sử dụng lệnh đó."
 only_players = "&8[&6Wormholes&8] &cChỉ người chơi mới có thể nhận vật phẩm."
 
 [command.wand]
-granted_wand = "&8[&6Wormholes&8] &aDa trao gay portal."
+granted_wand = "&8[&6Wormholes&8] &aĐã trao gậy cổng dịch chuyển."
 granted_starter = ["&8[&6Wormholes&8] &aĐã cấp gậy cổng dịch chuyển và 1 rune lỗ sâu.", "&8[&6Wormholes&8] &7Tạo hai hình rune lỗ sâu (bất kỳ hình nối liền nào trên cùng bề mặt phẳng), liên kết chúng và đứng trong phạm vi {range} khối để xem hình chiếu.", "&8[&6Wormholes&8] &7Chạy &f/wormholes info&7 để xem hướng dẫn đầy đủ từng bước."]
 
 [command.door]
 unavailable = "&8[&6Wormholes&8] &cCửa Không Gian không khả dụng."
-unknown_type = "&8[&6Wormholes&8] &cLoại cửa không xác định. Hãy dùng pair, personal hoặc public, pair_trapdoor, personal_trapdoor, public_trapdoor."
+unknown_type = "&8[&6Wormholes&8] &cLoại cửa không xác định. Hãy dùng pair, personal, public, pair_trapdoor, personal_trapdoor hoặc public_trapdoor."
 empty_type = "Loại cửa không được để trống"
 granted = "&8[&6Wormholes&8] &aĐã cấp vật phẩm cửa không gian loại &f{type}&a."
 
@@ -315,24 +328,24 @@ one = "&8[&6Wormholes&8] &aWormholes đã được đặt lại về trạng th�
 other = "&8[&6Wormholes&8] &aWormholes đã được đặt lại về trạng thái mặc định. Đã xóa &f{count}&a cổng dịch chuyển, đóng các kết nối mạng và tạo lại các tệp cấu hình mặc định."
 
 [command.admin.projection_flushed]
-one = "&8[&6Wormholes&8] &aĐã xóa &f{count}&a người quan sát hình chiếu; máy khách đang dựng lại từ trạng thái thực."
-other = "&8[&6Wormholes&8] &aĐã xóa &f{count}&a người quan sát hình chiếu; máy khách đang dựng lại từ trạng thái thực."
+one = "&8[&6Wormholes&8] &aĐã làm mới &f{count}&a người quan sát hình chiếu; máy khách đang dựng lại từ trạng thái thực."
+other = "&8[&6Wormholes&8] &aĐã làm mới &f{count}&a người quan sát hình chiếu; máy khách đang dựng lại từ trạng thái thực."
 
 [command.pocket]
-not_inside = "&8[&6Wormholes&8] &cHay dung ben trong mot chieu khong gian tui de chay lenh nay."
-invalid_size = "&8[&6Wormholes&8] &cKich thuoc tui phai tu {minimum} den {maximum} khoi."
-invalid_shell_material = "&8[&6Wormholes&8] &c{material} khong dung lam tuong tui. Hay dung khoi dac khong roi."
-invalid_door_material = "&8[&6Wormholes&8] &c{material} khong dung lam cua thoat cua tui. Hay dung cua mo bang tay; cua sat bi tu choi."
-unchanged = "&8[&6Wormholes&8] &eTui do da co kich thuoc va vat lieu nay."
-containers_not_empty = "&8[&6Wormholes&8] &cDa dung thay doi kich thuoc tui: &f{containers}&c kho chua con vat pham se bi pha huy. Hay lam rong truoc khi thu lai; &fconfirm=true&c khong the bo qua kiem tra an toan nay."
-resized = "&8[&6Wormholes&8] &aDa xay lai tui o &f{size}&a khoi (truoc do &f{previous}&a), tuong &f{material}&a, cua thoat &f{door}."
-failed = "&8[&6Wormholes&8] &cKhong the xay lai tui. Hay kiem tra console."
-world_unavailable = "&8[&6Wormholes&8] &cChieu khong gian tui chua duoc tai."
-does_not_fit = "&8[&6Wormholes&8] &cPhong {size} khoi khong vua chieu cao xay dung cua chieu khong gian tui."
-bulk_started = "&8[&6Wormholes&8] &7Dang xay lai &f{count}&7 tui."
-bulk_finished = "&8[&6Wormholes&8] &aDa xay lai &f{resized}&a, bo qua &f{skipped}&a, that bai &f{failed}."
-info = ["&8[&6Wormholes&8] &7Tui &f{space}", "&8[&6Wormholes&8] &7Kich thuoc &f{size}&7 khoi, tuong &f{material}&7, cua thoat &f{door}", "&8[&6Wormholes&8] &7Gioi han &f{minimum}&7 den &f{maximum}"]
-confirm_required = ["&8[&6Wormholes&8] &cXay lai o {size} khoi se pha huy &f{blocks}&c khoi da dat va di chuyen &f{entities}&c thuc the.", "&8[&6Wormholes&8] &7Cac khoi ngoai tuong moi bi pha huy; thuc the bi di chuyen duoc dua den loi vao.", "&8[&6Wormholes&8] &7Chay lai cung lenh voi &fconfirm=true&7 de tiep tuc."]
+not_inside = "&8[&6Wormholes&8] &cHãy đứng bên trong một chiều không gian túi để chạy lệnh này."
+invalid_size = "&8[&6Wormholes&8] &cKích thước túi phải từ {minimum} đến {maximum} khối."
+invalid_shell_material = "&8[&6Wormholes&8] &c{material} không dùng làm tường túi được. Hãy dùng khối đặc không bị rơi."
+invalid_door_material = "&8[&6Wormholes&8] &c{material} không dùng làm cửa thoát của túi được. Hãy dùng cửa mở bằng tay; cửa sắt bị từ chối."
+unchanged = "&8[&6Wormholes&8] &eTúi đó đã có kích thước và vật liệu này."
+containers_not_empty = "&8[&6Wormholes&8] &cĐã dừng thay đổi kích thước túi: &f{containers}&c vật chứa còn đồ sẽ bị phá hủy. Hãy làm rỗng chúng trước khi thử lại; &fconfirm=true&c không thể bỏ qua kiểm tra an toàn này."
+resized = "&8[&6Wormholes&8] &aĐã xây lại túi với &f{size}&a khối (trước đó &f{previous}&a), tường &f{material}&a, cửa thoát &f{door}."
+failed = "&8[&6Wormholes&8] &cKhông thể xây lại túi. Hãy kiểm tra bảng điều khiển."
+world_unavailable = "&8[&6Wormholes&8] &cChiều không gian túi chưa được tải."
+does_not_fit = "&8[&6Wormholes&8] &cPhòng {size} khối không vừa chiều cao xây dựng của chiều không gian túi."
+bulk_started = "&8[&6Wormholes&8] &7Đang xây lại &f{count}&7 túi."
+bulk_finished = "&8[&6Wormholes&8] &aĐã xây lại &f{resized}&a, bỏ qua &f{skipped}&a, thất bại &f{failed}."
+info = ["&8[&6Wormholes&8] &7Túi &f{space}", "&8[&6Wormholes&8] &7Kích thước &f{size}&7 khối, tường &f{material}&7, cửa thoát &f{door}", "&8[&6Wormholes&8] &7Giới hạn &f{minimum}&7 đến &f{maximum}"]
+confirm_required = ["&8[&6Wormholes&8] &cXây lại với {size} khối sẽ phá hủy &f{blocks}&c khối đã đặt và di chuyển &f{entities}&c thực thể.", "&8[&6Wormholes&8] &7Các khối ngoài tường mới bị phá hủy; thực thể bị dịch chỗ được đưa đến lối vào.", "&8[&6Wormholes&8] &7Chạy lại cùng lệnh với &fconfirm=true&7 để tiếp tục."]
 
 [portal]
 deleted = "&cĐã xóa {portal}"
@@ -343,8 +356,8 @@ cost_vault_insufficient = "&cBạn cần {amount} để sử dụng cổng này.
 cost_vault_unavailable = "&cChi phí kinh tế của cổng này hiện không khả dụng."
 cost_transaction_failed = "&cCổng không thể xử lý chi phí di chuyển của bạn."
 transfer_holding = "&6Đang kết nối tới máy chủ đích..."
-transfer_interrupted = "&cChuyển cổng bị gián đoạn: bạn đã rời khỏi cổng."
-transfer_source_unavailable = "&cChuyển cổng bị gián đoạn: cổng nguồn không còn khả dụng."
+transfer_interrupted = "&cViệc chuyển qua cổng bị gián đoạn: bạn đã rời khỏi cổng."
+transfer_source_unavailable = "&cViệc chuyển qua cổng bị gián đoạn: cổng nguồn không còn khả dụng."
 cooldown = "&6Cổng đang trong thời gian hồi"
 access_denied = "&cQuyền truy cập cổng bị từ chối"
 destination_unavailable = "&cĐiểm đến của cổng không khả dụng"
@@ -352,32 +365,32 @@ arrival_denied = "&cCổng đích đã từ chối bạn."
 arrival_returned = "&cCổng đích đã từ chối bạn; đang đưa bạn về {server}"
 arrival_failed = "&cKhông thể đặt điểm đến của cổng; bạn vẫn ở điểm hồi sinh của đích"
 transfer_cooldown = "&6Cổng liên máy chủ đang trong thời gian hồi: {seconds}s"
-destination_unreachable = "&cMáy chủ đích không thể tiếp cận được"
-destination_unreachable_detail = "&cMáy chủ đích không thể tiếp cận được: {reason}"
-transfer_blocked = "&cChuyển giao cổng bị chặn: {reason}"
-transfer_blocked_retry = "&cChuyển qua cổng bị chặn: {reason} (thử lại sau {seconds}s)"
+destination_unreachable = "&cKhông thể tiếp cận máy chủ đích"
+destination_unreachable_detail = "&cKhông thể tiếp cận máy chủ đích: {reason}"
+transfer_blocked = "&cViệc chuyển qua cổng bị chặn: {reason}"
+transfer_blocked_retry = "&cViệc chuyển qua cổng bị chặn: {reason} (thử lại sau {seconds}s)"
 
 [portal.prompt]
 cost_item = "&bCầm đúng vật phẩm chi phí trên tay chính, sau đó nhấn phím vứt đồ. Vật phẩm sẽ không rời khỏi túi đồ của bạn."
 cost_vault = "&bNhập số tiền mỗi lần đi qua (hoặc '{cancel}'):"
-invite = "&bDán lời mời cổng vào trò chuyện (hoặc '{cancel}'):"
+invite = "&bDán lời mời cổng vào khung chat (hoặc '{cancel}'):"
 block_state = "&bNhập trạng thái khối cho rìa khung nhìn mạng của cổng này, hoặc '{cancel}':"
-name = "&bNhập tên cổng mới trong chat (hoặc '{cancel}'):"
-direction = ["&8[&6Wormholes&8] &7Nhìn theo hướng rồi nhấp chuột trái để áp dụng.", "&8[&6Wormholes&8] &7Shift + nhấp chuột trái để hủy."]
+name = "&bNhập tên cổng mới trong khung chat (hoặc '{cancel}'):"
+direction = ["&8[&6Wormholes&8] &7Nhìn theo một hướng rồi nhấp trái để áp dụng.", "&8[&6Wormholes&8] &7Shift + nhấp trái để hủy."]
 
 [portal.notice]
-cost_item_set = "Di chuyển giờ yêu cầu {item}."
+cost_item_set = "Giờ đây cần {item} để di chuyển."
 cost_item_invalid = "Không thể lưu vật phẩm đó làm chi phí di chuyển."
 cost_cleared = "Đã xóa chi phí di chuyển."
 cost_quantity_changed = "Số lượng chi phí di chuyển: {quantity}"
 cost_vault_changed = "Phí di chuyển: {amount}"
 cost_vault_invalid = "Nhập số tiền dương không vượt quá {maximum}."
 cost_vault_unavailable = "Phải có nhà cung cấp kinh tế trước khi chọn loại phí này."
-dimensional_link_managed = "Cổng chiều không gian này duy trì liên kết được tạo tự động."
+dimensional_link_managed = "Cổng không gian này duy trì liên kết được tạo tự động."
 not_rtp = "Cổng này không còn ở chế độ dịch chuyển ngẫu nhiên."
 region_unavailable = "Khu vực của cổng không khả dụng; hãy thử lại."
 travel_managed = "Việc di chuyển qua cổng không gian được quản lý tự động."
-travel_mirror_locked = "Chế độ gương không bao giờ cho phép đi lại."
+travel_mirror_locked = "Chế độ gương không bao giờ cho phép di chuyển."
 travel_changed = "Di chuyển {mode}"
 stream_quality_changed = "Chất lượng luồng: {quality}"
 network_value_changed = "{label} {value}"
@@ -423,7 +436,7 @@ locked = "Đã khóa"
 arrival = "Chỉ đến"
 departure = "Chỉ đi"
 dimensional_both = "Cả hai nửa liên kết vẫn hoạt động."
-dimensional_return_disabled = "Con đường trở lại sẽ bị vô hiệu hóa."
+dimensional_return_disabled = "Đường trở về vẫn bị vô hiệu hóa."
 
 [portal.label.quality]
 standard = "Tiêu chuẩn"
@@ -464,7 +477,7 @@ reconnecting = "Đang kết nối lại"
 render_mode = "Chế độ kết xuất"
 ambient_style = "Hạt môi trường"
 ambient_color = "Màu môi trường"
-surface_skin = "Giao diện bề mặt"
+surface_skin = "Lớp phủ bề mặt"
 capture_radius = "Bán kính thu nhận"
 full_refresh = "Làm mới toàn bộ"
 entity_update = "Cập nhật thực thể"
@@ -503,25 +516,25 @@ destination = ["&6&lĐiểm đến&r", "&7Chọn cổng để liên kết.", "&7
 "destination.next_page" = ["&e&lTrang tiếp theo&r", "&7Hiển thị các điểm đến tiếp theo.", "&eNhấp trái"]
 "destination.page" = ["&b&lTrang {page}/{pages}&r", "&7{count} điểm đến"]
 "destination.empty" = ["&7Không có điểm đến nào để liên kết."]
-render_mode = ["&b&lChế độ kết xuất &f&l{mode}&r", "&7Cổng này chiếu bao nhiêu phần của khối tích đích.", "", "&7Chế độ: &f{mode}", "", "&8PanOptic kết xuất toàn bộ khối tích đích.", "&8Venticular ẩn hình học phía sau các bề mặt mờ đục nhìn thấy được.", "", "&8Trái: đổi chế độ."]
+render_mode = ["&b&lChế độ kết xuất &f&l{mode}&r", "&7Cổng này chiếu bao nhiêu phần của khối tích đích.", "", "&7Chế độ: &f{mode}", "", "&8PanOptic kết xuất toàn bộ khối tích đích.", "&8Venticular giữ các bề mặt nhìn thấy được và bỏ qua phần hình học bị che khuất của điểm đến.", "", "&8Trái: đổi chế độ."]
 ambient_particles = ["&b&lHạt môi trường&r", "&7Bụi trang trí bay lơ lửng quanh cổng này.", "", "&7Kiểu: &f{style} &8({color})", "", "&8Trái: đổi kiểu.", "&8Phải: chọn màu."]
-aperture_shape = ["&b&lHình dạng lỗ mở&r", "&7Đường viền của lỗ mở bên trong khung cổng.", "", "&7Hình dạng: &f{shape}", "&7Ô mở: &f{cells}", "", "&8Trái: hình dạng tiếp theo.", "&8Phải: xoay 45 độ.", "&8Shift + phải: đặt lại về full."]
+aperture_shape = ["&b&lHình dạng lỗ mở&r", "&7Đường viền của lỗ mở bên trong khung cổng.", "", "&7Hình dạng: &f{shape}", "&7Ô mở: &f{cells}", "", "&8Trái: hình dạng tiếp theo.", "&8Phải: xoay 45 độ.", "&8Shift + phải: đặt lại thành lỗ mở đầy đủ."]
 "aperture_shape.label" = "Hình dạng lỗ mở"
 "aperture_shape.too_small" = "&c{shape} không để lại ô mở nào trong khung cổng này."
 "aperture_shape.invalid" = "&8[&6Wormholes&8] &cKhông thể đọc hình dạng: {reason}"
 "aperture_shape.current" = "&8[&6Wormholes&8] &f{portal}&7: hình dạng lỗ mở &f{shape}&7 ({cells} ô mở)"
 "aperture_shape.set" = "&8[&6Wormholes&8] &f{portal}&a: đã đặt hình dạng lỗ mở thành &f{shape}&a ({cells} ô mở)."
-surface_skin = ["&b&lGiao diện bề mặt&r", "&7Phủ khung cổng bằng một tấm khối hoặc chất lỏng được kết xuất.", "", "&7Giao diện: &f{skin}", "", "&8Trái: xóa giao diện.", "&8Phải: mở tùy chọn giao diện."]
-"surface_skin.placard" = ["&6&lGiao diện bề mặt&r", "&7Nhấp chuột phải vào cổng khi cầm khối hoặc xô để áp dụng giao diện.", "", "&7Giao diện: &f{skin}"]
-"surface_skin.glass" = ["&b&lGiao diện kính&r", "&7Một cửa sổ kính trong suốt trên khung cổng.", "", "&8Nhấp để áp dụng kính."]
-"surface_skin.clear" = ["&c&lXóa giao diện&r", "&7Xóa giao diện và khôi phục các phép chiếu.", "", "&8Nhấp để xóa giao diện."]
+surface_skin = ["&b&lLớp phủ bề mặt&r", "&7Phủ khung cổng bằng một tấm khối hoặc chất lỏng được kết xuất.", "", "&7Lớp phủ: &f{skin}", "", "&8Trái: xóa lớp phủ.", "&8Phải: mở tùy chọn lớp phủ."]
+"surface_skin.placard" = ["&6&lLớp phủ bề mặt&r", "&7Nhấp phải vào cổng khi cầm khối hoặc xô để áp dụng lớp phủ.", "", "&7Lớp phủ: &f{skin}"]
+"surface_skin.glass" = ["&b&lLớp phủ kính&r", "&7Một cửa sổ kính trong suốt trên khung cổng.", "", "&8Nhấp để áp dụng kính."]
+"surface_skin.clear" = ["&c&lXóa lớp phủ&r", "&7Xóa lớp phủ và khôi phục hình chiếu.", "", "&8Nhấp để xóa lớp phủ."]
 gateway_destination = ["&6&lGhép cặp & Điểm đến&r", "&7Ghép với máy chủ khác hoặc chọn cổng liên máy chủ.", "&7Đang liên kết: {destination}", "", "&8Nhấp để mở trung tâm ghép cặp."]
 rtp_destination = ["&6&lĐiểm đến ngẫu nhiên&r", "&7Đặt vị trí và thời điểm cổng chọn lại điểm đến.", "&7Xoay vòng: &b{rotation}", "", "&8Nhấp để mở cài đặt dịch chuyển ngẫu nhiên."]
 rename = ["&a&lĐổi tên cổng&r", "&7Đổi tên hiển thị trong liên kết và trình đơn.", "&7Hiện tại: &f{portal}", "", "&8Nhấp để nhập tên mới."]
 delete = ["&c&lXóa cổng&r", "&7Xóa vĩnh viễn cổng này.", "", "&c&nShift + nhấp trái để xác nhận&r"]
 advanced_settings = ["&3&lTinh chỉnh luồng nâng cao&r", "&7Điều khiển trực tiếp để chẩn đoán và xử lý liên kết đặc biệt.", "&7Thay đổi một giá trị sẽ đặt Chất lượng luồng thành Tùy chỉnh."]
 back_settings = ["&e&lTrở lại cài đặt&r", "&7Trở lại cài đặt cổng dịch chuyển."]
-extensions = ["&b&lCài đặt khác&r", "&7Quy tắc, quyền truy cập, mạng lưới và các cài đặt tính năng khác.", "&eNhấp chuột trái"]
+extensions = ["&b&lCài đặt khác&r", "&7Quy tắc, quyền truy cập, mạng lưới và các cài đặt tính năng khác.", "&eNhấp trái"]
 stream_quality = ["&b&lChất lượng luồng: {quality}&r", "&7Một tùy chọn điều khiển phạm vi và nhịp cập nhật của khung nhìn từ xa.", "", "&7Độ sâu &b{depth}&7  Thực thể &b{entities}t", "&7Làm mới &b{refresh}t&7  Duy trì &b{grace}s", "", "&8Nhấp: đổi chất lượng.", "&8Shift + nhấp: tinh chỉnh nâng cao."]
 orientation = ["&9&lHướng&r", "&7Mặt trước: &9{facing}", "&7Phía trên màn hình: &6{up}", "", "&8Nhấp để chỉnh mặt trước, lật và xoay."]
 orientation_placard = ["&9&lHướng cổng&r", "&7Mặt trước: &9{facing}", "&7Phía trên màn hình: &6{up}"]
@@ -529,17 +542,17 @@ network_number = ["&b&l{label} &f&l{value}&r", "&7{description}", "", "&7Hiện 
 fallback_block = ["&b&lKhối dự phòng&r", "&7Khối hiển thị ngoài độ sâu luồng.", "", "&7Hiện tại: &f{block}", "", "&8Trái: nhập trạng thái khối.", "&8Phải: đặt lại thành không khí."]
 blackout = ["&b&lNền che kín&r", "&7Bịt kín ranh giới xa và các cạnh bên của hình chiếu bằng bê tông đặc để thế giới cục bộ không bao giờ lộ ra.", "", "&7Hiện tại: &f{state} &8({color})", "", "&8Trái: bật/tắt.", "&8Phải: chọn màu."]
 activation_range = ["&b&lPhạm vi kích hoạt &f&l{value}&r", "&7Khoảng cách tính bằng khối mà cổng này bắt đầu chiếu cho người chơi ở gần.", "", "&7Hiện tại: &b{value}", "", "&8Nhấp trái: +{step}", "&8Nhấp phải: -{step}", "&8Shift + nhấp trái: +{large_step}", "&8Shift + nhấp phải: -{large_step}", "&8Dưới 8 sẽ đặt lại về Toàn cục."]
-settings_placard_gateway = ["&b&lCài đặt cổng dịch chuyển&r", "&7Điều khiển quyền truy cập và truyền qua cổng.", "&7Thêm tinh chỉnh khung nhìn giữa các máy chủ.", "", "&7Độ sâu lớn hơn / khoảng tick ngắn hơn =", "&7hình ảnh chi tiết hơn, tốn nhiều băng thông hơn."]
+settings_placard_gateway = ["&b&lCài đặt cổng dịch chuyển&r", "&7Điều khiển quyền truy cập và truyền qua cổng.", "&7Kèm tinh chỉnh khung nhìn hình chiếu.", "", "&7Độ sâu lớn hơn / khoảng tick ngắn hơn =", "&7hình ảnh chi tiết hơn, tốn nhiều băng thông hơn."]
 mode_placard = ["&e&lChế độ cổng&r", "&7Hiện tại: &e{mode}", "", "&7Cổng: cổng liên kết cơ bản.", "&7Lỗ sâu: cổng có khung nhìn.", "&7Cổng liên máy chủ: liên kết giữa các máy chủ.", "&7RTP: điểm đến ngẫu nhiên có thể cấu hình.", "&7Gương: phản chiếu phía này, không thể di chuyển."]
 mode_opener = ["&e&lChế độ&r", "&7{description}", "", "&7Hiện tại: &e{mode}", "", "&8Nhấp để đổi chế độ."]
 direction = ["&9&lHướng&r", "&7Thay đổi hướng mặt trước của cổng.", "", "&7Hướng hiện tại: &9{direction}", "", "&8Nhấp, nhìn theo một hướng rồi nhấp trái để áp dụng."]
 flip_face = ["&b&lLật mặt trước&r", "&7Đảo hướng mặt trước của cổng.", "&7Góc xoay màn hình vẫn được căn chỉnh.", "", "&7Phía trên màn hình hiện tại: &b{up}", "", "&8Nhấp để lật."]
 rotate_counterclockwise = ["&6&lXoay ngược chiều kim đồng hồ&r", "&7Xoay khung nhìn của cổng 90 độ", "&7mà không đổi mặt trước.", "", "&7Phía trên màn hình hiện tại: &6{up}", "", "&8Nhấp để xoay."]
 rotate_clockwise = ["&6&lXoay theo chiều kim đồng hồ&r", "&7Xoay khung nhìn của cổng 90 độ", "&7mà không đổi mặt trước.", "", "&7Phía trên màn hình hiện tại: &6{up}", "", "&8Nhấp để xoay."]
-back = ["&e&lTrở lại&r", "&7Trở lại menu cổng dịch chuyển."]
-settings_gateway = ["&b&lCài đặt&r", "&7Quyền truy cập, truyền qua cổng", "&7và tinh chỉnh khung nhìn giữa máy chủ.", "", "&7Truy cập: &6{access}", "&7Gửi &b{send}&7  Nhận &b{receive}", "&7Độ sâu &b{depth}&7  Thực thể &b{entity}t", "", "&8Nhấp để mở cài đặt."]
+back = ["&e&lTrở lại&r", "&7Trở lại trình đơn cổng."]
+settings_gateway = ["&b&lCài đặt&r", "&7Quyền truy cập, truyền qua cổng", "&7và tinh chỉnh khung nhìn hình chiếu.", "", "&7Truy cập: &6{access}", "&7Gửi &b{send}&7  Nhận &b{receive}", "&7Độ sâu &b{depth}&7  Thực thể &b{entity}t", "", "&8Nhấp để mở cài đặt."]
 settings_sync = ["&b&lĐồng bộ cài đặt {state}&r", "&7Khi bật, cài đặt của cổng này", "&7(độ sâu, tick, hình chiếu, quyền,", "&7truyền dữ liệu) đồng bộ với mọi đầu liên kết.", "", "&7Hiện tại: &b{state}", "", "&8Nhấp để chuyển đổi."]
-permission = ["&6&lTruy cập {mode}&r", "&7{description}", "&7Nút quyền: &f{node}", "", "&7Hiện tại: &6{mode}", "", "&8Nhấp để đổi giữa danh sách cho phép / chặn.", "&8Quản trị viên luôn được bỏ qua."]
+permission = ["&6&lTruy cập {mode}&r", "&7{description}", "&7Nút quyền: &f{node}", "", "&7Hiện tại: &6{mode}", "", "&8Nhấp để đổi giữa danh sách cho phép / chặn.", "&8Quản trị viên luôn được miễn kiểm tra."]
 public_look_label = ["&b&lNhãn công khai khi nhìn vào: &f&l{state}&r", "&7Hiển thị tên cổng này khi người chơi gần đó nhìn vào.", "&7Khi tắt, nhãn tuyến đường chỉ hiện khi dùng công cụ cổng.", "", "&eNhấp trái để chuyển đổi"]
 
 [portal.menu.gateway]
@@ -549,13 +562,13 @@ choose = ["&6&lChọn điểm đến&r", "&7Chọn trong các cổng liên máy 
 unpaired = ["&6&lGhép cặp cổng liên máy chủ&r", "&7Trạng thái: &cChưa ghép cặp"]
 paired = ["&6&lGhép cặp cổng liên máy chủ&r", "&7Điểm đến: &6{destination}"]
 export = ["&6&lTạo lời mời&r", "&7Tạo mã cổng liên máy chủ có chữ ký cho máy chủ khác.", "", "&8Nhấp để sao chép mã mới."]
-import = ["&b&lDùng lời mời&r", "&7Dán mã có chữ ký từ cổng liên máy chủ khác.", "", "&8Nhấp rồi dán mã vào trò chuyện."]
+import = ["&b&lDùng lời mời&r", "&7Dán mã có chữ ký từ cổng liên máy chủ khác.", "", "&8Nhấp rồi dán mã vào khung chat."]
 
 [portal.menu.mirror]
 rotation = "&7Góc xoay hình ảnh: &b{degrees} độ"
 rotate_clockwise = "&8Nhấp phải: xoay theo chiều kim đồng hồ."
-rotate_counterclockwise = "&8Shift + nhấp chuột phải: xoay ngược chiều kim đồng hồ."
-selected = ["&e&lGương&r", "&7Phản chiếu thế giới cục bộ về phía này.", "&7Bạn có thể thấy chính mình qua khung cổng.", "&7Không thể di chuyển khi dùng gương.", "", "&aĐang chọn"]
+rotate_counterclockwise = "&8Shift + nhấp phải: xoay ngược chiều kim đồng hồ."
+selected = ["&e&lGương&r", "&7Phản chiếu thế giới cục bộ về phía này.", "&7Bạn có thể thấy chính mình qua khung cổng.", "&7Không thể di chuyển khi dùng gương.", "", "&aĐang được chọn"]
 available = ["&e&lGương&r", "&7Phản chiếu thế giới cục bộ về phía này.", "&7Bạn có thể thấy chính mình qua khung cổng.", "&7Không thể di chuyển khi dùng gương.", "", "&7Nhấp trái để chọn"]
 flip = ["&7Gương trên tường lật theo bước 180 độ", "&7để các thực thể phản chiếu vẫn thẳng hàng.", "&8Nhấp phải: lật hình ảnh phản chiếu."]
 
@@ -596,7 +609,7 @@ on = ["&6&lBật hình chiếu&r", "&7Hiển thị khung nhìn trực tiếp c�
 off = ["&8&lTắt hình chiếu&r", "&7Khung cổng để trống.", "&7Không có khung nhìn điểm đến hoặc gương.", "", "&7Hiện tại: &bTắt hình chiếu&r", "", "&8Nhấp để bật / tắt."]
 
 [portal.menu.mode_option]
-selected = ["&e&l{mode}&r", "&7{description}", "", "&aHiện tại được chọn"]
+selected = ["&e&l{mode}&r", "&7{description}", "", "&aĐang được chọn"]
 available = ["&e&l{mode}&r", "&7{description}", "", "&7Nhấp để chọn"]
 
 [portal.input]
@@ -612,7 +625,7 @@ reset_defaults = "Đã đặt lại cài đặt dịch chuyển ngẫu nhiên v�
 editor_refreshed = "Cài đặt đã thay đổi; trình chỉnh sửa đã được làm mới."
 runtime_unavailable = "Hệ thống dịch chuyển ngẫu nhiên không khả dụng."
 reroll_failed = "Chọn lại thủ công thất bại; hãy xem nhật ký máy chủ."
-reroll_preparing = "Chuẩn bị một điểm đến ngẫu nhiên mới."
+reroll_preparing = "Đang chuẩn bị một điểm đến ngẫu nhiên mới."
 reroll_unavailable = "Không thể chọn lại khi tuyến đang được chuẩn bị hoặc sử dụng."
 pool_rebuilding = "Đang xây dựng lại nhóm điểm đến riêng."
 pool_failed = "Không thể xây dựng lại nhóm điểm đến; hãy xem nhật ký máy chủ."
@@ -620,15 +633,15 @@ not_ready = "&eCổng vẫn đang ổn định điểm đến."
 traversal_failed = "&cCổng không thể ổn định; hãy thử lại."
 
 [portal.rtp.rotation]
-private = "Riêng cho mỗi người trong {duration}"
+private = "Riêng cho mỗi người, đổi mỗi {duration}"
 
 [portal.mode]
 changed = "&aĐã đặt chế độ của {portal} thành {mode}."
 
 [portal.mode.description]
 portal = "Cổng cơ bản có thể liên kết."
-wormhole = "Cổng có thể liên kết với hình chiếu khung nhìn."
-gateway = "Dành cho liên kết mạng giữa các máy chủ."
+wormhole = "Cổng có thể liên kết, kèm hình chiếu khung nhìn."
+gateway = "Dành cho liên kết giữa các mạng."
 rtp = "Cổng dịch chuyển ngẫu nhiên cục bộ."
 mirror = "Phản chiếu thế giới cục bộ và khóa di chuyển."
 
@@ -656,7 +669,7 @@ direction_changed = "&aĐã đổi hướng của {portal} thành {direction}."
 
 [director.help]
 no_subcommands = "Không có lệnh phụ trên trang này."
-no_description = "Không có mô tả được cung cấp"
+no_description = "Không có mô tả"
 command_group = "Nhóm lệnh. Nhấp để mở."
 category = "Danh mục lệnh"
 no_parameters = "Không có tham số. Nhấp để điền sẵn lệnh."
@@ -667,7 +680,7 @@ back = "Trở lại"
 page = "Trang"
 
 [director.help.navigation.parent]
-hover = "Trở lại nhóm lệnh bậc cha"
+hover = "Trở lại nhóm lệnh cha"
 
 [director.help.navigation.previous]
 hover = "Trang trước"
@@ -712,15 +725,15 @@ line = "&8[&6Wormholes&8] &7- {diagnostic}"
 [network.code]
 building = "&8Đang tạo mã cổng..."
 copy = "&6&l[Sao chép mã cổng: {portal}]&r"
-copy_hover = "&7Nhấp để sao chép. Nhập nó vào máy chủ khác: menu cổng > Import, hoặc /wh server import \\<code>"
+copy_hover = "&7Nhấp để sao chép. Dán vào máy chủ kia:\ntrình đơn cổng > Nhập, hoặc /wh server import \\<code>"
 fingerprint = "&8Chứa địa chỉ máy chủ này và dấu vân tay khóa công khai {fingerprint}."
-too_long = "&eMã này quá dài để dán vào chat - sử dụng /wh server import \\<code> trên máy chủ khác thay vào đó."
-invalid = "&cMã cổng không hợp lệ. Mã bắt đầu với {prefix} - nếu dán vào chat nó có thể đã bị cắt giảm; thử /wh server import \\<code>. Mã từ các phiên bản plugin cũ phải được xuất lại."
+too_long = "&eMã này quá dài để dán vào khung chat - hãy dùng /wh server import \\<code> trên máy chủ kia."
+invalid = "&cMã cổng không hợp lệ. Mã bắt đầu bằng {prefix} - nếu dán vào khung chat, mã có thể đã bị cắt bớt; hãy thử /wh server import \\<code>. Mã từ các phiên bản plugin cũ phải được xuất lại."
 same_server = "&cMã đó đến từ máy chủ này."
 same_identity = "&cMã đó trỏ đến danh tính của máy chủ này ({server}). Hãy xuất lại từ máy chủ kia sau khi cả hai máy chủ khởi động lại với danh tính Wormholes riêng."
 linked = "&aĐã liên kết &f{portal}&7 -> &f{destination}&a trên &f{server}&a. Cổng sẽ mở khi các máy chủ kết nối."
 route_saved = "&aĐã lưu tuyến đến {server} với khóa công khai {fingerprint}. Sau khi kết nối, '{portal}' sẽ xuất hiện trong trình đơn liên kết của cổng liên máy chủ."
-check_status = "&8Kiểm tra /wh network status cho trạng thái kết nối."
+check_status = "&8Kiểm tra trạng thái kết nối bằng /wh network status."
 using_address = "&7Đang dùng {address} trong mã cổng này; nếu thay đổi, địa chỉ công khai sẽ được tự phát hiện và tự sửa qua quá trình bắt tay có chữ ký."
 
 [server]
@@ -730,7 +743,7 @@ name_empty = "Tên máy chủ không được để trống"
 
 [server.code]
 copy = "&6&l[Sao chép mã máy chủ: {server}]&r"
-copy_hover = "&7Nhấp để sao chép. Dán nó vào máy chủ khác: /wh server import \\<code>"
+copy_hover = "&7Nhấp để sao chép. Dán vào máy chủ kia:\n/wh server import \\<code>"
 raw = "&7Mã máy chủ: &f{code}"
 saved = "&aĐã lưu máy chủ &f{server}&a với khóa công khai {fingerprint}. Kết nối bằng &f/wh server {server}&a."
 
@@ -748,26 +761,26 @@ entry = "&8[&6Wormholes&8] &f{server}&7 {state} &8{address}"
 [door.transit]
 shutdown = "Các cửa không gian đã tắt trước khi quá trình di chuyển hoàn tất."
 message = "&8[&6Wormholes&8] &7{message}"
-link_not_placed = "Cổng lỗ sâu chưa được đặt."
-link_unavailable = "Cổng lỗ sâu được kết nối không có sẵn hoặc bị cản trở."
-nested_pocket = "Cửa bỏ túi không thể mở thêm một chiều không gian bỏ túi từ bên trong chiều không gian trống dùng chung."
-pocket_not_ready = "Chiều không gian bỏ túi chưa sẵn sàng."
-pocket_allocation_failed = "Không thể cấp phát chiều không gian bỏ túi."
+link_not_placed = "Cửa Lỗ Sâu được liên kết chưa được đặt."
+link_unavailable = "Cửa Lỗ Sâu được liên kết không khả dụng hoặc bị chắn."
+nested_pocket = "Cửa túi không thể mở thêm một túi khác từ bên trong chiều không gian trống dùng chung."
+pocket_not_ready = "Chiều không gian túi chưa sẵn sàng."
+pocket_allocation_failed = "Không thể cấp phát chiều không gian túi."
 safe_return_not_found = "Không tìm được đường trở lại an toàn ở phía này của cửa."
-pocket_prepare_failed = "Không thể chuẩn bị chiều không gian bỏ túi một cách an toàn."
+pocket_prepare_failed = "Không thể chuẩn bị chiều không gian túi một cách an toàn."
 return_ticket_save_failed = "Không thể lưu tuyến trở về an toàn."
-pocket_entry_unsafe = "Việc vào túi không an toàn."
-pocket_entry_chunk_failed = "Chiều không gian bỏ túi không thể tải chunk lối vào."
-no_return_route = "Bạn không có một tuyến đường trở lại được lưu trữ cho túi này."
-return_unavailable = "Cửa quay lại của bạn không có sẵn hoặc bị cản trở trên mặt tương ứng."
+pocket_entry_unsafe = "Lối vào túi không an toàn."
+pocket_entry_chunk_failed = "Chiều không gian túi không thể tải chunk lối vào."
+no_return_route = "Bạn không có tuyến trở về nào được lưu cho túi này."
+return_unavailable = "Cửa trở về của bạn không khả dụng hoặc bị chắn ở mặt tương ứng."
 return_world_unloaded = "Thế giới trở về của bạn chưa được tải."
-return_point_obstructed = "Điểm quay lại được lưu giữ của bạn bị cản trở."
+return_point_obstructed = "Điểm trở về đã lưu của bạn bị chắn."
 return_chunk_failed = "Không thể tải chunk trở về đã lưu của bạn."
 closed = "Cửa Không Gian đã đóng trước khi quá trình di chuyển hoàn tất."
 cycle_consumed = "Chu kỳ mở của cửa này đã được sử dụng. Hãy đóng rồi mở lại cửa."
 source_missing = "Cửa không gian không còn ở đó nữa."
 source_close_failed = "Cửa nguồn không thể đóng an toàn."
-source_region_unavailable = "Khu vực cửa nguồn không có sẵn."
+source_region_unavailable = "Khu vực cửa nguồn không khả dụng."
 start_failed = "Không thể bắt đầu quá trình di chuyển giữa các chiều không gian."
 cancelled = "Quá trình di chuyển giữa các chiều không gian đã bị hủy."
 
@@ -780,31 +793,31 @@ unpacked = "&8[&6Wormholes&8] &7Cặp cửa liên kết đã tách thành Cửa 
 missing = "&8[&6Wormholes&8] &7Cửa ghép cặp này không có danh tính cửa đối tác đã đăng ký."
 
 [door.legacy]
-combine = "&8[&6Wormholes&8] &7Kết hợp cánh cửa chiều cũ này với một cánh cửa bằng gỗ trước khi đặt nó."
+combine = "&8[&6Wormholes&8] &7Kết hợp Cửa Không Gian cũ này với một cửa gỗ trước khi đặt."
 
 [door.place]
 already_placed = "&8[&6Wormholes&8] &7Cửa Không Gian này đã được đặt hoặc không thể lưu trạng thái của nó."
 
 [door.break]
-exit_anchored = "&8[&6Wormholes&8] &7Lối ra không gian được neo vào chiều không gian bỏ túi này."
+exit_anchored = "&8[&6Wormholes&8] &7Lối ra không gian được neo vào chiều không gian túi này."
 support = "&8[&6Wormholes&8] &7Hãy phá Cửa Không Gian trước khi gỡ khối đỡ."
 
 [door.disable]
-warning = "&8[&6Wormholes&8] &7Các cửa không gian đang bị vô hiệu hóa. Hãy rời đi ngay qua cửa trở về của chiều không gian bỏ túi."
+warning = "&8[&6Wormholes&8] &7Các cửa không gian đang bị vô hiệu hóa. Hãy rời đi ngay qua cửa trở về của chiều không gian túi."
 
 [door.rescue]
 cancelled = "&8[&6Wormholes&8] &7Quá trình đưa bạn ra ngoài khẩn cấp đã bị hủy; tuyến đường vẫn được giữ."
-failed = "&8[&6Wormholes&8] &7{route} {fallback} Bạn vẫn được bảo vệ với một tim."
+failed = "&8[&6Wormholes&8] &7{route} {fallback} Bạn vẫn được bảo vệ ở mức một tim."
 
 [door.rescue.reason]
-no_route = "Chiều không gian bỏ túi không có tuyến trở về đã lưu."
+no_route = "Chiều không gian túi không có tuyến trở về đã lưu."
 return_world_unavailable = "Thế giới trở về đã lưu không khả dụng."
-return_point_obstructed = "Điểm quay lại được lưu đã bị cản trở."
+return_point_obstructed = "Điểm trở về đã lưu bị chắn."
 return_chunk_failed = "Không thể tải chunk trở về đã lưu."
 start_failed = "Không thể bắt đầu quá trình đưa ra ngoài khẩn cấp."
 
 [door.rescue.fallback]
-no_world = "Chưa tải thế giới dự phòng nào không phải chiều không gian bỏ túi."
+no_world = "Chưa tải thế giới dự phòng nào không phải chiều không gian túi."
 obstructed = "Điểm hồi sinh dự phòng bị chặn."
 chunk_failed = "Không thể tải điểm hồi sinh dự phòng."
 schedule_failed = "Không thể lên lịch đưa người chơi ra vị trí dự phòng."
@@ -842,7 +855,7 @@ closed = "Đóng"
 [door.menu.access]
 title = "Truy cập cửa: {kind}"
 placard = ["&6&lCửa Không Gian {kind}&r", "&7Chủ sở hữu: &f{owner}", "&7Trong danh sách cho phép: &a{whitelisted}", "&7Trong danh sách chặn: &c{blacklisted}", "&7Người chơi trong danh sách: &b{count}", "&8Chủ sở hữu và quản trị viên chỉnh sửa cửa này."]
-add_player = ["&a&lThêm người chơi&r", "&7Nhập tên người chơi trong chat để thêm vào danh sách.", "", "&8Nhấp để thêm người chơi."]
+add_player = ["&a&lThêm người chơi&r", "&7Nhập tên người chơi trong khung chat để thêm vào danh sách.", "", "&8Nhấp để thêm người chơi."]
 open_state = ["&b&lOpenState: &f&l{state}", "&7Cổng tuân theo trạng thái vật lý của khối này.", "&7Trạng thái hoạt động: &f{state}&7.", "", "&8Tiếp theo: {next}. Nhấp để chuyển."]
 entry = ["&f{name}", "&7Trạng thái: &b{state}", "", "&8Nhấp trái: cho phép. Nhấp phải: chặn.", "&8Nhấp giữa hoặc Shift + nhấp trái: xóa."]
 
@@ -852,7 +865,7 @@ corner_b = "&bĐã đặt góc B. Nhấp trái vào góc đối diện."
 not_flat = "&cVùng chọn phải dày một khối. Nhấp lại một góc để làm phẳng vùng chọn."
 too_large = "&cVùng chọn quá lớn: {count} khối (tối đa {maximum})."
 opening = "&bĐang mở cổng dịch chuyển..."
-open_failed = "&cCổng không thể mở được ở đây."
+open_failed = "&cKhông thể mở cổng ở đây."
 
 [wand.selection.selected]
 one = "&bĐã chọn {count} khối. Nhấp trái vào tấm kính để mở cổng."
@@ -881,7 +894,7 @@ timed_available = ["&b&lTheo thời gian&r", "&7Đổi điểm đến sau khoả
 trip_selected = ["&a&lSau mỗi chuyến đi&r", "&7Dùng điểm thay thế đã chuẩn bị sau mỗi lần sử dụng.", "&aĐã chọn"]
 trip_available = ["&b&lSau mỗi chuyến đi&r", "&7Dùng điểm thay thế đã chuẩn bị sau mỗi lần sử dụng.", "&eNhấp trái để chọn"]
 manual_reroll = ["&e&lChọn lại thủ công&r", "&7{description}", "&eNhấp trái"]
-rebuild_pool = ["&e&lXây dựng lại nhóm điểm đến&r", "&7{description}", "&eNhấp chuột trái"]
+rebuild_pool = ["&e&lXây dựng lại nhóm điểm đến&r", "&7{description}", "&eNhấp trái"]
 
 [rtp.status]
 ready = "Sẵn sàng"
@@ -895,7 +908,7 @@ idle = "Nhàn rỗi"
 retry = "&7Thử lại sau: &c{duration}"
 active = "&7Đang hoạt động: {readiness}"
 standby = "&7Chờ sẵn: {readiness}"
-rotation = "&7Kiểu xoay trong bản nháp: &b{rotation}"
+rotation = "&7Xoay vòng trong bản nháp: &b{rotation}"
 pool = "&7Trống: &b{free}&7  Đã giữ chỗ: &b{reserved}"
 target_missing = "&cThế giới đích chưa được tải."
 access_failed = "&cKiểm tra quyền truy cập điểm đến thất bại và đã từ chối truy cập."
@@ -913,9 +926,9 @@ minimum_radius = "Bán kính tối thiểu"
 maximum_radius = "Bán kính tối đa"
 lower_y = "Giới hạn Y dưới"
 upper_y = "Giới hạn Y trên"
-preferred_y = "Y được ưa thích"
+preferred_y = "Y ưu tiên"
 cycle = "Thời gian chu kỳ"
-private_rotation = "Thời gian quay riêng tư"
+private_rotation = "Thời gian xoay vòng riêng"
 lease = "Thời gian duy trì đặt chỗ khi nhàn rỗi"
 release = "Thời gian giải phóng riêng"
 link = ["&e&l{label} &f&l{value}&r", "&7Mở các nút giảm/tăng riêng.", "&eNhấp trái"]
@@ -948,31 +961,31 @@ any_selected = ["&a&lQuần xã bất kỳ&r", "&7Không ưu tiên quần xã n�
 any_available = ["&b&lQuần xã bất kỳ&r", "&7Xóa ưu tiên quần xã.", "&eNhấp trái để chọn"]
 current = ["&a&l{biome}&r", "&7{key}", "&aĐã chọn"]
 available = ["&b&l{biome}&r", "&7{key}", "&eNhấp trái để chọn"]
-empty = ["&7Không có quần xã nào cho thế giới mục tiêu."]
+empty = ["&7Không có quần xã nào cho thế giới đích."]
 previous = ["&e&lCác quần xã trước&r", "&7Hiển thị trang trước.", "&eNhấp trái"]
 next = ["&e&lCác quần xã tiếp theo&r", "&7Hiển thị trang tiếp theo.", "&eNhấp trái"]
 
 [rtp.overview]
-destination = ["&e&lĐiểm đến & Khu vực&r", "&7Thế giới, trung tâm và bán kính.", "&eNhấp chuột trái"]
-landing = ["&e&lQuy tắc hạ cánh&r", "&7Hành vi bề mặt và độ cao.", "&eNhấp chuột trái"]
-routing = ["&e&lXoay vòng & Nhóm điểm đến&r", "&7Chế độ chia sẻ, xoay vòng và thời gian giữ chỗ.", "&eNhấp chuột trái"]
-effects = ["&e&lHiệu ứng&r", "&7Viền hình chiếu và âm thanh cổng.", "&eNhấp chuột trái"]
+destination = ["&e&lĐiểm đến & Khu vực&r", "&7Thế giới, tâm và bán kính.", "&eNhấp trái"]
+landing = ["&e&lQuy tắc hạ cánh&r", "&7Hành vi bề mặt và độ cao.", "&eNhấp trái"]
+routing = ["&e&lXoay vòng & Nhóm điểm đến&r", "&7Chế độ chia sẻ, xoay vòng và thời gian giữ chỗ.", "&eNhấp trái"]
+effects = ["&e&lHiệu ứng&r", "&7Viền hình chiếu và âm thanh cổng.", "&eNhấp trái"]
 reset_defaults = ["&e&lĐặt lại về mặc định&r", "&7Ngay lập tức khôi phục cài đặt dịch chuyển ngẫu nhiên của cổng này về mặc định.", "&eNhấp trái"]
 
 [rtp.navigation]
-back_portal = ["&e&lQuay lại cổng&r", "&7Quay lại trình đơn cổng.", "&eNhấp trái"]
-overview = ["&e&lTổng quan&r", "&7Quay lại tổng quan RTP.", "&eNhấp trái"]
-back_category = ["&e&lTrở lại&r", "&7Trở lại danh mục trước đó.", "&eNhấp chuột trái"]
+back_portal = ["&e&lTrở lại cổng&r", "&7Trở lại trình đơn cổng.", "&eNhấp trái"]
+overview = ["&e&lTổng quan&r", "&7Trở lại tổng quan RTP.", "&eNhấp trái"]
+back_category = ["&e&lTrở lại&r", "&7Trở lại danh mục trước đó.", "&eNhấp trái"]
 
 [rtp.destination]
 header = ["&b&lĐiểm đến & Khu vực&r", "&7Mỗi tùy chọn sử dụng một nhấp chuột trái bình thường."]
-world_current = ["&a&l{world}&r", "&7Thế giới mục tiêu hiện tại.", "&aĐược chọn"]
+world_current = ["&a&l{world}&r", "&7Thế giới đích hiện tại.", "&aĐã chọn"]
 world_available = ["&b&l{world}&r", "&7Dùng thế giới đã tải này.", "&eNhấp trái để chọn"]
 previous_worlds = ["&e&lCác thế giới trước&r", "&7Hiển thị trang trước.", "&eNhấp trái"]
 next_worlds = ["&e&lCác thế giới tiếp theo&r", "&7Hiển thị trang tiếp theo.", "&eNhấp trái"]
 biome_link = ["&e&lQuần xã mục tiêu &f&l{value}&r", "&7Ưu tiên đáp xuống quần xã đã chọn.", "&eNhấp trái"]
 center_portal_selected = ["&a&lTâm theo cổng dịch chuyển&r", "&7Đặt tâm vùng vành khuyên tại cổng dịch chuyển này.", "&aĐã chọn"]
-center_portal_available = ["&b&lTâm theo cổng dịch chuyển&r", "&7Đặt tâm vùng vành khuyên tại cổng dịch chuyển này.", "&eNhấp chuột trái để chọn"]
+center_portal_available = ["&b&lTâm theo cổng dịch chuyển&r", "&7Đặt tâm vùng vành khuyên tại cổng dịch chuyển này.", "&eNhấp trái để chọn"]
 center_custom_selected = ["&a&lTâm tùy chỉnh&r", "&7Dùng tọa độ X và Z có thể chỉnh sửa.", "&aĐã chọn"]
 center_custom_available = ["&b&lTâm tùy chỉnh&r", "&7Dùng tọa độ X và Z có thể chỉnh sửa.", "&eNhấp trái để chọn"]
 reset_center = ["&e&lĐặt lại tâm / điểm đến&r", "&7Dùng thế giới nguồn và tâm cổng.", "&eNhấp trái"]
@@ -991,9 +1004,9 @@ rim_on_selected = ["&a&lBật viền sẵn sàng&r", "&7Hiển thị trạng th�
 rim_on_available = ["&b&lBật viền sẵn sàng&r", "&7Hiển thị trạng thái sẵn sàng riêng quanh viền cổng.", "&eNhấp trái để chọn"]
 rim_off_selected = ["&a&lTắt viền sẵn sàng&r", "&7Ẩn viền sẵn sàng.", "&aĐã chọn"]
 rim_off_available = ["&b&lTắt viền sẵn sàng&r", "&7Ẩn viền sẵn sàng.", "&eNhấp trái để chọn"]
-sound_on_selected = ["&a&lBật âm thanh cổng&r", "&7Phát hiệu ứng và âm thanh di chuyển của cổng RTP này.", "&aĐược chọn"]
+sound_on_selected = ["&a&lBật âm thanh cổng&r", "&7Phát hiệu ứng và âm thanh di chuyển của cổng RTP này.", "&aĐã chọn"]
 sound_on_available = ["&b&lBật âm thanh cổng&r", "&7Phát hiệu ứng và âm thanh di chuyển của cổng RTP này.", "&eNhấp trái để chọn"]
-sound_off_selected = ["&a&lTắt âm thanh cổng&r", "&7Tắt tiếng cổng RTP này; các hạt vẫn được bật.", "&aĐược chọn"]
+sound_off_selected = ["&a&lTắt âm thanh cổng&r", "&7Tắt tiếng cổng RTP này; các hạt vẫn được bật.", "&aĐã chọn"]
 sound_off_available = ["&b&lTắt âm thanh cổng&r", "&7Tắt tiếng cổng RTP này; các hạt vẫn được bật.", "&eNhấp trái để chọn"]
 
 [rtp.confirm]
@@ -1008,17 +1021,17 @@ portal_rune = ["&6&lRune cổng&r"]
 wormhole_rune = ["&6&lRune lỗ sâu&r"]
 
 [item.door]
-entangled_pair = ["&6Cặp cửa liên kết", "&7Chứa hai Cửa Lỗ Sâu tự động liên kết.", "&7Dùng để mở gói đầu cuối A và B."]
-paired = ["&6Cửa lỗ sâu {endpoint}", "&7Tự động liên kết với điểm cuối {other}.", "&7Mở cửa và vượt qua ngưỡng của nó."]
+entangled_pair = ["&6Cặp cửa liên kết", "&7Chứa hai Cửa Lỗ Sâu tự động liên kết.", "&7Dùng để mở gói thành điểm cuối A và B."]
+paired = ["&6Cửa Lỗ Sâu {endpoint}", "&7Tự động liên kết với điểm cuối {other}.", "&7Mở cửa và bước qua ngưỡng cửa."]
 personal = ["&bCửa Không Gian Cá Nhân", "&7Mỗi người đi vào chiều không gian riêng được lưu lâu dài.", "&7Cùng một người luôn đến cùng một nơi."]
 public = ["&6Cửa Không Gian Công Cộng", "&7Mọi người đi vào chiều không gian dùng chung của cửa này.", "&7Phá và di chuyển cửa vẫn giữ nguyên điểm đến dùng chung."]
-return = ["&aCửa Thoát Không Gian", "&7Đưa người chơi trở về từ chiều không gian bỏ túi này.", "&7Cửa này được gắn với chiều không gian bỏ túi của nó."]
+return = ["&aCửa Thoát Không Gian", "&7Đưa người chơi trở về từ chiều không gian túi này.", "&7Cửa này được gắn với túi của nó."]
 skin = ["&6Vỏ Cửa Không Gian", "&7Kết hợp Cửa Không Gian với một cửa mà người chơi có thể thao tác."]
 entangled_pair_recipe = ["&6Cặp cửa liên kết", "&7Chứa hai Cửa Lỗ Sâu tự động liên kết."]
 personal_recipe = ["&bCửa Không Gian Cá Nhân", "&7Mỗi người đi vào chiều không gian riêng được lưu lâu dài."]
 public_recipe = ["&6Cửa Không Gian Công Cộng", "&7Mọi người đi vào chiều không gian dùng chung của cửa này."]
-entangled_trapdoor_pair = ["&6Cặp cửa sập liên kết", "&7Chứa hai Cửa Sập Lỗ Sâu tự động liên kết.", "&7Dùng để mở gói đầu cuối A và B."]
-paired_trapdoor = ["&6Cửa sập lỗ sâu {endpoint}", "&7Tự động liên kết với điểm cuối {other}.", "&7Mở cửa sập và thả mình rơi qua nó."]
+entangled_trapdoor_pair = ["&6Cặp cửa sập liên kết", "&7Chứa hai Cửa Sập Lỗ Sâu tự động liên kết.", "&7Dùng để mở gói thành điểm cuối A và B."]
+paired_trapdoor = ["&6Cửa Sập Lỗ Sâu {endpoint}", "&7Tự động liên kết với điểm cuối {other}.", "&7Mở cửa sập và thả mình rơi qua nó."]
 personal_trapdoor = ["&bCửa Sập Không Gian Cá Nhân", "&7Mỗi người đi vào chiều không gian riêng được lưu lâu dài.", "&7Cùng một người luôn đến cùng một nơi."]
 public_trapdoor = ["&6Cửa Sập Không Gian Công Cộng", "&7Mọi người đi vào chiều không gian dùng chung của cửa sập này.", "&7Phá và di chuyển cửa sập vẫn giữ nguyên điểm đến dùng chung."]
 trapdoor_skin = ["&6Vỏ Cửa Sập Không Gian", "&7Kết hợp cửa sập không gian với một cửa sập có thể mở bằng tay."]
@@ -1034,21 +1047,21 @@ route_card = "{portal} > {destination} | {amount} | {state}"
 
 [rules.menu]
 entry = ["&6Quy tắc", "&7Ai được đi qua, chi phí bao nhiêu và điều gì xảy ra sau đó."]
-cooldown = ["&6Thời gian hồi: {seconds}s", "&7Nhấp trái và phải để thay đổi, giữ shift cho bước 10 giây."]
-warmup = ["&6Chuẩn bị: {seconds}s", "&7Nhấp trái và phải để thay đổi, giữ shift cho bước 10 giây."]
+cooldown = ["&6Thời gian hồi: {seconds}s", "&7Nhấp trái và phải để thay đổi, giữ Shift để thay đổi theo bước 10 giây."]
+warmup = ["&6Chuẩn bị: {seconds}s", "&7Nhấp trái và phải để thay đổi, giữ Shift để thay đổi theo bước 10 giây."]
 group = ["&6Nhóm thời gian hồi: {value}", "&7Nhấp để nhập tên nhóm."]
 pushback = ["&6Đẩy lùi: {value}", "&7Nhấp trái và phải để thay đổi giá trị."]
 sound = ["&6Âm lượng từ chối: {value}", "&7Nhấp trái và phải để thay đổi giá trị."]
-charges = ["&6Lượt nạp: {count}", "&7Nhấp trái và phải để thay đổi dung lượng."]
+charges = ["&6Lượt nạp: {count}", "&7Nhấp trái và phải để thay đổi tổng số lượt nạp."]
 default_outcome = ["&6Mặc định: {mode}", "&7Nhấp để chuyển giữa cho phép và từ chối."]
 rules = ["&6Quy tắc ({count})", "&7Nhấp để mở danh sách quy tắc."]
-rule = ["&6{name}", "&7{value} &8- giữ shift và nhấp để xóa quy tắc."]
+rule = ["&6{name}", "&7{value} &8- giữ Shift và nhấp để xóa quy tắc."]
 add_rule = ["&aThêm quy tắc", "&7Nhấp để nhập id quy tắc."]
-line = ["&f{value}", "&7Giữ shift và nhấp để xóa dòng này."]
+line = ["&f{value}", "&7Giữ Shift và nhấp để xóa dòng này."]
 add_line = ["&aThêm dòng", "&7Nhấp và nhập kind=PERMISSION;node=group.vip."]
 templates = ["&6Mẫu", "&7Nhấp để áp dụng mẫu đã lưu."]
 template = ["&f{name}", "&7Nhấp để áp dụng mẫu này."]
-back = ["&7Quay lại", "&8Về trang trước."]
+back = ["&7Trở lại", "&8Về trang trước."]
 page = ["&7Trang {page} trên {pages}", "&8Nhấp để lật trang."]
 
 [rules.route]
@@ -1062,7 +1075,7 @@ default = "Cổng này đã từ chối bạn."
 entity_class = "Chỉ {mode} mới có thể dùng cổng này."
 key = "Bạn cần chìa khóa của {portal}."
 time = "{portal} hiện đang đóng."
-cooldown = "Chờ {seconds}s trước khi dùng lại {portal}."
+cooldown = "Hãy chờ {seconds}s trước khi dùng lại {portal}."
 charges = "{portal} không còn lượt nạp."
 cost = "Bạn không thể trả {amount} để dùng {portal}."
 
@@ -1114,7 +1127,7 @@ key = "Tự cấp cho mình chìa khóa của cổng"
 # ---- lane:access (access.*) ----
 [access.denied]
 role = "&cBạn không được phép dùng {portal}."
-claim = "&cMột vùng đất được bảo vệ chặn {portal}."
+claim = "&cMột vùng đất được bảo vệ đang chặn {portal}."
 limit = "&cBạn đã sở hữu {count} cổng; giới hạn là {maximum}."
 
 [access.construct]
@@ -1122,7 +1135,7 @@ denied = "&cBạn không thể xây cổng ở đây: {reason}."
 
 [access.claim]
 reason = "{plugin} bảo vệ vùng đất này"
-failure = "không thể hỏi {plugin}"
+failure = "không thể truy vấn {plugin}"
 
 [access.transfer]
 done = "&8[&6Wormholes&8] &a{portal} bây giờ thuộc về {name}."
@@ -1145,7 +1158,7 @@ removed = "&a{name} không còn vai trò nào tại {portal}."
 owner_always = "&7Chủ sở hữu luôn có toàn quyền."
 
 [access.listed]
-changed = "&a{portal} bây giờ {state} trong danh bạ công khai."
+changed = "&a{portal} bây giờ {state} trong danh mục công khai."
 
 [access.group]
 added = "&a{portal} bây giờ cấp quyền truy cập cho {node}."
@@ -1172,10 +1185,10 @@ unlisted = "Ẩn"
 entry = ["&b&lTruy cập&r", "&7Vai trò, nhóm và khóa quyền."]
 placard = ["&b&lTruy cập: {portal}&r", "&7Chủ sở hữu: &f{owner}", "&7Vai trò: &f{count}", "&7Khóa: &f{key}"]
 add = ["&a&lThêm người chơi&r", "&7Gõ một tên vào khung chat để cấp vai trò."]
-role = ["&f&l{name}&r", "&7Vai trò: &f{state}", "&7Chuột trái hoặc phải để đổi vai trò.", "&7Shift + chuột trái để gỡ bỏ."]
-groups = ["&e&lNhóm được phép&r", "&7{count} node quyền cấp quyền truy cập.", "&7Chuột trái để thêm, chuột phải để xóa hết."]
-key = ["&b&lKhóa quyền&r", "&7{key}", "&7Chuột trái để đổi."]
-listed = ["&b&lDanh bạ công khai&r", "&7{state}", "&7Chuột trái để bật tắt."]
+role = ["&f&l{name}&r", "&7Vai trò: &f{state}", "&7Nhấp trái hoặc phải để đổi vai trò.", "&7Shift + nhấp trái để gỡ bỏ."]
+groups = ["&e&lNhóm được phép&r", "&7{count} node quyền cấp quyền truy cập.", "&7Nhấp trái để thêm, nhấp phải để xóa hết."]
+key = ["&b&lKhóa quyền&r", "&7{key}", "&7Nhấp trái để đổi."]
+listed = ["&b&lDanh mục công khai&r", "&7{state}", "&7Nhấp trái để bật/tắt."]
 
 [access.command.help]
 access = "Danh sách truy cập, quyền sở hữu và giới hạn cổng"
@@ -1201,11 +1214,11 @@ left = "&8[&6Wormholes&8] &a{portal} đã rời {name}."
 unknown = "&8[&6Wormholes&8] &cKhông có cổng nào ở địa chỉ {address}."
 none = "&8[&6Wormholes&8] &c{portal} không thuộc mạng nào."
 debounced = "&8[&6Wormholes&8] &7Quay số quá nhanh; hãy chờ một chút."
-managed = "&8[&6Wormholes&8] &c{portal} là cổng do hệ thống quản lý, không quay số được."
+managed = "&8[&6Wormholes&8] &c{portal} là cổng do hệ thống quản lý nên không thể quay số tới."
 
 [nexus.address]
 taken = "&8[&6Wormholes&8] &cĐịa chỉ {address} đã được dùng trong {name}."
-set = "&8[&6Wormholes&8] &a{portal} trả lời ở địa chỉ {address}."
+set = "&8[&6Wormholes&8] &a{portal} dùng địa chỉ {address}."
 invalid = "&8[&6Wormholes&8] &cĐịa chỉ chỉ dùng các ký tự sau: {value}"
 
 [nexus.network]
@@ -1219,7 +1232,7 @@ unknown = "&8[&6Wormholes&8] &cKhông có cổng nào tên {portal}."
 not_member = "&8[&6Wormholes&8] &c{portal} không thuộc {name}."
 
 [nexus.visibility]
-set = "&8[&6Wormholes&8] &a{name} nay là {value}."
+set = "&8[&6Wormholes&8] &a{name} hiện là {value}."
 
 [nexus.hub]
 set = "&8[&6Wormholes&8] &a{portal} là trung tâm của {name}."
@@ -1236,16 +1249,15 @@ member = "&e{address} &f{portal} &7ở {world} &8{state}"
 header = "&8[&6Wormholes&8] &6Kiểm tra liên kết: {count} phát hiện."
 clean = "&8[&6Wormholes&8] &aKhông thấy vấn đề liên kết nào."
 oneway = "&e{portal} -> {destination} không có liên kết ngược."
-dangling = "&c{portal} trỏ tới một đích không còn tồn tại."
+dangling = "&c{portal} trỏ tới một điểm đến không còn tồn tại."
 unloaded = "&e{portal} trỏ vào thế giới chưa tải {world}."
 offline = "&c{portal} trỏ tới {server}, đã ngoại tuyến {count} ngày."
 
 [nexus.redstone]
-set = "&8[&6Wormholes&8] &a{portal} redstone: {value}."
+set = "&8[&6Wormholes&8] &aRedstone của {portal}: {value}."
 
 [nexus.reciprocal]
-paired = "&8[&6Wormholes&8] &a{portal} và {destination} nay liên kết hai chiều."
-unpaired = "&8[&6Wormholes&8] &a{portal} và {destination} không còn liên kết ngược."
+paired = "&8[&6Wormholes&8] &a{portal} và {destination} hiện liên kết hai chiều."
 denied = "&8[&6Wormholes&8] &cBạn không thể quản lý cả {portal} lẫn {destination}."
 
 [nexus.prompt]
@@ -1253,25 +1265,25 @@ network_name = "&bGõ tên mạng vào khung chat (hoặc '{cancel}'):"
 address = "&bGõ địa chỉ mới vào khung chat (hoặc '{cancel}'):"
 
 [nexus.menu]
-entry = ["&b&lMạng&r", "&7Mạng, địa chỉ, quay số, quy tắc đích, redstone.", "&7Mạng: &f{name}", "&7Địa chỉ: &f{address}", "&eChuột trái"]
+entry = ["&b&lMạng&r", "&7Mạng, địa chỉ, quay số, chính sách điểm đến, redstone.", "&7Mạng: &f{name}", "&7Địa chỉ: &f{address}", "&eNhấp trái"]
 placard = ["&b&lMạng: {name}&r", "&7Địa chỉ: &f{address}", "&7Thành viên: &f{count}"]
-join = ["&a&lVào một mạng&r", "&7Thêm cổng này vào một mạng và cấp cho nó địa chỉ.", "&eChuột trái"]
-leave = ["&c&lRời {name}&r", "&7Gỡ cổng này và địa chỉ của nó khỏi mạng.", "&eChuột trái"]
-create = ["&a&lTạo mạng&r", "&7Đặt tên cho mạng mới và cho cổng này vào đó.", "&eChuột trái"]
-address = ["&e&lĐịa chỉ: {address}&r", "&7Mã ngắn mà các cổng khác quay để tới đây.", "&eChuột trái để gõ lại. &eChuột phải để bốc lại."]
-visibility = ["&e&lHiển thị: {value}&r", "&7Mạng công khai ai cũng thấy, mạng thành viên chỉ thành viên thấy, mạng ẩn không ai thấy.", "&eChuột trái để đổi"]
-topology = ["&e&lCấu trúc: {value}&r", "&7Lưới quay tới mọi thành viên, trung tâm đi qua một cổng, chuỗi và vòng quay tới cổng kề.", "&eChuột trái để đổi"]
-reciprocal = ["&e&lLiên kết ngược: {state}&r", "&7Giữ cho đích luôn trỏ ngược về cổng này.", "&eChuột trái để bật tắt"]
-policy = ["&e&lĐích: {mode}&r", "&7{count} mục. Theo thứ tự, theo trọng số, theo lịch, theo người chơi hoặc quay về.", "&eChuột trái đổi chế độ. &eChuột phải xóa danh sách."]
-redstone = ["&e&lRedstone: {value}&r", "&7Sườn lên cạnh khung làm gì và bộ so sánh đọc được gì.", "&eChuột trái chọn hành động. &eChuột phải chọn đầu ra bộ so sánh."]
-dial = ["&b&lQuay số&r", "&7Hướng cổng này tới một địa chỉ khác trong mạng của nó.", "&eChuột trái"]
+join = ["&a&lVào một mạng&r", "&7Thêm cổng này vào một mạng và cấp cho nó địa chỉ.", "&eNhấp trái"]
+leave = ["&c&lRời {name}&r", "&7Gỡ cổng này và địa chỉ của nó khỏi mạng.", "&eNhấp trái"]
+create = ["&a&lTạo mạng&r", "&7Đặt tên cho mạng mới và cho cổng này vào đó.", "&eNhấp trái"]
+address = ["&e&lĐịa chỉ: {address}&r", "&7Mã ngắn mà các cổng khác quay để tới đây.", "&eNhấp trái để gõ lại. &eNhấp phải để tạo ngẫu nhiên lại."]
+visibility = ["&e&lHiển thị: {value}&r", "&7Mạng công khai ai cũng thấy, mạng thành viên chỉ thành viên thấy, mạng ẩn không ai thấy.", "&eNhấp trái để đổi"]
+topology = ["&e&lCấu trúc: {value}&r", "&7Lưới quay tới mọi thành viên, trung tâm đi qua một cổng, chuỗi và vòng quay tới cổng kề.", "&eNhấp trái để đổi"]
+reciprocal = ["&e&lLiên kết ngược: {state}&r", "&7Giữ cho điểm đến luôn trỏ ngược về cổng này.", "&eNhấp trái để bật/tắt"]
+policy = ["&e&lĐiểm đến: {mode}&r", "&7{count} mục. Theo thứ tự, theo trọng số, theo lịch, theo người chơi hoặc quay về.", "&eNhấp trái để đổi chế độ. &eNhấp phải để xóa danh sách."]
+redstone = ["&e&lRedstone: {value}&r", "&7Sườn lên cạnh khung làm gì và bộ so sánh đọc được gì.", "&eNhấp trái để chọn hành động. &eNhấp phải để chọn đầu ra bộ so sánh."]
+dial = ["&b&lQuay số&r", "&7Hướng cổng này tới một địa chỉ khác trong mạng của nó.", "&eNhấp trái"]
 dial_entry = ["&e{address} &f{portal}", "&7{world}", "&b{state}"]
-link_and_return = ["&d&lLiên kết và quay về&r", "&7Hướng cả {destination} trở lại {portal}.", "&eChuột trái"]
+link_and_return = ["&d&lLiên kết và quay về&r", "&7Hướng cả {destination} trở lại {portal}.", "&eNhấp trái"]
 
 [atlas]
 title = "&8Atlas &7- &f{count} cổng"
 row = "&f{portal} &8| &7{destination} &8| &b{state}"
-empty = "&8[&6Wormholes&8] &7Chưa khám phá cổng nào."
+empty = "&8[&6Wormholes&8] &7Bạn chưa khám phá cổng nào."
 disabled = "&8[&6Wormholes&8] &cAtlas bị tắt trên máy chủ này."
 only_players = "&8[&6Wormholes&8] &cChỉ người chơi mới có atlas."
 no_permission = "&8[&6Wormholes&8] &cBạn không có quyền mở atlas."
@@ -1289,44 +1301,44 @@ cleared = "&8[&6Wormholes&8] &aĐã tắt dẫn đường."
 unknown = "&8[&6Wormholes&8] &cAtlas của bạn không có cổng nào tên {portal}."
 
 [atlas.menu]
-row = ["&6{portal}", "&7{world} &8- &f{destination}", "&b{state}", "", "&eChuột trái để quay số. &eChuột phải để ghim. &eShift+trái để dẫn đường."]
-favorites = ["&d&lChỉ đã ghim: {state}&r", "&7Chỉ hiện các cổng bạn đã ghim.", "&eChuột trái"]
-recents = ["&b&lChỉ gần đây: {state}&r", "&7Chỉ hiện các cổng bạn dùng gần đây.", "&eChuột trái"]
-guide = ["&a&lDẫn đường: {portal}&r", "&7Hiện hướng tới cổng đang dẫn trên thanh hành động.", "&eChuột trái để dừng"]
+row = ["&6{portal}", "&7{world} &8- &f{destination}", "&b{state}", "", "&eNhấp trái để quay số. &eNhấp phải để ghim. &eShift + nhấp trái để dẫn đường."]
+favorites = ["&d&lChỉ đã ghim: {state}&r", "&7Chỉ hiện các cổng bạn đã ghim.", "&eNhấp trái"]
+recents = ["&b&lChỉ gần đây: {state}&r", "&7Chỉ hiện các cổng bạn dùng gần đây.", "&eNhấp trái"]
+guide = ["&a&lDẫn đường: {portal}&r", "&7Hiện hướng tới cổng đang dẫn trên thanh hành động.", "&eNhấp trái để dừng dẫn đường"]
 # ---- end lane:nexus ----
 
 # ---- lane:doors (doorview.* and pockets.*) ----
 [doorview]
-"disabled" = "&8[&6Wormholes&8] &cChieu hinh qua cua da bi tat trong wormholes.toml."
-"toggle.inherit" = "&8[&6Wormholes&8] &7Chieu hinh qua cua nay: &fke thua&7."
-"toggle.on" = "&8[&6Wormholes&8] &aChieu hinh qua cua nay: bat."
-"toggle.off" = "&8[&6Wormholes&8] &eChieu hinh qua cua nay: tat."
-"state.inherit" = "ke thua"
-"state.on" = "bat"
-"state.off" = "tat"
-"menu.projection" = ["&b&lChieu hinh: {state}&r", "&7Hien thi diem den xuyen qua khung cua nay.", "&eNhap chuot trai de doi"]
+"disabled" = "&8[&6Wormholes&8] &cHình chiếu qua cửa đã bị tắt trong wormholes.toml."
+"toggle.inherit" = "&8[&6Wormholes&8] &7Hình chiếu của cửa này: &fkế thừa&7."
+"toggle.on" = "&8[&6Wormholes&8] &aHình chiếu của cửa này: bật."
+"toggle.off" = "&8[&6Wormholes&8] &eHình chiếu của cửa này: tắt."
+"state.inherit" = "kế thừa"
+"state.on" = "bật"
+"state.off" = "tắt"
+"menu.projection" = ["&b&lHình chiếu: {state}&r", "&7Hiển thị điểm đến xuyên qua khung cửa này.", "&eNhấp trái để đổi"]
 
 [pockets]
-"confirm.overwrite" = ["&8[&6Wormholes&8] &cViec nay thay the moi thu ben trong tui &f{space}&c.", "&8[&6Wormholes&8] &7Chay lai lenh voi &fconfirm=true&7 de tiep tuc."]
-"denied.build" = "&8[&6Wormholes&8] &cBan khong phai tho xay trong tui nay."
-"denied.pvp" = "&8[&6Wormholes&8] &cGiao tranh da tat trong tui nay."
-"instance.none" = "&8[&6Wormholes&8] &cTui nay khong phai la mot ban the."
-"instance.reset" = "&8[&6Wormholes&8] &aBan the tui &f{space}&a da duoc dat lai."
-"room.added" = "&8[&6Wormholes&8] &aDa them phong &f{count}&a vao tui &f{space}&a."
-"room.blocked" = "&8[&6Wormholes&8] &cHay dat cua len mot buc tuong ben trong."
-"room.limit" = "&8[&6Wormholes&8] &cTui nay da dat toi da &f{count}&c phong."
-"roster.added" = "&8[&6Wormholes&8] &a{name}&a da vao danh sach tui voi vai tro &f{value}&a."
-"roster.missing" = "&8[&6Wormholes&8] &c{name}&c khong co trong danh sach cua tui nay."
-"roster.removed" = "&8[&6Wormholes&8] &e{name}&e da roi danh sach tui."
-"roster.role" = "&8[&6Wormholes&8] &a{name}&a gio la &f{value}&a trong tui nay."
-"rules.invalid" = "&8[&6Wormholes&8] &cQuy tac tui khong xac dinh &f{key}&c."
+"confirm.overwrite" = ["&8[&6Wormholes&8] &cViệc này thay thế mọi thứ bên trong túi &f{space}&c.", "&8[&6Wormholes&8] &7Chạy lại cùng lệnh với &fconfirm=true&7 để tiếp tục."]
+"denied.build" = "&8[&6Wormholes&8] &cBạn không phải thợ xây trong túi này."
+"denied.pvp" = "&8[&6Wormholes&8] &cGiao tranh đã bị tắt trong túi này."
+"instance.none" = "&8[&6Wormholes&8] &cTúi này không phải là một phiên bản riêng."
+"instance.reset" = "&8[&6Wormholes&8] &aPhiên bản riêng của túi &f{space}&a đã được đặt lại."
+"room.added" = "&8[&6Wormholes&8] &aĐã thêm phòng &f{count}&a vào túi &f{space}&a."
+"room.blocked" = "&8[&6Wormholes&8] &cHãy đặt cửa lên một bức tường bên trong."
+"room.limit" = "&8[&6Wormholes&8] &cTúi này đã đạt tối đa &f{count}&c phòng."
+"roster.added" = "&8[&6Wormholes&8] &a{name}&a đã vào danh sách túi với vai trò &f{value}&a."
+"roster.missing" = "&8[&6Wormholes&8] &c{name}&c không có trong danh sách của túi này."
+"roster.removed" = "&8[&6Wormholes&8] &e{name}&e đã rời danh sách túi."
+"roster.role" = "&8[&6Wormholes&8] &a{name}&a giờ là &f{value}&a trong túi này."
+"rules.invalid" = "&8[&6Wormholes&8] &cQuy tắc túi không xác định &f{key}&c."
 "rules.set" = "&8[&6Wormholes&8] &a{key} &7= &f{value}"
-"snapshot.missing" = "&8[&6Wormholes&8] &cTui nay khong co anh chup nao ten &f{name}&c."
-"snapshot.restored" = "&8[&6Wormholes&8] &aDa khoi phuc anh chup &f{name}&a vao tui &f{space}&a."
-"snapshot.saved" = "&8[&6Wormholes&8] &aDa luu anh chup &f{name}&a cua tui &f{space}&a."
-"template.applied" = "&8[&6Wormholes&8] &aDa ap dung mau &f{name}&a cho tui &f{space}&a."
-"template.list" = "&8[&6Wormholes&8] &7Mau (&f{count}&7): &f{value}"
-"template.missing" = "&8[&6Wormholes&8] &cKhong co mau tui nao ten &f{name}&c."
+"snapshot.missing" = "&8[&6Wormholes&8] &cTúi này không có ảnh chụp nào tên &f{name}&c."
+"snapshot.restored" = "&8[&6Wormholes&8] &aĐã khôi phục ảnh chụp &f{name}&a vào túi &f{space}&a."
+"snapshot.saved" = "&8[&6Wormholes&8] &aĐã lưu ảnh chụp &f{name}&a của túi &f{space}&a."
+"template.applied" = "&8[&6Wormholes&8] &aĐã áp dụng mẫu &f{name}&a cho túi &f{space}&a."
+"template.list" = "&8[&6Wormholes&8] &7Mẫu (&f{count}&7): &f{value}"
+"template.missing" = "&8[&6Wormholes&8] &cKhông có mẫu túi nào tên &f{name}&c."
 # ---- end lane:doors ----
 
 # ---- lane:mesh (mesh.*) ----
@@ -1374,7 +1386,7 @@ accept = "Tin cậy một máy chủ được giới thiệu và lưu tuyến c�
 reject = "Hủy lời giới thiệu đang chờ của một máy chủ"
 versions = "Hiển thị giao thức, phiên bản plugin và khả năng của từng máy chủ ngang hàng"
 drain = "Đưa máy chủ này ra khỏi vòng luân phiên điểm đến hoặc đưa trở lại"
-policy = "Đặt hoặc xóa chính sách điểm đến của một cổng"
+policy = "Đặt hoặc xóa chính sách điểm đến của một cổng liên máy chủ"
 
 [mesh.command.param.accept]
 server = "Tên máy chủ được giới thiệu (xem /wh network pending)"
@@ -1391,12 +1403,12 @@ candidates = "Các mục server:portal[:weight] cách nhau bằng dấu phẩy; 
 strategy = "FIRST_AVAILABLE, LEAST_LOADED, ROUND_ROBIN, STICKY hoặc NEAREST"
 headroom = "Số chỗ trống mà ứng viên phải báo cáo"
 tps = "TPS tối thiểu mà ứng viên phải báo cáo; 0 bỏ qua TPS"
-queue = "Giữ người đi khi mọi ứng viên đều đầy"
+queue = "Giữ người đi chờ khi mọi ứng viên đều đầy"
 # ---- end lane:mesh ----
 
 # ---- lane:transit (transit.*) ----
 [transit]
-bounced = "{portal} đã đẩy bạn lại."
+bounced = "{portal} đã đẩy bạn ngược lại."
 
 [transit.denied]
 membrane = "{portal} chỉ có thể đi vào từ mặt trước."
@@ -1416,9 +1428,9 @@ membrane = ["&6&lMàng: {state}&r", "&7Chỉ mặt trước cho người đi và
 bounce = ["&6&lBật lại: {state}&r", "&7Đẩy người đi ngược lại thay vì dịch chuyển họ.", "&eNhấp trái để bật hoặc tắt"]
 profile = ["&6&lHiệu ứng chuyển tiếp&r", "&7Ngưỡng {mode}", "&7Đến nơi {state}", "&eNhấp trái: hiệu ứng ngưỡng, Nhấp phải: âm đến nơi", "&eShift + Nhấp trái: tick mặt nạ"]
 prompt = "&bNhập giá trị mới vào khung chat (hoặc '{cancel}'):"
-scale = ["&6&lTỉ lệ người du hành: {mode}&r", "&7Khoảng kích thước {value}. Ánh xạ chuyến đi giữa các cổng có kích thước khác nhau.", "&eChuột trái để đổi chế độ", "&eChuột phải: tối thiểu, Shift + chuột phải: tối đa"]
+scale = ["&6&lTỉ lệ người du hành: {mode}&r", "&7Khoảng kích thước {value}. Ánh xạ chuyến đi giữa các cổng có kích thước khác nhau.", "&eNhấp trái để đổi chế độ", "&eNhấp phải: tối thiểu, Shift + nhấp phải: tối đa"]
 
-gravity = ["&6&lHướng trọng lực: {state}&r", "&7Sàn, chuyển động và mô hình của người chơi dùng mod xoay theo cổng.", "&eNhấp chuột trái để bật hoặc tắt"]
+gravity = ["&6&lHướng trọng lực: {state}&r", "&7Sàn, chuyển động và mô hình của người chơi dùng mod xoay theo cổng.", "&eNhấp trái để bật hoặc tắt"]
 
 [transit.scale]
 current = "&8[&6Wormholes&8] &f{portal}&7 tỉ lệ người du hành: &f{mode}&7 ({value})"
@@ -1436,14 +1448,14 @@ client_required = "&8[&6Wormholes&8] &cCổng này cần mod Wormholes phía má
 
 # ---- lane:view (fidelity.*) ----
 [fidelity.menu]
-entry = ["&b&lĐộ trung thực&r", "&7Khí quyển, âm thanh, chi tiết và thực thể khối của cổng này.", "&eNhấp chuột trái"]
-placard = ["&b&lĐộ trung thực chiếu&r", "&7Các kênh theo từng cổng được phủ lên hình chiếu."]
+entry = ["&b&lĐộ trung thực&r", "&7Khí quyển, âm thanh, chi tiết và thực thể khối của cổng này.", "&eNhấp trái"]
+placard = ["&b&lĐộ trung thực hình chiếu&r", "&7Các kênh theo từng cổng được phủ lên hình chiếu."]
 atmosphere = "&bKhí quyển: &f{mode}"
 acoustics = "&bÂm thanh: &f{mode}"
 lod = "&bChi tiết: &f{mode}"
 block_entities = "&bThực thể khối: &f{state}"
 hint = ["&8Nhấp để chuyển đổi.", "&8Shift + nhấp dùng mặc định của máy chủ."]
-back = ["&e&lQuay lại&r", "&7Trở về menu cổng."]
+back = ["&e&lTrở lại&r", "&7Trở lại trình đơn cổng."]
 default = "mặc định"
 
 [fidelity.bedrock]
@@ -1452,98 +1464,98 @@ profile = "Hồ sơ Bedrock đang áp dụng cho {count} người xem"
 
 # ---- lane:ops (ops.*) ----
 [ops.console]
-started = "Diem cuoi so lieu dang lang nghe tai {value}."
-no_token = "Diem cuoi so lieu khong khoi dong: hay dat [ops.console] token."
-failed = "Diem cuoi so lieu khong the gan {value}: {reason}"
+started = "Điểm cuối số liệu đang lắng nghe tại {value}."
+no_token = "Điểm cuối số liệu không khởi động: hãy đặt [ops.console] token."
+failed = "Điểm cuối số liệu không thể gắn vào {value}: {reason}"
 
 [ops.webmap]
-published = "Da dang {count} diem danh dau cong len {name}."
+published = "Đã đăng {count} điểm đánh dấu cổng lên {name}."
 
 [ops.backup]
-created = "&8[&6Wormholes&8] &aBan sao luu &f{id}&a da ghi vao &f{path}&a."
-restored = "&8[&6Wormholes&8] &aDa khoi phuc &f{count}&a cong tu &f{id}&a."
-dry_run = "&8[&6Wormholes&8] &7Chay thu: &f{count}&7 cong se thay doi."
-list_row = "&8[&6Wormholes&8] &f{id} &8| &f{count}&7 cong &8| &7{path}"
-list_empty = "&8[&6Wormholes&8] &7Khong co ban sao luu trong &f{path}&7."
-not_found = "&8[&6Wormholes&8] &cKhong co ban sao luu nao khop voi &f{id}&c."
-confirm_required = "&8[&6Wormholes&8] &cChay lai voi &fconfirm=true&c de ap dung, hoac &fdry=true&c de xem ke hoach."
-failed = "&8[&6Wormholes&8] &cThao tac sao luu that bai: &f{reason}"
-reload_required = "&8[&6Wormholes&8] &7Da thay the cac tep cong. Chay &f/wormholes reload&7 de nap chung."
-signature_broken = "&8[&6Wormholes&8] &cTu choi &f{id}&c: chu ky khong khop voi noi dung."
-signature_untrusted = "&8[&6Wormholes&8] &cTu choi &f{id}&c: duoc ky boi &f{fingerprint}&c, may chu nay khong tin tuong. Them &fallow-unsigned=true&c de van ap dung."
-signature_ok = "&8[&6Wormholes&8] &7Duoc ky boi &f{name}&7 (&f{fingerprint}&7)."
+created = "&8[&6Wormholes&8] &aBản sao lưu &f{id}&a đã được ghi vào &f{path}&a."
+restored = "&8[&6Wormholes&8] &aĐã khôi phục &f{count}&a cổng từ &f{id}&a."
+dry_run = "&8[&6Wormholes&8] &7Chạy thử: &f{count}&7 cổng sẽ thay đổi."
+list_row = "&8[&6Wormholes&8] &f{id} &8| &f{count}&7 cổng &8| &7{path}"
+list_empty = "&8[&6Wormholes&8] &7Không có bản sao lưu nào trong &f{path}&7."
+not_found = "&8[&6Wormholes&8] &cKhông có bản sao lưu nào khớp với &f{id}&c."
+confirm_required = "&8[&6Wormholes&8] &cChạy lại với &fconfirm=true&c để áp dụng, hoặc &fdry=true&c để xem kế hoạch."
+failed = "&8[&6Wormholes&8] &cThao tác sao lưu thất bại: &f{reason}"
+reload_required = "&8[&6Wormholes&8] &7Đã thay thế các tệp cổng. Chạy &f/wormholes reload&7 để nạp chúng."
+signature_broken = "&8[&6Wormholes&8] &cTừ chối &f{id}&c: chữ ký không khớp với nội dung."
+signature_untrusted = "&8[&6Wormholes&8] &cTừ chối &f{id}&c: được ký bởi &f{fingerprint}&c, khóa mà máy chủ này không tin cậy. Thêm &fallow-unsigned=true&c để vẫn áp dụng."
+signature_ok = "&8[&6Wormholes&8] &7Được ký bởi &f{name}&7 (&f{fingerprint}&7)."
 
 [ops.import]
-report = "&8[&6Wormholes&8] &f{name}&7: da nhap &f{count}&7 cong, bo qua &f{value}&7."
+report = "&8[&6Wormholes&8] &f{name}&7: đã nhập &f{count}&7 cổng, bỏ qua &f{value}&7."
 skipped_row = "&8[&6Wormholes&8] &7{portal}&8: &f{reason}"
-not_detected = "&8[&6Wormholes&8] &cKhong tim thay du lieu {name} trong &f{path}&c."
+not_detected = "&8[&6Wormholes&8] &cKhông tìm thấy dữ liệu {name} trong &f{path}&c."
 
 [ops.portals]
 row = "&8[&6Wormholes&8] &f{portal} &8| &7{world} &8| &7{state} &8| &7{destination}"
 page = "&8[&6Wormholes&8] &7Trang &f{page}&7/&f{pages}"
-empty = "&8[&6Wormholes&8] &7Khong co cong nao khop voi cac bo loc do."
-not_found = "&8[&6Wormholes&8] &cKhong co cong nao khop voi &f{name}&c."
-ambiguous = "&8[&6Wormholes&8] &cCo {count} cong khop voi &f{name}&c; hay dung id."
-info = ["&8[&6Wormholes&8] &7Cong &f{portal} &8| &7{id}", "&8[&6Wormholes&8] &7The gioi &f{world}&7 tai &f{value}", "&8[&6Wormholes&8] &7Trang thai &f{state}&7, dich &f{destination}&7, chu so huu &f{owner}"]
-teleported = "&8[&6Wormholes&8] &aDa dich chuyen den &f{portal}&a."
-teleport_unsafe = "&8[&6Wormholes&8] &eKhong co cho ha canh an toan gan &f{portal}&e; dung tam cong."
-retargeted = "&8[&6Wormholes&8] &a&f{portal}&a bay gio tro toi &f{destination}&a."
-unlinked = "&8[&6Wormholes&8] &a&f{portal}&a khong con lien ket."
-pruned = "&8[&6Wormholes&8] &aDa don &f{count}&a lien ket mo coi."
-prune_dry_run = "&8[&6Wormholes&8] &7Chay thu: se don &f{count}&7 lien ket mo coi."
-renamed_server = "&8[&6Wormholes&8] &aDa viet lai &f{count}&a lien ket cong noi tu &f{name}&a sang &f{server}&a."
+empty = "&8[&6Wormholes&8] &7Không có cổng nào khớp với các bộ lọc đó."
+not_found = "&8[&6Wormholes&8] &cKhông có cổng nào khớp với &f{name}&c."
+ambiguous = "&8[&6Wormholes&8] &cCó {count} cổng khớp với &f{name}&c; hãy dùng id."
+info = ["&8[&6Wormholes&8] &7Cổng &f{portal} &8| &7{id}", "&8[&6Wormholes&8] &7Thế giới &f{world}&7 tại &f{value}", "&8[&6Wormholes&8] &7Trạng thái &f{state}&7, điểm đến &f{destination}&7, chủ sở hữu &f{owner}"]
+teleported = "&8[&6Wormholes&8] &aĐã dịch chuyển đến &f{portal}&a."
+teleport_unsafe = "&8[&6Wormholes&8] &eKhông có chỗ hạ cánh an toàn gần &f{portal}&e; sẽ dùng tâm cổng."
+retargeted = "&8[&6Wormholes&8] &a&f{portal}&a giờ trỏ tới &f{destination}&a."
+unlinked = "&8[&6Wormholes&8] &a&f{portal}&a không còn liên kết."
+pruned = "&8[&6Wormholes&8] &aĐã dọn &f{count}&a liên kết mồ côi."
+prune_dry_run = "&8[&6Wormholes&8] &7Chạy thử: sẽ dọn &f{count}&7 liên kết mồ côi."
+renamed_server = "&8[&6Wormholes&8] &aĐã viết lại &f{count}&a liên kết cổng liên máy chủ từ &f{name}&a sang &f{server}&a."
 
 [ops.command.help]
-backup = "Tao, liet ke, khoi phuc va trao doi ban sao luu cong"
-"backup.now" = "Ghi ngay mot ban sao luu du lieu cong"
-"backup.list" = "Liet ke cac ban sao luu tren dia"
-"backup.restore" = "Khoi phuc tep cong tu mot ban sao luu (dry=true chi hien ke hoach)"
-"backup.restore.id" = "Id ban sao luu tu /wormholes admin backup list"
-"backup.restore.dry" = "Bao cao nhung gi se thay doi ma khong ghi gi"
-"backup.restore.world_map" = "Doi ten the gioi dang cu=moi,cu=moi"
-"backup.restore.owner_map" = "Doi chu so huu dang uuid-cu=uuid-moi"
-"backup.restore.confirm" = "Bat buoc de ghi tep khi dry=false"
-"backup.allow_unsigned" = "Ap dung goi ma khong khoa tin cay nao da ky"
-"backup.export" = "Ghi goi sao luu vao mot tep co the mang giua cac may chu"
-"backup.export.file" = "Tep dich; de trong se ghi vao thu muc sao luu"
-"backup.import" = "Nhap mot goi da xuat tu may chu khac"
-"backup.import.file" = "Tep goi can doc"
-"backup.import.dry" = "Bao cao nhung gi se thay doi ma khong ghi gi"
-"backup.import.world_map" = "Doi ten the gioi dang cu=moi,cu=moi"
-"backup.import.owner_map" = "Doi chu so huu dang uuid-cu=uuid-moi"
-"backup.import.confirm" = "Bat buoc de ghi tep khi dry=false"
-"backup.import_from" = "Nhap cong tu tep cua mot plugin cong khac"
-"backup.import_from.source" = "stargate, advancedportals, multiverse, betterportals hoac essentials"
-"backup.import_from.dry" = "Bao cao nhung gi se duoc tao ma khong tao gi"
-"backup.import_from.frame" = "Kich thuoc khung dang rong,cao cho nguon khong co khung"
-portals = "Liet ke, xem va sua cong hang loat"
-"portals.list" = "Liet ke cong voi cac bo loc tuy chon"
-"portals.list.world" = "Chi cong trong the gioi nay"
-"portals.list.type" = "Chi cong thuoc loai nay: portal, wormhole, gateway hoac rtp"
-"portals.list.owner" = "Chi cong cua ten nguoi choi hoac uuid nay"
-"portals.list.state" = "Chi cong o trang thai nay: open, closed, linked hoac unlinked"
-"portals.list.page" = "So trang"
-"portals.find" = "Tim cong co ten chua doan van ban"
-"portals.find.name" = "Van ban can tim"
-"portals.info" = "Hien the gioi, trang thai, dich va chu so huu cua mot cong"
-"portals.info.portal" = "Ten hoac id cong"
-"portals.tp" = "Dich chuyen den mot cong va ha canh tren nen an toan"
-"portals.tp.portal" = "Ten hoac id cong"
-"portals.retarget" = "Tro mot cong toi mot cong noi bo khac"
-"portals.retarget.portal" = "Ten hoac id cong can doi"
-"portals.retarget.destination" = "Ten hoac id cong dich"
-"portals.unlink" = "Go dich cua mot cong"
-"portals.unlink.portal" = "Ten hoac id cong"
-"portals.prune" = "Go cac lien ket ma dich khong con ton tai"
-"portals.prune.dry" = "Bao cao nhung gi se bi go ma khong thay doi gi"
-"portals.prune.confirm" = "Bat buoc de go khi dry=false"
-"portals.rename_server" = "Viet lai lien ket giua cac may chu tu ten may chu nay sang ten khac"
-"portals.rename_server.old" = "Ten may chu hien dang luu trong lien ket"
-"portals.rename_server.new" = "Ten may chu se luu thay the"
-"portals.rename_server.confirm" = "Bat buoc de viet lai cac lien ket"
-"portals.shape" = "Hien thi hoac dat hinh dang lo mo cua mot cong"
-"portals.shape.portal" = "Ten hoac id cong"
-"portals.shape.shape" = "Van ban hinh dang nhu circle, flower(petals=7) hoac full; de trong se hien thi hinh dang hien tai"
+backup = "Tạo, liệt kê, khôi phục và trao đổi bản sao lưu cổng"
+"backup.now" = "Ghi ngay một bản sao lưu dữ liệu cổng"
+"backup.list" = "Liệt kê các bản sao lưu trên đĩa"
+"backup.restore" = "Khôi phục tệp cổng từ một bản sao lưu (dry=true chỉ hiện kế hoạch)"
+"backup.restore.id" = "Id bản sao lưu từ /wormholes admin backup list"
+"backup.restore.dry" = "Báo cáo những gì sẽ thay đổi mà không ghi gì"
+"backup.restore.world_map" = "Đổi tên thế giới dạng cũ=mới,cũ=mới"
+"backup.restore.owner_map" = "Đổi chủ sở hữu dạng uuid-cũ=uuid-mới,uuid-cũ=uuid-mới"
+"backup.restore.confirm" = "Bắt buộc để ghi tệp khi dry=false"
+"backup.allow_unsigned" = "Áp dụng gói không được ký bởi khóa tin cậy nào"
+"backup.export" = "Ghi gói sao lưu vào một tệp có thể mang giữa các máy chủ"
+"backup.export.file" = "Tệp đích; để trống sẽ ghi vào thư mục sao lưu"
+"backup.import" = "Nhập một gói đã xuất từ máy chủ khác"
+"backup.import.file" = "Tệp gói cần đọc"
+"backup.import.dry" = "Báo cáo những gì sẽ thay đổi mà không ghi gì"
+"backup.import.world_map" = "Đổi tên thế giới dạng cũ=mới,cũ=mới"
+"backup.import.owner_map" = "Đổi chủ sở hữu dạng uuid-cũ=uuid-mới,uuid-cũ=uuid-mới"
+"backup.import.confirm" = "Bắt buộc để ghi tệp khi dry=false"
+"backup.import_from" = "Nhập cổng từ tệp của một plugin cổng khác"
+"backup.import_from.source" = "stargate, advancedportals, multiverse, betterportals hoặc essentials"
+"backup.import_from.dry" = "Báo cáo những gì sẽ được tạo mà không tạo gì"
+"backup.import_from.frame" = "Kích thước khung dạng rộng,cao cho nguồn không có khung"
+portals = "Liệt kê, xem và sửa cổng hàng loạt"
+"portals.list" = "Liệt kê cổng với các bộ lọc tùy chọn"
+"portals.list.world" = "Chỉ cổng trong thế giới này"
+"portals.list.type" = "Chỉ cổng thuộc loại này: portal, wormhole, gateway hoặc rtp"
+"portals.list.owner" = "Chỉ cổng thuộc sở hữu của tên người chơi hoặc uuid này"
+"portals.list.state" = "Chỉ cổng ở trạng thái này: open, closed, linked hoặc unlinked"
+"portals.list.page" = "Số trang"
+"portals.find" = "Tìm cổng có tên chứa đoạn văn bản"
+"portals.find.name" = "Văn bản cần tìm"
+"portals.info" = "Hiện thế giới, trạng thái, điểm đến và chủ sở hữu của một cổng"
+"portals.info.portal" = "Tên hoặc id cổng"
+"portals.tp" = "Dịch chuyển đến một cổng và hạ cánh trên nền an toàn"
+"portals.tp.portal" = "Tên hoặc id cổng"
+"portals.retarget" = "Trỏ một cổng tới một cổng cục bộ khác"
+"portals.retarget.portal" = "Tên hoặc id cổng cần đổi"
+"portals.retarget.destination" = "Tên hoặc id cổng đích"
+"portals.unlink" = "Gỡ điểm đến của một cổng"
+"portals.unlink.portal" = "Tên hoặc id cổng"
+"portals.prune" = "Gỡ các liên kết có điểm đến không còn tồn tại"
+"portals.prune.dry" = "Báo cáo những gì sẽ bị gỡ mà không thay đổi gì"
+"portals.prune.confirm" = "Bắt buộc để gỡ khi dry=false"
+"portals.rename_server" = "Viết lại liên kết giữa các máy chủ từ tên máy chủ này sang tên khác"
+"portals.rename_server.old" = "Tên máy chủ hiện đang lưu trong liên kết"
+"portals.rename_server.new" = "Tên máy chủ sẽ lưu thay thế"
+"portals.rename_server.confirm" = "Bắt buộc để viết lại các liên kết"
+"portals.shape" = "Hiển thị hoặc đặt hình dạng lỗ mở của một cổng"
+"portals.shape.portal" = "Tên hoặc id cổng"
+"portals.shape.shape" = "Văn bản hình dạng như circle, flower(petals=7) hoặc full; để trống sẽ hiển thị hình dạng hiện tại"
 "portals.scale" = "Hiện hoặc đặt quy tắc tỉ lệ người du hành của một cổng"
 "portals.scale.portal" = "Tên hoặc id cổng"
 "portals.scale.mode" = "off, motion hoặc ratio; bỏ trống mọi giá trị để xem quy tắc hiện tại"
@@ -1561,7 +1573,7 @@ header = "&6ClientView &7đang chạy {state}, cấu hình {mode}, {count} phiê
 row = "&e{name} &7{state} &8| &7{value}"
 none = "&7Không người chơi nào có phiên ClientView."
 enabled = "&aClientView được cung cấp lại. Cấu hình: {mode}."
-disabled = "&cClientView đã tắt. Mọi phiên đã trở về phép chiếu vanilla."
+disabled = "&cClientView đã tắt. Mọi phiên đã trở về hình chiếu vanilla."
 reset = "&aĐang khởi động lại luồng ClientView của {name}."
 no_session = "&c{name} không có phiên ClientView đang hoạt động."
 player_missing = "&cKhông có người chơi trực tuyến nào tên {name}."
@@ -1569,8 +1581,8 @@ player_missing = "&cKhông có người chơi trực tuyến nào tên {name}."
 [clientview.command.help]
 clientview = "Phiên ClientView cho người chơi dùng mod Wormholes"
 status = "Liệt kê mọi phiên ClientView"
-on = "Cung cấp lại ClientView cho client có mod"
-off = "Đưa mọi người chơi ClientView về phép chiếu vanilla"
+on = "Cung cấp lại ClientView cho máy khách có mod"
+off = "Đưa mọi người chơi ClientView về hình chiếu vanilla"
 reset = "Khởi động lại luồng ClientView của một người chơi"
 "reset.player" = "Tên người chơi trực tuyến"
 # ---- end lane:clientview ----
@@ -1585,7 +1597,7 @@ settings = "Cài đặt"
 advanced = "Tinh chỉnh luồng nâng cao"
 blackout = "Màu che kín"
 ambient = "Màu môi trường"
-skin = "Giao diện bề mặt"
+skin = "Lớp phủ bề mặt"
 cost = "Chi phí di chuyển"
 extensions = "Cài đặt khác"
 destinations = "Điểm đến"
@@ -1605,7 +1617,7 @@ templates = "Mẫu quy tắc"
 access = "Truy cập"
 transit = "Quá cảnh"
 fidelity = "Độ trung thực"
-atlas = "Bản đồ"
+atlas = "Atlas"
 door = "Truy cập cửa"
 language = "Ngôn ngữ"
 
@@ -1621,7 +1633,7 @@ apply = "Áp dụng"
 confirm = "Xác nhận"
 cancel = "Hủy"
 previous_page = "Trang trước"
-next_page = "Trang sau"
+next_page = "Trang tiếp theo"
 page = "Trang {page} / {pages}"
 use_held_item = "Dùng vật phẩm đang cầm"
 aim = "Ngắm"
@@ -1635,7 +1647,7 @@ reset = "Đặt lại"
 clear = "Xóa"
 colors = "Màu sắc"
 advanced = "Nâng cao"
-reroll = "Quay lại"
+reroll = "Chọn lại"
 remove = "Gỡ bỏ"
 favorite = "Yêu thích"
 guide = "Dẫn đường"
@@ -1654,7 +1666,7 @@ nexus_leave = ["Rời {name}?", "Cổng này sẽ ngừng quay số và nhận q
 "nexus_leave.accept" = "Rời"
 
 [menu.native.feedback]
-refreshed = "Menu đã thay đổi và được làm mới."
+refreshed = "Trình đơn đã thay đổi và được làm mới."
 unavailable = "Tùy chọn này hiện không khả dụng."
 invalid_value = "Giá trị này không được phép."
 save_failed = "Không thể lưu thay đổi."
@@ -1670,12 +1682,12 @@ key = "Khóa quyền"
 group = "Tên nhóm"
 network = "Tên mạng"
 address = "Địa chỉ"
-rule_id = "Mã quy tắc"
+rule_id = "Id quy tắc"
 line = "Dòng quy tắc"
 factor = "Hệ số"
-sound = "Mã âm thanh"
+sound = "Id âm thanh"
 ticks = "Tick"
-scale = "Tỷ lệ"
+scale = "Tỉ lệ"
 search = "Tìm kiếm"
 
 [menu.native.transit]
@@ -1683,8 +1695,8 @@ factor = "Hệ số động lượng"
 threshold_effect = "Hiệu ứng ngưỡng"
 arrival_sound = "Âm đến nơi"
 mask_ticks = "Tick mặt nạ"
-scale_min = "Tỷ lệ tối thiểu"
-scale_max = "Tỷ lệ tối đa"
+scale_min = "Tỉ lệ tối thiểu"
+scale_max = "Tỉ lệ tối đa"
 
 [menu.native.nexus]
 comparator = "Đầu ra bộ so sánh"

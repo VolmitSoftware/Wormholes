@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded;
 
+import art.arcane.volmlib.util.localization.LanguageUpstreamSync;
 import art.arcane.volmlib.util.localization.LocalizationSnapshot;
 import art.arcane.volmlib.util.localization.MessageArgs;
 import art.arcane.volmlib.util.localization.PluginLanguageEditor;
@@ -8,7 +9,7 @@ import art.arcane.volmlib.util.localization.TextKey;
 import art.arcane.volmlib.util.localization.VolmitLocales;
 import art.arcane.volmlib.util.plugin.ComponentText;
 import art.arcane.wormholes.config.WormholesSettings;
-import art.arcane.wormholes.localization.WormholesLocaleLoader;
+import art.arcane.wormholes.localization.WormholesLanguages;
 import art.arcane.wormholes.localization.WormholesMessageRenderer;
 import art.arcane.wormholes.modded.menu.host.MinecraftLanguageMenuHost;
 import com.mojang.brigadier.CommandDispatcher;
@@ -29,6 +30,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public final class MinecraftLocalization implements AutoCloseable {
@@ -45,6 +47,7 @@ public final class MinecraftLocalization implements AutoCloseable {
     private Path directory;
     private MinecraftServer server;
     private ExecutorService reader;
+    private WormholesLanguages sources;
     private PluginLanguageService languages;
     private PluginLanguageEditor editor;
     private CompletableFuture<Void> defaultSelection = CompletableFuture.completedFuture(null);
@@ -64,17 +67,20 @@ public final class MinecraftLocalization implements AutoCloseable {
         this.directory = Objects.requireNonNull(directory);
         server = runtime.server();
         fallbacks = settings.getLanguageFallbacks();
+        sources = new WormholesLanguages(directory, LOGGER);
+        sources.setUpdateListener(this::languageUpdated);
         current = new DefaultLanguage(settings.getLanguage(), load(settings.getLanguage(), fallbacks));
         reader = Executors.newSingleThreadExecutor(Thread.ofVirtual().name("Wormholes-languages").factory());
         closed = false;
         generation.incrementAndGet();
         languages = new PluginLanguageService(new PluginLanguageService.Options(
-            directory.resolve("languages/language-preferences.properties"), VolmitLocales::all,
-            () -> current.locale(), () -> current.snapshot(), locale -> load(locale, fallbacks),
+            directory.resolve("languages/language-preferences.properties"), sources::availableLocales,
+            () -> current.locale(), () -> current.snapshot(), locale -> loadInstalling(locale, fallbacks),
             (locale, snapshot) -> current = new DefaultLanguage(locale, snapshot), LOGGER));
+        sources.attach(languages);
         editor = new PluginLanguageEditor(languages, new PluginLanguageEditor.Options(
-            locale -> load(locale, locale.equals(VolmitLocales.ENGLISH) ? "" : fallbacks), edit -> {
-                LocalizationSnapshot updated = WormholesLocaleLoader.edit(this.directory, edit,
+            locale -> loadInstalling(locale, locale.equals(VolmitLocales.ENGLISH) ? "" : fallbacks), edit -> {
+                LocalizationSnapshot updated = sources.edit(edit,
                     edit.locale().equals(VolmitLocales.ENGLISH) ? "" : fallbacks);
                 if (current.locale().equals(edit.locale())) {
                     current = new DefaultLanguage(edit.locale(), updated);
@@ -82,6 +88,29 @@ public final class MinecraftLocalization implements AutoCloseable {
                 return updated;
             }));
         SERVICES.put(server, this);
+    }
+
+    public CompletableFuture<LanguageUpstreamSync.SyncReport> startUpstreamCheck() {
+        runtime.requireServerThread();
+        sources.sourceFailure().ifPresent(failure -> LOGGER.log(Level.WARNING,
+            "Language source is unavailable; built-in English and installed language files remain active", failure));
+        CompletableFuture<LanguageUpstreamSync.SyncReport> check = sources.checkAsync();
+        String locale = current.locale();
+        if (!sources.isInstalled(locale) && sources.isRepositoryLocale(locale)) {
+            sources.installAsync(locale).whenComplete((content, failure) -> {
+                if (failure != null) {
+                    LOGGER.log(Level.WARNING, "Unable to install language " + locale
+                        + "; built-in English and installed language files remain active", failure);
+                    return;
+                }
+                languageUpdated(locale);
+            });
+        }
+        return check;
+    }
+
+    public String displayName(String locale) {
+        return sources.displayName(locale);
     }
 
     public CompletableFuture<Void> reload(WormholesSettings settings) {
@@ -111,6 +140,9 @@ public final class MinecraftLocalization implements AutoCloseable {
         }
         if (languages != null) {
             languages.close();
+        }
+        if (sources != null) {
+            sources.close();
         }
         for (CompletableFuture<?> result : pending) {
             result.completeExceptionally(new CancellationException("Wormholes localization stopped"));
@@ -215,8 +247,41 @@ public final class MinecraftLocalization implements AutoCloseable {
         }
     }
 
+    private void languageUpdated(String locale) {
+        if (closed) {
+            return;
+        }
+        server.execute(() -> {
+            if (closed) {
+                return;
+            }
+            long expected = generation.get();
+            String selected = current.locale();
+            String chain = fallbacks;
+            reader.execute(() -> {
+                try {
+                    LocalizationSnapshot loaded = load(selected, chain);
+                    server.execute(() -> {
+                        if (closed || expected != generation.get()) {
+                            return;
+                        }
+                        current = new DefaultLanguage(selected, loaded);
+                        languages.invalidate();
+                    });
+                } catch (IOException | RuntimeException error) {
+                    LOGGER.log(Level.WARNING, "Could not reload Wormholes language " + selected + " after a language update", error);
+                }
+            });
+        });
+    }
+
     private LocalizationSnapshot load(String locale, String fallbacks) throws IOException {
-        return LocalizationSnapshot.create(WormholesLocaleLoader.load(directory, locale,
+        return LocalizationSnapshot.create(sources.load(locale,
+            VolmitLocales.ENGLISH.equals(locale) ? "" : fallbacks));
+    }
+
+    private LocalizationSnapshot loadInstalling(String locale, String fallbacks) throws IOException {
+        return LocalizationSnapshot.create(sources.loadInstalling(locale,
             VolmitLocales.ENGLISH.equals(locale) ? "" : fallbacks));
     }
 
