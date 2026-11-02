@@ -67,6 +67,10 @@ public final class WormholesResourceWatcher implements AutoCloseable {
         executor.scheduleWithFixedDelay(this::poll, POLL_INTERVAL_MS, POLL_INTERVAL_MS, TimeUnit.MILLISECONDS);
     }
 
+    public void noteSelfWrite(Path file, String content) {
+        engine.noteSelfWrite(file.toFile(), content);
+    }
+
     @Override
     public void close() {
         running.set(false);

@@ -14,6 +14,7 @@
 # === 変数 ===
 # 変数名を変更せず、各メッセージに元からある変数だけを使用してください。
 #   {access}  ポータルのアクセス方針
+#   {added}  言語更新で追加されたメッセージ
 #   {address}  ネットワーク接続先のアドレス
 #   {after}  編集後のメッセージ値
 #   {allocation}  ポケット空間の割り当て
@@ -55,6 +56,7 @@
 #   {id}  オブジェクトの識別子
 #   {incoming}  入ってくる移動の方針
 #   {item}  移動に必要なアイテム
+#   {kept}  言語更新で保持されたローカル編集
 #   {key}  メッセージまたは設定のキー
 #   {kind}  ドアのアクセス種類
 #   {label}  表示ラベル
@@ -75,7 +77,7 @@
 #   {owner}  ポータルの所有者
 #   {page}  現在のページ番号
 #   {pages}  総ページ数
-#   {parameter}  コマンドパラメーター名
+#   {parameter}  コマンドパラメータ名
 #   {path}  ファイルまたはフォルダーのパス
 #   {personal}  個人の言語コード
 #   {plugin}  プラグイン名
@@ -89,6 +91,7 @@
 #   {reason}  エラーまたは判断の理由
 #   {receive}  投影の受信状態
 #   {refresh}  投影の更新間隔（ティック）
+#   {remaining}  次回の言語確認が可能になるまでの時間
 #   {reserved}  予約済みランダム行き先の枠数
 #   {resized}  再構築したポケット数
 #   {rotation}  投影の回転
@@ -107,8 +110,9 @@
 #   {step}  クリック時の変更幅
 #   {style}  表示スタイル
 #   {target}  言語選択を適用するプラグイン
-#   {type}  オブジェクトまたはパラメーターの種類
+#   {type}  オブジェクトまたはパラメータの種類
 #   {up}  投影の上側となる方向
+#   {updated}  言語更新で変更されたメッセージ
 #   {value}  現在または選択中の値
 #   {variables}  メッセージで使用可能な変数
 #   {whitelisted}  許可するプレイヤー
@@ -151,7 +155,7 @@ next-page = "&e次のページ&r"
 previous-page = "&e前のページ&r"
 
 [language.editor.part]
-line = "行{line}"
+line = "{line}行目"
 
 [language.editor.prompt]
 current = "現在の値: {value}"
@@ -195,20 +199,20 @@ unavailable-for-all = "選択したすべてのプラグインで言語{locale}�
 all-volmit-plugins = "すべてのVolmitプラグイン"
 command = "コマンド: {command}"
 current = "現在: {locale}"
-current_with_personal = "現在: {locale} (あなた: {personal})"
+current_with_personal = "現在: {locale} (自分の言語: {personal})"
 edit_description = "言語ごとのメッセージエディターを開きます。"
 edit_messages = "言語メッセージを編集"
 no_controls = "利用できる言語設定はありません。"
 remove_personal_description = "個人の言語選択を削除します。"
-reset_description = "サーバーのデフォルト言語を使用します。"
+reset_description = "サーバーの既定の言語を使用します。"
 reset_your_language = "自分の言語をリセット"
 select_description = "クリックしてこの言語を選択します。"
 selected = "選択済み"
-server_default = "サーバーのデフォルト"
-server_description = "サーバーのデフォルト言語を変更します。"
-use_server_default = "サーバーのデフォルトを使用"
+server_default = "サーバーの既定値"
+server_description = "サーバーの既定の言語を変更します。"
+use_server_default = "サーバーの既定値を使用"
 your_description = "表示されるメッセージだけを変更します。"
-your_language = "あなたの言語"
+your_language = "自分の言語"
 
 [language.selection]
 english-fallback = "{plugin}: {locale}は利用できないため、英語（en_US）を使用します。"
@@ -218,29 +222,38 @@ save-failed = "{plugin}: 言語の選択を保存できませんでした。サ�
 server-default-selected = "{plugin}: 個人言語はサーバーの既定の言語に従うようになりました。"
 server-selected = "{plugin}: サーバー言語を{locale}に変更しました。"
 
+[language.update]
+applied = "{plugin}: {locale}を更新しました（追加 {added}、変更 {updated}、保持したローカル編集 {kept}）。"
+checking = "{plugin}: 言語リポジトリの変更を確認しています..."
+cooldown = "{plugin}: 言語リポジトリは最近確認されたばかりです。{remaining}後にもう一度お試しください。"
+failed = "{plugin}: 言語の更新に失敗しました: {reason}"
+locale-failed = "{plugin}: {locale}は更新されませんでした: {reason}"
+unchanged = "{plugin}: インストール済みの言語はすでにリポジトリと一致しています。"
+
 [language.usage]
 editor = "使い方: /{command} language server edit [locale]"
-selection = "使い方: /{command} language self [locale|reset] or server [locale]"
+selection = "使い方: /{command} language self [locale|reset] または server [locale]"
+update = "使い方: /{command} language update"
 volmit-selection = "使い方: /volmit plugins languages [locale]"
 
 [command]
 unknown = "不明なコマンドです。ヘルプは /wormholes を使用してください。"
 public_help = ["&8[&6Wormholes&8] &7ポータルのヘルプ: &f/wormholes info", "&8[&6Wormholes&8] &7ポータルにポータルワンドを使うと、目的地、表示、移動、アクセス設定を開けます。"]
-info = ["&8[&6Wormholes&8] &7&lワームホールの作り方&r", "&81. &7サーバーまたは管理者からポータルワンドとポータルルーンを入手します。", "&82. &7同じ平面上に、ルーンを任意のつながった形で配置します。", "&7   長方形、直線 (3x1)、単一ブロック、L 字形、十字形など、つながった形なら使用できます。", "&7   ルーンは、座標軸に沿った 1 枚の壁、床、または天井上に平らに配置してください。", "&83. &7ポータルワンドを持ち、&f任意のルーンブロックを左クリック&7してポータルを形成します。", "&84. &7別の場所に 2 つ目のポータルを作ります(距離とワールドは問いません)。", "&85. &7開いたポータルをワンドでクリックし、メインメニューを開きます。", "&7   &f目的地&7を選び、もう一方のポータルを指定します。反対側でも同じ操作を行います。", "&7   向きとアクセス設定は、それぞれ専用の簡単なメニューにまとまっています。", "&86. &7どちらかのポータルから {range} ブロック以内に立つと、目的地のワールドがフレーム内に投影され、入るとテレポートします。", "&7管理者は &f/wormholes wand でアイテムを作成できます"]
+info = ["&8[&6Wormholes&8] &7&lワームホールの作り方&r", "&81. &7サーバーまたは管理者からポータルワンドとワームホールルーンを入手します。", "&82. &7同じ平面上に、ルーンを任意のつながった形で配置します。", "&7   長方形、直線 (3x1)、単一ブロック、L 字形、十字形など、つながった形なら使用できます。", "&7   ルーンは、座標軸に沿った 1 枚の壁、床、または天井上に平らに配置してください。", "&83. &7ポータルワンドを持ち、&f任意のルーンブロックを左クリック&7してポータルを形成します。", "&84. &7別の場所に 2 つ目のポータルを作ります(距離とワールドは問いません)。", "&85. &7ポータルを見ながらワンドでポータルメニューを開くか、メインハンドを空にしてスニークしながらポータルブロックを右クリックします (所有者または管理者)。", "&7   &f目的地&7を選び、もう一方のポータルを指定します。反対側でも同じ操作を行います。", "&7   向きとアクセス設定は、それぞれ専用の簡単なメニューにまとまっています。", "&86. &7どちらかのポータルから {range} ブロック (現在のグローバル有効化範囲) 以内に立つと、目的地のワールドがフレーム内に投影され、歩いて入るとテレポートします。", "&7管理者は &f/wormholes wand でアイテムを作成できます"]
 
 [command.debug]
 enabled = "デバッグログを有効にしました。"
 disabled = "デバッグログを無効にしました。"
 
 [command.help]
-version = "インストールされているプラグインのバージョンを表示"
+version = "インストールされているプラグインのバージョンを表示します"
 debug = "Wormholes診断ツール"
-debug_dump = "診断レポートを作成し、必要に応じてアップロードする"
-debug_dump_upload = "レポートを mclo.gs にアップロードする"
-language = "自分の言語またはサーバーの既定言語を選択"
+debug_dump = "診断レポートを作成し、必要に応じてアップロードします"
+debug_dump_upload = "レポートを mclo.gs にアップロードします"
+language = "自分の言語またはサーバーの既定の言語を選択します"
 root = "Wormholes のルートコマンド"
-wand = "ポータルワンドとワームホールルーンを入手する"
-"wand.rune" = "ワームホールルーンも渡す (rune=false ならワンドのみ)"
+wand = "ポータルワンドとワームホールルーンを入手します"
+"wand.rune" = "ワームホールルーンも渡します (rune=false ならワンドのみ)"
 door = "サバイバルで使用できるディメンションドアのアイテムを付与します"
 "door.type" = "pair | personal | public | pair_trapdoor | personal_trapdoor | public_trapdoor"
 debug_toggle = "詳細なコンソールログと 1 秒間隔のテレメトリを切り替えます"
@@ -254,27 +267,27 @@ admin = "Wormholes の破壊的なメンテナンスコマンド"
 "admin.freeze.seconds" = "凍結したフレームを保持する時間 (5-300、0 で即時再開)"
 "admin.flush" = "各観測者の投影ブロックを実際の状態に戻して再構築します"
 network = "サーバー間ワームホールネットワーク"
-"network.import" = "別のサーバーからポータルコードをインポートする (ゲートウェイのリンクメニューでリンクする)"
-"network.import.code" = "別のサーバーのエクスポートボタンで生成したポータルコード"
+"network.import" = "/wh server import と同じです。サーバーコードまたはポータルコードを受け付けます"
+"network.import.code" = "別のサーバーのエクスポートで生成したサーバーコードまたはポータルコード"
 "network.status" = "ピアサーバーとの接続状態を表示します"
 "network.doctor" = "ネットワークピアに接続できない理由を診断します"
 server = "サーバー間の移動: リンク済みサーバーへの接続、一覧表示、コードの交換を行います"
 "server.connect" = "リンク済みサーバーへ自分を転送します (短縮形: /wh server \\<name>)"
 "server.connect.name" = "リンク済みサーバー名 (/wh server list を参照)"
 "server.export" = "このサーバーを、他のサーバーがインポートできるコードとしてエクスポートします"
-"server.import" = "別のサーバーがエクスポートしたサーバーコードまたはポータルコードをインポートします"
+"server.import" = "別のサーバーがエクスポートしたサーバーコード (WHS2.) またはポータルコード (WHP6.) をインポートします"
 "server.import.code" = "他のサーバーのエクスポートで生成されたコード"
 "server.list" = "リンク済みサーバーとその接続状態を一覧表示します"
 "server.remove" = "リンク済みサーバーの登録を解除します (そのルートと信頼済みの鍵を削除します)"
 "server.remove.name" = "登録を解除するリンク済みサーバー名"
-pocket = "ポケットディメンションの確認と作り直し"
-"pocket.info" = "今いるポケットのサイズ、素材、範囲を表示する"
-"pocket.resize" = "今いるポケットを新しいサイズや素材で作り直す"
+pocket = "ポケット次元を確認して作り直します"
+"pocket.info" = "今いるポケットのサイズ、素材、範囲を表示します"
+"pocket.resize" = "今いるポケットを新しいサイズや素材で作り直します"
 "pocket.resize.size" = "部屋の新しい一辺のブロック数。0 で現在のサイズを維持"
 "pocket.resize.material" = "壁、床、天井の新しいブロック。または keep"
 "pocket.resize.door" = "出口のドアの新しいブロック。または keep"
 "pocket.resize.confirm" = "変更で何かが壊れたり移動したりする場合に必要"
-"pocket.resizeall" = "既存のすべてのポケットを新しいサイズや素材で作り直す"
+"pocket.resizeall" = "既存のすべてのポケットを新しいサイズや素材で作り直します"
 
 [command.error]
 no_permission = "&8[&6Wormholes&8] &c権限がありません。"
@@ -289,7 +302,7 @@ granted_starter = ["&8[&6Wormholes&8] &aポータルワンドとワームホー�
 unavailable = "&8[&6Wormholes&8] &cディメンションドアは現在使用できません。"
 unknown_type = "&8[&6Wormholes&8] &c不明なドア種別です。pair、personal、public、pair_trapdoor、personal_trapdoor、public_trapdoor のいずれかを使用してください。"
 empty_type = "ドアの種類は空にできません"
-granted = "&8[&6Wormholes&8] &a&f{type}&a タイプの次元ドアアイテムを付与しました。"
+granted = "&8[&6Wormholes&8] &a&f{type}&a タイプのディメンションドアのアイテムを付与しました。"
 
 [command.stats]
 unavailable = "&8[&6Wormholes&8] &c統計スナップショットライターを使用できません。"
@@ -315,20 +328,20 @@ one = "&8[&6Wormholes&8] &aWormholes を既定の状態にリセットしまし�
 other = "&8[&6Wormholes&8] &aWormholes を既定の状態にリセットしました。&f{count}&a 個のポータルを削除し、ネットワーク接続を閉じ、既定の設定ファイルを再生成しました。"
 
 [command.admin.projection_flushed]
-one = "&8[&6Wormholes&8] &a投影観測者 &f{count}&a 件をフラッシュしました。クライアントは実際の状態から再構築します。"
-other = "&8[&6Wormholes&8] &a投影観測者 &f{count}&a 件をフラッシュしました。クライアントは実際の状態から再構築します。"
+one = "&8[&6Wormholes&8] &a投影観測者 &f{count}&a 人をフラッシュしました。クライアントは実際の状態から再構築します。"
+other = "&8[&6Wormholes&8] &a投影観測者 &f{count}&a 人をフラッシュしました。クライアントは実際の状態から再構築します。"
 
 [command.pocket]
-not_inside = "&8[&6Wormholes&8] &cこのコマンドはポケットディメンションの中で実行してください。"
+not_inside = "&8[&6Wormholes&8] &cこのコマンドはポケット次元の中で実行してください。"
 invalid_size = "&8[&6Wormholes&8] &cポケットのサイズは {minimum} から {maximum} ブロックの間にしてください。"
-invalid_shell_material = "&8[&6Wormholes&8] &c{material} はポケットの壁に使えません。落下しない不透過ブロックを指定してください。"
+invalid_shell_material = "&8[&6Wormholes&8] &c{material} はポケットの壁に使えません。落下しない固体ブロックを指定してください。"
 invalid_door_material = "&8[&6Wormholes&8] &c{material} はポケットの出口ドアに使えません。手で開けられるドアを指定してください。鉄のドアは使えません。"
 unchanged = "&8[&6Wormholes&8] &eそのポケットはすでにこのサイズと素材です。"
 containers_not_empty = "&8[&6Wormholes&8] &cポケットのサイズ変更を中止しました。中身のあるコンテナ &f{containers}&c 個が破壊されます。空にしてから再試行してください。&fconfirm=true&c でもこの安全確認は無効にできません。"
 resized = "&8[&6Wormholes&8] &aポケットを &f{size}&a ブロックで作り直しました (以前は &f{previous}&a)。壁 &f{material}&a、出口ドア &f{door}。"
 failed = "&8[&6Wormholes&8] &cポケットを作り直せませんでした。コンソールを確認してください。"
-world_unavailable = "&8[&6Wormholes&8] &cポケットディメンションが読み込まれていません。"
-does_not_fit = "&8[&6Wormholes&8] &c{size} ブロックの部屋はポケットディメンションの建築高度に収まりません。"
+world_unavailable = "&8[&6Wormholes&8] &cポケット次元が読み込まれていません。"
+does_not_fit = "&8[&6Wormholes&8] &c{size} ブロックの部屋はポケット次元の建築高度に収まりません。"
 bulk_started = "&8[&6Wormholes&8] &7&f{count}&7 個のポケットを作り直しています。"
 bulk_finished = "&8[&6Wormholes&8] &a作り直し &f{resized}&a、スキップ &f{skipped}&a、失敗 &f{failed}。"
 info = ["&8[&6Wormholes&8] &7ポケット &f{space}", "&8[&6Wormholes&8] &7サイズ &f{size}&7 ブロック、壁 &f{material}&7、出口ドア &f{door}", "&8[&6Wormholes&8] &7範囲 &f{minimum}&7 から &f{maximum}"]
@@ -338,11 +351,11 @@ confirm_required = ["&8[&6Wormholes&8] &c{size} ブロックで作り直すと�
 deleted = "&c{portal} を削除しました"
 
 [portal.travel]
-cost_insufficient = "&cこのポータルを使用するには {quantity}x {item} が必要です。"
+cost_insufficient = "&cこのポータルを使用するには {item} が {quantity} 個必要です。"
 cost_vault_insufficient = "&cこのポータルを使用するには {amount} が必要です。"
 cost_vault_unavailable = "&cこのポータルの経済コストは利用できません。"
 cost_transaction_failed = "&cポータルが移動コストを処理できませんでした。"
-transfer_holding = "&6接続先サーバーに接続しています..."
+transfer_holding = "&6目的地のサーバーに接続しています..."
 transfer_interrupted = "&cポータル転送が中断されました: ポータルから離れました。"
 transfer_source_unavailable = "&cポータル転送が中断されました: 転送元ポータルは利用できなくなりました。"
 cooldown = "&6ポータルはクールダウン中です"
@@ -351,26 +364,26 @@ destination_unavailable = "&cポータルの目的地が利用できません"
 arrival_denied = "&c目的地のポータルが到着を拒否しました。"
 arrival_returned = "&c目的地のポータルが到着を拒否しました。{server} に戻します"
 arrival_failed = "&cポータルの到着地点を配置できませんでした。目的地のスポーン地点に留まります"
-transfer_cooldown = "&6サーバー間ポータルはクールダウン中です: {seconds}s"
+transfer_cooldown = "&6サーバー間ポータルはクールダウン中です: 残り {seconds} 秒"
 destination_unreachable = "&c目的地サーバーに接続できません"
 destination_unreachable_detail = "&c目的地サーバーに接続できません: {reason}"
 transfer_blocked = "&cポータル転送が拒否されました: {reason}"
-transfer_blocked_retry = "&cポータル転送が拒否されました: {reason} ({seconds}s 後に再試行)"
+transfer_blocked_retry = "&cポータル転送が拒否されました: {reason} ({seconds} 秒後に再試行)"
 
 [portal.prompt]
 cost_item = "&bコストとなる正確なアイテムをメインハンドに持ち、ドロップキーを押してください。アイテムはインベントリから失われません。"
-cost_vault = "&b通過ごとの金額を入力してください（または '{cancel}'）："
+cost_vault = "&b通過ごとの金額を入力してください(または '{cancel}'):"
 invite = "&bポータル招待コードをチャットに貼り付けてください (または '{cancel}'):"
 block_state = "&bこのポータルのネットワークビュー端に使うブロック状態を入力するか、'{cancel}' と入力してください:"
 name = "&b新しいポータル名をチャットに入力してください (または '{cancel}'):"
-direction = ["&8[&6Wormholes&8] &7設定する方向を向き、左クリックで適用します。", "&8[&6Wormholes&8] &7Shift + 左クリックでキャンセル。"]
+direction = ["&8[&6Wormholes&8] &7設定する方向を向き、左クリックで適用します。", "&8[&6Wormholes&8] &7Shift + 左クリックでキャンセルします。"]
 
 [portal.notice]
 cost_item_set = "移動には {item} が必要になりました。"
 cost_item_invalid = "そのアイテムは移動コストとして保存できませんでした。"
 cost_cleared = "移動コストをクリアしました。"
 cost_quantity_changed = "移動コストの個数: {quantity}"
-cost_vault_changed = "通過料金：{amount}"
+cost_vault_changed = "通過料金: {amount}"
 cost_vault_invalid = "{maximum} 以下の正の通貨額を入力してください。"
 cost_vault_unavailable = "この料金を選ぶには経済プロバイダーが利用可能である必要があります。"
 dimensional_link_managed = "このディメンションポータルでは自動生成されたリンクが維持されます。"
@@ -384,7 +397,7 @@ network_value_changed = "{label} {value}"
 fallback_set = "フォールバックブロックを {block} に設定しました"
 fallback_reset = "フォールバックブロックを {block} に戻しました"
 managed_mode = "管理対象のディメンションポータルはポータルモードに固定されます。"
-projection_receiver_inactive = "終端側の到着ポータルでは投影が無効のままです。"
+projection_receiver_inactive = "ジ・エンドの到着ポータルでは投影が無効のままです。"
 projection_changed = "投影: {mode}"
 settings_sync_changed = "設定同期: {state}"
 access_changed = "アクセス: {mode}"
@@ -471,7 +484,7 @@ entity_update = "エンティティ更新"
 view_grace = "ビュー猶予時間"
 blackout = "背景遮蔽"
 blackout_color = "遮蔽の色"
-activation_range = "起動範囲"
+activation_range = "有効化範囲"
 
 [portal.network.description]
 capture_radius = "目的地ポータルの周囲でストリーム配信するブロック範囲。"
@@ -528,8 +541,8 @@ orientation_placard = ["&9&lポータルの向き&r", "&7正面: &9{facing}", "&
 network_number = ["&b&l{label} &f&l{value}&r", "&7{description}", "", "&7現在: &b{value}", "", "&8左クリック: +{step}", "&8右クリック: -{step}", "&8Shift + 左クリック: +{large_step}", "&8Shift + 右クリック: -{large_step}"]
 fallback_block = ["&b&lフォールバックブロック&r", "&7ストリーム深度より先に表示するブロックです。", "", "&7現在: &f{block}", "", "&8左クリック: ブロック状態を入力。", "&8右クリック: 空気にリセット。"]
 blackout = ["&b&l背景遮蔽&r", "&7投影の奥と側面の境界を不透明なコンクリートで塞ぎ、ローカルの世界が透けて見えないようにします。", "", "&7現在: &f{state} &8({color})", "", "&8左クリック: オン/オフを切り替え。", "&8右クリック: 色を選択。"]
-activation_range = ["&b&l起動範囲 &f&l{value}&r", "&7このポータルが近くのプレイヤーに投影を開始する距離（ブロック単位）。", "", "&7現在: &b{value}", "", "&8左クリック: +{step}", "&8右クリック: -{step}", "&8Shift + 左クリック: +{large_step}", "&8Shift + 右クリック: -{large_step}", "&88 未満はグローバルにリセットされます。"]
-settings_placard_gateway = ["&b&lポータルの設定&r", "&7アクセスと転送の制御。", "&7さらにサーバー間ビューを調整します。", "", "&7深度を上げる / ティック間隔を短くする =", "&7より詳細な表示、より多くの帯域幅。"]
+activation_range = ["&b&l有効化範囲 &f&l{value}&r", "&7このポータルが近くのプレイヤーに投影を開始する距離（ブロック単位）。", "", "&7現在: &b{value}", "", "&8左クリック: +{step}", "&8右クリック: -{step}", "&8Shift + 左クリック: +{large_step}", "&8Shift + 右クリック: -{large_step}", "&88 未満はグローバルにリセットされます。"]
+settings_placard_gateway = ["&b&lポータルの設定&r", "&7アクセスと転送の制御。", "&7投影ビューの調整も行えます。", "", "&7深度を上げる / ティック間隔を短くする =", "&7より詳細な表示、より多くの帯域幅。"]
 mode_placard = ["&e&lポータルモード&r", "&7現在: &e{mode}", "", "&7ポータル: 基本的なリンクポータル。", "&7ワームホール: ビューポート付きポータル。", "&7ゲートウェイ: サーバー間ゲートウェイ。", "&7RTP: 設定可能なランダム目的地。", "&7ミラー: こちら側を反射し、移動は不可。"]
 mode_opener = ["&e&lモード&r", "&7{description}", "", "&7現在: &e{mode}", "", "&8クリックしてモードを変更します。"]
 direction = ["&9&l方向&r", "&7ポータル正面の向きを変更します。", "", "&7現在の向き: &9{direction}", "", "&8クリック後に方向を向き、左クリックで適用します。"]
@@ -537,7 +550,7 @@ flip_face = ["&b&l正面を反転&r", "&7ポータル正面の向きを反転し
 rotate_counterclockwise = ["&6&l反時計回りに回転&r", "&7ポータルのビューポートを 90 度回転し", "&7正面の向きは変えません。", "", "&7現在の画面上方向: &6{up}", "", "&8クリックして回転します。"]
 rotate_clockwise = ["&6&l時計回りに回転&r", "&7ポータルのビューポートを 90 度回転し", "&7正面の向きは変えません。", "", "&7現在の画面上方向: &6{up}", "", "&8クリックして回転します。"]
 back = ["&e&l戻る&r", "&7ポータルメニューに戻ります。"]
-settings_gateway = ["&b&l設定&r", "&7権限、転送の制御、", "&7サーバー間ビューの調整。", "", "&7アクセス: &6{access}", "&7送信 &b{send}&7  受信 &b{receive}", "&7深度 &b{depth}&7  エンティティ &b{entity}t", "", "&8クリックして設定を開きます。"]
+settings_gateway = ["&b&l設定&r", "&7権限、転送の制御、", "&7投影ビューの調整。", "", "&7アクセス: &6{access}", "&7送信 &b{send}&7  受信 &b{receive}", "&7深度 &b{depth}&7  エンティティ &b{entity}t", "", "&8クリックして設定を開きます。"]
 settings_sync = ["&b&l設定同期 {state}&r", "&7オンにすると、このポータルの設定", "&7(深度、ティック、投影、権限、", "&7転送)がリンク済みの全ピアに同期されます。", "", "&7現在: &b{state}", "", "&8クリックして切り替えます。"]
 permission = ["&6&lアクセス {mode}&r", "&7{description}", "&7権限ノード: &f{node}", "", "&7現在: &6{mode}", "", "&8クリックして許可リスト / 拒否リストを切り替えます。", "&8管理者は常に対象外です。"]
 public_look_label = ["&b&l注視時の公開ラベル: &f&l{state}&r", "&7近くのプレイヤーがこのポータルを見たときに名前を表示します。", "&7オフの場合、経路ラベルはポータルツールを使っているときだけ表示します。", "", "&e左クリックで切り替え"]
@@ -547,7 +560,7 @@ server = "&7サーバー: &f{server}"
 link = "&7リンク: &b{state}"
 choose = ["&6&l目的地を選択&r", "&7検出済みのローカルおよびリモートゲートウェイから選びます。", "", "&8クリックして目的地リストを開きます。"]
 unpaired = ["&6&lゲートウェイのペアリング&r", "&7状態: &c未ペアリング"]
-paired = ["&6&lゲートウェイペアリング&r", "&7目的地: &6{destination}"]
+paired = ["&6&lゲートウェイのペアリング&r", "&7目的地: &6{destination}"]
 export = ["&6&l招待を作成&r", "&7別のサーバー用の署名済みゲートウェイコードを作成します。", "", "&8クリックして新しいコードをコピーします。"]
 import = ["&b&l招待を使用&r", "&7別のゲートウェイから取得した署名済みコードを貼り付けます。", "", "&8クリックしてからチャットにコードを貼り付けます。"]
 
@@ -560,7 +573,7 @@ available = ["&e&lミラー&r", "&7ローカルワールドをこちら側に反
 flip = ["&7壁面のミラーは 180 度単位で反転し、", "&7反射されたエンティティの向きを正しく保ちます。", "&8右クリック: 反射画像を反転。"]
 
 [portal.menu.cost]
-opener = ["&6&l移動コスト&r", "&7プレイヤーがこのポータルを使用するときに", "&7正確なアイテムまたは 通貨を要求します。", "", "&7モード: &f{mode}", "&7コスト: &f{cost}", "", "&8クリックして設定します。"]
+opener = ["&6&l移動コスト&r", "&7プレイヤーがこのポータルを使用するときに", "&7正確なアイテムまたは通貨を要求します。", "", "&7モード: &f{mode}", "&7コスト: &f{cost}", "", "&8クリックして設定します。"]
 placard = ["&6&l移動コスト&r", "&7プレイヤーは支払いを済ませるまで", "&7このポータルで移動できません。", "", "&7モード: &f{mode}", "&7コスト: &f{cost}"]
 mode_free = ["&a&l無料&r", "&7支払いは不要です。", "", "&8クリックして移動を無料にします。"]
 mode_vanilla = ["&b&lバニラアイテム&r", "&7完全に一致するアイテムを消費します。", "", "&8クリックし、アイテムを持ってドロップキーを押してください。"]
@@ -580,7 +593,7 @@ option = ["&b&l{color}&r", "", "&8クリックして選択します。"]
 [portal.menu.travel]
 managed = ["&6&l移動: {direction}&r", "&7システム管理のディメンションポータル方向です。", "&7{detail}"]
 mirror = ["&c&l移動: ミラーでロック&r", "&7ミラーモードは表示専用です。", "&7エンティティは出入りできません。"]
-standard = ["&b&l移動: {mode}&r", "&7このポータルを通過できる方向を制御します。", "", "&7送信: &b{outgoing}&7  受信: &b{incoming}", "", "&8クリックして移動方向を切り替えます。"]
+standard = ["&b&l移動: {mode}&r", "&7このポータルを通過できる方向を制御します。", "", "&7出発: &b{outgoing}&7  到着: &b{incoming}", "", "&8クリックして移動方向を切り替えます。"]
 
 [portal.menu.blackout_color]
 placard = ["&6&l遮蔽の色&r", "&7遮蔽シェルに使うコンクリートの色。", "", "&7現在: &f{color}"]
@@ -596,8 +609,8 @@ on = ["&6&l投影オン&r", "&7このポータルのライブビューを表示�
 off = ["&8&l投影オフ&r", "&7フレームは空のままです。", "&7目的地ビューもミラーも表示しません。", "", "&7現在: &b投影オフ&r", "", "&8クリックしてオン / オフを切り替えます。"]
 
 [portal.menu.mode_option]
-selected = ["&e&l{mode}&r", "&7{description}", "", "&a現在選択されている"]
-available = ["&e&l{mode}&r", "&7{description}", "", "&7選択するにはクリックします"]
+selected = ["&e&l{mode}&r", "&7{description}", "", "&a現在選択中"]
+available = ["&e&l{mode}&r", "&7{description}", "", "&7クリックして選択します"]
 
 [portal.input]
 cancel = "キャンセル"
@@ -608,7 +621,7 @@ editor_title = "RTP: {portal}"
 [portal.rtp.notice]
 setting_rejected = "設定を適用できませんでした: {reason}"
 applied = "ランダム目的地の設定を適用しました。"
-reset_defaults = "ランダムテレポート設定をデフォルトにリセットしました。"
+reset_defaults = "ランダムテレポート設定を既定値にリセットしました。"
 editor_refreshed = "設定が変更されたため、エディターを更新しました。"
 runtime_unavailable = "ランダムテレポートのランタイムを使用できません。"
 reroll_failed = "手動の再抽選に失敗しました。サーバーログを確認してください。"
@@ -620,7 +633,7 @@ not_ready = "&eポータルはまだ目的地を安定させています。"
 traversal_failed = "&cポータルを安定させられませんでした。もう一度お試しください。"
 
 [portal.rtp.rotation]
-private = "プレイヤーごとに {duration}"
+private = "プレイヤーごと ({duration} ごと)"
 
 [portal.mode]
 changed = "&a{portal} のモードを {mode} に設定しました。"
@@ -667,13 +680,13 @@ back = "戻る"
 page = "ページ"
 
 [director.help.navigation.parent]
-hover = "元のコマンドグループに戻る"
+hover = "上位のコマンドグループに戻ります"
 
 [director.help.navigation.previous]
 hover = "前のページ"
 
 [director.help.navigation.next]
-hover = "次のページへ"
+hover = "次のページ"
 
 [director.help.parameter]
 required = "このパラメータは必須です。"
@@ -683,11 +696,11 @@ type = "このパラメータの型は {type} です。"
 
 [director.runtime.error]
 invalid_origin = "この実行元からはコマンドを実行できません。"
-unknown_parameter = "不明なパラメーター: {key}"
+unknown_parameter = "不明なパラメータ: {key}"
 unexpected_argument = "予期しない引数 \"{argument}\"。任意パラメータは seed=123 のように名前を指定してください"
 unclosed_group = "パラメータ {key} の閉じかっこ \"]\" がありません"
 conversion_failed = "\"{value}\" をパラメータ {parameter} の型 {type} に変換できません"
-default_parse_failed = "パラメータ {parameter} のデフォルト値を解析できません"
+default_parse_failed = "パラメータ {parameter} の既定値を解析できません"
 missing_argument = "引数 \"{parameter}\" ({type}) がありません"
 execution_failed = "コマンド {command} の実行に失敗しました: {reason}"
 
@@ -702,7 +715,7 @@ outbound_only = "&8[&6Wormholes&8] &7現在のサーバー: &f{server}&7、送�
 public_key = "&8[&6Wormholes&8] &8公開鍵: {fingerprint}"
 no_routes = "&8[&6Wormholes&8] &7接続済みのピアルートはありません。"
 peer = "&8[&6Wormholes&8] &f{server}&7 {state} &7{address}{rtt}"
-last_attempt = "&8[&6Wormholes&8] &8  最後の試み: {error}"
+last_attempt = "&8[&6Wormholes&8] &8  最終試行: {error}"
 
 [network.doctor]
 clear = "&8[&6Wormholes&8] &aネットワーク設定に問題はありません。"
@@ -711,9 +724,9 @@ line = "&8[&6Wormholes&8] &7- {diagnostic}"
 
 [network.code]
 building = "&8ポータルコードを生成しています..."
-copy = "&6&l[ポータルコードをコピーする: {portal}]&r"
-copy_hover = "&7クリックしてコピーします。別のサーバーのポータルメニュー > インポート、または /wh server import \\<code> に貼り付けてください"
-fingerprint = "&8このサーバーのアドレスと公開鍵の指紋 {fingerprint} が含まれています。"
+copy = "&6&l[ポータルコードをコピー: {portal}]&r"
+copy_hover = "&7クリックしてコピーします。別のサーバーで次のいずれかに貼り付けてください:\nポータルメニュー > インポート、または /wh server import \\<code>"
+fingerprint = "&8このサーバーのアドレスと公開鍵のフィンガープリント {fingerprint} が含まれています。"
 too_long = "&eこのコードはチャットに貼り付けるには長すぎます。代わりに別のサーバーで /wh server import \\<code> を使用してください。"
 invalid = "&cポータルコードが無効です。コードは {prefix} で始まります。チャットへの貼り付けで切り詰められた可能性があるため、/wh server import \\<code> を試してください。旧バージョンで生成したコードは再エクスポートが必要です。"
 same_server = "&cこのコードは現在のサーバーで生成されています。"
@@ -729,13 +742,13 @@ removed = "&8[&6Wormholes&8] &aサーバー &f{server}&a とその信頼済み�
 name_empty = "サーバー名は空にできません"
 
 [server.code]
-copy = "&6&l[サーバーコードをコピーする: {server}]&r"
-copy_hover = "&7クリックしてコピーします。別のサーバーで /wh server import \\<code> に貼り付けてください"
+copy = "&6&l[サーバーコードをコピー: {server}]&r"
+copy_hover = "&7クリックしてコピーします。別のサーバーで貼り付けてください:\n/wh server import \\<code>"
 raw = "&7サーバーコード: &f{code}"
 saved = "&a公開鍵 {fingerprint} を使用するサーバー &f{server}&a を保存しました。&f/wh server {server}&a で接続できます。"
 
 [server.connect]
-sending = "&8[&6Wormholes&8] &aあなたを &f{server}&a へ転送しています..."
+sending = "&8[&6Wormholes&8] &a&f{server}&a へ転送しています..."
 not_ready = "&8[&6Wormholes&8] &c{server} には現在到達できません。/wh network status を確認してください。"
 failed = "&8[&6Wormholes&8] &c{server} へ転送できませんでした。コンソールと /wh network status を確認してください。"
 only_players = "&8[&6Wormholes&8] &c別のサーバーに接続できるのはプレイヤーだけです。"
@@ -746,7 +759,7 @@ empty = "&8[&6Wormholes&8] &7まだリンクされたサーバーはありませ
 entry = "&8[&6Wormholes&8] &f{server}&7 {state} &8{address}"
 
 [door.transit]
-shutdown = "次元移動が完了する前に次元ドアが停止しました。"
+shutdown = "次元移動が完了する前にディメンションドアが停止しました。"
 message = "&8[&6Wormholes&8] &7{message}"
 link_not_placed = "リンク先のワームホールドアはまだ設置されていません。"
 link_unavailable = "リンク先のワームホールドアは使用できないか、塞がれています。"
@@ -757,15 +770,15 @@ safe_return_not_found = "ドアのこちら側に安全な帰還ルートが見�
 pocket_prepare_failed = "ポケット次元を安全に準備できませんでした。"
 return_ticket_save_failed = "安全な帰還ルートを保存できませんでした。"
 pocket_entry_unsafe = "ポケット次元の入口は安全ではありません。"
-pocket_entry_chunk_failed = "ポケットディメンションの入口チャンクを読み込めませんでした。"
+pocket_entry_chunk_failed = "ポケット次元の入口チャンクを読み込めませんでした。"
 no_return_route = "このポケット次元には保存済みの帰還ルートがありません。"
 return_unavailable = "対応する側の帰還ドアは使用できないか、塞がれています。"
 return_world_unloaded = "帰還先のワールドが読み込まれていません。"
 return_point_obstructed = "保存済みの帰還地点が塞がれています。"
 return_chunk_failed = "保存された帰還チャンクを読み込めませんでした。"
 closed = "次元移動が完了する前にディメンションドアが閉じられました。"
-cycle_consumed = "この扉の開放サイクルはすでに使用されています。扉を閉じてから再度開いてください。"
-source_missing = "次元の扉はもう存在しません。"
+cycle_consumed = "このドアの開放サイクルはすでに使用されています。ドアを閉じてから再度開いてください。"
+source_missing = "ディメンションドアはもう存在しません。"
 source_close_failed = "出発側のドアを安全に閉じられませんでした。"
 source_region_unavailable = "出発側ドアのリージョンを使用できません。"
 start_failed = "次元移動を開始できませんでした。"
@@ -777,7 +790,7 @@ one_at_a_time = "&8[&6Wormholes&8] &7各ドアに固有の ID を割り当てる
 [door.pair]
 unpack_failed = "&8[&6Wormholes&8] &7ドアのペアを展開できませんでした。キットは消費されていません。"
 unpacked = "&8[&6Wormholes&8] &7結合されたペアを、リンク済みのワームホールドア A と B に分離しました。"
-missing = "&8[&6Wormholes&8] &7このペアドアには登録済みの相手側がありません。"
+missing = "&8[&6Wormholes&8] &7このペアドアには登録済みの相手側 ID がありません。"
 
 [door.legacy]
 combine = "&8[&6Wormholes&8] &7設置する前に、この旧式ディメンションドアを木製ドアとクラフトしてください。"
@@ -790,7 +803,7 @@ exit_anchored = "&8[&6Wormholes&8] &7このディメンション出口はポケ�
 support = "&8[&6Wormholes&8] &7支持ブロックを取り除く前に、ディメンションドアを壊してください。"
 
 [door.disable]
-warning = "&8[&6Wormholes&8] &7次元ドアを無効化しています。今すぐポケット次元の帰還ドアから退出してください。"
+warning = "&8[&6Wormholes&8] &7ディメンションドアを無効化しています。今すぐポケット次元の帰還ドアから退出してください。"
 
 [door.rescue]
 cancelled = "&8[&6Wormholes&8] &7緊急脱出はキャンセルされました。帰還ルートは維持されます。"
@@ -821,7 +834,7 @@ added = "&a{name} をこのドアのリストに追加しました。"
 removed = "&a{name} をこのドアのリストから削除しました。"
 state_changed = "&a{name} をこのドアの {state} に設定しました。"
 prompt_player = "&bこのドアのリストに登録するプレイヤー名を入力してください (または '{cancel}'):"
-denied = "&cこのディメンションドアはあなたを拒みます。"
+denied = "&cこのディメンションドアに拒否されました。"
 transit_denied = "このディメンションドアへのアクセス権がありません。"
 
 [door.access.label]
@@ -847,8 +860,8 @@ open_state = ["&b&lOpenState: &f&l{state}", "&7ポータルはこのブロック
 entry = ["&f{name}", "&7状態: &b{state}", "", "&8左クリック: 許可。右クリック: 拒否。", "&8中クリックまたは Shift + 左クリック: 削除。"]
 
 [wand.selection]
-corner_a = "&bコーナー A を設定しました。反対側の角を右クリックしてください。"
-corner_b = "&bコーナー B を設定しました。反対側の角を左クリックしてください。"
+corner_a = "&b角 A を設定しました。反対側の角を右クリックしてください。"
+corner_b = "&b角 B を設定しました。反対側の角を左クリックしてください。"
 not_flat = "&c選択範囲の厚さは 1 ブロックでなければなりません。角をもう一度クリックして平面にしてください。"
 too_large = "&c選択範囲が大きすぎます: {count} ブロック (上限 {maximum})。"
 opening = "&bポータルを開いています..."
@@ -864,8 +877,8 @@ on = "オン"
 off = "オフ"
 ready = "準備完了"
 preparing = "準備中"
-open = "開"
-closed = "閉"
+open = "開いている"
+closed = "閉じている"
 
 [rtp.routing]
 action_confirm = "確認画面を開きます。"
@@ -909,13 +922,13 @@ trip = "移動後"
 [rtp.numeric]
 center_x = "中心 X"
 center_z = "中心 Z"
-minimum_radius = "最低半径"
+minimum_radius = "最小半径"
 maximum_radius = "最大半径"
-lower_y = "下 Y"
+lower_y = "下限 Y"
 upper_y = "上限 Y"
-preferred_y = "優先 Y 値"
-cycle = "サイクル期間"
-private_rotation = "プライベート・ローテーション時間"
+preferred_y = "希望 Y"
+cycle = "サイクル時間"
+private_rotation = "個別ローテーション時間"
 lease = "アイドル予約の猶予時間"
 release = "個別予約の解放猶予"
 link = ["&e&l{label} &f&l{value}&r", "&7値を増減する専用画面を開きます。", "&e左クリック"]
@@ -957,7 +970,7 @@ destination = ["&e&l目的地 & 範囲&r", "&7ワールド、中心、半径。"
 landing = ["&e&l着地点のルール&r", "&7地表と高度の設定。", "&e左クリック"]
 routing = ["&e&lローテーション & 目的地プール&r", "&7共有方法、ローテーション、予約保持時間。", "&e左クリック"]
 effects = ["&e&lエフェクト&r", "&7投影リムとポータルサウンド。", "&e左クリック"]
-reset_defaults = ["&e&lデフォルトにリセット&r", "&7このポータルのランダムテレポート設定を直ちにデフォルトへ戻します。", "&e左クリック"]
+reset_defaults = ["&e&l既定値にリセット&r", "&7このポータルのランダムテレポート設定を直ちに既定値へ戻します。", "&e左クリック"]
 
 [rtp.navigation]
 back_portal = ["&e&lポータルに戻る&r", "&7ポータルメニューに戻ります。", "&e左クリック"]
@@ -973,8 +986,8 @@ next_worlds = ["&e&l次のワールド&r", "&7次のページを表示します�
 biome_link = ["&e&l対象バイオーム &f&l{value}&r", "&7選択したバイオームへの着地を優先します。", "&e左クリック"]
 center_portal_selected = ["&a&lポータル基準の中心&r", "&7このポータルを環状範囲の中心にします。", "&a選択中"]
 center_portal_available = ["&b&lポータル基準の中心&r", "&7このポータルを環状範囲の中心にします。", "&e左クリックで選択"]
-center_custom_selected = ["&a&lカスタムセンター&r", "&7編集可能な X 座標と Z 座標を使用します。", "&a選択した"]
-center_custom_available = ["&b&lカスタムセンター&r", "&7編集可能な X 座標と Z 座標を使用します。", "&e左クリックで選択します"]
+center_custom_selected = ["&a&lカスタム中心&r", "&7編集可能な X 座標と Z 座標を使用します。", "&a選択中"]
+center_custom_available = ["&b&lカスタム中心&r", "&7編集可能な X 座標と Z 座標を使用します。", "&e左クリックで選択"]
 reset_center = ["&e&l中心 / 対象をリセット&r", "&7出発元のワールドとポータルの中心を使用します。", "&e左クリック"]
 
 [rtp.landing]
@@ -987,8 +1000,8 @@ safe_policy = ["&b&l着地の安全性: &f&l{mode}&r", "&7SAFE は水、危険�
 
 [rtp.effects]
 header = ["&b&lエフェクト&r", "&7表示エフェクトを変えても目的地は再生成されません。"]
-rim_on_selected = ["&a&l投影リム オン&r", "&7ゲートの縁に準備状態を表示します。", "&a選択中"]
-rim_on_available = ["&b&l投影リム オン&r", "&7ゲートの縁に準備状態を表示します。", "&e左クリックで選択"]
+rim_on_selected = ["&a&l投影リム オン&r", "&7ポータルの縁に準備状態を表示します。", "&a選択中"]
+rim_on_available = ["&b&l投影リム オン&r", "&7ポータルの縁に準備状態を表示します。", "&e左クリックで選択"]
 rim_off_selected = ["&a&l投影リム オフ&r", "&7準備状態を示す縁を非表示にします。", "&a選択中"]
 rim_off_available = ["&b&l投影リム オフ&r", "&7準備状態を示す縁を非表示にします。", "&e左クリックで選択"]
 sound_on_selected = ["&a&lポータルサウンド オン&r", "&7この RTP ポータルのエフェクト音と移動音を再生します。", "&a選択中"]
@@ -999,7 +1012,7 @@ sound_off_available = ["&b&lポータルサウンド オフ&r", "&7この RTP �
 [rtp.confirm]
 reroll = ["&b&l共有ルートを再抽選しますか?&r", "&7代替の準備が整うまで現在の投影を維持します。"]
 rebuild = ["&b&lプレイヤー別の目的地プールを再構築しますか?&r", "&7空き候補の再構築中も既存の予約は維持されます。"]
-confirm = ["&e&l確認&r", "&7この操作を実行します。", "&e左クリック"]
+confirm = ["&e&l確定&r", "&7この操作を実行します。", "&e左クリック"]
 cancel = ["&e&lキャンセル&r", "&7実行状態を変更せずに戻ります。", "&e左クリック"]
 
 [item]
@@ -1034,17 +1047,17 @@ route_card = "{portal} > {destination} | {amount} | {state}"
 
 [rules.menu]
 entry = ["&6ルール", "&7誰が通れるか、費用、通過後に起きること。"]
-cooldown = ["&6クールダウン: {seconds}s", "&7左右クリックで変更、シフトで 10 秒単位。"]
-warmup = ["&6準備時間: {seconds}s", "&7左右クリックで変更、シフトで 10 秒単位。"]
+cooldown = ["&6クールダウン: {seconds} 秒", "&7左右クリックで変更、Shift で 10 秒単位。"]
+warmup = ["&6準備時間: {seconds} 秒", "&7左右クリックで変更、Shift で 10 秒単位。"]
 group = ["&6クールダウングループ: {value}", "&7クリックしてグループ名を入力します。"]
 pushback = ["&6押し戻し: {value}", "&7左右クリックで変更します。"]
 sound = ["&6拒否音の音量: {value}", "&7左右クリックで変更します。"]
 charges = ["&6チャージ: {count}", "&7左右クリックでプールの大きさを変更します。"]
 default_outcome = ["&6既定: {mode}", "&7クリックで許可と拒否を切り替えます。"]
 rules = ["&6ルール ({count})", "&7クリックしてルール一覧を開きます。"]
-rule = ["&6{name}", "&7{value} &8- シフトクリックでルールを削除します。"]
+rule = ["&6{name}", "&7{value} &8- Shift + クリックでルールを削除します。"]
 add_rule = ["&aルールを追加", "&7クリックしてルール ID を入力します。"]
-line = ["&f{value}", "&7シフトクリックでこの行を削除します。"]
+line = ["&f{value}", "&7Shift + クリックでこの行を削除します。"]
 add_line = ["&a行を追加", "&7クリックして kind=PERMISSION;node=group.vip と入力します。"]
 templates = ["&6テンプレート", "&7クリックして保存済みテンプレートを適用します。"]
 template = ["&f{name}", "&7クリックしてこのテンプレートを適用します。"]
@@ -1058,11 +1071,11 @@ ready = "準備完了"
 cooldown = "{seconds}s"
 
 [rules.denied]
-default = "このポータルはあなたを拒否しました。"
+default = "このポータルに拒否されました。"
 entity_class = "このポータルを使用できるのは {mode} のみです。"
 key = "{portal} の鍵が必要です。"
 time = "{portal} は現在閉じています。"
-cooldown = "{portal} を再び使用するまで {seconds}s 待ってください。"
+cooldown = "{portal} を再び使用するまで {seconds} 秒待ってください。"
 charges = "{portal} のチャージが残っていません。"
 cost = "{portal} を使用するための {amount} を支払えません。"
 
@@ -1073,12 +1086,12 @@ invalid = "適用できませんでした: {reason}"
 applied = "テンプレート {name} を適用しました。"
 
 [rules.prompt]
-group = "&bクールダウングループ名を入力してください（または \"{cancel}\"）:"
-rule_id = "&b新しいルールの ID を入力してください（または \"{cancel}\"）:"
-line = "&bルール行を入力してください。例: kind=PERMISSION;node=group.vip（または \"{cancel}\"）:"
+group = "&bクールダウングループ名を入力してください (または \"{cancel}\"):"
+rule_id = "&b新しいルールの ID を入力してください (または \"{cancel}\"):"
+line = "&bルール行を入力してください。例: kind=PERMISSION;node=group.vip (または \"{cancel}\"):"
 
 [rules.warmup]
-countdown = "動かないでください: {seconds}s"
+countdown = "動かないでください: {seconds} 秒"
 cancelled = "準備が中断されました。"
 
 [rules.command]
@@ -1096,17 +1109,17 @@ failed = "完了できませんでした: {reason}"
 
 [rules.command.help]
 rules = "通行ルール: テンプレート、鍵、ポータルプロファイル"
-export = "ポータルのルールをテンプレートに書き出す"
+export = "ポータルのルールをテンプレートファイルに書き出します"
 "export.name" = "書き出すテンプレート名"
 "export.portal" = "ポータル名、省略時は立っているポータル"
-import = "立っているポータルにテンプレートを適用する"
+import = "立っているポータルにテンプレートを適用します"
 "import.name" = "読み込むテンプレート名"
 "import.portal" = "ポータル名、省略時は立っているポータル"
-apply = "どこからでも指定した名前のポータルにテンプレートを適用する"
+apply = "どこからでも指定した名前のポータルにテンプレートを適用します"
 "apply.name" = "読み込むテンプレート名"
 "apply.portal" = "テンプレートを適用するポータル名"
-list = "保存されたルールテンプレートを一覧表示する"
-key = "ポータルの鍵を自分に渡す"
+list = "保存されたルールテンプレートを一覧表示します"
+key = "ポータルの鍵を自分に渡します"
 "key.portal" = "鍵を作るポータル名"
 "key.uses" = "鍵で通行できる回数、0 で無制限"
 # ---- end lane:rules ----
@@ -1236,7 +1249,7 @@ member = "&e{address} &f{portal} &7({world}) &8{state}"
 header = "&8[&6Wormholes&8] &6リンク診断: {count} 件。"
 clean = "&8[&6Wormholes&8] &aリンクの問題はありません。"
 oneway = "&e{portal} -> {destination} に戻りリンクがありません。"
-dangling = "&c{portal} は存在しない行き先を指しています。"
+dangling = "&c{portal} は存在しない目的地を指しています。"
 unloaded = "&e{portal} は未読み込みのワールド {world} を指しています。"
 offline = "&c{portal} は {server} を指していますが、{count} 日オフラインです。"
 
@@ -1245,25 +1258,24 @@ set = "&8[&6Wormholes&8] &a{portal} のレッドストーン: {value}。"
 
 [nexus.reciprocal]
 paired = "&8[&6Wormholes&8] &a{portal} と {destination} が双方向にリンクしました。"
-unpaired = "&8[&6Wormholes&8] &a{portal} と {destination} の戻りリンクを解除しました。"
 denied = "&8[&6Wormholes&8] &c{portal} と {destination} の両方は管理できません。"
 
 [nexus.prompt]
-network_name = "&bネットワーク名をチャットに入力してください（'{cancel}' で中止）:"
-address = "&b新しいアドレスをチャットに入力してください（'{cancel}' で中止）:"
+network_name = "&bネットワーク名をチャットに入力してください ('{cancel}' で中止):"
+address = "&b新しいアドレスをチャットに入力してください ('{cancel}' で中止):"
 
 [nexus.menu]
-entry = ["&b&lネットワーク&r", "&7ネットワーク、アドレス、ダイヤル、行き先ルール、レッドストーン。", "&7ネットワーク: &f{name}", "&7アドレス: &f{address}", "&e左クリック"]
+entry = ["&b&lネットワーク&r", "&7ネットワーク、アドレス、ダイヤル、目的地ルール、レッドストーン。", "&7ネットワーク: &f{name}", "&7アドレス: &f{address}", "&e左クリック"]
 placard = ["&b&lネットワーク: {name}&r", "&7アドレス: &f{address}", "&7メンバー: &f{count}"]
 join = ["&a&lネットワークに参加&r", "&7このポータルをネットワークに加え、アドレスを付けます。", "&e左クリック"]
 leave = ["&c&l{name} から離脱&r", "&7このポータルとそのアドレスをネットワークから外します。", "&e左クリック"]
 create = ["&a&lネットワークを作成&r", "&7新しいネットワークに名前を付け、このポータルを入れます。", "&e左クリック"]
-address = ["&e&lアドレス: {address}&r", "&7他のポータルがここへ届くためにダイヤルする短い符号です。", "&e左クリックで入力し直し。&e右クリックで振り直し。"]
+address = ["&e&lアドレス: {address}&r", "&7他のポータルがここへ届くためにダイヤルする短いコードです。", "&e左クリックで入力し直し。&e右クリックで振り直し。"]
 visibility = ["&e&l公開範囲: {value}&r", "&7公開は全員、メンバー限定はメンバー、非公開は誰にも一覧されません。", "&e左クリックで切り替え"]
 topology = ["&e&lトポロジー: {value}&r", "&7メッシュは全メンバー、ハブは一つのポータル経由、チェーンとリングは隣をダイヤルします。", "&e左クリックで切り替え"]
-reciprocal = ["&e&l戻りリンク: {state}&r", "&7行き先がこのポータルを指したままにします。", "&e左クリックで切り替え"]
-policy = ["&e&l行き先: {mode}&r", "&7{count} 件。順番、重み、スケジュール、プレイヤー別、戻り。", "&e左クリックでモード変更。&e右クリックで消去。"]
-redstone = ["&e&lレッドストーン: {value}&r", "&7枠の隣で信号が立ち上がったときの動作と、コンパレーターが読む値。", "&e左クリックで動作。&e右クリックでコンパレーター出力。"]
+reciprocal = ["&e&l戻りリンク: {state}&r", "&7目的地がこのポータルを指したままにします。", "&e左クリックで切り替え"]
+policy = ["&e&l目的地: {mode}&r", "&7{count} 件。順番、重み、スケジュール、プレイヤー別、戻り。", "&e左クリックでモード変更。&e右クリックで消去。"]
+redstone = ["&e&lレッドストーン: {value}&r", "&7フレームの隣で信号が立ち上がったときの動作と、コンパレーターが読む値。", "&e左クリックで動作。&e右クリックでコンパレーター出力。"]
 dial = ["&b&lダイヤル&r", "&7このポータルを同じネットワークの別のアドレスへ向けます。", "&e左クリック"]
 dial_entry = ["&e{address} &f{portal}", "&7{world}", "&b{state}"]
 link_and_return = ["&d&lリンクして戻す&r", "&7{destination} も {portal} へ向け直します。", "&e左クリック"]
@@ -1289,7 +1301,7 @@ cleared = "&8[&6Wormholes&8] &a案内を止めました。"
 unknown = "&8[&6Wormholes&8] &cアトラスに {portal} という名前のポータルはありません。"
 
 [atlas.menu]
-row = ["&6{portal}", "&7{world} &8- &f{destination}", "&b{state}", "", "&e左クリックでダイヤル。&e右クリックでピン留め。&eShift+左クリックで案内。"]
+row = ["&6{portal}", "&7{world} &8- &f{destination}", "&b{state}", "", "&e左クリックでダイヤル。&e右クリックでピン留め。&eShift + 左クリックで案内。"]
 favorites = ["&d&lピン留めのみ: {state}&r", "&7ピン留めしたポータルだけを表示します。", "&e左クリック"]
 recents = ["&b&l最近のみ: {state}&r", "&7最近使ったポータルだけを表示します。", "&e左クリック"]
 guide = ["&a&l案内: {portal}&r", "&7案内先ポータルへの方位をアクションバーに表示します。", "&e左クリックで停止"]
@@ -1304,11 +1316,11 @@ guide = ["&a&l案内: {portal}&r", "&7案内先ポータルへの方位をアク
 "state.inherit" = "継承"
 "state.on" = "オン"
 "state.off" = "オフ"
-"menu.projection" = ["&b&l投影: {state}&r", "&7このドア越しに行き先を表示します。", "&e左クリックで切り替え"]
+"menu.projection" = ["&b&l投影: {state}&r", "&7このドア越しに目的地を表示します。", "&e左クリックで切り替え"]
 
 [pockets]
 "confirm.overwrite" = ["&8[&6Wormholes&8] &cポケット &f{space}&c の中身がすべて置き換えられます。", "&8[&6Wormholes&8] &7続けるには同じコマンドを &fconfirm=true&7 で実行してください。"]
-"denied.build" = "&8[&6Wormholes&8] &cあなたはこのポケットの建築者ではありません。"
+"denied.build" = "&8[&6Wormholes&8] &cこのポケットの建築者ではありません。"
 "denied.pvp" = "&8[&6Wormholes&8] &cこのポケットでは戦闘が無効です。"
 "instance.none" = "&8[&6Wormholes&8] &cこのポケットはインスタンスではありません。"
 "instance.reset" = "&8[&6Wormholes&8] &aポケットインスタンス &f{space}&a をリセットしました。"
@@ -1358,23 +1370,23 @@ invalid = "&8[&6Wormholes&8] &cドレイン状態は on または off にして�
 
 [mesh.queue]
 position = "&7空きサーバーを待機中: 順番 &f{count}&7、&f{seconds}&7秒"
-timeout = "&c時間内に空きのある移動先サーバーがありませんでした。"
+timeout = "&c時間内に空きのある目的地サーバーがありませんでした。"
 
 [mesh.policy]
-none = "&c現在利用できる移動先がありません。"
+none = "&c現在利用できる目的地がありません。"
 set = "&8[&6Wormholes&8] &a&f{portal}&a のポリシー: {value}"
-cleared = "&8[&6Wormholes&8] &7&f{portal}&7 のポリシーを解除しました。通常の移動先に再びリンクします。"
+cleared = "&8[&6Wormholes&8] &7&f{portal}&7 のポリシーを解除しました。通常の目的地に再びリンクします。"
 portal_unknown = "&8[&6Wormholes&8] &c{portal} という名前のローカルポータルはありません。"
 invalid = "&8[&6Wormholes&8] &c無効なポリシー: {reason}"
 
 [mesh.command.help]
-members = "すべてのネットワークメンバーをリンク状態と鍵の指紋付きで一覧表示"
-pending = "承認待ちの紹介されたサーバーを一覧表示"
-accept = "紹介されたサーバーを信頼してルートを保存"
-reject = "サーバーの保留中の紹介を破棄"
-versions = "各ピアのプロトコル、プラグインバージョン、機能を表示"
-drain = "このサーバーを移動先ローテーションから外す、または戻す"
-policy = "ゲートウェイの移動先ポリシーを設定または解除"
+members = "すべてのネットワークメンバーをリンク状態と鍵のフィンガープリント付きで一覧表示します"
+pending = "承認待ちの紹介されたサーバーを一覧表示します"
+accept = "紹介されたサーバーを信頼してルートを保存します"
+reject = "紹介されたサーバーの保留中の紹介を破棄します"
+versions = "各ピアのプロトコル、プラグインバージョン、機能を表示します"
+drain = "このサーバーを目的地のローテーションから外すか、元に戻します"
+policy = "ゲートウェイの目的地ポリシーを設定または解除します"
 
 [mesh.command.param.accept]
 server = "紹介されたサーバー名 (/wh network pending を参照)"
@@ -1391,7 +1403,7 @@ candidates = "カンマ区切りの server:portal[:weight] エントリ。空な
 strategy = "FIRST_AVAILABLE、LEAST_LOADED、ROUND_ROBIN、STICKY または NEAREST"
 headroom = "候補が報告すべき空きプレイヤー枠数"
 tps = "候補が報告すべき最低 TPS。0 なら TPS を無視"
-queue = "すべての候補が満員のとき旅行者を待機させる"
+queue = "すべての候補が満員のとき移動者を待機させる"
 # ---- end lane:mesh ----
 
 # ---- lane:transit (transit.*) ----
@@ -1400,8 +1412,8 @@ bounced = "{portal} に押し戻されました。"
 
 [transit.denied]
 membrane = "{portal} は正面からしか入れません。"
-convoy_size = "あなたの隊列は {count} 体です。上限は {value} 体です。"
-convoy_fit = "あなたの隊列は {portal} を通り抜けられません。"
+convoy_size = "隊列のエンティティは {count} 体です。上限は {value} 体です。"
+convoy_fit = "隊列が {portal} を通り抜けられません。"
 convoy_member = "隊列の一部は {portal} を使用できません。"
 
 [transit.convoy]
@@ -1411,19 +1423,19 @@ failed = "隊列の転送に失敗しました: {reason}。"
 [transit.menu]
 entry = ["&b&l通過&r", "&7勢い、向き、膜、跳ね返り、演出。", "&e左クリック"]
 momentum = ["&6&l勢い: {mode}&r", "&7係数 {value}。進入速度から退出速度をどう決めるか。", "&e左クリックでモードを切り替え", "&e右クリックで係数を設定"]
-orientation = ["&6&l向き: {mode}&r", "&7到着時に旅行者が向く方向。", "&e左クリックで切り替え"]
+orientation = ["&6&l向き: {mode}&r", "&7到着時に移動者が向く方向。", "&e左クリックで切り替え"]
 membrane = ["&6&l膜: {state}&r", "&7正面からのみ進入でき、裏面は押し返します。", "&e左クリックで切り替え"]
-bounce = ["&6&l跳ね返り: {state}&r", "&7旅行者を移動させずに跳ね返します。", "&e左クリックで切り替え"]
+bounce = ["&6&l跳ね返り: {state}&r", "&7移動者を移動させずに跳ね返します。", "&e左クリックで切り替え"]
 profile = ["&6&l遷移演出&r", "&7境界 {mode}", "&7到着 {state}", "&e左クリック: 境界エフェクト、右クリック: 到着音", "&eShift + 左クリック: マスクのティック数"]
-prompt = "&b新しい値をチャットに入力してください（または '{cancel}'）:"
-scale = ["&6&l旅行者スケール: {mode}&r", "&7サイズ範囲 {value}。大きさの違うポータル間の移動を対応付けます。", "&e左クリックでモード切替", "&e右クリック: 最小、Shift + 右クリック: 最大"]
+prompt = "&b新しい値をチャットに入力してください (または '{cancel}'):"
+scale = ["&6&l移動者のスケール: {mode}&r", "&7サイズ範囲 {value}。大きさの違うポータル間の移動を対応付けます。", "&e左クリックでモードを切り替え", "&e右クリック: 最小、Shift + 右クリック: 最大"]
 
 gravity = ["&6&l重力の向き: {state}&r", "&7MOD を使うプレイヤーの床、移動方向、モデルがポータルに合わせて回転します。", "&e左クリックで切り替え"]
 
 [transit.scale]
-current = "&8[&6Wormholes&8] &f{portal}&7 の旅行者スケール: &f{mode}&7 ({value})"
-set = "&8[&6Wormholes&8] &f{portal}&a の旅行者スケールを &f{mode}&a ({value}) に設定しました。"
-invalid = "&8[&6Wormholes&8] &c旅行者スケールを読み取れません: {reason}"
+current = "&8[&6Wormholes&8] &f{portal}&7 の移動者のスケール: &f{mode}&7 ({value})"
+set = "&8[&6Wormholes&8] &f{portal}&a の移動者のスケールを &f{mode}&a ({value}) に設定しました。"
+invalid = "&8[&6Wormholes&8] &c移動者のスケールを読み取れません: {reason}"
 reset = "&8[&6Wormholes&8] &a{count} 体のエンティティを通常サイズに戻しました。"
 reset_radius = "&8[&6Wormholes&8] &ctarget=all には 1 から {value} の半径が必要です。"
 reset_player = "&8[&6Wormholes&8] &c{name} という名前のオンラインプレイヤーはいません。"
@@ -1443,7 +1455,7 @@ acoustics = "&b音響: &f{mode}"
 lod = "&b詳細度: &f{mode}"
 block_entities = "&bブロックエンティティ: &f{state}"
 hint = ["&8クリックで切り替え。", "&8Shift + クリックでサーバーの既定値を使用。"]
-back = ["&e&l戻る&r", "&7ポータルメニューに戻る。"]
+back = ["&e&l戻る&r", "&7ポータルメニューに戻ります。"]
 default = "既定"
 
 [fidelity.bedrock]
@@ -1484,9 +1496,9 @@ page = "&8[&6Wormholes&8] &7ページ &f{page}&7/&f{pages}"
 empty = "&8[&6Wormholes&8] &7その条件に一致するポータルはありません。"
 not_found = "&8[&6Wormholes&8] &c&f{name}&c に一致するポータルはありません。"
 ambiguous = "&8[&6Wormholes&8] &c&f{name}&c に {count} 件のポータルが一致します。ID を使ってください。"
-info = ["&8[&6Wormholes&8] &7ポータル &f{portal} &8| &7{id}", "&8[&6Wormholes&8] &7ワールド &f{world}&7 の &f{value}", "&8[&6Wormholes&8] &7状態 &f{state}&7、行き先 &f{destination}&7、所有者 &f{owner}"]
+info = ["&8[&6Wormholes&8] &7ポータル &f{portal} &8| &7{id}", "&8[&6Wormholes&8] &7ワールド &f{world}&7 の &f{value}", "&8[&6Wormholes&8] &7状態 &f{state}&7、目的地 &f{destination}&7、所有者 &f{owner}"]
 teleported = "&8[&6Wormholes&8] &a&f{portal}&a にテレポートしました。"
-teleport_unsafe = "&8[&6Wormholes&8] &e&f{portal}&e の近くに安全な着地点がありません。ポータル中心を使います。"
+teleport_unsafe = "&8[&6Wormholes&8] &e&f{portal}&e の近くに安全な着地点がありません。ポータルの中心を使用します。"
 retargeted = "&8[&6Wormholes&8] &a&f{portal}&a は &f{destination}&a を指すようになりました。"
 unlinked = "&8[&6Wormholes&8] &a&f{portal}&a のリンクを解除しました。"
 pruned = "&8[&6Wormholes&8] &a孤立したリンクを &f{count}&a 件削除しました。"
@@ -1494,63 +1506,63 @@ prune_dry_run = "&8[&6Wormholes&8] &7ドライラン: 孤立したリンク &f{c
 renamed_server = "&8[&6Wormholes&8] &aゲートウェイリンク &f{count}&a 件を &f{name}&a から &f{server}&a に書き換えました。"
 
 [ops.command.help]
-backup = "ポータルのバックアップを作成、一覧、復元、受け渡しする"
-"backup.now" = "ポータルデータのバックアップを今すぐ書き出す"
-"backup.list" = "ディスク上のバックアップを一覧表示する"
-"backup.restore" = "バックアップからポータルファイルを復元する (dry=true で計画を表示)"
+backup = "ポータルのバックアップを作成、一覧、復元、受け渡しします"
+"backup.now" = "ポータルデータのバックアップを今すぐ書き出します"
+"backup.list" = "ディスク上のバックアップを一覧表示します"
+"backup.restore" = "バックアップからポータルファイルを復元します (dry=true で計画を表示)"
 "backup.restore.id" = "/wormholes admin backup list で得られるバックアップ ID"
-"backup.restore.dry" = "何も書き込まずに変更点だけを報告する"
+"backup.restore.dry" = "何も書き込まずに変更点だけを報告します"
 "backup.restore.world_map" = "ワールド名の変更を 旧=新,旧=新 の形式で指定"
 "backup.restore.owner_map" = "所有者の変更を 旧uuid=新uuid の形式で指定"
 "backup.restore.confirm" = "dry=false でファイルを書き込むために必要"
-"backup.allow_unsigned" = "信頼された鍵で署名されていないパッケージを適用する"
-"backup.export" = "サーバー間で移せるファイルにバックアップ一式を書き出す"
-"backup.export.file" = "出力先ファイル。空ならバックアップフォルダに書き出す"
-"backup.import" = "別のサーバーで書き出した一式を取り込む"
+"backup.allow_unsigned" = "信頼された鍵で署名されていない一式を適用します"
+"backup.export" = "サーバー間で移せるファイルにバックアップ一式を書き出します"
+"backup.export.file" = "出力先ファイル。空ならバックアップフォルダに書き出します"
+"backup.import" = "別のサーバーで書き出した一式を取り込みます"
 "backup.import.file" = "読み込む一式のファイル"
-"backup.import.dry" = "何も書き込まずに変更点だけを報告する"
+"backup.import.dry" = "何も書き込まずに変更点だけを報告します"
 "backup.import.world_map" = "ワールド名の変更を 旧=新,旧=新 の形式で指定"
 "backup.import.owner_map" = "所有者の変更を 旧uuid=新uuid の形式で指定"
 "backup.import.confirm" = "dry=false でファイルを書き込むために必要"
-"backup.import_from" = "別のポータルプラグインのファイルからポータルを取り込む"
+"backup.import_from" = "別のポータルプラグインのファイルからポータルを取り込みます"
 "backup.import_from.source" = "stargate、advancedportals、multiverse、betterportals、essentials のいずれか"
-"backup.import_from.dry" = "何も作らずに作成予定だけを報告する"
-"backup.import_from.frame" = "枠のないデータ用の枠サイズを 幅,高さ で指定"
-portals = "ポータルの一覧、確認、一括編集"
-"portals.list" = "任意の絞り込みでポータルを一覧表示する"
+"backup.import_from.dry" = "何も作らずに作成予定だけを報告します"
+"backup.import_from.frame" = "フレームのないデータ用のフレームサイズを 幅,高さ で指定"
+portals = "ポータルを一覧表示、確認、一括編集します"
+"portals.list" = "任意の絞り込みでポータルを一覧表示します"
 "portals.list.world" = "このワールドのポータルのみ"
 "portals.list.type" = "この種類のポータルのみ: portal、wormhole、gateway、rtp"
 "portals.list.owner" = "このプレイヤー名または uuid のポータルのみ"
 "portals.list.state" = "この状態のポータルのみ: open、closed、linked、unlinked"
 "portals.list.page" = "ページ番号"
-"portals.find" = "名前にこの文字列を含むポータルを探す"
+"portals.find" = "名前にこの文字列を含むポータルを探します"
 "portals.find.name" = "検索する文字列"
-"portals.info" = "ポータルのワールド、状態、行き先、所有者を表示する"
+"portals.info" = "ポータルのワールド、状態、目的地、所有者を表示します"
 "portals.info.portal" = "ポータル名または ID"
-"portals.tp" = "安全な地面に着地してポータルへテレポートする"
+"portals.tp" = "安全な地面に着地してポータルへテレポートします"
 "portals.tp.portal" = "ポータル名または ID"
-"portals.retarget" = "ポータルの行き先を別のローカルポータルにする"
+"portals.retarget" = "ポータルの目的地を別のローカルポータルに変更します"
 "portals.retarget.portal" = "変更するポータルの名前または ID"
-"portals.retarget.destination" = "行き先ポータルの名前または ID"
-"portals.unlink" = "ポータルの行き先を外す"
+"portals.retarget.destination" = "目的地ポータルの名前または ID"
+"portals.unlink" = "ポータルの目的地を外します"
 "portals.unlink.portal" = "ポータル名または ID"
-"portals.prune" = "行き先が存在しなくなったリンクを削除する"
-"portals.prune.dry" = "何も変更せずに削除予定だけを報告する"
+"portals.prune" = "目的地が存在しなくなったリンクを削除します"
+"portals.prune.dry" = "何も変更せずに削除予定だけを報告します"
 "portals.prune.confirm" = "dry=false で削除するために必要"
-"portals.rename_server" = "サーバー間リンクのサーバー名を別の名前に書き換える"
+"portals.rename_server" = "サーバー間リンクのサーバー名を別の名前に書き換えます"
 "portals.rename_server.old" = "現在リンクに保存されているサーバー名"
 "portals.rename_server.new" = "代わりに保存するサーバー名"
 "portals.rename_server.confirm" = "リンクを書き換えるために必要"
-"portals.shape" = "ポータルの開口部の形状を表示または設定する"
+"portals.shape" = "ポータルの開口部の形状を表示または設定します"
 "portals.shape.portal" = "ポータル名または ID"
-"portals.shape.shape" = "circle、flower(petals=7)、full などの形状テキスト。空なら現在の形状を表示する"
-"portals.scale" = "ポータルの旅行者スケール規則を表示または設定する"
-"portals.scale.portal" = "ポータル名または id"
+"portals.shape.shape" = "circle、flower(petals=7)、full などの形状テキスト。空なら現在の形状を表示します"
+"portals.scale" = "ポータルの移動者のスケール規則を表示または設定します"
+"portals.scale.portal" = "ポータル名または ID"
 "portals.scale.mode" = "off、motion、ratio のいずれか。値を省略すると現在の規則を表示"
 "portals.scale.min" = "ratio の通過で到達できる最小サイズ倍率 (0.0625-16)"
 "portals.scale.max" = "ratio の通過で到達できる最大サイズ倍率 (0.0625-16)"
-"scale" = "ポータルで拡大縮小された旅行者を通常サイズに戻す"
-"scale.reset" = "プレイヤー 1 人または周囲のすべてのエンティティからポータルスケールを外す"
+"scale" = "ポータルで拡大縮小された移動者を通常サイズに戻します"
+"scale.reset" = "プレイヤー 1 人または周囲のすべてのエンティティからポータルスケールを外します"
 "scale.reset.target" = "self、プレイヤー名、または all"
 "scale.reset.radius" = "target=all のときの検索半径 (ブロック、1-256)"
 # ---- end lane:ops ----
@@ -1568,10 +1580,10 @@ player_missing = "&c{name} という名前のオンラインプレイヤーは�
 
 [clientview.command.help]
 clientview = "Wormholes MOD を使うプレイヤーの ClientView セッション"
-status = "すべての ClientView セッションを一覧表示"
-on = "MOD 導入クライアントに ClientView を再び提供"
-off = "すべての ClientView プレイヤーをバニラ投影に戻す"
-reset = "プレイヤー 1 人の ClientView ストリームを再開"
+status = "すべての ClientView セッションを一覧表示します"
+on = "MOD 導入クライアントに ClientView を再び提供します"
+off = "すべての ClientView プレイヤーをバニラ投影に戻します"
+reset = "プレイヤー 1 人の ClientView ストリームを再開します"
 "reset.player" = "オンラインプレイヤー名"
 # ---- end lane:clientview ----
 
@@ -1592,7 +1604,7 @@ destinations = "目的地"
 select = "ポータルを選択"
 rtp = "ランダムテレポート"
 rtp_destination = "ランダムな目的地"
-rtp_biome = "目的のバイオーム"
+rtp_biome = "対象バイオーム"
 rtp_landing = "着地"
 rtp_routing = "ルーティング"
 rtp_effects = "エフェクト"
@@ -1618,7 +1630,7 @@ network = "{name}"
 back = "戻る"
 close = "閉じる"
 apply = "適用"
-confirm = "確認"
+confirm = "確定"
 cancel = "キャンセル"
 previous_page = "前のページ"
 next_page = "次のページ"
@@ -1639,8 +1651,8 @@ reroll = "再抽選"
 remove = "削除"
 favorite = "お気に入り"
 guide = "ガイド"
-whitelist = "ホワイトリスト"
-blacklist = "ブラックリスト"
+whitelist = "許可リスト"
+blacklist = "拒否リスト"
 use_default = "サーバーの既定値を使う"
 
 [menu.native.confirm]
@@ -1663,7 +1675,7 @@ timeout = "サーバーの応答に時間がかかりすぎました。"
 [menu.native.placeholder]
 name = "ポータル名"
 code = "招待コード"
-block_state = "ブロック状態（例: minecraft:glass）"
+block_state = "ブロック状態 (例: minecraft:glass)"
 amount = "金額"
 player = "プレイヤー名"
 key = "権限キー"

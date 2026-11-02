@@ -4,6 +4,7 @@ import art.arcane.volmlib.util.localization.LocalizationSnapshot;
 import art.arcane.volmlib.util.localization.MessageArgs;
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.wormholes.config.WormholesSettings;
+import art.arcane.wormholes.localization.WormholesLanguages;
 import art.arcane.wormholes.localization.WormholesLocalization;
 import art.arcane.wormholes.localization.WormholesMessages;
 import art.arcane.wormholes.util.project.config.HotloadManager;
@@ -40,6 +41,7 @@ final class WormholesReloadCoordinatorTest {
 
     private WormholesSettings previousSettings;
     private WormholesLocalization previousLocalization;
+    private WormholesLanguages languages;
     private Wormholes plugin;
     private WormholesDiagnosticsRuntime diagnostics;
     private WormholesReloadCoordinator coordinator;
@@ -52,6 +54,8 @@ final class WormholesReloadCoordinatorTest {
         diagnostics = mock(WormholesDiagnosticsRuntime.class);
         when(plugin.getDataFolder()).thenReturn(dataFolder.toFile());
         when(plugin.getLogger()).thenReturn(Logger.getAnonymousLogger());
+        languages = new WormholesLanguages(dataFolder, Logger.getAnonymousLogger());
+        when(plugin.getLanguages()).thenReturn(languages);
         coordinator = new WormholesReloadCoordinator(plugin, mock(WormholesDoorLifecycle.class),
             mock(WormholesNetworkRuntime.class), diagnostics);
         Wormholes.settings = settings(false);
@@ -61,6 +65,7 @@ final class WormholesReloadCoordinatorTest {
 
     @AfterEach
     void restore() {
+        languages.close();
         Wormholes.settings = previousSettings;
         Wormholes.localization = previousLocalization;
     }
@@ -148,7 +153,7 @@ final class WormholesReloadCoordinatorTest {
         Files.createDirectories(languages);
         Files.writeString(languages.resolve("en_us.toml"), "[command]\nunknown = \"" + message + "\"\n");
         WormholesLocalization prepared = new WormholesLocalization();
-        assertTrue(prepared.reload(dataFolder, "en_us", "").applied());
+        assertTrue(prepared.reload(this.languages, "en_us", "").applied());
         return prepared.defaultSnapshot();
     }
 

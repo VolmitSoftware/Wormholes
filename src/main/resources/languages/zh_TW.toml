@@ -14,10 +14,11 @@
 # === 變數 ===
 # 請勿變更變數名稱，僅使用各訊息中原有的變數。
 #   {access}  傳送門存取原則
+#   {added}  語言更新中新增的訊息數
 #   {address}  網路對端位址
 #   {after}  編輯後的訊息值
 #   {allocation}  口袋空間配置
-#  {amount}  貨幣傳送費用
+#  {amount}  貨幣通行費用
 #   {argument}  非預期的指令引數
 #   {before}  編輯前的訊息值
 #   {biome}  生態域識別碼
@@ -30,7 +31,7 @@
 #   {color}  所選顯示顏色
 #   {command}  指令路徑
 #   {containers}  重建影響的非空容器數量
-#   {cost}  傳送門建立或傳送費用
+#   {cost}  傳送門建立或通行費用
 #   {count}  傳送門、目的地或訊息數量
 #   {degrees}  影像旋轉角度
 #   {depth}  投影深度
@@ -54,7 +55,8 @@
 #   {group}  語言編輯器類別
 #   {id}  物件識別碼
 #   {incoming}  傳入傳送原則
-#   {item}  傳送所需物品
+#   {item}  通行所需物品
+#   {kept}  語言更新中保留的本機修改數
 #   {key}  訊息或設定鍵
 #   {kind}  門存取類型
 #   {label}  顯示標籤
@@ -65,7 +67,7 @@
 #   {maximum}  允許的最大值
 #   {message}  回饋或診斷訊息
 #   {minimum}  允許的最小值
-#   {mode}  所選操作或顯示模式
+#   {mode}  通行或顯示模式
 #   {name}  傳送門或玩家名稱
 #   {next}  下一個可用選項
 #   {node}  網路節點識別碼
@@ -82,13 +84,14 @@
 #   {portal}  傳送門名稱或識別碼
 #   {prefix}  傳送門匯入代碼的開頭
 #   {previous}  先前的口袋空間大小（方塊）
-#   {quality}  投影串流品質
+#   {quality}  投影資料流品質
 #   {quantity}  所需物品數量
-#   {range}  傳送門啟動範圍（方塊）
+#   {range}  傳送門啟用範圍（方塊）
 #   {readiness}  隨機目的地就緒狀態
 #   {reason}  錯誤或決定的原因
 #   {receive}  投影接收狀態
 #   {refresh}  投影更新間隔（刻）
+#   {remaining}  距下次語言檢查的剩餘時間
 #   {reserved}  已保留隨機目的地欄位數量
 #   {resized}  已重建口袋空間數量
 #   {rotation}  投影旋轉
@@ -103,12 +106,13 @@
 #   {skin}  所選傳送門外觀
 #   {skipped}  已略過操作數量
 #   {space}  口袋空間識別碼
-#   {state}  目前存取、連接或網路狀態
+#   {state}  目前存取、連結或網路狀態
 #   {step}  點擊時的調整量
 #   {style}  顯示樣式
 #   {target}  套用語言選擇的外掛
 #   {type}  物件或參數類型
 #   {up}  投影頂部方向
+#   {updated}  語言更新中變更的訊息數
 #   {value}  目前或所選值
 #   {variables}  訊息允許的預留位置
 #   {whitelisted}  允許的玩家
@@ -119,7 +123,7 @@
 
 [language.editor]
 title = "{plugin} › {section}"
-loading = "正在載入 {locale} 的訊息..."
+loading = "正在載入 {locale} 的訊息……"
 
 [language.editor.category]
 message-count = "&7{count} 則訊息&r"
@@ -138,7 +142,7 @@ unable-to-save = "無法儲存：{reason}"
 open = "&8點擊開啟此語言。&r"
 
 [language.editor.message]
-current-value = "&7目前值:&r"
+current-value = "&7目前值：&r"
 edit-chat = "&7點擊在聊天中編輯。&r"
 edit-lines = "&7點擊逐行編輯。&r"
 edit-plural = "&7點擊編輯複數形式。&r"
@@ -148,17 +152,17 @@ variables = "&8{variables}&r"
 back = "&e返回&r"
 close = "&c關閉&r"
 next-page = "&e下一頁&r"
-previous-page = "&e前一頁&r"
+previous-page = "&e上一頁&r"
 
 [language.editor.part]
 line = "第 {line} 行"
 
 [language.editor.prompt]
-current = "目前值： {value}"
+current = "目前值：{value}"
 guidance = "使用 \\n 表示換行，\\\\ 表示反斜線，或輸入 cancel 返回。"
 search = "搜尋訊息鍵或內容。輸入 cancel 返回。"
 value = "請在聊天中輸入 {key} 的新值。"
-variables = "變數: {variables}"
+variables = "變數：{variables}"
 
 [language.editor.saved]
 change = "{key}：已將「{before}」改為「{after}」。"
@@ -176,7 +180,7 @@ search = "搜尋"
 search-title = "{locale} / 搜尋"
 
 [language.editor.value]
-empty = "(空)"
+empty = "（空）"
 none = "無"
 
 [language.error]
@@ -193,79 +197,88 @@ unavailable-for-all = "語言 {locale} 並非適用於所有選取的外掛。"
 
 [language.menu]
 all-volmit-plugins = "所有 Volmit 外掛"
-command = "命令: {command}"
+command = "指令：{command}"
 current = "目前：{locale}"
-current_with_personal = "目前：{locale}（您的：{personal}）"
+current_with_personal = "目前：{locale}（你的：{personal}）"
 edit_description = "開啟各語言的訊息編輯器。"
 edit_messages = "編輯語言訊息"
-no_controls = "您無權使用語言設定。"
-remove_personal_description = "移除您的個人語言選擇。"
+no_controls = "你無權使用語言設定。"
+remove_personal_description = "移除你的個人語言選擇。"
 reset_description = "使用伺服器預設語言。"
-reset_your_language = "重設您的語言"
+reset_your_language = "重設你的語言"
 select_description = "點擊以選擇此語言。"
 selected = "已選擇"
 server_default = "伺服器預設語言"
 server_description = "變更伺服器預設語言。"
 use_server_default = "使用伺服器預設語言"
-your_description = "只變更您看到的訊息。"
-your_language = "您的語言"
+your_description = "只變更你看到的訊息。"
+your_language = "你的語言"
 
 [language.selection]
 english-fallback = "{plugin}：{locale} 無法使用；將使用英語（en_US）。"
 personal-selected = "{plugin}：你的語言現在是 {locale}。"
-preparing = "正在為 {target} 準備語言 {locale}..."
+preparing = "正在為 {target} 準備語言 {locale}……"
 save-failed = "{plugin}：無法儲存語言選擇；請檢查伺服器主控台。"
 server-default-selected = "{plugin}：你的語言現在跟隨伺服器預設語言。"
 server-selected = "{plugin}：伺服器語言現在是 {locale}。"
 
+[language.update]
+applied = "{plugin}：已更新 {locale}（新增 {added}，變更 {updated}，保留本機修改 {kept}）。"
+checking = "{plugin}：正在檢查語言儲存庫的變更……"
+cooldown = "{plugin}：最近已檢查過語言儲存庫，請在 {remaining} 後重試。"
+failed = "{plugin}：語言更新失敗：{reason}"
+locale-failed = "{plugin}：{locale} 未更新：{reason}"
+unchanged = "{plugin}：已安裝的語言與儲存庫一致。"
+
 [language.usage]
-editor = "用法: /{command} language server edit [locale]"
-selection = "用法: /{command} language self [locale|reset] or server [locale]"
-volmit-selection = "用法: /volmit plugins languages [locale]"
+editor = "用法：/{command} language server edit [locale]"
+selection = "用法：/{command} language self [locale|reset] 或 server [locale]"
+update = "用法：/{command} language update"
+volmit-selection = "用法：/volmit plugins languages [locale]"
 
 [command]
 unknown = "未知指令，請使用 /wormholes 查看說明。"
-public_help = ["&8[&6Wormholes&8] &7傳送門幫助：&f/wormholes info", "&8[&6Wormholes&8] &7對傳送門使用傳送門法杖，可開啟目的地、檢視、通行和存取控制。"]
-info = ["&8[&6Wormholes&8] &7&l如何建造蟲洞&r", "&81. &7從伺服器或管理員處獲得傳送門法杖和傳送門符文。", "&82. &7在同一平面上將符文擺成任意相連形狀。", "&7   任意相連形狀都可以：矩形、直線 (3x1)、單個方塊、L 形和十字形。", "&7   符文必須平整地位於同一面與座標軸對齊的牆、地板或天花板上。", "&83. &7手持傳送門法杖，&f左鍵點擊任意符文方塊&7以建立傳送門。", "&84. &7在其他位置建造第二個傳送門(距離和世界不限)。", "&85. &7手持法杖點擊已開啟的傳送門，開啟主選單。", "&7   選擇&f目的地&7並選中另一個傳送門，然後在另一端重複此操作。", "&7   方向和存取控制分別位於各自的簡潔選單中。", "&86. &7站在任一傳送門 {range} 個方塊內，目的地世界會投影在框架中；走入框架即可傳送。", "&7管理員可使用 &f/wormholes wand 建立物品"]
+public_help = ["&8[&6Wormholes&8] &7傳送門說明：&f/wormholes info", "&8[&6Wormholes&8] &7對傳送門使用傳送門法杖，可開啟目的地、檢視、通行和存取控制。"]
+info = ["&8[&6Wormholes&8] &7&l如何建造蟲洞&r", "&81. &7從伺服器或管理員處獲得傳送門法杖和蟲洞符文。", "&82. &7在同一平面上將符文擺成任意相連形狀。", "&7   任意相連形狀都可以：矩形、直線（3x1）、單個方塊、L 形和十字形。", "&7   符文必須平整地位於同一面與座標軸對齊的牆、地板或天花板上。", "&83. &7手持傳送門法杖，&f左鍵點擊任意符文方塊&7以建立傳送門。", "&84. &7在其他位置建造第二個傳送門（距離和世界不限）。", "&85. &7看著傳送門時用法杖開啟傳送門選單，或空著主手潛行並右鍵點擊傳送門方塊（僅限擁有者或管理員）。", "&7   選擇&f目的地&7並選中另一個傳送門，然後在另一端重複此操作。", "&7   方向和存取控制分別位於各自的簡潔選單中。", "&86. &7站在任一傳送門 {range} 個方塊範圍內（目前全域啟用範圍），目的地世界會投影在框架中；走入框架即可傳送。", "&7管理員可使用 &f/wormholes wand 產生所需物品"]
 
 [command.debug]
-enabled = "偵錯日誌已啟用。"
-disabled = "偵錯日誌已停用。"
+enabled = "偵錯記錄已啟用。"
+disabled = "偵錯記錄已停用。"
 
 [command.help]
-version = "顯示已安裝的插件版本"
-debug = "Wormholes診斷工具"
+version = "顯示已安裝的外掛版本"
+debug = "Wormholes 診斷工具"
 debug_dump = "建立診斷報告並選擇是否上傳"
 debug_dump_upload = "將報告上傳至 mclo.gs"
 language = "選擇你的語言或伺服器預設語言"
-root = "Wormholes 命令根節點"
+root = "Wormholes 指令根節點"
 wand = "取得傳送門法杖和一個蟲洞符文"
 "wand.rune" = "同時給予蟲洞符文（rune=false 只給法杖）"
 door = "給予一個生存模式可用的維度門物品"
 "door.type" = "pair | personal | public | pair_trapdoor | personal_trapdoor | public_trapdoor"
-debug_toggle = "切換詳細控制台日誌和每秒遙測"
+debug_toggle = "切換詳細主控台記錄和每秒遙測"
 stats = "顯示即時統計快照檔案路徑；可用 now=true 強制重新整理"
 "stats.now" = "同步強制重建快照"
 info = "顯示傳送門建造說明"
-admin = "Wormholes 破壞性維護命令"
+admin = "Wormholes 破壞性維護指令"
 "admin.delete_portals" = "刪除所有本地傳送門及已儲存的傳送門連結"
-"admin.delete_everything" = "重置 Wormholes 資料、設定、信任、身分和網路狀態"
-"admin.freeze" = "將所有傳送門投影原地凍結指定秒數 (seconds=0 恢復)"
-"admin.freeze.seconds" = "保持凍結畫面的時長 (5-300, 0 立即恢復)"
+"admin.delete_everything" = "重設 Wormholes 資料、設定、信任、身分和網路狀態"
+"admin.freeze" = "將所有傳送門投影原地凍結指定秒數（seconds=0 恢復）"
+"admin.freeze.seconds" = "保持凍結畫面的時長（5-300，0 立即恢復）"
 "admin.flush" = "將每個觀察者的投影方塊還原為真實狀態並重建"
 network = "跨伺服器蟲洞網路"
-"network.import" = "從其他伺服器匯入傳送門程式碼(儲存內部路由；透過閘道的連結選單進行連線)"
-"network.import.code" = "其他伺服器透過匯出按鈕產生的傳送門程式碼"
+"network.import" = "與 /wh server import 相同；接受伺服器或傳送門代碼"
+"network.import.code" = "來自其他伺服器匯出的伺服器或傳送門代碼"
 "network.status" = "顯示對等伺服器連線狀態"
 "network.doctor" = "說明網路對等伺服器無法連線的原因"
 server = "跨伺服器傳送：連線、列出並交換已連結的伺服器"
-"server.connect" = "將自己傳送到已連結的伺服器(簡寫：/wh server \\<name>)"
-"server.connect.name" = "已連結的伺服器名稱(見 /wh server list)"
-"server.export" = "將本伺服器匯出為其他伺服器可匯入的程式碼"
-"server.import" = "匯入其他伺服器匯出的伺服器或傳送門程式碼"
-"server.import.code" = "來自其他伺服器匯出的程式碼"
+"server.connect" = "將自己傳送到已連結的伺服器（簡寫：/wh server \\<name>）"
+"server.connect.name" = "已連結的伺服器名稱（見 /wh server list）"
+"server.export" = "將本伺服器匯出為其他伺服器可匯入的代碼"
+"server.import" = "匯入其他伺服器匯出的伺服器代碼（WHS2.）或傳送門代碼（WHP6.）"
+"server.import.code" = "來自其他伺服器匯出的代碼"
 "server.list" = "列出已連結的伺服器及其連線狀態"
-"server.remove" = "忘記一個已連結的伺服器(刪除其路由和受信任的金鑰)"
+"server.remove" = "忘記一個已連結的伺服器（刪除其路由和受信任的金鑰）"
 "server.remove.name" = "要忘記的已連結伺服器名稱"
 pocket = "檢視與重塑口袋維度"
 "pocket.info" = "顯示你所在口袋的大小、材料與邊界"
@@ -278,16 +291,16 @@ pocket = "檢視與重塑口袋維度"
 
 [command.error]
 no_permission = "&8[&6Wormholes&8] &c你沒有權限。"
-no_permission_use = "&8[&6Wormholes&8] &c你沒有權限使用該命令。"
+no_permission_use = "&8[&6Wormholes&8] &c你沒有權限使用該指令。"
 only_players = "&8[&6Wormholes&8] &c只有玩家可以接收物品。"
 
 [command.wand]
 granted_wand = "&8[&6Wormholes&8] &a已給予傳送門法杖。"
-granted_starter = ["&8[&6Wormholes&8] &a已給予傳送門法杖和 1 枚蟲洞符文。", "&8[&6Wormholes&8] &7搭建兩個蟲洞符文形狀(同一平面上的任意相連形狀)，將它們連結，並站在 {range} 個方塊內檢視投影。", "&8[&6Wormholes&8] &7執行 &f/wormholes info&7 查看完整的逐步說明。"]
+granted_starter = ["&8[&6Wormholes&8] &a已給予傳送門法杖和 1 枚蟲洞符文。", "&8[&6Wormholes&8] &7搭建兩個蟲洞符文形狀（同一平面上的任意相連形狀），將它們連結，並站在 {range} 個方塊內檢視投影。", "&8[&6Wormholes&8] &7執行 &f/wormholes info&7 查看完整的逐步說明。"]
 
 [command.door]
 unavailable = "&8[&6Wormholes&8] &c維度門目前不可用。"
-unknown_type = "&8[&6Wormholes&8] &c未知的門類型。請使用 pair、personal 或 public, pair_trapdoor, personal_trapdoor, public_trapdoor。"
+unknown_type = "&8[&6Wormholes&8] &c未知的門類型。請使用 pair、personal、public、pair_trapdoor、personal_trapdoor 或 public_trapdoor。"
 empty_type = "門的類型不能為空"
 granted = "&8[&6Wormholes&8] &a已給予 &f{type}&a 類型的維度門物品。"
 
@@ -297,10 +310,10 @@ refreshed = "&8[&6Wormholes&8] &a快照已重新整理。"
 path = ["&8[&6Wormholes&8] &7快照檔案：&f{path}", "&8[&6Wormholes&8] &8持續檢視此檔案可共享即時網路與檢視狀態。每個週期都會原地覆蓋該檔案。"]
 
 [command.admin]
-delete_failed = "&8[&6Wormholes&8] &c無法刪除所有傳送門。請在控制台查看完整堆疊追蹤。"
-delete_schedule_failed = "&8[&6Wormholes&8] &c無法排程傳送門重置。"
-reset_failed = "&8[&6Wormholes&8] &c無法重置 Wormholes。請在控制台查看完整堆疊追蹤。"
-reset_schedule_failed = "&8[&6Wormholes&8] &c無法排程 Wormholes 重置。"
+delete_failed = "&8[&6Wormholes&8] &c無法刪除所有傳送門。請在主控台查看完整堆疊追蹤。"
+delete_schedule_failed = "&8[&6Wormholes&8] &c無法排程傳送門重設。"
+reset_failed = "&8[&6Wormholes&8] &c無法重設 Wormholes。請在主控台查看完整堆疊追蹤。"
+reset_schedule_failed = "&8[&6Wormholes&8] &c無法排程 Wormholes 重設。"
 projection_frozen = "&8[&6Wormholes&8] &a已將所有傳送門投影原地凍結 &f{seconds}&a 秒。它們會自動恢復。"
 projection_resumed = "&8[&6Wormholes&8] &a已恢復傳送門投影。"
 projection_failed = "&8[&6Wormholes&8] &c無法更新傳送門投影。請查看主控台取得完整堆疊追蹤。"
@@ -342,27 +355,27 @@ cost_insufficient = "&c需要 {quantity} 個 {item} 才能使用此傳送門。"
 cost_vault_insufficient = "&c需要 {amount} 才能使用此傳送門。"
 cost_vault_unavailable = "&c此傳送門的經濟費用不可用。"
 cost_transaction_failed = "&c傳送門無法處理你的通行費用。"
-transfer_holding = "&6正在連線到目標伺服器..."
+transfer_holding = "&6正在連線到目的地伺服器……"
 transfer_interrupted = "&c傳送門傳輸中斷：你離開了傳送門。"
 transfer_source_unavailable = "&c傳送門傳輸中斷：來源傳送門已無法使用。"
 cooldown = "&6傳送門冷卻中"
 access_denied = "&c無權使用此傳送門"
 destination_unavailable = "&c傳送門目的地無法使用"
-arrival_denied = "&c目標傳送門拒絕了你的抵達。"
-arrival_returned = "&c目標傳送門拒絕了你的抵達；正在將你送回 {server}"
-arrival_failed = "&c無法放置傳送門抵達點；你仍位於目的地出生點"
-transfer_cooldown = "&6跨伺服器傳送門冷卻中：{seconds}s"
-destination_unreachable = "&c無法連線目的地伺服器"
-destination_unreachable_detail = "&c無法連線目的地伺服器：{reason}"
+arrival_denied = "&c目的地傳送門拒絕了你的抵達。"
+arrival_returned = "&c目的地傳送門拒絕了你的抵達；正在將你送回 {server}"
+arrival_failed = "&c無法放置傳送門抵達點；你仍位於目的地重生點"
+transfer_cooldown = "&6跨伺服器傳送門冷卻中：{seconds} 秒"
+destination_unreachable = "&c無法連線到目的地伺服器"
+destination_unreachable_detail = "&c無法連線到目的地伺服器：{reason}"
 transfer_blocked = "&c傳送門傳送被阻止：{reason}"
-transfer_blocked_retry = "&c傳送門傳送被阻止：{reason}({seconds}s 後重試)"
+transfer_blocked_retry = "&c傳送門傳送被阻止：{reason}（{seconds} 秒後重試）"
 
 [portal.prompt]
 cost_item = "&b將作為費用的物品拿在主手，然後按丟棄鍵。該物品不會離開你的物品欄。"
-cost_vault = "&b輸入每次穿越的金額（或輸入 '{cancel}'）："
-invite = "&b請將傳送門邀請貼上到聊天中(或輸入 '{cancel}')："
-block_state = "&b請輸入此傳送門網路檢視邊緣使用的方塊狀態，或輸入 '{cancel}'："
-name = "&b請在聊天中輸入新的傳送門名稱(或輸入 '{cancel}')："
+cost_vault = "&b輸入每次通行的貨幣金額（或輸入「{cancel}」）："
+invite = "&b請將傳送門邀請貼到聊天中（或輸入「{cancel}」）："
+block_state = "&b請輸入此傳送門網路檢視邊緣使用的方塊狀態，或輸入「{cancel}」："
+name = "&b請在聊天中輸入新的傳送門名稱（或輸入「{cancel}」）："
 direction = ["&8[&6Wormholes&8] &7看向一個方向，然後左鍵點擊以套用。", "&8[&6Wormholes&8] &7Shift + 左鍵點擊以取消。"]
 
 [portal.notice]
@@ -370,7 +383,7 @@ cost_item_set = "現在通行需要 {item}。"
 cost_item_invalid = "該物品無法儲存為通行費用。"
 cost_cleared = "已清除通行費用。"
 cost_quantity_changed = "通行費用數量：{quantity}"
-cost_vault_changed = "穿越費用：{amount}"
+cost_vault_changed = "貨幣通行費用：{amount}"
 cost_vault_invalid = "請輸入不超過 {maximum} 的正數貨幣金額。"
 cost_vault_unavailable = "選擇此費用前必須有可用的經濟服務。"
 dimensional_link_managed = "此維度傳送門會保留自動產生的連結。"
@@ -382,7 +395,7 @@ travel_changed = "通行：{mode}"
 stream_quality_changed = "資料流品質：{quality}"
 network_value_changed = "{label} {value}"
 fallback_set = "備用方塊已設為 {block}"
-fallback_reset = "備用方塊已重置為 {block}"
+fallback_reset = "備用方塊已重設為 {block}"
 managed_mode = "受管理的維度傳送門會保持傳送門模式。"
 projection_receiver_inactive = "末地抵達端會保持不顯示投影。"
 projection_changed = "投影：{mode}"
@@ -393,7 +406,7 @@ mirror_rotation_changed = "鏡像旋轉：{degrees} 度"
 rtp_cannot_link = "隨機傳送門不會連結到固定目的地。"
 
 [portal.label]
-activation_global = "全域 ({range})"
+activation_global = "全域（{range}）"
 public_look_label = "注視時的公開標籤"
 
 [portal.label.cost]
@@ -465,7 +478,7 @@ render_mode = "渲染模式"
 ambient_style = "環境粒子"
 ambient_color = "環境顏色"
 surface_skin = "表面外觀"
-capture_radius = "捕獲半徑"
+capture_radius = "擷取半徑"
 full_refresh = "完整重新整理"
 entity_update = "實體更新"
 view_grace = "檢視保持時間"
@@ -481,14 +494,14 @@ view_grace = "移開視線後繼續保持資料流的秒數。"
 
 [portal.form]
 rtp_unsupported = "&c無法使用符文建立隨機傳送門。"
-forming = "&b正在建立傳送門... {type} 符文必須在同一面平整的牆、地板或天花板上相連。"
+forming = "&b正在建立傳送門…… {type} 符文必須在同一面平整的牆、地板或天花板上相連。"
 must_be_flat = "&c傳送門必須平整地位於同一面牆、地板或天花板上。"
 interrupted = "&c傳送門建立過程被中斷；已返還預留的符文。"
 rune_placed = "&b已放置符文。請在同一平面上搭建任意相連形狀，然後手持傳送門法杖左鍵點擊任意符文。"
 opened = "&a傳送門已開啟。手持法杖點擊傳送門即可設定。"
 
 [portal.edit]
-denied = "&c只有傳送門所有者或管理員可以編輯此傳送門。"
+denied = "&c只有傳送門擁有者或管理員可以編輯此傳送門。"
 
 [portal.menu]
 destination = ["&6&l目的地&r", "&7選擇要連結的傳送門。", "&7目前連結：{destination}", "", "&8點擊開啟目的地選擇器。"]
@@ -503,44 +516,44 @@ destination = ["&6&l目的地&r", "&7選擇要連結的傳送門。", "&7目前�
 "destination.next_page" = ["&e&l下一頁&r", "&7顯示下一頁目的地。", "&e左鍵點擊"]
 "destination.page" = ["&b&l第 {page}/{pages} 頁&r", "&7{count} 個目的地"]
 "destination.empty" = ["&7沒有可連結的目的地。"]
-render_mode = ["&b&l渲染模式 &f&l{mode}&r", "&7此傳送門投影目標區域的多少體積。", "", "&7模式: &f{mode}", "", "&8PanOptic 渲染完整的目標區域體積。", "&8Venticular 隱藏可見不透明表面後方的幾何體。", "", "&8左鍵: 切換模式。"]
-ambient_particles = ["&b&l環境粒子&r", "&7在此傳送門周圍漂浮的裝飾性塵埃。", "", "&7樣式：&f{style} &8({color})", "", "&8左鍵：切換樣式。", "&8右鍵：選擇顏色。"]
+render_mode = ["&b&l渲染模式 &f&l{mode}&r", "&7此傳送門投影多少目的地區域。", "", "&7模式：&f{mode}", "", "&8PanOptic 渲染完整的目的地區域。", "&8Venticular 保留可見表面，省略被遮擋的目的地幾何體。", "", "&8左鍵：切換模式。"]
+ambient_particles = ["&b&l環境粒子&r", "&7在此傳送門周圍漂浮的裝飾性塵埃。", "", "&7樣式：&f{style} &8（{color}）", "", "&8左鍵：切換樣式。", "&8右鍵：選擇顏色。"]
 aperture_shape = ["&b&l開口形狀&r", "&7框架內開口的輪廓。", "", "&7形狀：&f{shape}", "&7開放格數：&f{cells}", "", "&8左鍵：下一個形狀。", "&8右鍵：旋轉 45 度。", "&8Shift + 右鍵：重設為 full。"]
 "aperture_shape.label" = "開口形狀"
 "aperture_shape.too_small" = "&c{shape} 在此框架中沒有留下任何開放格。"
 "aperture_shape.invalid" = "&8[&6Wormholes&8] &c無法讀取形狀：{reason}"
 "aperture_shape.current" = "&8[&6Wormholes&8] &f{portal}&7 的開口形狀：&f{shape}&7（{cells} 個開放格）"
 "aperture_shape.set" = "&8[&6Wormholes&8] &f{portal}&a 的開口形狀已設為 &f{shape}&a（{cells} 個開放格）。"
-surface_skin = ["&b&l表面外觀&r", "&7以算繪的方塊或流體面板覆蓋傳送門開口。", "", "&7外觀：&f{skin}", "", "&8左鍵：清除外觀。", "&8右鍵：開啟外觀選項。"]
+surface_skin = ["&b&l表面外觀&r", "&7以渲染的方塊或流體面板覆蓋傳送門開口。", "", "&7外觀：&f{skin}", "", "&8左鍵：清除外觀。", "&8右鍵：開啟外觀選項。"]
 "surface_skin.placard" = ["&6&l表面外觀&r", "&7手持方塊或桶右鍵點擊傳送門以套用外觀。", "", "&7外觀：&f{skin}"]
 "surface_skin.glass" = ["&b&l玻璃外觀&r", "&7覆蓋開口的透明玻璃窗。", "", "&8點擊以套用玻璃。"]
 "surface_skin.clear" = ["&c&l清除外觀&r", "&7移除外觀並恢復投影。", "", "&8點擊以移除外觀。"]
-gateway_destination = ["&6&l配對 & 目的地&r", "&7與其他伺服器配對，或選擇一個閘道。", "&7目前連結：{destination}", "", "&8點擊開啟配對中心。"]
+gateway_destination = ["&6&l配對與目的地&r", "&7與其他伺服器配對，或選擇一個閘道。", "&7目前連結：{destination}", "", "&8點擊開啟配對中心。"]
 rtp_destination = ["&6&l隨機目的地&r", "&7設定此傳送門重選目的地的位置和時機。", "&7輪換：&b{rotation}", "", "&8點擊開啟隨機傳送設定。"]
-rename = ["&a&l重新命名傳送門&r", "&7更改連結和選單中顯示的名稱。", "&7目前：&f{portal}", "", "&8點擊輸入新名稱。"]
+rename = ["&a&l重新命名傳送門&r", "&7變更連結和選單中顯示的名稱。", "&7目前：&f{portal}", "", "&8點擊輸入新名稱。"]
 delete = ["&c&l刪除傳送門&r", "&7永久刪除此傳送門。", "", "&c&nShift + 左鍵點擊以確認&r"]
-advanced_settings = ["&3&l進階資料流調整&r", "&7用於診斷和特殊連結的直接控制。", "&7更改任意值會將資料流品質標記為自訂。"]
+advanced_settings = ["&3&l進階資料流調整&r", "&7用於診斷和特殊連結的直接控制。", "&7變更任意值會將資料流品質標記為自訂。"]
 back_settings = ["&e&l返回設定&r", "&7返回傳送門設定。"]
 extensions = ["&b&l更多設定&r", "&7規則、存取、網路及其他功能設定。", "&e左鍵點擊"]
 stream_quality = ["&b&l資料流品質：{quality}&r", "&7統一控制遠端檢視範圍和更新頻率。", "", "&7深度 &b{depth}&7  實體 &b{entities}t", "&7重新整理 &b{refresh}t&7  保持 &b{grace}s", "", "&8點擊：循環切換品質。", "&8Shift + 點擊：進階調整。"]
 orientation = ["&9&l朝向&r", "&7正面方向：&9{facing}", "&7螢幕上方：&6{up}", "", "&8點擊設定正面方向、翻面和旋轉。"]
 orientation_placard = ["&9&l傳送門朝向&r", "&7正面方向：&9{facing}", "&7螢幕上方：&6{up}"]
 network_number = ["&b&l{label} &f&l{value}&r", "&7{description}", "", "&7目前：&b{value}", "", "&8左鍵點擊：+{step}", "&8右鍵點擊：-{step}", "&8Shift + 左鍵點擊：+{large_step}", "&8Shift + 右鍵點擊：-{large_step}"]
-fallback_block = ["&b&l備用方塊&r", "&7在資料流深度之外顯示的方塊。", "", "&7目前：&f{block}", "", "&8左鍵：輸入方塊狀態。", "&8右鍵：重置為空氣。"]
-blackout = ["&b&l背景遮蔽&r", "&7以實心混凝土封住投影的遠端與側面邊界，使本地世界永遠不會透出來。", "", "&7目前：&f{state} &8({color})", "", "&8左鍵：開啟/關閉切換。", "&8右鍵：選擇顏色。"]
+fallback_block = ["&b&l備用方塊&r", "&7在資料流深度之外顯示的方塊。", "", "&7目前：&f{block}", "", "&8左鍵：輸入方塊狀態。", "&8右鍵：重設為空氣。"]
+blackout = ["&b&l背景遮蔽&r", "&7以實心混凝土封住投影的遠端與側面邊界，使本地世界永遠不會透出來。", "", "&7目前：&f{state} &8（{color}）", "", "&8左鍵：開啟/關閉切換。", "&8右鍵：選擇顏色。"]
 activation_range = ["&b&l啟用範圍 &f&l{value}&r", "&7此傳送門開始為附近玩家投影的距離（以方塊計）。", "", "&7目前：&b{value}", "", "&8左鍵點擊：+{step}", "&8右鍵點擊：-{step}", "&8Shift + 左鍵點擊：+{large_step}", "&8Shift + 右鍵點擊：-{large_step}", "&8低於 8 將重設為全域。"]
-settings_placard_gateway = ["&b&l傳送門設定&r", "&7存取和傳送控制。", "&7以及跨伺服器檢視調節。", "", "&7深度越大 / tick 間隔越短 =", "&7檢視越豐富，佔用頻寬越多。"]
+settings_placard_gateway = ["&b&l傳送門設定&r", "&7存取和傳送控制。", "&7以及投影檢視調整。", "", "&7深度越大 / tick 間隔越短 =", "&7檢視越豐富，佔用頻寬越多。"]
 mode_placard = ["&e&l傳送門模式&r", "&7目前：&e{mode}", "", "&7傳送門：可連結的基礎傳送門。", "&7蟲洞：帶視口的傳送門。", "&7閘道：跨伺服器閘道。", "&7RTP：可設定的隨機目的地。", "&7鏡像：反射本側畫面，禁止通行。"]
-mode_opener = ["&e&l模式&r", "&7{description}", "", "&7目前：&e{mode}", "", "&8點擊更改模式。"]
-direction = ["&9&l方向&r", "&7更改傳送門正面的朝向。", "", "&7目前朝向：&9{direction}", "", "&8點擊後看向一個方向，再左鍵點擊套用。"]
+mode_opener = ["&e&l模式&r", "&7{description}", "", "&7目前：&e{mode}", "", "&8點擊變更模式。"]
+direction = ["&9&l方向&r", "&7變更傳送門正面的朝向。", "", "&7目前朝向：&9{direction}", "", "&8點擊後看向一個方向，再左鍵點擊套用。"]
 flip_face = ["&b&l翻轉正面&r", "&7反轉傳送門正面的方向。", "&7螢幕旋轉方向保持對齊。", "", "&7目前螢幕上方：&b{up}", "", "&8點擊翻轉。"]
 rotate_counterclockwise = ["&6&l逆時針旋轉&r", "&7將傳送門視口旋轉 90 度", "&7但不改變正面方向。", "", "&7目前螢幕上方：&6{up}", "", "&8點擊旋轉。"]
 rotate_clockwise = ["&6&l順時針旋轉&r", "&7將傳送門視口旋轉 90 度", "&7但不改變正面方向。", "", "&7目前螢幕上方：&6{up}", "", "&8點擊旋轉。"]
 back = ["&e&l返回&r", "&7返回傳送門選單。"]
-settings_gateway = ["&b&l設定&r", "&7權限、傳送控制", "&7和跨伺服器檢視調節。", "", "&7存取：&6{access}", "&7傳送 &b{send}&7  接收 &b{receive}", "&7深度 &b{depth}&7  實體 &b{entity}t", "", "&8點擊開啟設定。"]
-settings_sync = ["&b&l設定同步 {state}&r", "&7開啟後，此傳送門的設定", "&7(深度、tick、投影、權限和", "&7傳送控制)會同步到所有連結的對等端。", "", "&7目前：&b{state}", "", "&8點擊切換。"]
+settings_gateway = ["&b&l設定&r", "&7權限、傳送控制", "&7和投影檢視調整。", "", "&7存取：&6{access}", "&7傳送 &b{send}&7  接收 &b{receive}", "&7深度 &b{depth}&7  實體 &b{entity}t", "", "&8點擊開啟設定。"]
+settings_sync = ["&b&l設定同步 {state}&r", "&7開啟後，此傳送門的設定", "&7（深度、tick、投影、權限和", "&7傳送控制）會同步到所有連結的對等端。", "", "&7目前：&b{state}", "", "&8點擊切換。"]
 permission = ["&6&l存取模式 {mode}&r", "&7{description}", "&7權限節點：&f{node}", "", "&7目前：&6{mode}", "", "&8點擊切換白名單 / 黑名單。", "&8管理員始終不受限制。"]
-public_look_label = ["&b&l注視時的公開標籤：&f&l{state}&r", "&7附近玩家注視此傳送門時顯示其名稱。", "&7關閉時，路線標籤僅在使用傳送門工具時顯示。", "", "&e按滑鼠左鍵切換"]
+public_look_label = ["&b&l注視時的公開標籤：&f&l{state}&r", "&7附近玩家注視此傳送門時顯示其名稱。", "&7關閉時，路線標籤僅在使用傳送門工具時顯示。", "", "&e左鍵點擊切換"]
 
 [portal.menu.gateway]
 server = "&7伺服器：&f{server}"
@@ -548,8 +561,8 @@ link = "&7連結：&b{state}"
 choose = ["&6&l選擇目的地&r", "&7從已發現的本地和遠端閘道中選擇。", "", "&8點擊開啟目的地列表。"]
 unpaired = ["&6&l閘道配對&r", "&7狀態：&c未配對"]
 paired = ["&6&l閘道配對&r", "&7目的地：&6{destination}"]
-export = ["&6&l建立邀請&r", "&7為其他伺服器建立已簽名的閘道程式碼。", "", "&8點擊複製新程式碼。"]
-import = ["&b&l使用邀請&r", "&7貼上來自其他閘道的已簽名程式碼。", "", "&8點擊後在聊天中貼上程式碼。"]
+export = ["&6&l建立邀請&r", "&7為其他伺服器建立已簽署的閘道代碼。", "", "&8點擊複製新代碼。"]
+import = ["&b&l使用邀請&r", "&7貼上來自其他閘道的已簽署代碼。", "", "&8點擊後在聊天中貼上代碼。"]
 
 [portal.menu.mirror]
 rotation = "&7影像旋轉：&b{degrees} 度"
@@ -560,7 +573,7 @@ available = ["&e&l鏡像&r", "&7將本地世界反射回來。", "&7透過框架
 flip = ["&7牆面鏡像以 180 度為步長翻轉", "&7以保持反射實體方向正確。", "&8右鍵點擊：翻轉反射影像。"]
 
 [portal.menu.cost]
-opener = ["&6&l通行費用&r", "&7要求玩家使用此傳送門時", "&7支付指定物品或 貨幣。", "", "&7模式：&f{mode}", "&7費用：&f{cost}", "", "&8點擊進行設定。"]
+opener = ["&6&l通行費用&r", "&7要求玩家使用此傳送門時", "&7支付指定物品或貨幣。", "", "&7模式：&f{mode}", "&7費用：&f{cost}", "", "&8點擊進行設定。"]
 placard = ["&6&l通行費用&r", "&7玩家必須先付費", "&7才能通過此傳送門。", "", "&7模式：&f{mode}", "&7費用：&f{cost}"]
 mode_free = ["&a&l免費&r", "&7無需任何支付。", "", "&8點擊將通行設為免費。"]
 mode_vanilla = ["&b&l原版物品&r", "&7消耗一個完全相符的物品。", "", "&8點擊後手持物品，再按丟棄鍵。"]
@@ -609,13 +622,13 @@ editor_title = "RTP: {portal}"
 setting_rejected = "無法套用該設定：{reason}"
 applied = "已套用隨機目的地設定。"
 reset_defaults = "隨機傳送設定已重設為預設值。"
-editor_refreshed = "設定已更改；編輯器已重新整理。"
-runtime_unavailable = "隨機傳送執行時不可用。"
-reroll_failed = "手動重選失敗；請查看伺服器日誌。"
+editor_refreshed = "設定已變更；編輯器已重新整理。"
+runtime_unavailable = "隨機傳送執行階段無法使用。"
+reroll_failed = "手動重選失敗；請查看伺服器記錄。"
 reroll_preparing = "正在準備新的隨機目的地。"
 reroll_unavailable = "路線正在準備或使用時無法重選。"
 pool_rebuilding = "正在重建私人目的地池。"
-pool_failed = "目的地池重建失敗；請檢視伺服器日誌。"
+pool_failed = "目的地池重建失敗；請查看伺服器記錄。"
 not_ready = "&e傳送門仍在穩定其目的地。"
 traversal_failed = "&c傳送門無法穩定，請重試。"
 
@@ -652,14 +665,14 @@ unlinked = "&e{portal} 已取消與 {destination} 的連結。"
 face_flipped = "&a{portal} 的正面已翻轉到 {direction}。"
 rotated_counterclockwise = "&a{portal} 已逆時針旋轉。"
 rotated_clockwise = "&a{portal} 已順時針旋轉。"
-direction_changed = "&a{portal} 的方向已更改為 {direction}。"
+direction_changed = "&a{portal} 的方向已變更為 {direction}。"
 
 [director.help]
-no_subcommands = "此頁面沒有子命令。"
+no_subcommands = "此頁面沒有子指令。"
 no_description = "未提供描述"
-command_group = "命令組。點擊開啟。"
+command_group = "指令群組。點擊開啟。"
 category = "指令類別"
-no_parameters = "沒有引數。點擊以預填命令。"
+no_parameters = "沒有參數。點擊以預填指令。"
 parameters_hover = "將滑鼠懸停在參數上以瞭解更多。"
 
 [director.help.navigation]
@@ -667,7 +680,7 @@ back = "返回"
 page = "頁面"
 
 [director.help.navigation.parent]
-hover = "返回上一級命令組"
+hover = "返回上一級指令群組"
 
 [director.help.navigation.previous]
 hover = "上一頁"
@@ -682,24 +695,24 @@ default = "未指定時預設為 \"{value}\"。"
 type = "此參數的類型為 {type}。"
 
 [director.runtime.error]
-invalid_origin = "無法從此來源執行該命令。"
-unknown_parameter = "未知引數：{key}"
-unexpected_argument = "意外引數 \"{argument}\"。可選引數必須指定名稱，例如 seed=123"
-unclosed_group = "引數 {key} 缺少閉合的 \"]\""
-conversion_failed = "無法將 \"{value}\" 轉換為引數 {parameter} 所需的 {type} 類型"
-default_parse_failed = "無法解析引數 {parameter} 的預設值"
-missing_argument = "缺少引數 \"{parameter}\" ({type})"
-execution_failed = "執行命令 {command} 失敗：{reason}"
+invalid_origin = "無法從此來源執行該指令。"
+unknown_parameter = "未知參數鍵：{key}"
+unexpected_argument = "意外引數 \"{argument}\"。可選參數必須指定名稱，例如 seed=123"
+unclosed_group = "參數 {key} 缺少閉合的 \"]\""
+conversion_failed = "無法將 \"{value}\" 轉換為參數 {parameter} 所需的 {type} 類型"
+default_parse_failed = "無法解析參數 {parameter} 的預設值"
+missing_argument = "缺少引數 \"{parameter}\"（{type}）"
+execution_failed = "執行指令 {command} 失敗：{reason}"
 
 [network]
 not_initialized = "&8[&6Wormholes&8] &c網路尚未初始化。"
 
 [network.status]
-disabled = "&8[&6Wormholes&8] &7網路已&c停用&7 (wormholes.toml)。"
+disabled = "&8[&6Wormholes&8] &7網路已&c停用&7（wormholes.toml）。"
 not_running = "&8[&6Wormholes&8] &c網路已啟用但未執行。請檢查身分儲存和網路連接埠。"
 listening = "&8[&6Wormholes&8] &7目前伺服器：&f{server}&7，監聽位址：&f{address}"
 outbound_only = "&8[&6Wormholes&8] &7目前伺服器：&f{server}&7，僅出站 Boat 模式"
-public_key = "&8[&6Wormholes&8] &8公鑰：{fingerprint}"
+public_key = "&8[&6Wormholes&8] &8公開金鑰：{fingerprint}"
 no_routes = "&8[&6Wormholes&8] &7尚未連結任何對等路由。"
 peer = "&8[&6Wormholes&8] &f{server}&7 {state} &7{address}{rtt}"
 last_attempt = "&8[&6Wormholes&8] &8  上次嘗試：{error}"
@@ -710,34 +723,34 @@ header = "&8[&6Wormholes&8] &e網路診斷："
 line = "&8[&6Wormholes&8] &7- {diagnostic}"
 
 [network.code]
-building = "&8正在產生傳送門程式碼..."
-copy = "&6&l[複製傳送門程式碼：{portal}]&r"
-copy_hover = "&7點擊複製。將其貼上到其他伺服器：傳送門選單 > 匯入，或 /wh server import \\<code>"
-fingerprint = "&8包含目前伺服器的位址和公鑰指紋 {fingerprint}。"
-too_long = "&e此程式碼過長，無法貼上到聊天中；請改在其他伺服器上使用 /wh server import \\<code>。"
-invalid = "&c傳送門程式碼無效。程式碼以 {prefix} 開頭；若貼上到聊天中可能被截斷，請嘗試 /wh server import \\<code>。舊版外掛產生的程式碼必須重新匯出。"
-same_server = "&c該程式碼來自目前伺服器。"
-same_identity = "&c該程式碼解析為目前伺服器身分 ({server})。請讓兩台伺服器以各自的 Wormholes 身分重啟，然後從另一台伺服器重新匯出。"
+building = "&8正在產生傳送門代碼……"
+copy = "&6&l[複製傳送門代碼：{portal}]&r"
+copy_hover = "&7點擊複製。將其貼到其他伺服器：\n傳送門選單 > 匯入，或 /wh server import \\<code>"
+fingerprint = "&8包含目前伺服器的位址和公開金鑰指紋 {fingerprint}。"
+too_long = "&e此代碼過長，無法貼到聊天中；請改在其他伺服器上使用 /wh server import \\<code>。"
+invalid = "&c傳送門代碼無效。代碼以 {prefix} 開頭；若貼到聊天中可能被截斷，請嘗試 /wh server import \\<code>。舊版外掛產生的代碼必須重新匯出。"
+same_server = "&c該代碼來自目前伺服器。"
+same_identity = "&c該代碼解析為目前伺服器身分（{server}）。請讓兩台伺服器以各自的 Wormholes 身分重啟，然後從另一台伺服器重新匯出。"
 linked = "&a已將 &f{portal}&7 -> &f{destination}&a 連結到 &f{server}&a。伺服器連線後傳送門將開啟。"
-route_saved = "&a已儲存通往 {server} 的路由，公開金鑰為 {fingerprint}。連線後，'{portal}' 將顯示在閘道的連結選單中。"
+route_saved = "&a已儲存通往 {server} 的路由，公開金鑰為 {fingerprint}。連線後，「{portal}」將顯示在閘道的連結選單中。"
 check_status = "&8使用 /wh network status 檢視連線狀態。"
-using_address = "&7此傳送門程式碼使用 {address}；如果公開位址發生變化，簽名握手會自動偵測並修正位址。"
+using_address = "&7此傳送門代碼使用 {address}；如果公開位址發生變化，會透過已簽署的交握自動偵測並修正。"
 
 [server]
-unknown = "&8[&6Wormholes&8] &c未知的伺服器 '&f{server}&c'。請先匯入其程式碼，或查看 /wh server list。"
+unknown = "&8[&6Wormholes&8] &c未知的伺服器「&f{server}&c」。請先匯入其代碼，或查看 /wh server list。"
 removed = "&8[&6Wormholes&8] &a已移除伺服器 &f{server}&a 及其受信任的金鑰。"
 name_empty = "伺服器名稱不能為空"
 
 [server.code]
-copy = "&6&l[複製伺服器程式碼：{server}]&r"
-copy_hover = "&7點擊複製。將其貼上到其他伺服器：/wh server import \\<code>"
-raw = "&7伺服器程式碼：&f{code}"
+copy = "&6&l[複製伺服器代碼：{server}]&r"
+copy_hover = "&7點擊複製。將其貼到其他伺服器：\n/wh server import \\<code>"
+raw = "&7伺服器代碼：&f{code}"
 saved = "&a已儲存伺服器 &f{server}&a，公開金鑰為 {fingerprint}。使用 &f/wh server {server}&a 連線。"
 
 [server.connect]
-sending = "&8[&6Wormholes&8] &a正在將你傳送到 &f{server}&a..."
+sending = "&8[&6Wormholes&8] &a正在將你傳送到 &f{server}&a……"
 not_ready = "&8[&6Wormholes&8] &c{server} 目前無法連線。請檢查 /wh network status。"
-failed = "&8[&6Wormholes&8] &c無法將你傳送到 {server}。請查看控制台和 /wh network status。"
+failed = "&8[&6Wormholes&8] &c無法將你傳送到 {server}。請查看主控台和 /wh network status。"
 only_players = "&8[&6Wormholes&8] &c只有玩家可以連線到其他伺服器。"
 
 [server.list]
@@ -765,7 +778,7 @@ return_point_obstructed = "已儲存的返回點被阻擋。"
 return_chunk_failed = "無法載入已儲存的返回區塊。"
 closed = "維度傳送完成前，維度門已關閉。"
 cycle_consumed = "這扇門的開啟週期已被使用。請關閉後重新開啟該門。"
-source_missing = "次元門已經不在了。"
+source_missing = "維度門已不存在。"
 source_close_failed = "來源門無法安全關閉。"
 source_region_unavailable = "來源門所在區域不可用。"
 start_failed = "無法開始維度傳送。"
@@ -810,17 +823,17 @@ chunk_failed = "無法載入備用重生點。"
 schedule_failed = "無法安排備用撤離。"
 
 [door.access]
-unknown_player = "未知 ({id})"
-edit_denied = "&c只有門的所有者或管理員可以編輯此門。"
+unknown_player = "未知（{id}）"
+edit_denied = "&c只有門的擁有者或管理員可以編輯此門。"
 unavailable = "&c此維度門沒有存取記錄。"
 save_failed = "&c無法儲存該門的存取設定變更。"
 player_not_found = "&c找不到名為 {name} 的玩家。"
-owner_always = "&7門的所有者始終擁有存取權限。"
+owner_always = "&7門的擁有者始終擁有存取權限。"
 already_listed = "&7{name} 已在此門的名單中。"
 added = "&a已將 {name} 加入此門的名單。"
 removed = "&a已將 {name} 從此門的名單中移除。"
 state_changed = "&a已將 {name} 設為此門的{state}。"
-prompt_player = "&b請輸入要加入此門名單的玩家名稱(或輸入 '{cancel}')："
+prompt_player = "&b請輸入要加入此門名單的玩家名稱（或輸入「{cancel}」）："
 denied = "&c此維度門拒絕了你。"
 transit_denied = "你沒有此維度門的存取權限。"
 
@@ -841,7 +854,7 @@ closed = "關閉"
 
 [door.menu.access]
 title = "維度門存取：{kind}"
-placard = ["&6&l{kind}維度門&r", "&7所有者：&f{owner}", "&7白名單：&a{whitelisted}", "&7黑名單：&c{blacklisted}", "&7名單玩家：&b{count}", "&8只有所有者和管理員可以編輯此門。"]
+placard = ["&6&l{kind}維度門&r", "&7擁有者：&f{owner}", "&7白名單：&a{whitelisted}", "&7黑名單：&c{blacklisted}", "&7名單玩家：&b{count}", "&8只有擁有者和管理員可以編輯此門。"]
 add_player = ["&a&l新增玩家&r", "&7在聊天中輸入玩家名稱即可加入名單。", "", "&8點擊新增玩家。"]
 open_state = ["&b&lOpenState：&f&l{state}", "&7傳送門會跟隨此方塊的物理狀態。", "&7啟用狀態：&f{state}&7。", "", "&8下一狀態：{next}。點擊切換。"]
 entry = ["&f{name}", "&7狀態：&b{state}", "", "&8左鍵：白名單。右鍵：黑名單。", "&8中鍵或 Shift + 左鍵：移除。"]
@@ -850,8 +863,8 @@ entry = ["&f{name}", "&7狀態：&b{state}", "", "&8左鍵：白名單。右鍵�
 corner_a = "&b已設定角點 A。以右鍵點擊對角。"
 corner_b = "&b已設定角點 B。以左鍵點擊對角。"
 not_flat = "&c選區厚度必須為一個方塊。請重新點擊一個角點使其變為平面。"
-too_large = "&c選區過大：{count} 個方塊(上限 {maximum})。"
-opening = "&b正在開啟傳送門..."
+too_large = "&c選區過大：{count} 個方塊（上限 {maximum}）。"
+opening = "&b正在開啟傳送門……"
 open_failed = "&c無法在此處開啟傳送門。"
 
 [wand.selection.selected]
@@ -869,7 +882,7 @@ closed = "已關閉"
 
 [rtp.routing]
 action_confirm = "開啟單獨的確認介面。"
-header = ["&b&l輪換 & 目的地池&r", "&7直接選擇模式，然後一次套用整批更改。"]
+header = ["&b&l輪換與目的地池&r", "&7直接選擇模式，然後一次套用整批變更。"]
 shared_selected = ["&a&l共享目的地&r", "&7所有人看到並使用相同路線。", "&a已選擇"]
 shared_available = ["&b&l共享目的地&r", "&7所有人看到並使用相同路線。", "&e左鍵點擊以選擇"]
 private_selected = ["&a&l每位玩家獨立目的地&r", "&7每位玩家都會獲得一份私人預留。", "&a已選擇"]
@@ -912,7 +925,7 @@ center_z = "中心 Z"
 minimum_radius = "最小半徑"
 maximum_radius = "最大半徑"
 lower_y = "Y 下限"
-upper_y = "上限 Y"
+upper_y = "Y 上限"
 preferred_y = "偏好 Y 值"
 cycle = "輪換週期"
 private_rotation = "私人目的地輪換時間"
@@ -925,7 +938,7 @@ adjust = ["&e&l{direction}{step}&r", "&7將草稿調整 {direction}{step}。", "
 header = ["&b&l{label}&r", "&7{description}"]
 
 [rtp.numeric.description]
-center = "沿此軸移動自定義中心。"
+center = "沿此軸移動自訂中心。"
 minimum_radius = "目的地環形區域的內邊緣。"
 maximum_radius = "目的地環形區域的外邊緣。"
 y = "合法落腳高度的搜尋邊界。"
@@ -953,9 +966,9 @@ previous = ["&e&l上一頁生態域&r", "&7顯示上一頁。", "&e左鍵點擊"
 next = ["&e&l下一頁生態域&r", "&7顯示下一頁。", "&e左鍵點擊"]
 
 [rtp.overview]
-destination = ["&e&l目的地 & 區域&r", "&7世界、中心和半徑。", "&e左鍵點擊"]
+destination = ["&e&l目的地與區域&r", "&7世界、中心和半徑。", "&e左鍵點擊"]
 landing = ["&e&l落點規則&r", "&7地表和高度設定。", "&e左鍵點擊"]
-routing = ["&e&l輪換 & 目的地池&r", "&7共享方式、輪換和保留時間。", "&e左鍵點擊"]
+routing = ["&e&l輪換與目的地池&r", "&7共享方式、輪換和保留時間。", "&e左鍵點擊"]
 effects = ["&e&l效果&r", "&7投影邊緣和傳送門音效。", "&e左鍵點擊"]
 reset_defaults = ["&e&l重設為預設值&r", "&7立即將此傳送門的隨機傳送設定恢復為預設值。", "&e左鍵點擊"]
 
@@ -965,7 +978,7 @@ overview = ["&e&l概覽&r", "&7返回 RTP 概覽。", "&e左鍵點擊"]
 back_category = ["&e&l返回&r", "&7返回上一個類別。", "&e左鍵點擊"]
 
 [rtp.destination]
-header = ["&b&l目的地 & 區域&r", "&7所有選項均使用普通左鍵點擊。"]
+header = ["&b&l目的地與區域&r", "&7所有選項均使用普通左鍵點擊。"]
 world_current = ["&a&l{world}&r", "&7目前目標世界。", "&a已選擇"]
 world_available = ["&b&l{world}&r", "&7使用此已載入世界。", "&e左鍵點擊以選擇"]
 previous_worlds = ["&e&l上一頁世界&r", "&7顯示上一頁。", "&e左鍵點擊"]
@@ -973,20 +986,20 @@ next_worlds = ["&e&l下一頁世界&r", "&7顯示下一頁。", "&e左鍵點擊"
 biome_link = ["&e&l目標生態域 &f&l{value}&r", "&7優先降落在所選生態域。", "&e左鍵點擊"]
 center_portal_selected = ["&a&l相對傳送門的中心&r", "&7以此傳送門為環形區域中心。", "&a已選擇"]
 center_portal_available = ["&b&l相對傳送門的中心&r", "&7以此傳送門為環形區域中心。", "&e左鍵點擊以選擇"]
-center_custom_selected = ["&a&l自定義中心&r", "&7使用可編輯的 X 和 Z 座標。", "&a已選擇"]
-center_custom_available = ["&b&l自定義中心&r", "&7使用可編輯的 X 和 Z 座標。", "&e左鍵點擊以選擇"]
-reset_center = ["&e&l重置中心 / 目標世界&r", "&7使用來源世界和傳送門中心。", "&e左鍵點擊"]
+center_custom_selected = ["&a&l自訂中心&r", "&7使用可編輯的 X 和 Z 座標。", "&a已選擇"]
+center_custom_available = ["&b&l自訂中心&r", "&7使用可編輯的 X 和 Z 座標。", "&e左鍵點擊以選擇"]
+reset_center = ["&e&l重設中心 / 目標世界&r", "&7使用來源世界和傳送門中心。", "&e左鍵點擊"]
 
 [rtp.landing]
 header = ["&b&l落點規則&r", "&7選擇地表或偏好高度的著陸方式及其安全模式。"]
-surface_selected = ["&a&l地表&r", "&7SAFE 會避開水面和樹冠。UNSAFE 使用最上層表面。", "&a已選取"]
-surface_available = ["&b&l地表&r", "&7SAFE 會避開水面和樹冠。UNSAFE 使用最上層表面。", "&e按滑鼠左鍵選取"]
-preferred_selected = ["&a&l偏好 / 精確高度&r", "&7SAFE 向周圍搜尋。UNSAFE 使用精確的偏好 Y 座標。", "&a已選取"]
-preferred_available = ["&b&l偏好 / 精確高度&r", "&7SAFE 向周圍搜尋。UNSAFE 使用精確的偏好 Y 座標。", "&e按滑鼠左鍵選取"]
-safe_policy = ["&b&l著陸安全模式：&f&l{mode}&r", "&7SAFE 排除水、危險物、樹木、碰撞點及沒有支撐的位置。", "&7UNSAFE 直接採用選定的地表或精確的偏好 Y 座標。", "&e按滑鼠左鍵切換"]
+surface_selected = ["&a&l地表&r", "&7SAFE 會避開水面和樹冠。UNSAFE 使用最上層表面。", "&a已選擇"]
+surface_available = ["&b&l地表&r", "&7SAFE 會避開水面和樹冠。UNSAFE 使用最上層表面。", "&e左鍵點擊以選擇"]
+preferred_selected = ["&a&l偏好 / 精確高度&r", "&7SAFE 向周圍搜尋。UNSAFE 使用精確的偏好 Y 座標。", "&a已選擇"]
+preferred_available = ["&b&l偏好 / 精確高度&r", "&7SAFE 向周圍搜尋。UNSAFE 使用精確的偏好 Y 座標。", "&e左鍵點擊以選擇"]
+safe_policy = ["&b&l著陸安全模式：&f&l{mode}&r", "&7SAFE 排除水、危險物、樹木、碰撞點及沒有支撐的位置。", "&7UNSAFE 直接採用選定的地表或精確的偏好 Y 座標。", "&e左鍵點擊切換"]
 
 [rtp.effects]
-header = ["&b&l效果&r", "&7更改顯示效果不會重新產生目的地。"]
+header = ["&b&l效果&r", "&7變更顯示效果不會重新產生目的地。"]
 rim_on_selected = ["&a&l就緒邊緣開啟&r", "&7在傳送門邊緣顯示私人目的地就緒狀態。", "&a已選擇"]
 rim_on_available = ["&b&l就緒邊緣開啟&r", "&7在傳送門邊緣顯示私人目的地就緒狀態。", "&e左鍵點擊以選擇"]
 rim_off_selected = ["&a&l就緒邊緣關閉&r", "&7隱藏就緒狀態邊緣。", "&a已選擇"]
@@ -1000,7 +1013,7 @@ sound_off_available = ["&b&l傳送門音效關閉&r", "&7靜音此 RTP 傳送門
 reroll = ["&b&l重選共享路線？&r", "&7替代路線準備就緒前，目前投影會保持線上。"]
 rebuild = ["&b&l重建私人目的地池？&r", "&7重建空閒候選目的地時，現有預留保持不變。"]
 confirm = ["&e&l確認&r", "&7立即執行此操作。", "&e左鍵點擊"]
-cancel = ["&e&l取消&r", "&7返回且不更改執行狀態。", "&e左鍵點擊"]
+cancel = ["&e&l取消&r", "&7返回且不變更執行狀態。", "&e左鍵點擊"]
 
 [item]
 portal_wand = ["&6&l傳送門法杖&r"]
@@ -1034,8 +1047,8 @@ route_card = "{portal} > {destination} | {amount} | {state}"
 
 [rules.menu]
 entry = ["&6規則", "&7誰可以通過、需要多少費用、通過後會發生什麼。"]
-cooldown = ["&6冷卻：{seconds}s", "&7左右鍵調整，按住 Shift 以 10 秒為步進。"]
-warmup = ["&6預熱：{seconds}s", "&7左右鍵調整，按住 Shift 以 10 秒為步進。"]
+cooldown = ["&6冷卻：{seconds} 秒", "&7左右鍵調整，按住 Shift 以 10 秒為步進。"]
+warmup = ["&6預熱：{seconds} 秒", "&7左右鍵調整，按住 Shift 以 10 秒為步進。"]
 group = ["&6冷卻分組：{value}", "&7點擊輸入分組名稱。"]
 pushback = ["&6推回力度：{value}", "&7左右鍵調整數值。"]
 sound = ["&6拒絕音量：{value}", "&7左右鍵調整數值。"]
@@ -1062,7 +1075,7 @@ default = "此傳送門拒絕了你。"
 entity_class = "只有 {mode} 才能使用此傳送門。"
 key = "你需要 {portal} 的鑰匙。"
 time = "{portal} 目前已關閉。"
-cooldown = "請等待 {seconds}s 後再使用 {portal}。"
+cooldown = "請等待 {seconds} 秒後再使用 {portal}。"
 charges = "{portal} 已沒有充能。"
 cost = "你無法支付 {amount} 來使用 {portal}。"
 
@@ -1078,8 +1091,8 @@ rule_id = "&b請輸入新規則的 ID（或 \"{cancel}\"）："
 line = "&b請輸入規則行，例如 kind=PERMISSION;node=group.vip（或 \"{cancel}\"）："
 
 [rules.warmup]
-countdown = "保持不動：{seconds}s"
-cancelled = "準備已取消。"
+countdown = "保持不動：{seconds} 秒"
+cancelled = "預熱已取消。"
 
 [rules.command]
 exported = "已將 {portal} 的規則寫入範本 {name}。"
@@ -1233,7 +1246,7 @@ header = "&6{name} &8- &f{count} 個傳送門&7，{value}，{mode}"
 member = "&e{address} &f{portal} &7位於 {world} &8{state}"
 
 [nexus.doctor]
-header = "&8[&6Wormholes&8] &6連結體檢：{count} 項發現。"
+header = "&8[&6Wormholes&8] &6連結診斷：{count} 項發現。"
 clean = "&8[&6Wormholes&8] &a未發現連結問題。"
 oneway = "&e{portal} -> {destination} 沒有回程連結。"
 dangling = "&c{portal} 指向一個已消失的目的地。"
@@ -1245,12 +1258,11 @@ set = "&8[&6Wormholes&8] &a{portal} 紅石：{value}。"
 
 [nexus.reciprocal]
 paired = "&8[&6Wormholes&8] &a{portal} 與 {destination} 現已雙向連結。"
-unpaired = "&8[&6Wormholes&8] &a{portal} 與 {destination} 不再回連。"
 denied = "&8[&6Wormholes&8] &c你無法同時管理 {portal} 和 {destination}。"
 
 [nexus.prompt]
-network_name = "&b在聊天欄輸入網路名稱（或輸入 '{cancel}'）："
-address = "&b在聊天欄輸入新位址（或輸入 '{cancel}'）："
+network_name = "&b在聊天欄輸入網路名稱（或輸入「{cancel}」）："
+address = "&b在聊天欄輸入新位址（或輸入「{cancel}」）："
 
 [nexus.menu]
 entry = ["&b&l網路&r", "&7網路、位址、撥號、目的地規則、紅石。", "&7網路：&f{name}", "&7位址：&f{address}", "&e左鍵"]
@@ -1258,12 +1270,12 @@ placard = ["&b&l網路：{name}&r", "&7位址：&f{address}", "&7成員：&f{cou
 join = ["&a&l加入網路&r", "&7把這個傳送門加入網路並分配位址。", "&e左鍵"]
 leave = ["&c&l離開 {name}&r", "&7把這個傳送門及其位址移出網路。", "&e左鍵"]
 create = ["&a&l建立網路&r", "&7為新網路命名，並把這個傳送門放進去。", "&e左鍵"]
-address = ["&e&l位址：{address}&r", "&7其他傳送門撥打這個短碼即可抵達此處。", "&e左鍵重新輸入。&e右鍵重新抽取。"]
+address = ["&e&l位址：{address}&r", "&7其他傳送門撥打這個短碼即可抵達此處。", "&e左鍵重新輸入。&e右鍵重選。"]
 visibility = ["&e&l可見性：{value}&r", "&7公開網路人人可見，成員網路僅成員可見，隱藏網路誰也看不到。", "&e左鍵切換"]
 topology = ["&e&l拓撲：{value}&r", "&7網狀可撥任一成員，樞紐經由一個傳送門中轉，鏈狀與環狀撥打相鄰成員。", "&e左鍵切換"]
 reciprocal = ["&e&l回程連結：{state}&r", "&7讓目的地始終指回這個傳送門。", "&e左鍵切換"]
 policy = ["&e&l目的地：{mode}&r", "&7{count} 筆。依順序、依權重、依排程、依玩家或回程。", "&e左鍵切換模式。&e右鍵清空。"]
-redstone = ["&e&l紅石：{value}&r", "&7框旁訊號上升緣的動作，以及比較器讀取的內容。", "&e左鍵設定動作。&e右鍵設定比較器輸出。"]
+redstone = ["&e&l紅石：{value}&r", "&7框架旁紅石訊號上升緣觸發的動作，以及比較器讀取的內容。", "&e左鍵設定動作。&e右鍵設定比較器輸出。"]
 dial = ["&b&l撥號&r", "&7把這個傳送門指向同一網路中的另一個位址。", "&e左鍵"]
 dial_entry = ["&e{address} &f{portal}", "&7{world}", "&b{state}"]
 link_and_return = ["&d&l連結並回連&r", "&7讓 {destination} 也指回 {portal}。", "&e左鍵"]
@@ -1289,7 +1301,7 @@ cleared = "&8[&6Wormholes&8] &a指引已關閉。"
 unknown = "&8[&6Wormholes&8] &c你的圖冊裡沒有名為 {portal} 的傳送門。"
 
 [atlas.menu]
-row = ["&6{portal}", "&7{world} &8- &f{destination}", "&b{state}", "", "&e左鍵撥號。&e右鍵置頂。&eShift+左鍵指引。"]
+row = ["&6{portal}", "&7{world} &8- &f{destination}", "&b{state}", "", "&e左鍵撥號。&e右鍵置頂。&eShift + 左鍵指引。"]
 favorites = ["&d&l僅置頂：{state}&r", "&7只顯示你置頂的傳送門。", "&e左鍵"]
 recents = ["&b&l僅最近：{state}&r", "&7只顯示你最近使用的傳送門。", "&e左鍵"]
 guide = ["&a&l指引：{portal}&r", "&7在快捷欄上方顯示前往目標傳送門的方位。", "&e左鍵停止指引"]
@@ -1358,7 +1370,7 @@ invalid = "&8[&6Wormholes&8] &c排空狀態必須為 on 或 off，收到 {value}
 
 [mesh.queue]
 position = "&7正在等待空閒伺服器：位置 &f{count}&7，&f{seconds}&7 秒"
-timeout = "&c沒有目標伺服器及時騰出位置。"
+timeout = "&c沒有目的地伺服器及時騰出位置。"
 
 [mesh.policy]
 none = "&c目前沒有可用的目的地。"
@@ -1373,7 +1385,7 @@ pending = "列出等待核准的被介紹伺服器"
 accept = "信任一台被介紹的伺服器並儲存其路由"
 reject = "丟棄某伺服器待處理的介紹"
 versions = "顯示每個對等伺服器的協定、外掛版本和能力"
-drain = "將本伺服器移出目的地輪替或放回"
+drain = "將本伺服器移出目的地輪換或放回"
 policy = "設定或清除閘道的目的地策略"
 
 [mesh.command.param.accept]
@@ -1415,10 +1427,10 @@ orientation = ["&6&l朝向：{mode}&r", "&7旅行者抵達時面朝的方向。"
 membrane = ["&6&l單向膜：{state}&r", "&7只有正面允許進入；背面會將旅行者推開。", "&e左鍵切換"]
 bounce = ["&6&l反彈：{state}&r", "&7將旅行者彈回而不是傳送。", "&e左鍵切換"]
 profile = ["&6&l過渡效果&r", "&7臨界 {mode}", "&7抵達 {state}", "&e左鍵：臨界效果，右鍵：抵達音效", "&eShift + 左鍵：遮罩刻數"]
-prompt = "&b在聊天中輸入新值（或輸入 '{cancel}'）："
+prompt = "&b在聊天中輸入新值（或輸入「{cancel}」）："
 scale = ["&6&l旅行者縮放：{mode}&r", "&7尺寸範圍 {value}。在不同大小的傳送門之間對應旅行。", "&e左鍵切換模式", "&e右鍵：最小值，Shift + 右鍵：最大值"]
 
-gravity = ["&6&l重力方向: {state}&r", "&7使用模組的玩家會隨傳送門旋轉地面、移動方向和角色模型。", "&e左鍵點擊切換"]
+gravity = ["&6&l重力方向：{state}&r", "&7使用模組的玩家會隨傳送門旋轉地面、移動方向和角色模型。", "&e左鍵點擊切換"]
 
 [transit.scale]
 current = "&8[&6Wormholes&8] &f{portal}&7 旅行者縮放：&f{mode}&7（{value}）"
@@ -1429,7 +1441,7 @@ reset_radius = "&8[&6Wormholes&8] &ctarget=all 需要 1 到 {value} 的半徑。
 reset_player = "&8[&6Wormholes&8] &c沒有名為 {name} 的線上玩家。"
 
 [transit.gravity]
-current = "&8[&6Wormholes&8] &f{portal}&7 重力方向: &f{state}"
+current = "&8[&6Wormholes&8] &f{portal}&7 重力方向：&f{state}"
 reset = "&8[&6Wormholes&8] &a已為 {name} 恢復正常重力。"
 client_required = "&8[&6Wormholes&8] &c此傳送門需要 Wormholes 用戶端模組才能改變重力方向。"
 # ---- end lane:transit ----
@@ -1464,14 +1476,14 @@ created = "&8[&6Wormholes&8] &a備份 &f{id}&a 已寫入 &f{path}&a。"
 restored = "&8[&6Wormholes&8] &a已從 &f{id}&a 還原 &f{count}&a 個傳送門。"
 dry_run = "&8[&6Wormholes&8] &7試執行：將有 &f{count}&7 個傳送門變更。"
 list_row = "&8[&6Wormholes&8] &f{id} &8| &f{count}&7 個傳送門 &8| &7{path}"
-list_empty = "&8[&6Wormholes&8] &f{path}&7 下沒有備份。"
+list_empty = "&8[&6Wormholes&8] &7在 &f{path}&7 下沒有備份。"
 not_found = "&8[&6Wormholes&8] &c沒有與 &f{id}&c 相符的備份。"
 confirm_required = "&8[&6Wormholes&8] &c加上 &fconfirm=true&c 重新執行以套用，或加上 &fdry=true&c 查看計畫。"
 failed = "&8[&6Wormholes&8] &c備份操作失敗：&f{reason}"
 reload_required = "&8[&6Wormholes&8] &7傳送門檔案已替換。執行 &f/wormholes reload&7 載入它們。"
 signature_broken = "&8[&6Wormholes&8] &c拒絕 &f{id}&c：簽章與內容不符。"
 signature_untrusted = "&8[&6Wormholes&8] &c拒絕 &f{id}&c：由 &f{fingerprint}&c 簽署，本伺服器並不信任它。加上 &fallow-unsigned=true&c 可仍然套用。"
-signature_ok = "&8[&6Wormholes&8] &7由 &f{name}&7 (&f{fingerprint}&7) 簽署。"
+signature_ok = "&8[&6Wormholes&8] &7由 &f{name}&7（&f{fingerprint}&7）簽署。"
 
 [ops.import]
 report = "&8[&6Wormholes&8] &f{name}&7：匯入 &f{count}&7 個傳送門，略過 &f{value}&7 個。"
@@ -1483,7 +1495,7 @@ row = "&8[&6Wormholes&8] &f{portal} &8| &7{world} &8| &7{state} &8| &7{destinati
 page = "&8[&6Wormholes&8] &7第 &f{page}&7/&f{pages} 頁"
 empty = "&8[&6Wormholes&8] &7沒有傳送門符合這些篩選條件。"
 not_found = "&8[&6Wormholes&8] &c沒有與 &f{name}&c 相符的傳送門。"
-ambiguous = "&8[&6Wormholes&8] &c有 {count} 個傳送門與 &f{name}&c 相符；請使用 id。"
+ambiguous = "&8[&6Wormholes&8] &c有 {count} 個傳送門與 &f{name}&c 相符；請使用 ID。"
 info = ["&8[&6Wormholes&8] &7傳送門 &f{portal} &8| &7{id}", "&8[&6Wormholes&8] &7世界 &f{world}&7 位置 &f{value}", "&8[&6Wormholes&8] &7狀態 &f{state}&7，目的地 &f{destination}&7，擁有者 &f{owner}"]
 teleported = "&8[&6Wormholes&8] &a已傳送至 &f{portal}&a。"
 teleport_unsafe = "&8[&6Wormholes&8] &e&f{portal}&e 附近沒有安全落點；改用傳送門中心。"
@@ -1498,10 +1510,10 @@ backup = "建立、列出、還原與交換傳送門備份"
 "backup.now" = "立即寫入一份傳送門資料備份"
 "backup.list" = "列出磁碟上的備份"
 "backup.restore" = "從備份還原傳送門檔案（dry=true 只顯示計畫）"
-"backup.restore.id" = "來自 /wormholes admin backup list 的備份 id"
+"backup.restore.id" = "來自 /wormholes admin backup list 的備份 ID"
 "backup.restore.dry" = "只回報將發生的變更，不寫入任何內容"
 "backup.restore.world_map" = "世界更名，格式為 舊=新,舊=新"
-"backup.restore.owner_map" = "擁有者更名，格式為 舊uuid=新uuid"
+"backup.restore.owner_map" = "擁有者更名，格式為 舊UUID=新UUID,舊UUID=新UUID"
 "backup.restore.confirm" = "dry=false 時寫入檔案所必需"
 "backup.allow_unsigned" = "套用未經受信任金鑰簽署的備份包"
 "backup.export" = "把備份包寫入可在伺服器間搬運的檔案"
@@ -1510,12 +1522,12 @@ backup = "建立、列出、還原與交換傳送門備份"
 "backup.import.file" = "要讀取的備份包檔案"
 "backup.import.dry" = "只回報將發生的變更，不寫入任何內容"
 "backup.import.world_map" = "世界更名，格式為 舊=新,舊=新"
-"backup.import.owner_map" = "擁有者更名，格式為 舊uuid=新uuid"
+"backup.import.owner_map" = "擁有者更名，格式為 舊UUID=新UUID,舊UUID=新UUID"
 "backup.import.confirm" = "dry=false 時寫入檔案所必需"
 "backup.import_from" = "從其他傳送門外掛的檔案匯入傳送門"
 "backup.import_from.source" = "stargate、advancedportals、multiverse、betterportals 或 essentials"
 "backup.import_from.dry" = "只回報將建立的內容，不建立任何東西"
-"backup.import_from.frame" = "為沒有邊框的資料指定邊框尺寸，格式為 寬,高"
+"backup.import_from.frame" = "為沒有框架的來源指定框架尺寸，格式為 寬,高"
 portals = "列出、檢視並批次編輯傳送門"
 "portals.list" = "依可選條件列出傳送門"
 "portals.list.world" = "僅此世界中的傳送門"
@@ -1526,14 +1538,14 @@ portals = "列出、檢視並批次編輯傳送門"
 "portals.find" = "尋找名稱包含該文字的傳送門"
 "portals.find.name" = "要搜尋的文字"
 "portals.info" = "顯示傳送門的世界、狀態、目的地與擁有者"
-"portals.info.portal" = "傳送門名稱或 id"
+"portals.info.portal" = "傳送門名稱或 ID"
 "portals.tp" = "傳送到某個傳送門並落在安全地面"
-"portals.tp.portal" = "傳送門名稱或 id"
+"portals.tp.portal" = "傳送門名稱或 ID"
 "portals.retarget" = "讓一個傳送門指向另一個本地傳送門"
-"portals.retarget.portal" = "要修改的傳送門名稱或 id"
-"portals.retarget.destination" = "目標傳送門名稱或 id"
+"portals.retarget.portal" = "要修改的傳送門名稱或 ID"
+"portals.retarget.destination" = "目標傳送門名稱或 ID"
 "portals.unlink" = "移除傳送門的目的地"
-"portals.unlink.portal" = "傳送門名稱或 id"
+"portals.unlink.portal" = "傳送門名稱或 ID"
 "portals.prune" = "移除目的地已不存在的連結"
 "portals.prune.dry" = "只回報將被移除的內容，不做任何變更"
 "portals.prune.confirm" = "dry=false 時執行移除所必需"
@@ -1542,10 +1554,10 @@ portals = "列出、檢視並批次編輯傳送門"
 "portals.rename_server.new" = "要改存的伺服器名稱"
 "portals.rename_server.confirm" = "改寫連結所必需"
 "portals.shape" = "顯示或設定傳送門的開口形狀"
-"portals.shape.portal" = "傳送門名稱或 id"
+"portals.shape.portal" = "傳送門名稱或 ID"
 "portals.shape.shape" = "形狀文字，例如 circle、flower(petals=7) 或 full；留空則顯示目前形狀"
 "portals.scale" = "查看或設定傳送門的旅行者縮放規則"
-"portals.scale.portal" = "傳送門名稱或 id"
+"portals.scale.portal" = "傳送門名稱或 ID"
 "portals.scale.mode" = "off、motion 或 ratio；全部省略則顯示目前規則"
 "portals.scale.min" = "ratio 穿越可達到的最小尺寸倍數（0.0625-16）"
 "portals.scale.max" = "ratio 穿越可達到的最大尺寸倍數（0.0625-16）"
@@ -1557,12 +1569,12 @@ portals = "列出、檢視並批次編輯傳送門"
 
 # ---- lane:clientview (clientview.*) ----
 [clientview.command]
-header = "&6ClientView &7執行時 {state}，設定 {mode}，{count} 個工作階段"
+header = "&6ClientView &7執行階段 {state}，設定 {mode}，{count} 個工作階段"
 row = "&e{name} &7{state} &8| &7{value}"
 none = "&7沒有玩家擁有 ClientView 工作階段。"
 enabled = "&a已重新提供 ClientView。設定：{mode}。"
 disabled = "&cClientView 已關閉。所有工作階段已恢復為原版投影。"
-reset = "&a正在重新啟動 {name} 的 ClientView 串流。"
+reset = "&a正在重新啟動 {name} 的 ClientView 資料流。"
 no_session = "&c{name} 沒有啟用中的 ClientView 工作階段。"
 player_missing = "&c沒有名為 {name} 的線上玩家。"
 
@@ -1571,7 +1583,7 @@ clientview = "執行 Wormholes 模組的玩家的 ClientView 工作階段"
 status = "列出所有 ClientView 工作階段"
 on = "重新向模組用戶端提供 ClientView"
 off = "讓所有 ClientView 玩家恢復原版投影"
-reset = "重新啟動某位玩家的 ClientView 串流"
+reset = "重新啟動某位玩家的 ClientView 資料流"
 "reset.player" = "線上玩家名稱"
 # ---- end lane:clientview ----
 
@@ -1605,7 +1617,7 @@ templates = "規則範本"
 access = "存取"
 transit = "通行"
 fidelity = "保真度"
-atlas = "圖鑑"
+atlas = "圖冊"
 door = "維度門存取"
 language = "語言"
 
@@ -1635,9 +1647,9 @@ reset = "重設"
 clear = "清除"
 colors = "顏色"
 advanced = "進階"
-reroll = "重新抽取"
+reroll = "重選"
 remove = "移除"
-favorite = "收藏"
+favorite = "置頂"
 guide = "指引"
 whitelist = "白名單"
 blacklist = "黑名單"
@@ -1650,8 +1662,8 @@ rtp_reset = ["重設 {portal}？", "所有隨機傳送設定都會恢復為預�
 "rtp_reset.accept" = "重設"
 rules_template = ["載入 {name}？", "範本會取代此傳送門的所有規則。"]
 "rules_template.accept" = "載入"
-nexus_leave = ["退出 {name}？", "此傳送門將停止透過網路撥號與接收。"]
-"nexus_leave.accept" = "退出"
+nexus_leave = ["離開 {name}？", "此傳送門將停止透過網路撥號與接收。"]
+"nexus_leave.accept" = "離開"
 
 [menu.native.feedback]
 refreshed = "選單已變更並已重新整理。"

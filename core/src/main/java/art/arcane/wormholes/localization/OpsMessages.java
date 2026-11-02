@@ -155,6 +155,7 @@ public final class OpsMessages {
         GROUP.text(BACKUP_RESTORE_WORLD_MAP_HELP, "World renames as old=new,old=new");
         GROUP.text(BACKUP_RESTORE_OWNER_MAP_HELP, "Owner renames as old-uuid=new-uuid,old-uuid=new-uuid");
         GROUP.text(BACKUP_RESTORE_CONFIRM_HELP, "Required to write files when dry=false");
+        GROUP.text(BACKUP_ALLOW_UNSIGNED_HELP, "Apply a bundle that no trusted key signed");
         GROUP.text(BACKUP_EXPORT_HELP, "Write a bundle to a file you can move between servers");
         GROUP.text(BACKUP_EXPORT_FILE_HELP, "Destination file; blank writes into the backups folder");
         GROUP.text(BACKUP_IMPORT_HELP, "Import a bundle exported from another server");

@@ -81,6 +81,7 @@ public final class BukkitMenuHost implements MenuHost {
         this.chestRenderer = new BukkitChestRenderer(plugin, new BukkitMenuIcons(plugin.getLogger(), portals::template, Material::isItem), captures);
         this.transport = new BukkitMenuTransport(plugin, chestRenderer);
         this.languages = new BukkitLanguageMenuHost(new BukkitLanguageMenuHost.Options(plugin.getLanguageService(), plugin.getLanguageEditor(),
+            locale -> plugin.getLanguages().displayName(locale),
             player -> plugin.getLanguageSwitcher().command(player, new String[]{"server"}), plugin.getLogger()));
         BukkitExtensionsMenuHost extensions = new BukkitExtensionsMenuHost();
         List<MenuController> controllers = new ArrayList<>(16);

@@ -15,7 +15,6 @@ import art.arcane.volmlib.util.localization.PluginLanguageEditor;
 import art.arcane.volmlib.util.localization.PluralValue;
 import art.arcane.volmlib.util.localization.TextKey;
 import art.arcane.volmlib.util.localization.TextValue;
-import art.arcane.volmlib.util.localization.VolmitLocales;
 import art.arcane.volmlib.util.plugin.ComponentText;
 import art.arcane.wormholes.localization.MenuMessages;
 import art.arcane.wormholes.menu.ButtonElement;
@@ -147,7 +146,7 @@ public final class LanguageMenuController implements MenuController {
             boolean active = locale.equalsIgnoreCase(defaultLocale);
             String id = LOCALE_PREFIX + locale;
             elements.add(new ListEntryElement(MenuElementCommon.builder(id)
-                .label(localeTitle(locale, VolmitLocales.displayName(locale).orElse(locale), active))
+                .label(localeTitle(locale, languages.displayName(locale), active))
                 .chestHints(List.of(strings.text(BukkitLanguageMessages.EDITOR_OPEN_LANGUAGE)))
                 .icon(MenuIcon.item(active ? "minecraft:writable_book" : "minecraft:book"))
                 .interactions(PRESS)

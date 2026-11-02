@@ -50,40 +50,41 @@ tasks.withType(Test).configureEach {
     jvmArgs '--enable-native-access=ALL-UNNAMED'
 }
 
-Provider<RegularFile> bundledLocalesFile = layout.buildDirectory.file('generated/locales/wormholes/bundled-locales.txt')
-FileTree bundledLanguageFiles = fileTree('../src/main/resources/languages') {
-    include('*.toml')
-}
-
-tasks.register('generateBundledLocales') {
-    inputs.files(bundledLanguageFiles)
-    outputs.file(bundledLocalesFile)
-    doLast {
-        List<String> locales = ['en_US']
-        bundledLanguageFiles.files.each { File languageFile ->
-            locales.add(languageFile.name.substring(0, languageFile.name.length() - '.toml'.length()))
+String languageSourceRepository = providers.gradleProperty('languageSourceRepository').orElse('VolmitSoftware/Wormholes').get()
+String languageSourceBranch = providers.gradleProperty('languageSourceBranch').orElse(providers.provider {
+    try {
+        Process process = new ProcessBuilder('git', 'symbolic-ref', '--short', 'refs/remotes/origin/HEAD')
+            .directory(projectDir)
+            .redirectErrorStream(true)
+            .start()
+        String output = process.inputStream.text.trim()
+        if (process.waitFor() == 0 && output.startsWith('origin/')) {
+            return output.substring('origin/'.length())
         }
-        File output = bundledLocalesFile.get().asFile
-        output.parentFile.mkdirs()
-        output.setText(locales.unique().sort().join('\n') + '\n', 'UTF-8')
+    } catch (IOException | InterruptedException ignored) {
     }
+    return 'master'
+}).get()
+if (!(languageSourceRepository ==~ /[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+/)) {
+    throw new GradleException('languageSourceRepository must be a GitHub owner/repository')
 }
-
-tasks.named('processResources').configure {
-    dependsOn(tasks.named('generateBundledLocales'))
-    from(layout.buildDirectory.dir('generated/locales'))
-    from('../src/main/resources') {
-        include('languages/*.toml')
-    }
+if (!(languageSourceBranch ==~ /[A-Za-z0-9][A-Za-z0-9._\/-]{0,127}/) || languageSourceBranch.contains('..')) {
+    throw new GradleException('languageSourceBranch must be a Git branch name')
 }
+String languageSourcePath = 'src/main/resources/languages'
+List<String> languageSourceLocales = fileTree("../${languageSourcePath}") {
+    include('*.toml')
+}.files.collect { File languageFile ->
+    languageFile.name.substring(0, languageFile.name.length() - '.toml'.length())
+}.sort()
 
 tasks.register('generateLanguageSourceManifest', WriteProperties) {
     destinationFile.set(layout.buildDirectory.file('generated/language-source/wormholes-language-source.properties'))
-    inputs.files(bundledLanguageFiles)
-    property('revision', 'main')
-    property('locales', bundledLanguageFiles.files.collect { File languageFile ->
-        languageFile.name.substring(0, languageFile.name.length() - '.toml'.length())
-    }.sort().join(','))
+    property('repository', languageSourceRepository)
+    property('branch', languageSourceBranch)
+    property('path', languageSourcePath)
+    property('extension', '.toml')
+    property('locales', languageSourceLocales.join(','))
 }
 
 tasks.register('generateBuildInfo', WriteProperties) {

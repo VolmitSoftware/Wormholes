@@ -81,8 +81,6 @@ public final class NexusMessages {
 
     public static final TextKey RECIPROCAL_PAIRED = GROUP.text("nexus.reciprocal.paired",
             "&8[&6Wormholes&8] &a{portal} and {destination} now link both ways.");
-    public static final TextKey RECIPROCAL_UNPAIRED = GROUP.text("nexus.reciprocal.unpaired",
-            "&8[&6Wormholes&8] &a{portal} and {destination} no longer link back.");
     public static final TextKey RECIPROCAL_DENIED = GROUP.text("nexus.reciprocal.denied",
             "&8[&6Wormholes&8] &cYou cannot manage both {portal} and {destination}.");
 

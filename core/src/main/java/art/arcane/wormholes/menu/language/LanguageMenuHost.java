@@ -12,6 +12,8 @@ public interface LanguageMenuHost {
 
     String defaultLocale();
 
+    String displayName(String locale);
+
     Optional<LanguageMenuView> document(String locale);
 
     CompletableFuture<LanguageMenuView> load(String locale);

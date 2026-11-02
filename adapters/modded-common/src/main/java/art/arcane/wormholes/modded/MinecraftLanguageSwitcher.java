@@ -8,7 +8,6 @@ import art.arcane.volmlib.util.localization.MessageArgumentKind;
 import art.arcane.volmlib.util.localization.PluginLanguageService;
 import art.arcane.volmlib.util.localization.ResolvedText;
 import art.arcane.volmlib.util.localization.TextKey;
-import art.arcane.volmlib.util.localization.VolmitLocales;
 import art.arcane.volmlib.util.plugin.ComponentText;
 import art.arcane.wormholes.localization.WormholesMessageRenderer;
 import art.arcane.wormholes.menu.language.LanguageMenuView;
@@ -230,7 +229,7 @@ final class MinecraftLanguageSwitcher {
         }
         for (int index = page.startIndex(); index < page.endIndex(); index++) {
             String locale = locales.get(index);
-            String name = VolmitLocales.displayName(locale).orElse(locale);
+            String name = localization.displayName(locale);
             lines.add(languageLink(source, locale, name, locale.equalsIgnoreCase(current), base + " " + locale));
         }
         if (page.page() == 1 && scope.equals("self") && player != null && languages().playerLocale(player.getUUID()).isPresent()) {

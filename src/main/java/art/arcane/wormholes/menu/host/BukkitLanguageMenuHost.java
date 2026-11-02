@@ -7,6 +7,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
+import java.util.function.UnaryOperator;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -35,6 +36,11 @@ public final class BukkitLanguageMenuHost implements LanguageMenuHost {
     @Override
     public String defaultLocale() {
         return options.languages().defaultLocale();
+    }
+
+    @Override
+    public String displayName(String locale) {
+        return options.displayNames().apply(locale);
     }
 
     @Override
@@ -68,10 +74,12 @@ public final class BukkitLanguageMenuHost implements LanguageMenuHost {
         return view;
     }
 
-    public record Options(PluginLanguageService languages, PluginLanguageEditor editor, Consumer<Player> exit, Logger logger) {
+    public record Options(PluginLanguageService languages, PluginLanguageEditor editor, UnaryOperator<String> displayNames,
+                          Consumer<Player> exit, Logger logger) {
         public Options {
             Objects.requireNonNull(languages, "languages");
             Objects.requireNonNull(editor, "editor");
+            Objects.requireNonNull(displayNames, "displayNames");
             Objects.requireNonNull(exit, "exit");
             Objects.requireNonNull(logger, "logger");
         }
