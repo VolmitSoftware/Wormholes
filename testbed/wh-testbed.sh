@@ -26,8 +26,8 @@
 set -euo pipefail
 
 # ---- configuration ----------------------------------------------------------
-MANAGER_DIR="${WH_MANAGER_DIR:-/Users/brianfopiano/Developer/RemoteGit/[Minecraft Server]}"
-WH_PLUGIN="${WH_PLUGIN_DIR:-/Users/brianfopiano/Developer/RemoteGit/VolmitSoftware/WormholesPlugin}"
+MANAGER_DIR="${WH_MANAGER_DIR:-/Users/creepshow/Developer/RemoteGit/VolmitSoftware/ServerMultiplexor}"
+WH_PLUGIN="${WH_PLUGIN_DIR:-/Users/creepshow/Developer/RemoteGit/VolmitSoftware/Wormholes}"
 DROPINS="${MANAGER_DIR}/consumers/plugin-consumers/dropins/plugins"
 
 A_NAME="WH-ALPHA"; A_GAME_PORT=25566; A_WH_PORT=8902

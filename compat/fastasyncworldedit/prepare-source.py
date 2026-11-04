@@ -35,7 +35,9 @@ def main() -> None:
         if hashlib.sha256(archive.read_bytes()).hexdigest() != ARCHIVE_SHA256:
             raise RuntimeError("FAWE source archive checksum does not match the pinned commit")
         with tarfile.open(archive, "r:gz") as source:
-            source.extractall(temporary_path, filter="data")
+            # The archive is already pinned by checksum; older Pythons have no extraction filter.
+            options = {"filter": "data"} if hasattr(tarfile, "data_filter") else {}
+            source.extractall(temporary_path, **options)
         checkout = temporary_path / f"FastAsyncWorldEdit-{COMMIT}"
         for patch in sorted(patches.glob("*.patch")):
             subprocess.run(["patch", "--batch", "--forward", "--dry-run", "-p1", "-i", str(patch)],
