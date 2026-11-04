@@ -88,7 +88,7 @@ final class PortalPipelines implements AutoCloseable {
         return RenderPipeline.builder().withLocation(Identifier.fromNamespaceAndPath("wormholes", "portal_layer"))
             .withVertexShader(Identifier.fromNamespaceAndPath("wormholes", "core/portal_layer"))
             .withFragmentShader(Identifier.fromNamespaceAndPath("wormholes", "core/portal_layer"))
-            .withSampler("Sampler0").withSampler("Sampler1")
+            .withUniform("Globals", UniformType.UNIFORM_BUFFER).withSampler("Sampler0").withSampler("Sampler1")
             .withDepthStencilState(DepthStencilState.DEFAULT).withColorTargetState(ColorTargetState.DEFAULT).withCull(false)
             .withVertexFormat(DefaultVertexFormat.POSITION, VertexFormat.Mode.QUADS).build();
     }

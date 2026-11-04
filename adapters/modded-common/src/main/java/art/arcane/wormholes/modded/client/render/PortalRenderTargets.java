@@ -16,6 +16,9 @@ final class PortalRenderTargets implements AutoCloseable {
     private final PortalFeatureRenderer[] features = new PortalFeatureRenderer[DEPTHS];
     private final ProjectionMatrixBuffer[] projections = new ProjectionMatrixBuffer[DEPTHS];
     private final Target layer = new Target();
+    private final Target viewDepth = new Target();
+    private final Target depthCopy = new Target();
+    private ProjectionMatrixBuffer viewDepthTransform;
     private final Map<Integer, Target> travel = new HashMap<>();
 
     PortalRenderTargets() {
@@ -46,6 +49,21 @@ final class PortalRenderTargets implements AutoCloseable {
         return layer.resize(width, height);
     }
 
+    TextureTarget viewDepth(int width, int height) {
+        return viewDepth.resize(width, height);
+    }
+
+    TextureTarget depthCopy(int width, int height, GpuFormat depthFormat) {
+        return depthCopy.resize(width, height, depthFormat);
+    }
+
+    ProjectionMatrixBuffer viewDepthTransform() {
+        if (viewDepthTransform == null) {
+            viewDepthTransform = new ProjectionMatrixBuffer("Portal view depth");
+        }
+        return viewDepthTransform;
+    }
+
     TextureTarget scratch(int depth, int width, int height) {
         return scratch[depth].resize(width, height);
     }
@@ -69,7 +87,7 @@ final class PortalRenderTargets implements AutoCloseable {
     }
 
     long bytes() {
-        long bytes = layer.bytes();
+        long bytes = layer.bytes() + viewDepth.bytes() + depthCopy.bytes();
         for (Target target : travel.values()) {
             bytes += target.bytes();
         }
@@ -94,6 +112,12 @@ final class PortalRenderTargets implements AutoCloseable {
         }
         travel.clear();
         layer.close();
+        viewDepth.close();
+        depthCopy.close();
+        if (viewDepthTransform != null) {
+            viewDepthTransform.close();
+            viewDepthTransform = null;
+        }
         for (int depth = 0; depth < DEPTHS; depth++) {
             scratch[depth].close();
             if (features[depth] != null) {
@@ -109,14 +133,20 @@ final class PortalRenderTargets implements AutoCloseable {
 
     private static final class Target implements AutoCloseable {
         private TextureTarget texture;
+        private GpuFormat depthFormat;
         private SkyRenderer sky;
 
         private TextureTarget resize(int width, int height) {
-            if (texture == null || texture.width != width || texture.height != height) {
+            return resize(width, height, GpuFormat.D32_FLOAT);
+        }
+
+        private TextureTarget resize(int width, int height, GpuFormat depthFormat) {
+            if (texture == null || texture.width != width || texture.height != height || this.depthFormat != depthFormat) {
                 if (texture != null) {
                     texture.destroyBuffers();
                 }
-                texture = new TextureTarget("Wormholes portal layer", width, height, GpuFormat.RGBA8_UNORM, GpuFormat.D32_FLOAT);
+                texture = new TextureTarget("Wormholes portal layer", width, height, GpuFormat.RGBA8_UNORM, depthFormat);
+                this.depthFormat = depthFormat;
                 if (sky != null) {
                     sky.close();
                     sky = null;

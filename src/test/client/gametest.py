@@ -17,7 +17,7 @@ import zipfile
 
 ROOT = Path(__file__).resolve().parents[3]
 FABRIC = ROOT / "adapters/fabric"
-QA_WORKSPACE = ROOT.parent.parent / "[Minecraft Server]/.multiplexor/qa"
+QA_WORKSPACE = ROOT.parent / "ServerMultiplexor/.multiplexor/qa"
 
 
 def groovy(value: str) -> str:
@@ -161,7 +161,7 @@ def fabric_mod(path: Path) -> dict:
     with zipfile.ZipFile(path) as archive:
         if "fabric.mod.json" not in archive.namelist():
             raise ValueError("--mod requires a Fabric mod jar: " + str(path))
-        return json.loads(archive.read("fabric.mod.json"))
+        return json.loads(archive.read("fabric.mod.json"), strict=False)
 
 
 def supported_dh_pack(path: Path) -> None:
@@ -278,7 +278,9 @@ def execute(args: argparse.Namespace) -> int:
         raise ValueError("--iris installs Iris without a shader pack and requires --renderer sodium")
     if distant_horizons is not None and shader is not None:
         supported_dh_pack(shader)
-    mods: list[Path] = [mod.resolve() for mod in args.mod]
+    if args.metal is not None and args.renderer != "vanilla":
+        raise ValueError("--metal replaces the renderer and requires --renderer vanilla")
+    mods: list[Path] = [mod.resolve() for mod in args.mod + ([args.metal] if args.metal is not None else [])]
     mod_metadata: list[dict] = [fabric_mod(mod) for mod in mods]
     bridge_root = ROOT / "build/client-automator"
     if args.minecraft_version != "26.3":
@@ -325,6 +327,8 @@ def execute(args: argparse.Namespace) -> int:
         resources.mkdir()
         metadata = json.loads((FABRIC / "src/clientGameTest/resources/fabric.mod.json").read_text())
         metadata["entrypoints"] = {"fabric-client-gametest": tests}
+        if args.metal is not None:
+            metadata["mixins"] = [mixin for mixin in metadata["mixins"] if mixin != "wormholes_vanilla_preparation_clientgametest.mixins.json"]
         (resources / "fabric.mod.json").write_text(json.dumps(metadata, indent=2) + "\n")
         for path in (ROOT / "adapters/modded-common/src/clientGameTest/resources").iterdir():
             if path.is_file():
@@ -346,6 +350,8 @@ def execute(args: argparse.Namespace) -> int:
         if args.iris_baseline_source is not None:
             baseline, baseline_resources, replaced = baseline_overlay(args.iris_baseline_source.resolve(), evidence)
         jvm_args = args.jvm_arg + (["-Dwormholes.test.dhShutdown=true"] if distant_horizons is not None else [])
+        if args.metal is not None:
+            jvm_args = ["-Dmcopt.shade=true"] + jvm_args
         script.write_text(init_script(run, resources, bridge, sodium, token, iris, distant_horizons, shader is not None,
                                      jvm_args, baseline, baseline_resources, replaced, mods, args.server, args.username))
         log = evidence / "runtime.log"
@@ -450,6 +456,7 @@ def main() -> int:
     parser.add_argument("--iris", action="store_true")
     parser.add_argument("--distant-horizons", type=Path)
     parser.add_argument("--mod", type=Path, action="append", default=[])
+    parser.add_argument("--metal", type=Path)
     parser.add_argument("--iris-baseline-source", type=Path)
     parser.add_argument("--jvm-arg", action="append", default=[])
     parser.add_argument("--timeout", type=int, default=1200)

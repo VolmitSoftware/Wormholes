@@ -11,6 +11,7 @@ import art.arcane.wormholes.modded.client.render.stencil.PortalStencilRenderer;
 import art.arcane.wormholes.modded.client.render.stencil.PortalStencil;
 import art.arcane.wormholes.modded.client.render.stencil.PortalSurface;
 import art.arcane.wormholes.modded.client.render.stencil.PortalViewSelection;
+import art.arcane.wormholes.modded.client.render.stencil.StencilPipelines;
 
 import art.arcane.optics.aperture.AperturePolygon;
 import art.arcane.optics.aperture.ApertureDescriptor;
@@ -34,6 +35,7 @@ import com.mojang.blaze3d.vertex.MeshData;
 import com.mojang.logging.LogUtils;
 import com.mojang.renderpearl.api.buffers.GpuBuffer;
 import com.mojang.renderpearl.api.buffers.GpuBufferSlice;
+import com.mojang.renderpearl.api.commands.CommandEncoder;
 import com.mojang.renderpearl.api.commands.RenderPass;
 import com.mojang.renderpearl.api.pipeline.CompiledRenderPipeline;
 import com.mojang.renderpearl.api.pipeline.PrimitiveTopology;
@@ -118,6 +120,7 @@ public final class ClientPortalRenderer {
     private ClientLevel frameLevel;
     private final PortalRenderTargets targets = new PortalRenderTargets();
     private TextureTarget portalLayer;
+    private TextureTarget portalViewDepth;
     private PortalGpuMesh layerMesh;
     private final Matrix4f frameProjection = new Matrix4f();
     private int pendingBuilds;
@@ -368,6 +371,7 @@ public final class ClientPortalRenderer {
         buildDemand.clear();
         shadedMaterials = null;
         portalLayer = null;
+        portalViewDepth = null;
         frameLevel = null;
         for (Portal portal : portals.values()) {
             portal.rendered = false;
@@ -521,6 +525,7 @@ public final class ClientPortalRenderer {
         frameHeight = main.height;
         RenderDimensions dimensions = new RenderDimensions(main.width, main.height, 0);
         portalLayer = null;
+        portalViewDepth = null;
         if (layerMesh == null) {
             layerMesh = fullscreenMesh();
         }
@@ -544,6 +549,7 @@ public final class ClientPortalRenderer {
                     portalLayer.getColorTextureView(), Optional.empty(), portalLayer.getDepthTextureView(), OptionalDouble.empty())) {
                     composite(portal, null, pass);
                 }
+                captureViewDepth(portal, main);
             }
         }
         if (shadedMaterials != null) {
@@ -857,8 +863,61 @@ public final class ClientPortalRenderer {
         }
     }
 
+    private void captureViewDepth(Portal portal, RenderTarget main) {
+        if (portalViewDepth == null) {
+            portalViewDepth = targets.viewDepth(main.width, main.height);
+            try (RenderPass clear = RenderSystem.getDevice().createCommandEncoder().createRenderPass(() -> "Wormholes view depth clear",
+                portalViewDepth.getColorTextureView(), Optional.of(new Vector4f(0.0f)), portalViewDepth.getDepthTextureView(), OptionalDouble.of(0.0))) {
+            }
+        }
+        camera = portal.camera;
+        boolean shaped = portal.affine != null || portal.aperture.hasShape();
+        GpuBufferSlice contentToRoot = targets.viewDepthTransform().getBuffer(new Matrix4f(frameProjection).mul(clippedProjection(portal).invert()));
+        GpuBufferSlice transform = portal.affine == null
+            ? transform(portal.scene.geometry().originX(), portal.scene.geometry().originY(), portal.scene.geometry().originZ())
+            : RenderSystem.getDynamicUniforms().writeTransform(affineApertureView(portal));
+        try (RenderPass pass = RenderSystem.getDevice().createCommandEncoder().createRenderPass(() -> "Wormholes view depth",
+            portalViewDepth.getColorTextureView(), Optional.empty(), portalViewDepth.getDepthTextureView(), OptionalDouble.empty())) {
+            pass.setPipeline(RenderSystem.getCompiledPipeline(shaped ? StencilPipelines.VIEW_DEPTH_SHAPED : StencilPipelines.VIEW_DEPTH));
+            RenderSystem.bindDefaultUniforms(pass);
+            pass.setUniform("DynamicTransforms", transform);
+            pass.setUniform("Portal", portal.compositeUniform);
+            pass.setUniform("ViewDepth", contentToRoot);
+            pass.setUniform("Sampler0", portal.target.getDepthTextureView(), sampler());
+            portal.apertureMesh.draw(pass);
+        }
+    }
+
+    /**
+     * The layer writes each aperture's own plane so later world draws sort against the portal surface. Once they have finished, replace it
+     * with the depth of what the aperture shows: anything reading the depth buffer afterwards to reproject, such as temporal upscaling,
+     * then moves the view's pixels with the scene behind the aperture instead of smearing them across a flat surface.
+     */
+    public void publishViewDepth() {
+        if (PortalShaderScope.shaders() || !frameCurrent() || visible.isEmpty() || layerMesh == null || portalLayer == null || portalViewDepth == null) {
+            return;
+        }
+        RenderTarget main = ClientRenderAccess.mainTarget(Minecraft.getInstance());
+        if (main.getDepthTexture() == null || main.width != portalLayer.width || main.height != portalLayer.height) {
+            return;
+        }
+        TextureTarget copy = targets.depthCopy(main.width, main.height, main.getDepthTexture().getFormat());
+        CommandEncoder encoder = RenderSystem.getDevice().createCommandEncoder();
+        encoder.copyTextureToTexture(main.getDepthTexture(), copy.getDepthTexture(), 0, 0, 0, 0, 0, main.width, main.height);
+        try (RenderPass pass = encoder.createRenderPass(() -> "Wormholes view depth publish", main.getColorTextureView(), Optional.empty(),
+            main.getDepthTextureView(), OptionalDouble.empty())) {
+            pass.setPipeline(RenderSystem.getCompiledPipeline(StencilPipelines.DEPTH_PUBLISH));
+            RenderSystem.bindDefaultUniforms(pass);
+            pass.setUniform("Sampler0", portalLayer.getDepthTextureView(), sampler());
+            pass.setUniform("Sampler1", copy.getDepthTextureView(), sampler());
+            pass.setUniform("Sampler2", portalViewDepth.getDepthTextureView(), sampler());
+            layerMesh.draw(pass);
+        }
+    }
+
     private void drawLayer(RenderPass pass, RenderTarget layer) {
         pass.setPipeline(pipelines.layer());
+        RenderSystem.bindDefaultUniforms(pass);
         pass.setUniform("Sampler0", layer.getColorTextureView(), sampler());
         pass.setUniform("Sampler1", layer.getDepthTextureView(), sampler());
         layerMesh.draw(pass);
@@ -1798,6 +1857,7 @@ public final class ClientPortalRenderer {
         }
         targets.close();
         portalLayer = null;
+        portalViewDepth = null;
         if (layerMesh != null) {
             layerMesh.close();
             layerMesh = null;
