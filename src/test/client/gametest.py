@@ -75,7 +75,8 @@ def selected_tests(suite: str, names: list[str]) -> list[str]:
 
 def init_script(run: Path, resources: Path, bridge: Path, sodium: Path | None, token: str, iris: Path | None,
                 distant_horizons: Path | None, shader: bool, jvm_args: list[str], baseline: Path | None,
-                baseline_resources: Path | None, replaced: list[Path], mods: list[Path], server: str | None, username: str | None) -> str:
+                baseline_resources: Path | None, replaced: list[Path], mods: list[Path], server: str | None, username: str | None,
+                graphics_backend: str = "") -> str:
     dependencies = "fabric.dependencies.add('clientGameTestRuntimeOnly', fabric.files(" + groovy(str(bridge)) + "))"
     if sodium is not None:
         dependencies += "\n    fabric.dependencies.add('clientGameTestRuntimeOnly', fabric.files(" + groovy(str(sodium)) + "))"
@@ -103,6 +104,8 @@ def init_script(run: Path, resources: Path, bridge: Path, sodium: Path | None, t
     if username is not None:
         connection.append("programArgs('--username', " + groovy(username) + ")")
         connection.append("systemProperties.put('wormholes.clientgametest.username', " + groovy(username) + ")")
+    if graphics_backend:
+        connection.append("programArgs('--graphicsBackend', " + groovy(graphics_backend) + ")")
     return """gradle.projectsEvaluated {
     Project fabric = gradle.rootProject
     if (fabric.name != 'wormholes-fabric') {
@@ -280,6 +283,8 @@ def execute(args: argparse.Namespace) -> int:
         supported_dh_pack(shader)
     if args.metal is not None and args.renderer != "vanilla":
         raise ValueError("--metal replaces the renderer and requires --renderer vanilla")
+    if args.metal is not None and args.graphics_backend:
+        raise ValueError("--metal brings its own graphics backend; drop --graphics-backend")
     mods: list[Path] = [mod.resolve() for mod in args.mod + ([args.metal] if args.metal is not None else [])]
     mod_metadata: list[dict] = [fabric_mod(mod) for mod in mods]
     bridge_root = ROOT / "build/client-automator"
@@ -327,7 +332,7 @@ def execute(args: argparse.Namespace) -> int:
         resources.mkdir()
         metadata = json.loads((FABRIC / "src/clientGameTest/resources/fabric.mod.json").read_text())
         metadata["entrypoints"] = {"fabric-client-gametest": tests}
-        if args.metal is not None:
+        if args.metal is not None or args.graphics_backend not in ("", "opengl"):
             metadata["mixins"] = [mixin for mixin in metadata["mixins"] if mixin != "wormholes_vanilla_preparation_clientgametest.mixins.json"]
         (resources / "fabric.mod.json").write_text(json.dumps(metadata, indent=2) + "\n")
         for path in (ROOT / "adapters/modded-common/src/clientGameTest/resources").iterdir():
@@ -353,7 +358,7 @@ def execute(args: argparse.Namespace) -> int:
         if args.metal is not None:
             jvm_args = ["-Dmcopt.shade=true"] + jvm_args
         script.write_text(init_script(run, resources, bridge, sodium, token, iris, distant_horizons, shader is not None,
-                                     jvm_args, baseline, baseline_resources, replaced, mods, args.server, args.username))
+                                     jvm_args, baseline, baseline_resources, replaced, mods, args.server, args.username, args.graphics_backend))
         log = evidence / "runtime.log"
         print("Tests: " + ", ".join(test.rsplit(".", 1)[1] for test in tests), flush=True)
         if args.server is not None:
@@ -434,7 +439,7 @@ def execute(args: argparse.Namespace) -> int:
                 shutil.copytree(recordings, evidence / 'native-demo', dirs_exist_ok=True)
             (evidence / "hidden-states.json").write_text(json.dumps(states, indent=2) + "\n")
             (evidence / "result.json").write_text(json.dumps({"passed": success, "tests": tests, "minecraftVersion": args.minecraft_version, "renderer": args.renderer,
-                "shaderPack": shader.name if shader is not None else None, "iris": iris is not None,
+                "shaderPack": shader.name if shader is not None else None, "iris": iris is not None, "graphicsBackend": args.graphics_backend,
                 "distantHorizons": {"path": str(distant_horizons), "version": dh_metadata["version"]} if dh_metadata is not None else None,
                 "mods": [{"path": str(mod), "id": metadata.get("id"), "version": metadata.get("version")} for mod, metadata in zip(mods, mod_metadata)],
                 "server": args.server, "username": args.username, "failure": failure}, indent=2) + "\n")
@@ -457,6 +462,7 @@ def main() -> int:
     parser.add_argument("--distant-horizons", type=Path)
     parser.add_argument("--mod", type=Path, action="append", default=[])
     parser.add_argument("--metal", type=Path)
+    parser.add_argument("--graphics-backend", choices=["opengl", "vulkan"], default="")
     parser.add_argument("--iris-baseline-source", type=Path)
     parser.add_argument("--jvm-arg", action="append", default=[])
     parser.add_argument("--timeout", type=int, default=1200)
