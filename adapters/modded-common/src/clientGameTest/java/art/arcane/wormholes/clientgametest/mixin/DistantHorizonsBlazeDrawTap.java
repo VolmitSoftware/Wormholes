@@ -1,7 +1,7 @@
 package art.arcane.wormholes.clientgametest.mixin;
 
 import art.arcane.wormholes.clientgametest.DistantHorizonsTap;
-import art.arcane.wormholes.modded.client.render.stencil.PortalClipShaders;
+import art.arcane.wormholes.modded.client.render.WormholesRenderers;
 import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.mojang.renderpearl.api.pipeline.RenderPipeline;
@@ -33,7 +33,7 @@ public abstract class DistantHorizonsBlazeDrawTap {
     @Redirect(method = "render", at = @At(value = "INVOKE", target = "Lcom/seibel/distanthorizons/common/render/blaze/wrappers/RenderPassWrapper;setPipeline(Lcom/mojang/renderpearl/api/pipeline/RenderPipeline;)V"))
     private void wormholesTest$pipeline(RenderPassWrapper pass, RenderPipeline pipeline) {
         if (!wormholesTest$loggedPipeline) {
-            System.out.println("DH Blaze pipeline shaders=" + pipeline.getShaders() + " OpenGL=" + PortalClipShaders.openGl());
+            System.out.println("DH Blaze pipeline shaders=" + pipeline.getShaders() + " device=" + WormholesRenderers.device().name());
             wormholesTest$loggedPipeline = true;
         }
         pass.setPipeline(pipeline);

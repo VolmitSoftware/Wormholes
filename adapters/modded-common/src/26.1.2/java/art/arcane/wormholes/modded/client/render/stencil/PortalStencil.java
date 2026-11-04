@@ -6,6 +6,9 @@
  */
 package art.arcane.wormholes.modded.client.render.stencil;
 
+import art.arcane.wormholes.modded.client.render.WormholesRenderers;
+
+
 import com.mojang.blaze3d.opengl.GlStateManager;
 import com.mojang.blaze3d.opengl.GlTexture;
 import com.mojang.blaze3d.pipeline.MainTarget;
@@ -31,7 +34,7 @@ public final class PortalStencil {
     }
 
     public static void createTarget(boolean stencil, Runnable creation) {
-        if (!stencil || !PortalBackends.stencilBuffer()) {
+        if (!stencil || !WormholesRenderers.device().stencilAttachment()) {
             creation.run();
             return;
         }

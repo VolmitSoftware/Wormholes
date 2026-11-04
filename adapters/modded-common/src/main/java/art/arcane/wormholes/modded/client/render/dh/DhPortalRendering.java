@@ -1,6 +1,7 @@
 package art.arcane.wormholes.modded.client.render.dh;
 
 import art.arcane.optics.math.Vec3d;
+import art.arcane.wormholes.modded.client.render.WormholesRenderers;
 import art.arcane.wormholes.modded.client.render.stencil.PortalView;
 import art.arcane.wormholes.modded.mixin.client.DhPortalClientApiAccess;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -8,8 +9,7 @@ import org.joml.Matrix4fc;
 import org.joml.Vector4dc;
 
 public final class DhPortalRendering {
-    private static final boolean PRESENT = DhPortalRendering.class.getClassLoader()
-        .getResource("com/seibel/distanthorizons/core/api/internal/ClientApi.class") != null;
+    private static final boolean PRESENT = WormholesRenderers.installed(WormholesRenderers.DISTANT_HORIZONS);
     private static final Scope NONE = () -> {};
 
     private DhPortalRendering() {

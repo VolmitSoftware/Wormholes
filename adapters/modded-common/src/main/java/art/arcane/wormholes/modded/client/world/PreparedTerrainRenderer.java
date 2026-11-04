@@ -1,6 +1,7 @@
 package art.arcane.wormholes.modded.client.world;
 
 import art.arcane.wormholes.modded.client.PreparedChunkColumns;
+import art.arcane.wormholes.modded.client.render.WormholesRenderers;
 import art.arcane.wormholes.network.client.ArrivalMessage;
 import art.arcane.wormholes.modded.client.render.sodium.SodiumArrivalTerrain;
 import art.arcane.wormholes.modded.client.render.iris.IrisPipelines;
@@ -27,10 +28,8 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
 public final class PreparedTerrainRenderer {
-    private static final boolean SODIUM = PreparedTerrainRenderer.class.getClassLoader()
-        .getResource("net/caffeinemc/mods/sodium/client/render/SodiumWorldRenderer.class") != null;
-    private static final boolean IRIS = PreparedTerrainRenderer.class.getClassLoader()
-        .getResource("net/irisshaders/iris/Iris.class") != null;
+    private static final boolean SODIUM = WormholesRenderers.installed(WormholesRenderers.SODIUM);
+    private static final boolean IRIS = WormholesRenderers.installed(WormholesRenderers.IRIS);
     private static final int BUILDS_PER_TICK = 4;
 
     private final ClientLevel level;

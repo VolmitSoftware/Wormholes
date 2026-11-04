@@ -1,6 +1,7 @@
 package art.arcane.wormholes.modded.client.render.stencil;
 
 import art.arcane.wormholes.modded.client.ClientRenderAccess;
+import art.arcane.wormholes.modded.client.render.WormholesRenderers;
 import art.arcane.wormholes.modded.client.render.dh.DhBlazeClipTransformation;
 import art.arcane.wormholes.modded.client.render.sodium.SodiumClipShaders;
 import com.mojang.logging.LogUtils;
@@ -16,7 +17,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.Optional;
 
 public final class PortalClipShaders {
-    public static final String OPEN_GL = "OpenGL";
     public static final int PROJECTION_UBO_SIZE = 80;
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final Identifier PROJECTION = Identifier.withDefaultNamespace("shaders/include/projection.glsl");
@@ -29,7 +29,7 @@ public final class PortalClipShaders {
 
     public static void beginLoad(ResourceManager manager) {
         SodiumClipShaders.reset();
-        loading = openGl() && transformable(manager);
+        loading = WormholesRenderers.device().shaderClipPlanes() && transformable(manager);
     }
 
     public static void endLoad() {
@@ -44,10 +44,6 @@ public final class PortalClipShaders {
 
     public static boolean ready() {
         return ready;
-    }
-
-    public static boolean openGl() {
-        return OPEN_GL.equals(ClientRenderAccess.backendName());
     }
 
     public static String include(Identifier location, String contents) {

@@ -2,6 +2,7 @@ package art.arcane.wormholes.clientgametest;
 
 import art.arcane.wormholes.modded.client.ClientArrivalPreparation;
 import art.arcane.wormholes.modded.client.WormholesClient;
+import art.arcane.wormholes.modded.client.render.WormholesRenderers;
 import art.arcane.wormholes.modded.client.render.sodium.SodiumArrivalSection;
 import art.arcane.wormholes.modded.client.render.sodium.SodiumPortalRenderer;
 import art.arcane.wormholes.modded.client.render.sodium.SodiumPortalSections;
@@ -56,7 +57,7 @@ final class PaperArrivalDiagnostics {
             ArrivalChunkBuffer buffer = (ArrivalChunkBuffer) field(stage, "buffer");
             summary += " chunks=" + buffer.receivedChunks() + " lights=" + ((ArrivalLevelAccess) level).wormholes$pendingLight().size()
                 + " lightWork=" + level.getChunkSource().getLightEngine().hasLightWork();
-            if (PaperArrivalDiagnostics.class.getClassLoader().getResource("net/caffeinemc/mods/sodium/client/render/SodiumWorldRenderer.class") == null) {
+            if (!WormholesRenderers.installed(WormholesRenderers.SODIUM)) {
                 return summary;
             }
             Object renderer = field(stage, "renderer");
@@ -83,7 +84,7 @@ final class PaperArrivalDiagnostics {
     }
 
     private static String iris() {
-        if (PaperArrivalDiagnostics.class.getClassLoader().getResource("net/irisshaders/iris/Iris.class") == null) {
+        if (!WormholesRenderers.installed(WormholesRenderers.IRIS)) {
             return "";
         }
         try {

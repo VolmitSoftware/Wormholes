@@ -1,9 +1,9 @@
 package art.arcane.wormholes.modded.mixin.client;
 
+import art.arcane.wormholes.modded.client.render.WormholesRenderers;
 import art.arcane.wormholes.modded.client.render.dh.DhBlazeClipPrograms;
 import art.arcane.wormholes.modded.client.render.dh.DhBlazeClipTransformation;
 import art.arcane.wormholes.modded.client.render.dh.DhPortalRenderContext;
-import art.arcane.wormholes.modded.client.render.stencil.PortalClipShaders;
 import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
@@ -47,7 +47,7 @@ public abstract class DhPortalBlazePassMixin {
     private RenderPass wormholes$portalCopyStencil(CommandEncoder encoder, Supplier<String> label, GpuTextureView color,
                                                    OptionalInt clear, GpuTextureView depth, OptionalDouble clearDepth,
                                                    Operation<RenderPass> original) {
-        if (PortalClipShaders.openGl()) {
+        if (WormholesRenderers.device().shaderClipPlanes()) {
             wormholes$clipUniform = DhBlazeClipPrograms.upload(DhPortalClientApiAccess.wormholes$renderParams(), encoder);
         }
         return original.call(encoder, label, color, clear, DhPortalRenderContext.copyDepth(color, depth), clearDepth);
@@ -58,7 +58,7 @@ public abstract class DhPortalBlazePassMixin {
         wormholes$restore();
         Identifier vertex = pipeline.getVertexShader();
         if (vertex != null && "distanthorizons".equals(vertex.getNamespace()) && wormholes$fullscreen(vertex.getPath())
-            && PortalClipShaders.openGl()) {
+            && WormholesRenderers.device().shaderClipPlanes()) {
             wormholes$previousDistances = DhBlazeClipPrograms.suspend();
             wormholes$clipping = true;
             return;

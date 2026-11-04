@@ -10,6 +10,7 @@ package art.arcane.wormholes.modded.client.render.stencil;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.stream.ViewStreamCapability;
+import art.arcane.optics.render.RenderPathDecision;
 import art.arcane.wormholes.modded.client.WormholesClient;
 import art.arcane.wormholes.modded.client.WormholesClientConfig;
 import art.arcane.wormholes.modded.client.render.ClientPortalRenderer;
@@ -66,6 +67,7 @@ public final class PortalStencilRenderer {
     private boolean deferredFrame;
     private Camera shadedCamera;
     private boolean pipelinesReady;
+    private RenderPathDecision renderPath;
     private int pipelineGeneration = -1;
     private Vec3 homeEye = Vec3.ZERO;
     private int preparedViews;
@@ -400,7 +402,12 @@ public final class PortalStencilRenderer {
     }
 
     private boolean available(Minecraft minecraft) {
-        if (!PortalBackends.available() || !PortalStencil.available(ClientRenderAccess.mainTarget(minecraft))) {
+        RenderPathDecision decision = PortalBackends.decision();
+        if (!decision.equals(renderPath)) {
+            renderPath = decision;
+            LOGGER.info("Portal views: {} on {}", decision.describe(), PortalBackends.describe());
+        }
+        if (!decision.stencilViews() || !PortalStencil.available(ClientRenderAccess.mainTarget(minecraft))) {
             return false;
         }
         int generation = PortalClipShaders.generation();
