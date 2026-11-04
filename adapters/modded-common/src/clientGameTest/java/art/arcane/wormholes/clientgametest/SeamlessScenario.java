@@ -330,6 +330,9 @@ final class SeamlessScenario {
 
     static boolean returnViewReady(Minecraft minecraft, ClientLevel destination, BlockPos origin) {
         Vec3d opening = new Vec3d(origin.getX() + 0.5D, origin.getY() + 0.5D, origin.getZ() + 0.5D);
+        if (!ClientWorldLoader.rendererPerLevel()) {
+            return NativeClientViewAssertions.sections(NativeClientViewAssertions.portalKey(origin)) > 0;
+        }
         for (PortalView view : WormholesClient.instance().portalViews().current()) {
             if (view.source() != minecraft.level || view.destination() != destination || !view.surface().area().contains(opening)) {
                 continue;

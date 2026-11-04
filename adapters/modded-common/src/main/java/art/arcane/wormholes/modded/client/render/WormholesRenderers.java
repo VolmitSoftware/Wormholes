@@ -27,7 +27,7 @@ public final class WormholesRenderers {
         .register(RenderModule.of(IRIS, "net/irisshaders/iris/Iris.class", false, RenderRole.SHADING))
         .register(RenderModule.of(DISTANT_HORIZONS, "com/seibel/distanthorizons/core/api/internal/ClientApi.class", false, RenderRole.LOD))
         .register(RenderModule.of(IRIS_DISTANT_HORIZONS, "net/irisshaders/iris/compat/dh/LodRendererEvents.class", false))
-        .register(RenderModule.of(METAL_SHADERS, "mcopt/metal/Preload.class", false, RenderRole.TERRAIN, RenderRole.SHADING))
+        .register(RenderModule.of(METAL_SHADERS, "mcopt/metal/Preload.class", false, RenderRole.TERRAIN, RenderRole.SHADING).withSharedTerrain())
         .register(RenderModule.builtin(VANILLA, true, RenderRole.TERRAIN));
 
     /**
@@ -59,6 +59,11 @@ public final class WormholesRenderers {
     public static boolean owns(RenderRole role, String id) {
         RenderModule owner = INSTALLED.owners().get(role);
         return owner != null && owner.id().equals(id);
+    }
+
+    /** Whether each world may have its own renderer, or the terrain owner needs every world in the one main renderer; safe at any time. */
+    public static boolean worldRendererPerLevel() {
+        return INSTALLED.worldRendererPerLevel();
     }
 
     /** The installed modules with the device unknown; safe at any time. */

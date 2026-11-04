@@ -50,6 +50,7 @@ import java.util.concurrent.Future;
 public final class ClientWorldLoader {
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final boolean SODIUM = WormholesRenderers.installed(WormholesRenderers.SODIUM);
+    private static final boolean RENDERER_PER_LEVEL = WormholesRenderers.worldRendererPerLevel();
     private static final Map<ClientLevel, DimensionRenderHelper> RENDER_HELPER_MAP = new IdentityHashMap<>();
     private static final Map<ClientLevel, WorldRenderer> WORLD_RENDERER_MAP = new IdentityHashMap<>();
     private static ClientLevel mainLevel;
@@ -82,6 +83,9 @@ public final class ClientWorldLoader {
         initializeIfNeeded();
         WorldRenderer world = WORLD_RENDERER_MAP.get(level);
         if (world == null) {
+            if (!RENDERER_PER_LEVEL) {
+                throw new IllegalStateException("The terrain renderer keeps one terrain store, so only the main level has a world renderer");
+            }
             world = createWorldRenderer(level);
             WORLD_RENDERER_MAP.put(level, world);
         }
@@ -140,6 +144,10 @@ public final class ClientWorldLoader {
         }
     }
 
+    public static boolean rendererPerLevel() {
+        return RENDERER_PER_LEVEL;
+    }
+
     public static void changeLevel(ClientLevel destination, Vec3 camera) {
         initializeIfNeeded();
         Minecraft minecraft = Minecraft.getInstance();
@@ -148,6 +156,10 @@ public final class ClientWorldLoader {
         helper.enter(camera);
         helper.install();
         ((ClientWorldLightmapAccess) ((ClientWorldGameRendererAccess) minecraft.gameRenderer).wormholes$lightmapExtractor()).wormholes$needsUpdate(true);
+        if (!RENDERER_PER_LEVEL) {
+            moveMainRenderer(source, destination);
+            return;
+        }
         WorldRenderer previous = WORLD_RENDERER_MAP.get(source);
         WorldRenderer next = worldRenderer(destination);
         LevelRenderState mainState = ClientRenderAccess.gameState(minecraft).levelRenderState;
@@ -160,6 +172,18 @@ public final class ClientWorldLoader {
         access.wormholes$levelRenderer(next.renderer);
         access.wormholes$levelExtractor(next.extractor);
         next.attach(ClientRenderAccess.mainTarget(minecraft));
+        FogRendererContext.onPlayerTeleport(destination);
+        mainLevel = destination;
+    }
+
+    /** Hands the one main renderer to the destination, which rebuilds its terrain as a vanilla level change does. */
+    private static void moveMainRenderer(ClientLevel source, ClientLevel destination) {
+        Minecraft minecraft = Minecraft.getInstance();
+        WorldRenderer main = WORLD_RENDERER_MAP.remove(source);
+        ((PreparedLevelAccess) source).wormholes$extractor(new PreparedLevelExtractor(minecraft));
+        ((PreparedLevelAccess) destination).wormholes$extractor(main.extractor);
+        main.extractor.setLevel(destination);
+        WORLD_RENDERER_MAP.put(destination, main);
         FogRendererContext.onPlayerTeleport(destination);
         mainLevel = destination;
     }

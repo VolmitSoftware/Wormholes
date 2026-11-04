@@ -63,7 +63,9 @@ public final class ResidentLevels {
         if (resident == null) {
             resident = new ResidentLevel(PreparedLevels.create(open.world(), open.environment(), open.center()), open.world());
             levels.add(resident);
-            ClientWorldLoader.worldRenderer(resident.level());
+            if (ClientWorldLoader.rendererPerLevel()) {
+                ClientWorldLoader.worldRenderer(resident.level());
+            }
         }
         resident.bind(open, ++clock);
         handles.put(open.levelHandle(), resident);

@@ -114,7 +114,7 @@ public final class ClientCrossingView {
         View current = applied;
         Minecraft minecraft = Minecraft.getInstance();
         ClientLevel source = minecraft.level;
-        if (current == null || source == null || current.level() == source) {
+        if (current == null || source == null || current.level() == source || !ClientWorldLoader.rendererPerLevel()) {
             action.run();
             return;
         }

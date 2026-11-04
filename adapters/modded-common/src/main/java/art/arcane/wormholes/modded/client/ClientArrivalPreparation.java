@@ -321,7 +321,7 @@ public final class ClientArrivalPreparation {
         discard();
         Minecraft minecraft = Minecraft.getInstance();
         ClientPacketListener connection = minecraft.getConnection();
-        if (minecraft.level == null || connection == null || available() <= RENDER_RESERVE_BYTES
+        if (minecraft.level == null || connection == null || !ClientWorldLoader.rendererPerLevel() || available() <= RENDER_RESERVE_BYTES
             || !registryFingerprint(connection).equals(prepare.registryFingerprint())) {
             rejected++;
             sender.accept(new ArrivalMessage.Ready(prepare.token(), prepare.revision(), ArrivalMessage.Readiness.REJECTED));
