@@ -170,6 +170,12 @@ public final class ResidentLevels {
         acknowledge();
     }
 
+    public void viewRadius(int radius) {
+        for (ResidentLevel resident : levels) {
+            resident.level().getChunkSource().updateViewRadius(radius);
+        }
+    }
+
     public int count() {
         return levels.size();
     }

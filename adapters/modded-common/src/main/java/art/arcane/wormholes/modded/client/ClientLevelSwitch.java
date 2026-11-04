@@ -25,6 +25,7 @@ final class ClientLevelSwitch {
         ClientWorldLoader.initializeIfNeeded();
         PreparedPacketAccess connection = (PreparedPacketAccess) minecraft.getConnection();
         connection.wormholes$level(destination);
+        destination.getChunkSource().updateViewRadius(connection.wormholes$chunkRadius());
         connection.wormholes$data(destination.getLevelData());
         if (minecraft.level != null) {
             minecraft.level.removeEntity(player.getId(), Entity.RemovalReason.CHANGED_DIMENSION);

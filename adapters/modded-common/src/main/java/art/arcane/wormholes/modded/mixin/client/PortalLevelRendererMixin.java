@@ -54,6 +54,9 @@ public abstract class PortalLevelRendererMixin {
     private void wormholes$deferredPortals(GraphicsResourceAllocator allocator, boolean outline, CameraRenderState camera, GpuBufferSlice fog,
                                           Vector4f fogColor, boolean sky, boolean consistentDepth, CallbackInfo callback) {
         PortalStencilRenderer.instance().renderDeferredPortals(camera);
+        if (wormholes$meshViews()) {
+            ClientPortalRenderer.instance().publishViewDepth();
+        }
     }
 
     @Inject(method = "executeSolid", at = @At("TAIL"))

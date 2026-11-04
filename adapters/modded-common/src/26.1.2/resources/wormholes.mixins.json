@@ -178,6 +178,7 @@
     "client.PreparedLevelMetadataMixin",
     "client.PreparedLevelDataAccess",
     "client.ArrivalPacketMixin",
+    "client.ResidentChunkRadiusMixin",
     "client.ArrivalChunkPacketAccess",
     "client.ArrivalLevelAccess",
     "client.ArrivalLevelTickersAccess",

@@ -860,6 +860,7 @@ public final class ClientPortalRenderer {
 
     private void drawLayer(RenderPass pass, RenderTarget layer) {
         pass.setPipeline(pipelines.layer());
+        RenderSystem.bindDefaultUniforms(pass);
         pass.bindTexture("Sampler0", layer.getColorTextureView(), sampler());
         pass.bindTexture("Sampler1", layer.getDepthTextureView(), sampler());
         layerMesh.draw(pass);

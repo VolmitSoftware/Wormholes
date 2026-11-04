@@ -1,6 +1,8 @@
 package art.arcane.wormholes.modded.client;
 
+import art.arcane.wormholes.modded.mixin.client.PreparedPacketAccess;
 import art.arcane.wormholes.network.client.TravelMessage;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.chunk.LevelChunk;
@@ -88,6 +90,7 @@ final class ResidentLevel {
         viewRadius = open.viewRadius();
         center = open.center();
         used = stamp;
+        level.getChunkSource().updateViewRadius(((PreparedPacketAccess) Minecraft.getInstance().getConnection()).wormholes$chunkRadius());
         level.getChunkSource().updateViewCenter(center.x(), center.z());
         level.setRainLevel(open.environment().sky().rain());
         level.setThunderLevel(open.environment().sky().thunder());
