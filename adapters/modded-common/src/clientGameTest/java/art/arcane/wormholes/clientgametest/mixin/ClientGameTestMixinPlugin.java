@@ -1,5 +1,8 @@
 package art.arcane.wormholes.clientgametest.mixin;
 
+import art.arcane.wormholes.modded.client.render.WormholesRenderers;
+
+
 import org.objectweb.asm.tree.ClassNode;
 import org.spongepowered.asm.mixin.extensibility.IMixinConfigPlugin;
 import org.spongepowered.asm.mixin.extensibility.IMixinInfo;
@@ -28,16 +31,16 @@ public final class ClientGameTestMixinPlugin implements IMixinConfigPlugin {
             return Boolean.getBoolean("wormholes.clientgametest.crossbench");
         }
         if (mixinClassName.contains(".DistantHorizons")) {
-            return getClass().getClassLoader().getResource("com/seibel/distanthorizons/core/api/internal/ClientApi.class") != null
+            return WormholesRenderers.installed(WormholesRenderers.DISTANT_HORIZONS)
                 && (!mixinClassName.endsWith(".DistantHorizonsPipelineTap")
                 && !mixinClassName.contains(".DistantHorizonsShaderComparisonClockMixin")
-                || getClass().getClassLoader().getResource("net/irisshaders/iris/Iris.class") != null);
+                || WormholesRenderers.installed(WormholesRenderers.IRIS));
         }
         if (mixinClassName.endsWith(".IrisFullscreenScopeTap") || mixinClassName.endsWith(".IrisHistoryPipelineTap")
             || mixinClassName.endsWith(".IrisHistoryLayerTap")
             || mixinClassName.contains(".IrisMeshHistory")
             || mixinClassName.contains(".IrisPipelineCostMixin") || mixinClassName.contains(".IrisConstructionPhaseTap")) {
-            return getClass().getClassLoader().getResource("net/irisshaders/iris/Iris.class") != null;
+            return WormholesRenderers.installed(WormholesRenderers.IRIS);
         }
         return true;
     }

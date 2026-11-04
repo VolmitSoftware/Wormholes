@@ -28,14 +28,22 @@ class CombinationsTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             renderer_matrix.combinations(namespace(only="optifine"))
 
-    def test_table_lists_path_api_and_backends_per_row(self) -> None:
+    def test_fields_keep_the_reasons_whole_after_the_single_word_values(self) -> None:
+        parsed = renderer_matrix.fields(" path=mesh decided=mesh device=metal backends=metal/metal_shaders/metal_shaders"
+                                        " reasons=device Metal has no shader clip planes; terrain owner metal_shaders cannot be clipped")
+        self.assertEqual("mesh", parsed["path"])
+        self.assertEqual("metal/metal_shaders/metal_shaders", parsed["backends"])
+        self.assertEqual("device Metal has no shader clip planes; terrain owner metal_shaders cannot be clipped", parsed["reasons"])
+        self.assertEqual({"path": "stencil", "reasons": "-"}, renderer_matrix.fields(" path=stencil reasons=-"))
+
+    def test_table_lists_path_device_backends_and_reasons_per_row(self) -> None:
         combination = renderer_matrix.Combination("sodium", ("--renderer", "sodium"))
         outcome = renderer_matrix.Outcome(combination, "PASS", path="stencil", seconds=90.0,
-                                          fields={"path": "stencil", "api": "OPENGL", "backends": "opengl/sodium/vanilla"})
+                                          fields={"path": "stencil", "device": "opengl", "backends": "opengl/sodium/vanilla", "reasons": "-"})
         skipped = renderer_matrix.Outcome(renderer_matrix.Combination("vanilla+metal", (), "pass --metal"), "SKIPPED", detail="pass --metal")
         text = renderer_matrix.table([outcome, skipped])
-        self.assertIn("| sodium | PASS | stencil | OPENGL | opengl/sodium/vanilla | 90 | - |", text)
-        self.assertIn("| vanilla+metal | SKIPPED | - | - | - | - | pass --metal |", text)
+        self.assertIn("| sodium | PASS | stencil | opengl | opengl/sodium/vanilla | - | 90 | - |", text)
+        self.assertIn("| vanilla+metal | SKIPPED | - | - | - | - | - | pass --metal |", text)
 
 
 if __name__ == "__main__":

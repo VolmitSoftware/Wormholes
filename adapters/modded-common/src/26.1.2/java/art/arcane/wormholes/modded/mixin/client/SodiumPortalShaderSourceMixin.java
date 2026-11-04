@@ -1,8 +1,8 @@
 package art.arcane.wormholes.modded.mixin.client;
 
+import art.arcane.wormholes.modded.client.render.WormholesRenderers;
 import art.arcane.wormholes.modded.client.render.sodium.SodiumClipShaders;
 import art.arcane.wormholes.modded.client.render.stencil.ClipShaderTransformation;
-import art.arcane.wormholes.modded.client.render.stencil.PortalClipShaders;
 import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 import net.caffeinemc.mods.sodium.client.gl.shader.ShaderLoader;
 import net.minecraft.resources.Identifier;
@@ -17,7 +17,7 @@ public abstract class SodiumPortalShaderSourceMixin {
 
     @ModifyReturnValue(method = "getShaderSource", at = @At("RETURN"))
     private static String wormholes$clipPlane(String source, Identifier name) {
-        if (!"sodium".equals(name.getNamespace()) || !PortalClipShaders.openGl()) {
+        if (!"sodium".equals(name.getNamespace()) || !WormholesRenderers.device().shaderClipPlanes()) {
             return source;
         }
         if (GLOBALS.equals(name.getPath())) {

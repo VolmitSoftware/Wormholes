@@ -6,6 +6,9 @@
  */
 package art.arcane.wormholes.modded.client.render.stencil;
 
+import art.arcane.wormholes.modded.client.render.WormholesRenderers;
+
+
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.renderpearl.api.GpuFormat;
 import com.mojang.renderpearl.api.textures.GpuTexture;
@@ -23,7 +26,7 @@ public final class PortalStencil {
     }
 
     public static GpuFormat mainDepthFormat(GpuFormat requested) {
-        return requested == GpuFormat.D32_FLOAT && PortalBackends.stencilBuffer() ? GpuFormat.D32_FLOAT_S8_UINT : requested;
+        return requested == GpuFormat.D32_FLOAT && WormholesRenderers.device().stencilAttachment() ? GpuFormat.D32_FLOAT_S8_UINT : requested;
     }
 
     public static boolean available(RenderTarget main) {

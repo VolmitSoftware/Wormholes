@@ -1,5 +1,7 @@
 package art.arcane.wormholes.modded.client.render.stencil;
 
+import art.arcane.optics.render.RenderDevice;
+import art.arcane.wormholes.modded.client.render.WormholesRenderers;
 import com.mojang.blaze3d.opengl.GlTexture;
 import com.mojang.blaze3d.pipeline.MainTarget;
 import com.mojang.blaze3d.pipeline.RenderTarget;
@@ -25,7 +27,7 @@ public class PortalStencilTest {
 
     @Test
     public void unrequestedDepthTexturesKeepTheirDepthOnlyFormatAndNeverJoinTheStencilSet() {
-        try (MockedStatic<PortalBackends> backends = stencilBackend(true)) {
+        try (MockedStatic<WormholesRenderers> renderers = stencilBackend(true)) {
             GlTexture depth = texture(41, TextureFormat.DEPTH32);
             assertEquals(DEPTH, PortalStencil.internalFormat(TextureFormat.DEPTH32, DEPTH));
             assertEquals(DEPTH_EXTERNAL, PortalStencil.externalFormat(TextureFormat.DEPTH32, DEPTH_EXTERNAL));
@@ -37,7 +39,7 @@ public class PortalStencilTest {
 
     @Test
     public void requestedTargetDepthGetsStencilAndJoinsTheStencilSetUntilDestroyed() {
-        try (MockedStatic<PortalBackends> backends = stencilBackend(true)) {
+        try (MockedStatic<WormholesRenderers> renderers = stencilBackend(true)) {
             GlTexture depth = texture(42, TextureFormat.DEPTH32);
             GlTexture color = texture(43, TextureFormat.RGBA8);
             PortalStencil.createTarget(true, () -> {
@@ -58,17 +60,17 @@ public class PortalStencilTest {
 
     @Test
     public void unstenciledTargetsAndBackendsWithoutStencilKeepDepthOnlyFormats() {
-        try (MockedStatic<PortalBackends> backends = stencilBackend(true)) {
+        try (MockedStatic<WormholesRenderers> renderers = stencilBackend(true)) {
             PortalStencil.createTarget(false, () -> assertEquals(DEPTH, PortalStencil.internalFormat(TextureFormat.DEPTH32, DEPTH)));
         }
-        try (MockedStatic<PortalBackends> backends = stencilBackend(false)) {
+        try (MockedStatic<WormholesRenderers> renderers = stencilBackend(false)) {
             PortalStencil.createTarget(true, () -> assertEquals(DEPTH, PortalStencil.internalFormat(TextureFormat.DEPTH32, DEPTH)));
         }
     }
 
     @Test
     public void failedTargetCreationEndsTheStencilRequest() {
-        try (MockedStatic<PortalBackends> backends = stencilBackend(true)) {
+        try (MockedStatic<WormholesRenderers> renderers = stencilBackend(true)) {
             assertThrows(IllegalStateException.class, () -> PortalStencil.createTarget(true, () -> {
                 throw new IllegalStateException("OpenGL error 1285");
             }));
@@ -84,10 +86,10 @@ public class PortalStencilTest {
         assertFalse(PortalStencil.stencilTarget(mock(RenderTarget.class), "Entity Outline"));
     }
 
-    private static MockedStatic<PortalBackends> stencilBackend(boolean stencil) {
-        MockedStatic<PortalBackends> backends = mockStatic(PortalBackends.class);
-        backends.when(PortalBackends::stencilBuffer).thenReturn(stencil);
-        return backends;
+    private static MockedStatic<WormholesRenderers> stencilBackend(boolean stencil) {
+        MockedStatic<WormholesRenderers> renderers = mockStatic(WormholesRenderers.class);
+        renderers.when(WormholesRenderers::device).thenReturn(stencil ? RenderDevice.OPENGL : RenderDevice.METAL);
+        return renderers;
     }
 
     private static GlTexture texture(int id, TextureFormat format) {

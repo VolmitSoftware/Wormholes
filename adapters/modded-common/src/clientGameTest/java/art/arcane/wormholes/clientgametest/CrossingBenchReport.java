@@ -1,6 +1,8 @@
 package art.arcane.wormholes.clientgametest;
 
-import art.arcane.wormholes.modded.client.render.stencil.PortalBackends;
+import art.arcane.wormholes.modded.client.render.WormholesRenderers;
+
+
 import com.google.gson.GsonBuilder;
 import net.minecraft.SharedConstants;
 import org.slf4j.Logger;
@@ -213,7 +215,7 @@ final class CrossingBenchReport {
             Files.createDirectories(OUTPUT);
             Path staged = OUTPUT.resolve(label + ".json.tmp");
             Files.writeString(staged, new GsonBuilder().setPrettyPrinting().serializeNulls().create().toJson(new Results(label, loader(),
-                SharedConstants.getCurrentVersion().name(), PortalBackends.sodium() ? "sodium" : "vanilla", samples)));
+                SharedConstants.getCurrentVersion().name(), WormholesRenderers.installed(WormholesRenderers.SODIUM) ? "sodium" : "vanilla", samples)));
             Files.move(staged, OUTPUT.resolve(label + ".json"), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
         } catch (IOException failure) {
             throw new UncheckedIOException("Crossing bench results could not be written to " + OUTPUT.toAbsolutePath(), failure);

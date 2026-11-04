@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded.mixin.client;
 
+import art.arcane.wormholes.modded.client.render.WormholesRenderers;
 import art.arcane.wormholes.modded.client.render.stencil.PortalClipShaders;
 import art.arcane.wormholes.modded.client.render.dh.DhBlazeTemporalViews;
 import com.google.common.collect.ImmutableMap;
@@ -21,8 +22,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(ShaderManager.class)
 public abstract class PortalClipShaderMixin {
     @Unique
-    private static final boolean wormholes$dhPresent = PortalClipShaders.class.getClassLoader()
-        .getResource("com/seibel/distanthorizons/core/api/internal/ClientApi.class") != null;
+    private static final boolean wormholes$dhPresent = WormholesRenderers.installed(WormholesRenderers.DISTANT_HORIZONS);
 
     @Inject(method = "apply(Lnet/minecraft/client/renderer/ShaderManager$Configs;Lnet/minecraft/server/packs/resources/ResourceManager;Lnet/minecraft/util/profiling/ProfilerFiller;)V",
         at = @At("HEAD"))

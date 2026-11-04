@@ -6,6 +6,7 @@
  */
 package art.arcane.wormholes.modded.client.world;
 
+import art.arcane.wormholes.modded.client.render.WormholesRenderers;
 import art.arcane.wormholes.modded.client.render.sodium.SodiumSectionDiscovery;
 import art.arcane.wormholes.modded.client.WormholesClient;
 import art.arcane.wormholes.modded.mixin.client.ArrivalExtractorAccess;
@@ -48,8 +49,7 @@ import java.util.concurrent.Future;
 
 public final class ClientWorldLoader {
     private static final Logger LOGGER = LogUtils.getLogger();
-    private static final boolean SODIUM = ClientWorldLoader.class.getClassLoader()
-        .getResource("net/caffeinemc/mods/sodium/client/render/SodiumWorldRenderer.class") != null;
+    private static final boolean SODIUM = WormholesRenderers.installed(WormholesRenderers.SODIUM);
     private static final Map<ClientLevel, DimensionRenderHelper> RENDER_HELPER_MAP = new IdentityHashMap<>();
     private static final Map<ClientLevel, WorldRenderer> WORLD_RENDERER_MAP = new IdentityHashMap<>();
     private static ClientLevel mainLevel;

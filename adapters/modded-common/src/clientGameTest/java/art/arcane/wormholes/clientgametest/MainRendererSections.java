@@ -1,8 +1,8 @@
 package art.arcane.wormholes.clientgametest;
 
+import art.arcane.wormholes.modded.client.render.WormholesRenderers;
 import art.arcane.wormholes.modded.client.render.sodium.SodiumPortalRenderer;
 import art.arcane.wormholes.modded.client.render.sodium.SodiumPortalSections;
-import art.arcane.wormholes.modded.client.render.stencil.PortalBackends;
 import it.unimi.dsi.fastutil.longs.LongIterator;
 import net.caffeinemc.mods.sodium.client.render.SodiumWorldRenderer;
 import net.caffeinemc.mods.sodium.client.render.chunk.RenderSectionManager;
@@ -19,7 +19,7 @@ final class MainRendererSections {
     }
 
     static int visible(Minecraft minecraft) {
-        if (!PortalBackends.sodium()) {
+        if (!WormholesRenderers.installed(WormholesRenderers.SODIUM)) {
             return minecraft.levelRenderer.visibleSections().size();
         }
         SodiumWorldRenderer renderer = SodiumWorldRenderer.instanceNullable();
@@ -27,7 +27,7 @@ final class MainRendererSections {
     }
 
     static boolean terrainComplete(Minecraft minecraft) {
-        if (!PortalBackends.sodium()) {
+        if (!WormholesRenderers.installed(WormholesRenderers.SODIUM)) {
             return minecraft.levelRenderer.hasRenderedAllSections();
         }
         SodiumWorldRenderer renderer = SodiumWorldRenderer.instanceNullable();
@@ -35,7 +35,7 @@ final class MainRendererSections {
     }
 
     static int missingReadySections(Minecraft minecraft) {
-        if (!PortalBackends.sodium()) {
+        if (!WormholesRenderers.installed(WormholesRenderers.SODIUM)) {
             return 0;
         }
         ChunkTracker tracker = ChunkTrackerHolder.get(minecraft.level);

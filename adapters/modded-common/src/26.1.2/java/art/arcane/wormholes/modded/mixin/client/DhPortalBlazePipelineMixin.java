@@ -1,7 +1,7 @@
 package art.arcane.wormholes.modded.mixin.client;
 
+import art.arcane.wormholes.modded.client.render.WormholesRenderers;
 import art.arcane.wormholes.modded.client.render.dh.DhBlazeClipTransformation;
-import art.arcane.wormholes.modded.client.render.stencil.PortalClipShaders;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.shaders.UniformType;
 import com.seibel.distanthorizons.common.render.blaze.wrappers.RenderPipelineBuilderWrapper;
@@ -26,7 +26,7 @@ public abstract class DhPortalBlazePipelineMixin {
 
     @Inject(method = "withVertexShader", at = @At("RETURN"))
     private void wormholes$clipLayout(String shader, CallbackInfoReturnable<RenderPipelineBuilderWrapper> callback) {
-        if (!wormholes$clipDeclared && DhBlazeClipTransformation.owns(shader) && PortalClipShaders.openGl()) {
+        if (!wormholes$clipDeclared && DhBlazeClipTransformation.owns(shader) && WormholesRenderers.device().shaderClipPlanes()) {
             wormholes$clipDeclared = true;
             blazePipelineBuilder.withUniform(DhBlazeClipTransformation.BLOCK, UniformType.UNIFORM_BUFFER);
         }

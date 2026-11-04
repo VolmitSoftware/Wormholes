@@ -3,8 +3,12 @@ package art.arcane.wormholes.clientgametest;
 import art.arcane.wormholes.modded.MinecraftDyedItems;
 import art.arcane.wormholes.modded.MinecraftPortal;
 import art.arcane.wormholes.modded.WormholesModRuntime;
+import art.arcane.optics.render.RenderPathDecision;
 import art.arcane.wormholes.modded.client.ClientRenderAccess;
 import art.arcane.wormholes.modded.client.render.ClientPortalRenderer;
+import art.arcane.wormholes.modded.client.render.WormholesRenderers;
+import art.arcane.wormholes.modded.client.render.stencil.PortalBackends;
+import art.arcane.wormholes.modded.client.render.stencil.PortalStencilRenderer;
 import art.arcane.wormholes.portal.AmbientParticleStyle;
 import art.arcane.wormholes.portal.PortalType;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
@@ -34,10 +38,13 @@ import java.util.concurrent.atomic.AtomicReference;
 import static art.arcane.wormholes.clientgametest.NativeClientViewAssertions.runtime;
 
 /**
- * Checks where streamed mesh views land on a backend without stencil views: a destination wall with four colored
- * quadrants must show through the aperture exactly where the portal transform puts it. Run with gametest.py --metal.
+ * Checks where portal views land on whatever renderer is installed: a destination wall with four colored quadrants
+ * must show through the aperture exactly where the portal transform puts it, and the view must come from the path
+ * {@link RenderPathDecision} chose for this client: stencil views where the device and terrain owner allow them,
+ * streamed meshes elsewhere. Run alone with gametest.py --metal, or once per renderer through renderer_matrix.py.
  */
 public final class MeshBackendViewClientGameTest implements FabricClientGameTest {
+    public static final String PATH_LINE = "WORMHOLES_RENDER_PATH";
     private static final Logger LOGGER = LoggerFactory.getLogger("WormholesClientGameTest");
     private static final int EDGE = 3;
     private static final BlockPos SOURCE = new BlockPos(-108, 64, 192);
@@ -74,6 +81,9 @@ public final class MeshBackendViewClientGameTest implements FabricClientGameTest
             List<String> failures = new ArrayList<>();
             for (Pose pose : POSES) {
                 view(client, server, connection, pose);
+                if (pose == POSES[0]) {
+                    renderPath(client, failures);
+                }
                 probe(client, pose, failures);
             }
             view(client, server, connection, POSES[0]);
@@ -137,8 +147,33 @@ public final class MeshBackendViewClientGameTest implements FabricClientGameTest
         client.waitFor(minecraft -> minecraft.player.position().distanceTo(new Vec3(eye.x, eye.y - EYE_HEIGHT, eye.z)) < 0.05D, TIMEOUT_TICKS);
         client.lookAt(180.0F, 0.0F);
         client.waitForChunksRender();
-        client.waitFor(minecraft -> ClientPortalRenderer.instance().drawnViews() > 0, TIMEOUT_TICKS);
+        client.waitFor(minecraft -> drawnViews() > 0, TIMEOUT_TICKS);
         client.waitTicks(SETTLE_TICKS);
+    }
+
+    private static int drawnViews() {
+        return PortalStencilRenderer.instance().drawnViews() + ClientPortalRenderer.instance().drawnViews();
+    }
+
+    /** The path that drew the view must be the one the decision chose, and the run log records which it was and why. */
+    private static void renderPath(FabricSeamlessClient client, List<String> failures) {
+        int stencil = client.computeOnClient(minecraft -> PortalStencilRenderer.instance().drawnViews());
+        int mesh = client.computeOnClient(minecraft -> ClientPortalRenderer.instance().drawnViews());
+        RenderPathDecision decision = client.computeOnClient(minecraft -> PortalBackends.decision());
+        String device = client.computeOnClient(minecraft -> WormholesRenderers.device().key());
+        String backends = client.computeOnClient(minecraft -> PortalBackends.describe());
+        String pipeline = client.computeOnClient(minecraft -> PortalBackends.pipeline().name());
+        String drawn = stencil > 0 ? "stencil" : "mesh";
+        String decided = decision.stencilViews() ? "stencil" : "mesh";
+        String reasons = decision.reasons().isEmpty() ? "-" : String.join("; ", decision.reasons());
+        LOGGER.info("{} path={} decided={} device={} backends={} pipeline={} stencilViews={} meshViews={} reasons={}",
+            PATH_LINE, drawn, decided, device, backends, pipeline, stencil, mesh, reasons);
+        if (decision.stencilViews() && stencil == 0) {
+            failures.add("stencil views decided on " + backends + " but " + mesh + " mesh views drew the portal");
+        }
+        if (!decision.stencilViews() && stencil > 0) {
+            failures.add("stencil views drawn on " + backends + " against the decision: " + reasons);
+        }
     }
 
     private static void probe(FabricSeamlessClient client, Pose pose, List<String> failures) {

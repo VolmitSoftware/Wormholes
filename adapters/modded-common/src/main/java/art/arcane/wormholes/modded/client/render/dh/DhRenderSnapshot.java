@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded.client.render.dh;
 
+import art.arcane.wormholes.modded.client.render.WormholesRenderers;
 import art.arcane.wormholes.modded.mixin.client.DhPortalClientApiAccess;
 import com.seibel.distanthorizons.common.commonMixins.MixinProjectionMatrixBufferCommon;
 import com.seibel.distanthorizons.core.api.internal.ClientApi;
@@ -10,8 +11,7 @@ import com.seibel.distanthorizons.core.util.math.DhMat4f;
 import com.seibel.distanthorizons.core.wrapperInterfaces.world.IClientLevelWrapper;
 
 final class DhRenderSnapshot {
-    private static final boolean IRIS = DhRenderSnapshot.class.getClassLoader()
-        .getResource("net/irisshaders/iris/compat/dh/LodRendererEvents.class") != null;
+    private static final boolean IRIS = WormholesRenderers.installed(WormholesRenderers.IRIS_DISTANT_HORIZONS);
 
     private final DhMat4f modelView = ClientApi.RENDER_STATE.mcModelViewMatrix;
     private final DhMat4f projection = ClientApi.RENDER_STATE.mcProjectionMatrix;

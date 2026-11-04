@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded;
 
+import art.arcane.wormholes.modded.client.render.WormholesRenderers;
 import org.objectweb.asm.tree.ClassNode;
 import org.spongepowered.asm.mixin.extensibility.IMixinConfigPlugin;
 import org.spongepowered.asm.mixin.extensibility.IMixinInfo;
@@ -7,16 +8,15 @@ import org.spongepowered.asm.mixin.extensibility.IMixinInfo;
 import java.util.List;
 import java.util.Set;
 
+/**
+ * Applies a renderer's mixins only while that renderer is installed. Runs before any Minecraft class may load, so it
+ * asks {@link WormholesRenderers#installed(String)} (class path only) and never the device.
+ */
 public final class PortalMixinPlugin implements IMixinConfigPlugin {
-    private boolean sodium;
-    private boolean iris;
-    private boolean distantHorizons;
+    private static final String CLIENT = "art.arcane.wormholes.modded.mixin.client.";
 
     @Override
     public void onLoad(String mixinPackage) {
-        sodium = getClass().getClassLoader().getResource("net/caffeinemc/mods/sodium/client/render/SodiumWorldRenderer.class") != null;
-        iris = getClass().getClassLoader().getResource("net/irisshaders/iris/Iris.class") != null;
-        distantHorizons = getClass().getClassLoader().getResource("com/seibel/distanthorizons/core/api/internal/ClientApi.class") != null;
     }
 
     @Override
@@ -26,21 +26,23 @@ public final class PortalMixinPlugin implements IMixinConfigPlugin {
 
     @Override
     public boolean shouldApplyMixin(String targetClassName, String mixinClassName) {
-        if (mixinClassName.startsWith("art.arcane.wormholes.modded.mixin.client.Sodium")) {
-            return sodium;
+        if (!mixinClassName.startsWith(CLIENT)) {
+            return true;
         }
-        if (mixinClassName.startsWith("art.arcane.wormholes.modded.mixin.client.VanillaTerrain")) {
-            return !sodium;
+        String name = mixinClassName.substring(CLIENT.length());
+        if (name.startsWith("Sodium")) {
+            return WormholesRenderers.installed(WormholesRenderers.SODIUM);
         }
-        if (mixinClassName.startsWith("art.arcane.wormholes.modded.mixin.client.DhPortal")) {
-            return distantHorizons;
+        if (name.startsWith("VanillaTerrain")) {
+            return !WormholesRenderers.installed(WormholesRenderers.SODIUM);
         }
-        if (mixinClassName.startsWith("art.arcane.wormholes.modded.mixin.client.IrisPortalDh")
-            || mixinClassName.startsWith("art.arcane.wormholes.modded.mixin.client.IrisPortalLod")
-            || mixinClassName.startsWith("art.arcane.wormholes.modded.mixin.client.IrisPortalDistant")) {
-            return iris && distantHorizons;
+        if (name.startsWith("DhPortal")) {
+            return WormholesRenderers.installed(WormholesRenderers.DISTANT_HORIZONS);
         }
-        return !mixinClassName.startsWith("art.arcane.wormholes.modded.mixin.client.IrisPortal") || iris;
+        if (name.startsWith("IrisPortalDh") || name.startsWith("IrisPortalLod") || name.startsWith("IrisPortalDistant")) {
+            return WormholesRenderers.installed(WormholesRenderers.IRIS) && WormholesRenderers.installed(WormholesRenderers.DISTANT_HORIZONS);
+        }
+        return !name.startsWith("IrisPortal") || WormholesRenderers.installed(WormholesRenderers.IRIS);
     }
 
     @Override

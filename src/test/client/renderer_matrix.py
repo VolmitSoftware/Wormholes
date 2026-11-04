@@ -85,7 +85,7 @@ def run(combination: Combination, args: argparse.Namespace, log: Path) -> Outcom
     if runtime is not None and runtime.is_file():
         for line in runtime.read_text(errors="replace").splitlines():
             if PATH_LINE in line:
-                outcome.fields = dict(re.findall(r"(\w+)=(\S+)", line.split(PATH_LINE, 1)[1]))
+                outcome.fields = fields(line.split(PATH_LINE, 1)[1])
                 outcome.path = outcome.fields.get("path", "")
     if outcome.status == "FAIL":
         tail = [line for line in text.splitlines() if line.strip()][-3:]
@@ -93,18 +93,27 @@ def run(combination: Combination, args: argparse.Namespace, log: Path) -> Outcom
     return outcome
 
 
+def fields(tail: str) -> dict[str, str]:
+    """The key=value pairs after the path marker; reasons come last and run to the end of the line, spaces included."""
+    head, separator, reasons = tail.partition(" reasons=")
+    values: dict[str, str] = dict(re.findall(r"(\w+)=(\S+)", head))
+    if separator:
+        values["reasons"] = reasons.strip()
+    return values
+
+
 def table(outcomes: list[Outcome]) -> str:
-    rows = ["| combination | result | path | api | backends | seconds | detail |", "|---|---|---|---|---|---|---|"]
+    rows = ["| combination | result | path | device | backends | reasons | seconds | detail |", "|---|---|---|---|---|---|---|---|"]
     for outcome in outcomes:
-        rows.append("| " + " | ".join([outcome.combination.name, outcome.status, outcome.path or "-", outcome.fields.get("api", "-"),
-                                       outcome.fields.get("backends", "-"), f"{outcome.seconds:.0f}" if outcome.seconds else "-",
-                                       outcome.detail.replace("|", "/") or "-"]) + " |")
+        rows.append("| " + " | ".join([outcome.combination.name, outcome.status, outcome.path or "-", outcome.fields.get("device", "-"),
+                                       outcome.fields.get("backends", "-"), outcome.fields.get("reasons", "-").replace("|", "/"),
+                                       f"{outcome.seconds:.0f}" if outcome.seconds else "-", outcome.detail.replace("|", "/") or "-"]) + " |")
     return "\n".join(rows)
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--test", default="PortalViewPlacement")
+    parser.add_argument("--test", default="MeshBackendView")
     parser.add_argument("--minecraft-version", default="26.3")
     parser.add_argument("--metal", type=Path)
     parser.add_argument("--distant-horizons", type=Path)

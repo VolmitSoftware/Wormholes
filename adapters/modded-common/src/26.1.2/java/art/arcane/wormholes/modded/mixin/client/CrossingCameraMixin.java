@@ -8,7 +8,7 @@ package art.arcane.wormholes.modded.mixin.client;
 import art.arcane.wormholes.modded.client.ClientCrossingView;
 import art.arcane.wormholes.modded.client.WormholesClient;
 import art.arcane.wormholes.modded.client.ClientRenderAccess;
-import art.arcane.wormholes.modded.client.render.stencil.PortalBackends;
+import art.arcane.wormholes.modded.client.render.WormholesRenderers;
 import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
@@ -44,7 +44,7 @@ public abstract class CrossingCameraMixin {
     @Unique
     private void wormholes$terrainFog(DeltaTracker tracker) {
         Minecraft minecraft = Minecraft.getInstance();
-        if (!PortalBackends.sodium() || minecraft.level == null) {
+        if (!WormholesRenderers.installed(WormholesRenderers.SODIUM) || minecraft.level == null) {
             return;
         }
         GameRenderer renderer = (GameRenderer) (Object) this;

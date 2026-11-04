@@ -1,6 +1,7 @@
 package art.arcane.wormholes.modded.client;
 
 import art.arcane.optics.stream.ViewStreamMessage;
+import art.arcane.wormholes.modded.client.render.WormholesRenderers;
 import art.arcane.wormholes.modded.client.world.ClientWorldLoader;
 import art.arcane.wormholes.modded.client.world.PreparedLevels;
 import art.arcane.wormholes.modded.client.world.PreparedTerrain;
@@ -46,8 +47,7 @@ import java.util.function.LongSupplier;
 public final class ClientArrivalPreparation {
     private static final Logger LOGGER = LoggerFactory.getLogger("Wormholes");
     private static final long RENDER_RESERVE_BYTES = 64L * 1024L * 1024L;
-    private static final boolean IRIS = ClientArrivalPreparation.class.getClassLoader()
-        .getResource("net/irisshaders/iris/Iris.class") != null;
+    private static final boolean IRIS = WormholesRenderers.installed(WormholesRenderers.IRIS);
 
     private final Consumer<ArrivalMessage> sender;
     private final long budgetBytes;
