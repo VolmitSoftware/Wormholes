@@ -1,8 +1,0 @@
-{
-  "name": "Wormholes",
-  "platform": "modded",
-  "versionProperty": "wormholesVersion",
-  "betaTag": "modded-beta",
-  "targets": "gradle/minecraft-versions",
-  "volmlibRef": "master"
-}
