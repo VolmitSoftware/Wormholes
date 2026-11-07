@@ -20,11 +20,28 @@ final class PortalRenderTargets implements AutoCloseable {
     private final Target depthCopy = new Target();
     private ProjectionMatrixBuffer viewDepthTransform;
     private final Map<Integer, Target> travel = new HashMap<>();
+    private GpuFormat colorFormat = GpuFormat.RGBA8_UNORM;
 
     PortalRenderTargets() {
         for (int depth = 0; depth < DEPTHS; depth++) {
             scratch[depth] = new Target();
         }
+    }
+
+    /** The colour format of every view, layer and travel target; changing it releases them so they come back in the new format. */
+    void colorFormat(GpuFormat format) {
+        if (colorFormat == format) {
+            return;
+        }
+        for (Target target : travel.values()) {
+            target.close();
+        }
+        travel.clear();
+        layer.close();
+        for (Target target : scratch) {
+            target.close();
+        }
+        colorFormat = format;
     }
 
     boolean available(int depth) {
@@ -38,7 +55,7 @@ final class PortalRenderTargets implements AutoCloseable {
     }
 
     TextureTarget travel(int key, int width, int height) {
-        return travel.computeIfAbsent(key, ignored -> new Target()).resize(width, height);
+        return travel.computeIfAbsent(key, ignored -> new Target()).resize(colorFormat, width, height);
     }
 
     SkyRenderer travelSky(int key) {
@@ -46,15 +63,15 @@ final class PortalRenderTargets implements AutoCloseable {
     }
 
     TextureTarget layer(int width, int height) {
-        return layer.resize(width, height);
+        return layer.resize(colorFormat, width, height);
     }
 
     TextureTarget viewDepth(int width, int height) {
-        return viewDepth.resize(width, height);
+        return viewDepth.resize(GpuFormat.RGBA8_UNORM, width, height);
     }
 
     TextureTarget depthCopy(int width, int height, GpuFormat depthFormat) {
-        return depthCopy.resize(width, height, depthFormat);
+        return depthCopy.resize(GpuFormat.RGBA8_UNORM, width, height, depthFormat);
     }
 
     ProjectionMatrixBuffer viewDepthTransform() {
@@ -65,7 +82,7 @@ final class PortalRenderTargets implements AutoCloseable {
     }
 
     TextureTarget scratch(int depth, int width, int height) {
-        return scratch[depth].resize(width, height);
+        return scratch[depth].resize(colorFormat, width, height);
     }
 
     SkyRenderer sky(int depth) {
@@ -133,19 +150,21 @@ final class PortalRenderTargets implements AutoCloseable {
 
     private static final class Target implements AutoCloseable {
         private TextureTarget texture;
+        private GpuFormat colorFormat;
         private GpuFormat depthFormat;
         private SkyRenderer sky;
 
-        private TextureTarget resize(int width, int height) {
-            return resize(width, height, GpuFormat.D32_FLOAT);
+        private TextureTarget resize(GpuFormat colorFormat, int width, int height) {
+            return resize(colorFormat, width, height, GpuFormat.D32_FLOAT);
         }
 
-        private TextureTarget resize(int width, int height, GpuFormat depthFormat) {
-            if (texture == null || texture.width != width || texture.height != height || this.depthFormat != depthFormat) {
+        private TextureTarget resize(GpuFormat colorFormat, int width, int height, GpuFormat depthFormat) {
+            if (texture == null || texture.width != width || texture.height != height || this.colorFormat != colorFormat || this.depthFormat != depthFormat) {
                 if (texture != null) {
                     texture.destroyBuffers();
                 }
-                texture = new TextureTarget("Wormholes portal layer", width, height, GpuFormat.RGBA8_UNORM, depthFormat);
+                texture = new TextureTarget("Wormholes portal layer", width, height, colorFormat, depthFormat);
+                this.colorFormat = colorFormat;
                 this.depthFormat = depthFormat;
                 if (sky != null) {
                     sky.close();
@@ -164,7 +183,7 @@ final class PortalRenderTargets implements AutoCloseable {
         }
 
         private long bytes() {
-            return texture == null ? 0 : (long) texture.width * texture.height * 8;
+            return texture == null ? 0 : (long) texture.width * texture.height * (colorFormat == GpuFormat.RGBA16_FLOAT ? 12 : 8);
         }
 
         @Override

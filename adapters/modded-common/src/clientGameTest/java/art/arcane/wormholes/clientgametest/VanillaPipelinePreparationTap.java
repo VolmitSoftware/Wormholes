@@ -97,7 +97,7 @@ public final class VanillaPipelinePreparationTap {
         long generation = resourceCompletions + 1L;
         PREPARATIONS.add(new Preparation(snapshot, cost, renderer().portalCount()));
         System.out.println("Vanilla bank preparation generation=" + generation + " prepareBeginNanos=" + started
-            + " prepareEndNanos=" + finished + " prepareWallNanos=" + (finished - started) + " fixedNativeProducts=16"
+            + " prepareEndNanos=" + finished + " prepareWallNanos=" + (finished - started) + " fixedNativeProducts=17"
             + " nativeShaderCompiles=" + cost.shaderCompiles() + " nativeProgramLinks=" + cost.programLinks()
             + " nativeProgramLinkRoutes=" + cost.programLinkRoutes());
         if (PROFILE) {
@@ -145,8 +145,8 @@ public final class VanillaPipelinePreparationTap {
 
     public static Snapshot snapshot(BankAccess bank) {
         require(bank != null && bank.prepared() && !bank.closed(), "fixed bank is absent, unprepared or closed");
-        require(bank.descriptorCount() == 16 && bank.compiledCount() == 16, "fixed bank must contain 12 terrain and four auxiliary products");
-        List<Product> products = new ArrayList<>(16);
+        require(bank.descriptorCount() == 17 && bank.compiledCount() == 17, "fixed bank must contain 12 terrain and five auxiliary products");
+        List<Product> products = new ArrayList<>(17);
         Set<Object> descriptors = Collections.newSetFromMap(new IdentityHashMap<>());
         Set<Object> compiled = Collections.newSetFromMap(new IdentityHashMap<>());
         Set<Object> programs = Collections.newSetFromMap(new IdentityHashMap<>());
@@ -179,7 +179,7 @@ public final class VanillaPipelinePreparationTap {
             verifyGetter(expected, key, phase);
         }
         requireNoClosures(expected, phase);
-        System.out.println("Vanilla prepared bank phase=" + phase + " variants=16 nativeGetterCompiles=0 nativeGetterLinks=0 frame=" + frames());
+        System.out.println("Vanilla prepared bank phase=" + phase + " variants=17 nativeGetterCompiles=0 nativeGetterLinks=0 frame=" + frames());
     }
 
     public static void stable(Snapshot expected, Snapshot actual, String phase) {
@@ -209,8 +209,8 @@ public final class VanillaPipelinePreparationTap {
         Counts cost = counts().minus(costBefore);
         require(cost.shaderCompiles() > 0L && cost.programLinks() >= 16L && cost.programLinkRoutes() >= 16L,
             "real resource reload did not compile and link the replacement native bank");
-        System.out.println("Vanilla resource reload fixedProducts=16 nativeShaderCompiles=" + cost.shaderCompiles()
-            + " nativeProgramLinks=" + cost.programLinks() + " oldNativeProgramsClosed=16");
+        System.out.println("Vanilla resource reload fixedProducts=17 nativeShaderCompiles=" + cost.shaderCompiles()
+            + " nativeProgramLinks=" + cost.programLinks() + " oldNativeProgramsClosed=17");
     }
 
     public static void assertHidden(Minecraft client) {
@@ -290,7 +290,7 @@ public final class VanillaPipelinePreparationTap {
         SOLID_REFLECTED, CUTOUT_REFLECTED, TRANSLUCENT_REFLECTED,
         SOLID_RGSS, CUTOUT_RGSS, TRANSLUCENT_RGSS,
         SOLID_REFLECTED_RGSS, CUTOUT_REFLECTED_RGSS, TRANSLUCENT_REFLECTED_RGSS,
-        COMPOSITE, COMPOSITE_SHAPE, FEATHER, LAYER;
+        COMPOSITE, COMPOSITE_SHAPE, FEATHER, LAYER, SKY;
 
         public boolean terrain() {
             return ordinal() < COMPOSITE.ordinal();

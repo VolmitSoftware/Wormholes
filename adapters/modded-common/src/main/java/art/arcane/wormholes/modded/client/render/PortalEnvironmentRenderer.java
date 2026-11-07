@@ -91,8 +91,18 @@ final class PortalEnvironmentRenderer implements AutoCloseable {
         return lightmap.getTextureView();
     }
 
+    /** Whether the destination has a sky to draw behind its terrain. */
+    boolean skybox() {
+        return sky.skybox != DimensionType.Skybox.NONE;
+    }
+
+    /** The kind of sky the destination has. */
+    DimensionType.Skybox skyboxKind() {
+        return sky.skybox;
+    }
+
     void renderSky(SkyRenderer renderer) {
-        if (sky.skybox == DimensionType.Skybox.NONE) {
+        if (!skybox()) {
             return;
         }
         renderWithView(RenderSystem.getModelViewStack(), view, () -> renderer.render(fogBuffer(), sky));

@@ -60,6 +60,9 @@ public abstract class VanillaPipelinePreparationAccess implements BankAccess {
     @Accessor("layer")
     public abstract RenderPipeline wormholesTest$layerDescriptor();
 
+    @Accessor("sky")
+    public abstract RenderPipeline wormholesTest$skyDescriptor();
+
     @Accessor("prepared")
     public abstract boolean prepared();
 
@@ -80,6 +83,9 @@ public abstract class VanillaPipelinePreparationAccess implements BankAccess {
 
     @Invoker("layer")
     public abstract CompiledRenderPipeline wormholesTest$getLayer();
+
+    @Invoker("sky")
+    public abstract CompiledRenderPipeline wormholesTest$getSky();
 
     @Override
     public int descriptorCount() {
@@ -124,6 +130,7 @@ public abstract class VanillaPipelinePreparationAccess implements BankAccess {
                 case COMPOSITE_SHAPE -> wormholesTest$getCompositeShape();
                 case FEATHER -> wormholesTest$getFeather();
                 case LAYER -> wormholesTest$getLayer();
+                case SKY -> wormholesTest$getSky();
                 default -> throw new AssertionError("Unsupported fixed getter: " + key);
             };
         VanillaPipelinePreparationTap.require(result == expected.compiled(), "fixed getter replaced its compiled handle: " + key);
@@ -144,6 +151,7 @@ public abstract class VanillaPipelinePreparationAccess implements BankAccess {
                 case COMPOSITE_SHAPE -> wormholesTest$compositeShapeDescriptor();
                 case FEATHER -> wormholesTest$featherDescriptor();
                 case LAYER -> wormholesTest$layerDescriptor();
+                case SKY -> wormholesTest$skyDescriptor();
                 default -> throw new AssertionError("Unsupported fixed descriptor: " + key);
             };
         }

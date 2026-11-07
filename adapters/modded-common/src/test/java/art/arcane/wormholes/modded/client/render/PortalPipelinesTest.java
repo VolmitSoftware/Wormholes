@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded.client.render;
 
+import com.mojang.renderpearl.api.GpuFormat;
 import com.mojang.renderpearl.api.pipeline.PrimitiveTopology;
 import com.mojang.renderpearl.api.pipeline.RenderPipeline;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
@@ -45,7 +46,7 @@ public class PortalPipelinesTest {
             verifyDescriptor(PortalPipelines.terrain(name, RenderPipelines.SOLID_BLOCK, false, DefaultVertexFormat.BLOCK), "portal_" + name);
             verifyDescriptor(PortalPipelines.terrain(name, RenderPipelines.SOLID_BLOCK, true, DefaultVertexFormat.BLOCK), "portal_" + name + "_rgss");
         }
-        verifyDescriptor(PortalPipelines.compositePipeline(), "portal_composite");
+        verifyDescriptor(PortalPipelines.compositePipeline(GpuFormat.RGBA8_UNORM), "portal_composite");
         verifyDescriptor(PortalPipelines.layerPipeline(), "portal_layer");
     }
 
@@ -58,15 +59,15 @@ public class PortalPipelinesTest {
 
     @Test
     public void shapedApertureDrawsTexturedTrianglesWhileFullAperturesKeepQuads() {
-        RenderPipeline full = PortalPipelines.compositePipeline();
+        RenderPipeline full = PortalPipelines.compositePipeline(GpuFormat.RGBA8_UNORM);
         assertEquals(DefaultVertexFormat.POSITION, full.getVertexFormatBinding(0));
         assertEquals(PrimitiveTopology.QUADS, full.getPrimitiveTopology());
-        RenderPipeline shaped = PortalPipelines.compositeShapePipeline();
+        RenderPipeline shaped = PortalPipelines.compositeShapePipeline(GpuFormat.RGBA8_UNORM);
         verifyDescriptor(shaped, "portal_composite_shape");
         assertEquals(DefaultVertexFormat.POSITION_TEX, shaped.getVertexFormatBinding(0));
         assertEquals(PrimitiveTopology.TRIANGLES, shaped.getPrimitiveTopology());
         assertTrue(shaped.getShaderDefines().flags().contains("PORTAL_SHAPE"));
-        RenderPipeline feather = PortalPipelines.featherPipeline();
+        RenderPipeline feather = PortalPipelines.featherPipeline(GpuFormat.RGBA8_UNORM);
         verifyDescriptor(feather, "portal_feather");
         assertEquals(DefaultVertexFormat.POSITION_TEX, feather.getVertexFormatBinding(0));
         assertEquals(PrimitiveTopology.TRIANGLES, feather.getPrimitiveTopology());
@@ -81,8 +82,8 @@ public class PortalPipelinesTest {
             assertTrue(fixture.descriptors.isEmpty());
             fixture.bank.prepare();
             fixture.bank.prepare();
-            assertEquals(16, fixture.descriptors.size());
-            assertEquals(16, fixture.products.size());
+            assertEquals(17, fixture.descriptors.size());
+            assertEquals(17, fixture.products.size());
             int rgss = 0;
             int reflected = 0;
             int cutout = 0;
@@ -118,7 +119,7 @@ public class PortalPipelinesTest {
             assertSame(fixture.product("portal_composite_shape"), fixture.bank.compositeShape());
             assertSame(fixture.product("portal_feather"), fixture.bank.feather());
             assertSame(fixture.product("portal_layer"), fixture.bank.layer());
-            assertEquals(16, fixture.descriptors.size());
+            assertEquals(17, fixture.descriptors.size());
             fixture.bank.close();
             fixture.bank.close();
             for (CompiledRenderPipeline product : fixture.products.values()) {
@@ -193,7 +194,7 @@ public class PortalPipelinesTest {
                 }
                 return CompletableFuture.completedFuture(pending);
             });
-            bank = new PortalPipelines();
+            bank = new PortalPipelines(GpuFormat.RGBA8_UNORM);
         }
 
         private CompiledRenderPipeline product(String path) {

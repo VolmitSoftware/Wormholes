@@ -3,6 +3,7 @@ package art.arcane.wormholes.modded.client.render;
 import com.mojang.blaze3d.pipeline.PipelineCache;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
+import com.mojang.renderpearl.api.GpuFormat;
 import com.mojang.renderpearl.api.device.GpuDevice;
 import com.mojang.renderpearl.api.pipeline.BindGroupLayout;
 import com.mojang.renderpearl.api.pipeline.BlendFunction;
@@ -47,44 +48,54 @@ final class PortalPipelines implements AutoCloseable {
     private final RenderPipeline compositeShape;
     private final RenderPipeline feather;
     private final RenderPipeline layer;
+    private final RenderPipeline sky;
+    private final GpuFormat colorFormat;
     private final Sources sources;
     private final GpuDevice device;
     private final List<RenderPipeline> descriptors;
     private final Map<RenderPipeline, CompiledRenderPipeline> compiled = new IdentityHashMap<>(16);
-    private ReflectedCache reflectedFeatures;
+    private DerivedCache features;
+    private DerivedCache reflectedFeatures;
     private boolean prepared;
     private boolean closed;
 
-    PortalPipelines() {
-        createTerrain(terrain, reflectedTerrain, false);
-        createTerrain(rgssTerrain, reflectedRgssTerrain, true);
-        composite = compositePipeline();
-        compositeShape = compositeShapePipeline();
-        feather = featherPipeline();
+    /** A bank whose view, composite, feather and sky pipelines draw into portal targets of this colour format; the layer pipeline draws into the main target. */
+    PortalPipelines(GpuFormat colorFormat) {
+        this.colorFormat = colorFormat;
+        createTerrain(terrain, reflectedTerrain, false, colorFormat);
+        createTerrain(rgssTerrain, reflectedRgssTerrain, true, colorFormat);
+        composite = compositePipeline(colorFormat);
+        compositeShape = compositeShapePipeline(colorFormat);
+        feather = featherPipeline(colorFormat);
         layer = layerPipeline();
-        List<RenderPipeline> all = new ArrayList<>(16);
+        sky = skyPipeline(colorFormat);
+        List<RenderPipeline> all = new ArrayList<>(17);
         all.addAll(terrain.values());
         all.addAll(reflectedTerrain.values());
         all.addAll(rgssTerrain.values());
         all.addAll(reflectedRgssTerrain.values());
-        all.addAll(List.of(composite, compositeShape, feather, layer));
+        all.addAll(List.of(composite, compositeShape, feather, layer, sky));
         descriptors = List.copyOf(all);
         device = RenderSystem.getDevice();
         sources = new Sources(Minecraft.getInstance().getResourceManager());
     }
 
-    static RenderPipeline compositePipeline() {
+    GpuFormat colorFormat() {
+        return colorFormat;
+    }
+
+    static RenderPipeline compositePipeline(GpuFormat colorFormat) {
         return RenderPipeline.builder().withLocation(Identifier.fromNamespaceAndPath("wormholes", "portal_composite"))
             .withVertexShader(Identifier.fromNamespaceAndPath("wormholes", "core/portal_composite")).withFragmentShader(Identifier.fromNamespaceAndPath("wormholes", "core/portal_composite"))
             .withBindGroupLayout(BindGroupLayout.builder().withUniform("Projection", UniformType.UNIFORM_BUFFER)
                 .withUniform("DynamicTransforms", UniformType.UNIFORM_BUFFER)
                 .withUniform("Sampler0", UniformType.COMBINED_IMAGE_SAMPLER).build())
             .withBindGroupLayout(PORTAL).withDepthStencilState(DepthStencilState.DEFAULT)
-            .withColorTargetState(ColorTargetState.DEFAULT).withCull(false)
+            .withColorTargetState(target(ColorTargetState.DEFAULT, colorFormat)).withCull(false)
             .withVertexBinding(0, DefaultVertexFormat.POSITION).withPrimitiveTopology(PrimitiveTopology.QUADS).build();
     }
 
-    static RenderPipeline compositeShapePipeline() {
+    static RenderPipeline compositeShapePipeline(GpuFormat colorFormat) {
         return RenderPipeline.builder().withLocation(Identifier.fromNamespaceAndPath("wormholes", "portal_composite_shape"))
             .withVertexShader(Identifier.fromNamespaceAndPath("wormholes", "core/portal_composite")).withFragmentShader(Identifier.fromNamespaceAndPath("wormholes", "core/portal_composite"))
             .withShaderDefine("PORTAL_SHAPE")
@@ -92,11 +103,11 @@ final class PortalPipelines implements AutoCloseable {
                 .withUniform("DynamicTransforms", UniformType.UNIFORM_BUFFER)
                 .withUniform("Sampler0", UniformType.COMBINED_IMAGE_SAMPLER).build())
             .withBindGroupLayout(PORTAL).withDepthStencilState(DepthStencilState.DEFAULT)
-            .withColorTargetState(ColorTargetState.DEFAULT).withCull(false)
+            .withColorTargetState(target(ColorTargetState.DEFAULT, colorFormat)).withCull(false)
             .withVertexBinding(0, DefaultVertexFormat.POSITION_TEX).withPrimitiveTopology(PrimitiveTopology.TRIANGLES).build();
     }
 
-    static RenderPipeline featherPipeline() {
+    static RenderPipeline featherPipeline(GpuFormat colorFormat) {
         return RenderPipeline.builder().withLocation(Identifier.fromNamespaceAndPath("wormholes", "portal_feather"))
             .withVertexShader(Identifier.fromNamespaceAndPath("wormholes", "core/portal_composite")).withFragmentShader(Identifier.fromNamespaceAndPath("wormholes", "core/portal_feather"))
             .withShaderDefine("PORTAL_SHAPE")
@@ -104,7 +115,7 @@ final class PortalPipelines implements AutoCloseable {
                 .withUniform("DynamicTransforms", UniformType.UNIFORM_BUFFER).build())
             .withBindGroupLayout(PORTAL).withBindGroupLayout(FEATHER)
             .withDepthStencilState(new DepthStencilState(CompareOp.GREATER_THAN_OR_EQUAL, false))
-            .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT)).withCull(false)
+            .withColorTargetState(target(new ColorTargetState(BlendFunction.TRANSLUCENT), colorFormat)).withCull(false)
             .withVertexBinding(0, DefaultVertexFormat.POSITION_TEX).withPrimitiveTopology(PrimitiveTopology.TRIANGLES).build();
     }
 
@@ -116,6 +127,20 @@ final class PortalPipelines implements AutoCloseable {
                 .withUniform("Sampler0", UniformType.COMBINED_IMAGE_SAMPLER)
                 .withUniform("Sampler1", UniformType.COMBINED_IMAGE_SAMPLER).build())
             .withDepthStencilState(DepthStencilState.DEFAULT).withColorTargetState(ColorTargetState.DEFAULT).withCull(false)
+            .withVertexBinding(0, DefaultVertexFormat.POSITION).withPrimitiveTopology(PrimitiveTopology.QUADS).build();
+    }
+
+    /** The destination sky drawn by the renderer that shades streamed views, over the whole viewport before its terrain. */
+    static RenderPipeline skyPipeline(GpuFormat colorFormat) {
+        return RenderPipeline.builder().withLocation(Identifier.fromNamespaceAndPath("wormholes", "portal_sky"))
+            .withVertexShader(Identifier.fromNamespaceAndPath("wormholes", "core/portal_sky"))
+            .withFragmentShader(Identifier.fromNamespaceAndPath("wormholes", "core/portal_sky"))
+            .withBindGroupLayout(BindGroupLayout.builder().withUniform("Projection", UniformType.UNIFORM_BUFFER)
+                .withUniform("DynamicTransforms", UniformType.UNIFORM_BUFFER)
+                .withUniform("Fog", UniformType.UNIFORM_BUFFER)
+                .withUniform("CloudWeather", UniformType.COMBINED_IMAGE_SAMPLER)
+                .withUniform("CloudNoise", UniformType.COMBINED_IMAGE_SAMPLER).build())
+            .withBindGroupLayout(PORTAL).withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, false)).withColorTargetState(target(ColorTargetState.DEFAULT, colorFormat)).withCull(false)
             .withVertexBinding(0, DefaultVertexFormat.POSITION).withPrimitiveTopology(PrimitiveTopology.QUADS).build();
     }
 
@@ -150,6 +175,10 @@ final class PortalPipelines implements AutoCloseable {
         return compiled(layer);
     }
 
+    CompiledRenderPipeline sky() {
+        return compiled(sky);
+    }
+
     CompiledRenderPipeline terrain(ChunkSectionLayer layer, boolean reflected, boolean rgss) {
         EnumMap<ChunkSectionLayer, RenderPipeline> bank = rgss
             ? reflected ? reflectedRgssTerrain : rgssTerrain
@@ -169,22 +198,44 @@ final class PortalPipelines implements AutoCloseable {
         return compiled(feather);
     }
 
-    PipelineCache reflectedFeatures() {
+    /**
+     * The cache the game's feature pipelines draw from inside a view, or null when the game's own cache serves: the
+     * features of a reflected view draw both faces, and every feature drawn into a target of another colour format
+     * needs a copy declared for it.
+     */
+    PipelineCache features(boolean reflected) {
         if (!prepared || closed) {
             throw new IllegalStateException("Portal pipeline bank is not prepared");
         }
-        if (reflectedFeatures == null) {
-            reflectedFeatures = new ReflectedCache();
+        if (!reflected && colorFormat == ColorTargetState.DEFAULT.format()) {
+            return null;
         }
-        return reflectedFeatures;
+        if (reflected) {
+            if (reflectedFeatures == null) {
+                reflectedFeatures = new DerivedCache(true, colorFormat);
+            }
+            return reflectedFeatures;
+        }
+        if (features == null) {
+            features = new DerivedCache(false, colorFormat);
+        }
+        return features;
+    }
+
+    static ColorTargetState target(ColorTargetState state, GpuFormat colorFormat) {
+        return state.format() == colorFormat ? state : new ColorTargetState(state.blendFunction(), colorFormat, state.writeMask());
     }
 
     static RenderPipeline terrain(String name, RenderPipeline original, boolean rgss, VertexFormat format) {
+        return terrain(name, original, rgss, format, ColorTargetState.DEFAULT.format());
+    }
+
+    static RenderPipeline terrain(String name, RenderPipeline original, boolean rgss, VertexFormat format, GpuFormat colorFormat) {
         RenderPipeline.Builder builder = RenderPipeline.builder().withLocation(Identifier.fromNamespaceAndPath("wormholes", "portal_" + name + (rgss ? "_rgss" : "")))
             .withVertexShader(Identifier.fromNamespaceAndPath("wormholes", "core/portal_block")).withFragmentShader(Identifier.fromNamespaceAndPath("wormholes", "core/portal_block"))
             .withDepthStencilState(original.getDepthStencilState()).withCull(!name.endsWith("_reflected") && original.isCull())
             .withVertexBinding(0, format).withPrimitiveTopology(PrimitiveTopology.QUADS)
-            .withColorTargetState(original.getColorTargetStates().getFirst()).withBindGroupLayout(PORTAL);
+            .withColorTargetState(target(original.getColorTargetStates().getFirst(), colorFormat)).withBindGroupLayout(PORTAL);
         for (BindGroupLayout layout : original.getBindGroupLayouts()) {
             builder.withBindGroupLayout(layout);
         }
@@ -221,6 +272,14 @@ final class PortalPipelines implements AutoCloseable {
             }
             reflectedFeatures = null;
         }
+        if (features != null) {
+            try {
+                features.close();
+            } catch (RuntimeException closeFailure) {
+                failure = collectFailure(failure, closeFailure);
+            }
+            features = null;
+        }
         try {
             sources.close();
         } catch (RuntimeException closeFailure) {
@@ -232,13 +291,13 @@ final class PortalPipelines implements AutoCloseable {
     }
 
     private static void createTerrain(EnumMap<ChunkSectionLayer, RenderPipeline> terrain,
-                                      EnumMap<ChunkSectionLayer, RenderPipeline> reflectedTerrain, boolean rgss) {
-        terrain.put(ChunkSectionLayer.SOLID, terrain("solid", RenderPipelines.SOLID_BLOCK, rgss, DefaultVertexFormat.BLOCK));
-        terrain.put(ChunkSectionLayer.CUTOUT, terrain("cutout", RenderPipelines.CUTOUT_BLOCK, rgss, DefaultVertexFormat.BLOCK));
-        terrain.put(ChunkSectionLayer.TRANSLUCENT, terrain("translucent", RenderPipelines.TRANSLUCENT_BLOCK, rgss, DefaultVertexFormat.BLOCK));
-        reflectedTerrain.put(ChunkSectionLayer.SOLID, terrain("solid_reflected", RenderPipelines.SOLID_BLOCK, rgss, DefaultVertexFormat.BLOCK));
-        reflectedTerrain.put(ChunkSectionLayer.CUTOUT, terrain("cutout_reflected", RenderPipelines.CUTOUT_BLOCK, rgss, DefaultVertexFormat.BLOCK));
-        reflectedTerrain.put(ChunkSectionLayer.TRANSLUCENT, terrain("translucent_reflected", RenderPipelines.TRANSLUCENT_BLOCK, rgss, DefaultVertexFormat.BLOCK));
+                                      EnumMap<ChunkSectionLayer, RenderPipeline> reflectedTerrain, boolean rgss, GpuFormat colorFormat) {
+        terrain.put(ChunkSectionLayer.SOLID, terrain("solid", RenderPipelines.SOLID_BLOCK, rgss, DefaultVertexFormat.BLOCK, colorFormat));
+        terrain.put(ChunkSectionLayer.CUTOUT, terrain("cutout", RenderPipelines.CUTOUT_BLOCK, rgss, DefaultVertexFormat.BLOCK, colorFormat));
+        terrain.put(ChunkSectionLayer.TRANSLUCENT, terrain("translucent", RenderPipelines.TRANSLUCENT_BLOCK, rgss, DefaultVertexFormat.BLOCK, colorFormat));
+        reflectedTerrain.put(ChunkSectionLayer.SOLID, terrain("solid_reflected", RenderPipelines.SOLID_BLOCK, rgss, DefaultVertexFormat.BLOCK, colorFormat));
+        reflectedTerrain.put(ChunkSectionLayer.CUTOUT, terrain("cutout_reflected", RenderPipelines.CUTOUT_BLOCK, rgss, DefaultVertexFormat.BLOCK, colorFormat));
+        reflectedTerrain.put(ChunkSectionLayer.TRANSLUCENT, terrain("translucent_reflected", RenderPipelines.TRANSLUCENT_BLOCK, rgss, DefaultVertexFormat.BLOCK, colorFormat));
     }
 
     private CompiledRenderPipeline compiled(RenderPipeline pipeline) {
@@ -258,24 +317,29 @@ final class PortalPipelines implements AutoCloseable {
         return previous;
     }
 
-    private static final class ReflectedCache extends PipelineCache {
+    /** The game's feature pipelines as copies for a view: culling off when the view is reflected, colour targets in the view's format. */
+    private static final class DerivedCache extends PipelineCache {
         private final Map<RenderPipeline, RenderPipeline> variants = new HashMap<>();
+        private final boolean reflected;
+        private final GpuFormat colorFormat;
 
-        private ReflectedCache() {
+        private DerivedCache(boolean reflected, GpuFormat colorFormat) {
             super(RenderSystem.getDevice(), new Sources(Minecraft.getInstance().getResourceManager()));
+            this.reflected = reflected;
+            this.colorFormat = colorFormat;
         }
 
         @Override
         public CompiledRenderPipeline get(RenderPipeline pipeline) {
-            return super.get(variants.computeIfAbsent(pipeline, ReflectedPipeline::new));
+            return super.get(variants.computeIfAbsent(pipeline, source -> new DerivedPipeline(source, reflected, colorFormat)));
         }
     }
 
-    private static final class ReflectedPipeline extends RenderPipeline {
-        private ReflectedPipeline(RenderPipeline source) {
-            super(source.getLocation().withSuffix("_wormholes_reflected"), source.getShaders(), source.getShaderDefines(),
-                source.getBindGroupLayouts(), source.getColorTargetStates().toArray(ColorTargetState[]::new),
-                source.getDepthStencilState(), source.getPolygonMode(), false, source.getVertexFormatBindings().toArray(VertexFormat[]::new),
+    private static final class DerivedPipeline extends RenderPipeline {
+        private DerivedPipeline(RenderPipeline source, boolean reflected, GpuFormat colorFormat) {
+            super(source.getLocation().withSuffix(reflected ? "_wormholes_reflected" : "_wormholes_view"), source.getShaders(), source.getShaderDefines(),
+                source.getBindGroupLayouts(), source.getColorTargetStates().stream().map(state -> target(state, colorFormat)).toArray(ColorTargetState[]::new),
+                source.getDepthStencilState(), source.getPolygonMode(), !reflected && source.isCull(), source.getVertexFormatBindings().toArray(VertexFormat[]::new),
                 source.getPrimitiveTopology(), source.pushConstantSize(), source.getSortKey());
         }
     }

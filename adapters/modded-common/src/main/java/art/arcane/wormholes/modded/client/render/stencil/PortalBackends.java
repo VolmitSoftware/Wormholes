@@ -2,14 +2,17 @@ package art.arcane.wormholes.modded.client.render.stencil;
 
 import art.arcane.optics.render.RenderPathDecision;
 import art.arcane.optics.render.RenderRole;
+import art.arcane.wormholes.modded.client.render.StreamedShading;
 import art.arcane.wormholes.modded.client.render.WormholesRenderers;
 import art.arcane.wormholes.modded.client.render.iris.IrisPipelineBackend;
+import art.arcane.wormholes.modded.client.render.metal.MetalStreamedShading;
 import art.arcane.wormholes.modded.client.render.sodium.SodiumTerrainBackend;
 
-/** Maps the renderer modules that own terrain and shading to the stencil path's backends, and decides the portal render path. */
+/** Maps the renderer modules that own terrain and shading to the backends of both portal render paths, and decides the path. */
 public final class PortalBackends {
     private static final boolean SODIUM_TERRAIN = WormholesRenderers.owns(RenderRole.TERRAIN, WormholesRenderers.SODIUM);
     private static final boolean IRIS_SHADING = WormholesRenderers.owns(RenderRole.SHADING, WormholesRenderers.IRIS);
+    private static final boolean METAL_SHADING = WormholesRenderers.owns(RenderRole.SHADING, WormholesRenderers.METAL_SHADERS);
 
     private PortalBackends() {
     }
@@ -21,6 +24,11 @@ public final class PortalBackends {
 
     public static PipelineBackend pipeline() {
         return IRIS_SHADING ? IrisPipelineBackend.INSTANCE : PipelineBackend.NONE;
+    }
+
+    /** The shading owner's backend for streamed meshes: Metal Shaders' when it owns shading, otherwise none. */
+    public static StreamedShading streamedShading() {
+        return METAL_SHADING ? MetalStreamedShading.INSTANCE : StreamedShading.NONE;
     }
 
     /** Stencil views or streamed meshes for this frame, with the reasons when it is not stencil views. Render thread only. */

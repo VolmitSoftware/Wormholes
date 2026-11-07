@@ -9,6 +9,8 @@ import java.util.Objects;
 
 public final class PortalTerrainMaterials {
     public static final PortalTerrainMaterials VANILLA = new PortalTerrainMaterials(false, Map.of(), 0, Lighting.VANILLA);
+    /** The game's vertex format with no directional face shade baked in, for a renderer that lights the view per pixel. */
+    public static final PortalTerrainMaterials PER_PIXEL = new PortalTerrainMaterials(false, Map.of(), 1, new Lighting(1, true, false));
 
     private final boolean enabled;
     private final Map<BlockState, Integer> blockIds;

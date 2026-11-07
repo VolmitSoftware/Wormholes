@@ -16,6 +16,7 @@ import art.arcane.wormholes.portal.ApertureKind;
 import art.arcane.wormholes.modded.client.ClientRenderAccess;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.pipeline.TextureTarget;
+import com.mojang.renderpearl.api.GpuFormat;
 import com.mojang.renderpearl.api.buffers.GpuBuffer;
 import com.mojang.renderpearl.api.buffers.GpuBufferSlice;
 import com.mojang.renderpearl.api.commands.RenderPass;
@@ -188,7 +189,9 @@ public class ClientPortalRendererTest extends MinecraftTestBase {
         when(ClientRenderAccess.mainTarget(minecraft)).thenReturn(main);
         set(renderer, "models", minecraft.getModelManager().getBlockStateModelSet());
         set(renderer, "ambientOcclusion", false);
-        set(renderer, "pipelines", mock(PortalPipelines.class));
+        PortalPipelines pipelines = mock(PortalPipelines.class);
+        when(pipelines.colorFormat()).thenReturn(GpuFormat.RGBA8_UNORM);
+        set(renderer, "pipelines", pipelines);
         set(renderer, "terrainSampler", mock(GpuSampler.class));
         set(renderer, "anisotropy", 1);
         set(renderer, "layerMesh", mock(PortalGpuMesh.class));
@@ -625,8 +628,8 @@ public class ClientPortalRendererTest extends MinecraftTestBase {
         CameraRenderState camera = new CameraRenderState();
         camera.pos = new Vec3(6.5, 125.62, 8.5);
         camera.viewRotationMatrix = new Matrix4f().rotateX((float) (Math.PI / 2.0));
-        DynamicGpuData.Transform near = ClientPortalRenderer.terrainTransform(camera, SectionPos.asLong(0, 0, 0));
-        DynamicGpuData.Transform far = ClientPortalRenderer.terrainTransform(camera, SectionPos.asLong(0, -1, 0));
+        DynamicGpuData.Transform near = ClientPortalRenderer.terrainTransform(camera, SectionPos.asLong(0, 0, 0), new Matrix4f());
+        DynamicGpuData.Transform far = ClientPortalRenderer.terrainTransform(camera, SectionPos.asLong(0, -1, 0), new Matrix4f());
         Vector3f nearBoundary = new Vector3f(7, 0, 9).add(near.modelOffset());
         Vector3f farBoundary = new Vector3f(7, 16, 9).add(far.modelOffset());
         assertEquals(new Vector3f(0.5f, -125.62f, 0.5f), nearBoundary);
@@ -646,7 +649,7 @@ public class ClientPortalRendererTest extends MinecraftTestBase {
         GpuBuffer buffer = mock(GpuBuffer.class);
         when(device.createBuffer(any(), anyInt(), any(ByteBuffer.class))).thenAnswer(invocation -> {
             ByteBuffer data = invocation.getArgument(2);
-            assertEquals(48, data.remaining());
+            assertEquals(64, data.remaining());
             for (int component = 0; component < 4; component++) {
                 assertEquals(0.0f, data.getFloat(component * Float.BYTES), 0.0f);
             }
@@ -656,6 +659,8 @@ public class ClientPortalRendererTest extends MinecraftTestBase {
             assertEquals(0.0f, data.getFloat(28), 0.0f);
             assertEquals(device.getDeviceInfo().isZZeroToOne() ? 1.0f : 0.5f, data.getFloat(32), 0.0f);
             assertEquals(device.getDeviceInfo().isZZeroToOne() ? 0.0f : 0.5f, data.getFloat(36), 0.0f);
+            assertEquals(StreamedShading.SHADE_VANILLA, data.getFloat(48), 0.0f);
+            assertEquals(1.0f, data.getFloat(52), 0.0f);
             return buffer;
         });
         try (MockedStatic<RenderSystem> system = mockStatic(RenderSystem.class)) {

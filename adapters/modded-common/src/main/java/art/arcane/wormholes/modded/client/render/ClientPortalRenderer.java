@@ -7,6 +7,7 @@ import art.arcane.wormholes.modded.client.render.iris.IrisMeshFrame;
 import art.arcane.wormholes.modded.client.render.iris.IrisMeshCamera;
 import art.arcane.wormholes.modded.client.render.iris.IrisViewPipelines;
 import art.arcane.wormholes.modded.client.render.iris.IrisMeshMaterials;
+import art.arcane.wormholes.modded.client.render.stencil.PortalBackends;
 import art.arcane.wormholes.modded.client.render.stencil.PortalStencilRenderer;
 import art.arcane.wormholes.modded.client.render.stencil.PortalStencil;
 import art.arcane.wormholes.modded.client.render.stencil.PortalSurface;
@@ -33,6 +34,7 @@ import com.mojang.blaze3d.vertex.ByteBufferBuilder;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.MeshData;
 import com.mojang.logging.LogUtils;
+import com.mojang.renderpearl.api.GpuFormat;
 import com.mojang.renderpearl.api.buffers.GpuBuffer;
 import com.mojang.renderpearl.api.buffers.GpuBufferSlice;
 import com.mojang.renderpearl.api.commands.CommandEncoder;
@@ -61,6 +63,7 @@ import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.client.renderer.texture.TextureAtlas;
 import net.minecraft.core.SectionPos;
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.dimension.DimensionType;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.AABB;
 import org.joml.Matrix4f;
@@ -102,6 +105,7 @@ public final class ClientPortalRenderer {
     static final long RETRY_NANOS = 5_000_000_000L;
     private static final long BUILD_DISPATCH_NANOS = 2_000_000L;
     private static final Vector4fc WHITE = new Vector4f(1.0f);
+    private static final int VIEW_UNIFORM_BYTES = 64 + StreamedShading.FRAME_BYTES + StreamedShading.CLOUD_BYTES;
     private static final Matrix4fc IDENTITY_TEXTURE = new Matrix4f();
     private static final Comparator<Section> FARTHER_SECTION_FIRST = Comparator.comparingDouble((Section section) -> section.sortDistance).reversed();
     private static final ClientPortalRenderer INSTANCE = new ClientPortalRenderer();
@@ -119,6 +123,8 @@ public final class ClientPortalRenderer {
     private CameraRenderState rootCamera;
     private ClientLevel frameLevel;
     private final PortalRenderTargets targets = new PortalRenderTargets();
+    private StreamedShading shading = StreamedShading.NONE;
+    private boolean shadingActive;
     private TextureTarget portalLayer;
     private TextureTarget portalViewDepth;
     private PortalGpuMesh layerMesh;
@@ -153,6 +159,16 @@ public final class ClientPortalRenderer {
 
     public static ClientPortalRenderer instance() {
         return INSTANCE;
+    }
+
+    /** The renderer shading streamed views on this client. */
+    public StreamedShading streamedShading() {
+        return shading;
+    }
+
+    /** Whether that renderer shaded the views of the last prepared frame. */
+    public boolean streamedShadingActive() {
+        return shadingActive;
     }
 
     static long retainedMeshBudget(long remainingNanos, int pendingBuilds) {
@@ -264,12 +280,6 @@ public final class ClientPortalRenderer {
             portal.parentClip.close();
             portal.parentClip = null;
         }
-        for (Section section : portal.sections.values()) {
-            if (section.clip != null) {
-                section.clip.close();
-                section.clip = null;
-            }
-        }
     }
 
     public void remove(int portalKey) {
@@ -326,7 +336,9 @@ public final class ClientPortalRenderer {
         PortalPipelines replacement = null;
         try {
             resourceReload();
-            replacement = new PortalPipelines();
+            shading = PortalBackends.streamedShading();
+            shading.prepare();
+            replacement = new PortalPipelines(shading.colorFormat());
             replacement.prepare();
             pipelines = replacement;
         } catch (RuntimeException | LinkageError failure) {
@@ -339,6 +351,23 @@ public final class ClientPortalRenderer {
             }
             LOGGER.error("Could not prepare vanilla portal pipelines after resource loading", failure);
         }
+    }
+
+    /** The pipelines follow the colour format of the targets they draw into, which the shading renderer may change between frames. */
+    private void followColorFormat(GpuFormat colorFormat) {
+        if (pipelines == null || pipelines.colorFormat() == colorFormat) {
+            return;
+        }
+        PortalPipelines replacement = new PortalPipelines(colorFormat);
+        try {
+            replacement.prepare();
+        } catch (RuntimeException | LinkageError failure) {
+            replacement.close();
+            throw failure;
+        }
+        PortalPipelines previous = pipelines;
+        pipelines = replacement;
+        previous.close();
     }
 
     public void resourceReload() {
@@ -520,6 +549,9 @@ public final class ClientPortalRenderer {
         }
         RenderSystem.setShaderFog(fog);
         shadedMaterials = shadedMaterials();
+        shadingActive = shading.active();
+        targets.colorFormat(shading.colorFormat());
+        followColorFormat(shading.colorFormat());
         RenderTarget main = ClientRenderAccess.mainTarget(minecraft);
         frameWidth = main.width;
         frameHeight = main.height;
@@ -1080,7 +1112,8 @@ public final class ClientPortalRenderer {
                 double offset = portal.affine == null ? transformed.w + transformed.x * portal.scene.geometry().originX()
                     + transformed.y * portal.scene.geometry().originY() + transformed.z * portal.scene.geometry().originZ() : transformed.w;
                 portal.parentClip = uniform(new Vector4f(side * (float) transformed.x, side * (float) transformed.y,
-                    side * (float) transformed.z, side * (float) offset), new PortalViewport(0, 0, parent.target.width, parent.target.height));
+                    side * (float) transformed.z, side * (float) offset), new PortalViewport(0, 0, parent.target.width, parent.target.height),
+                    StreamedShading.SHADE_VANILLA, 1.0f);
             }
             clip = portal.parentClip;
         }
@@ -1427,7 +1460,8 @@ public final class ClientPortalRenderer {
         GpuBufferSlice previousFog = RenderSystem.getShaderFog();
         ProjectionType projectionType = RenderSystem.getProjectionType();
         boolean reflected = portal.contentCamera.viewRotationMatrix.determinant3x3() < 0;
-        PipelineCache previousPipelines = reflected ? RenderSystem.setCurrentPipelineCache(pipelines.reflectedFeatures()) : null;
+        PipelineCache featurePipelines = pipelines.features(reflected);
+        PipelineCache previousPipelines = featurePipelines == null ? null : RenderSystem.setCurrentPipelineCache(featurePipelines);
         PortalFeatureRenderer features = targets.features(dimensions.depth());
         try (PortalLightmapScope lightmap = new PortalLightmapScope(portal.environment.lightmap())) {
             features.prepare(portal.scene, camera, portal.cullFrustum);
@@ -1436,7 +1470,7 @@ public final class ClientPortalRenderer {
             RenderSystem.setProjectionMatrix(targets.projection(dimensions.depth()).getBuffer(clippedProjection), projectionType);
             RenderSystem.setShaderFog(portal.environment.fogBuffer());
             drawDestinationSolid(portal, features);
-            drawNestedDestinations(portal, dimensions);
+            drawNestedDestinations(portal, dimensions, featurePipelines, previousPipelines);
             RenderSystem.setProjectionMatrix(targets.projection(dimensions.depth()).getBuffer(clippedProjection), projectionType);
             RenderSystem.setShaderFog(portal.environment.fogBuffer());
             drawDestinationTranslucent(portal, features);
@@ -1446,7 +1480,7 @@ public final class ClientPortalRenderer {
                 features.closeFrame();
                 portal.environment.endFrame();
             } finally {
-                if (reflected) {
+                if (featurePipelines != null) {
                     RenderSystem.setCurrentPipelineCache(previousPipelines);
                 }
                 RenderSystem.setProjectionMatrix(previousProjection, projectionType);
@@ -1564,7 +1598,8 @@ public final class ClientPortalRenderer {
         GpuBufferSlice previousFog = RenderSystem.getShaderFog();
         ProjectionType projectionType = RenderSystem.getProjectionType();
         boolean reflected = portal.contentCamera.viewRotationMatrix.determinant3x3() < 0;
-        PipelineCache previousPipelines = reflected ? RenderSystem.setCurrentPipelineCache(pipelines.reflectedFeatures()) : null;
+        PipelineCache featurePipelines = pipelines.features(reflected);
+        PipelineCache previousPipelines = featurePipelines == null ? null : RenderSystem.setCurrentPipelineCache(featurePipelines);
         PortalFeatureRenderer features = targets.features(dimensions.depth());
         IrisMeshFrame.View view = new IrisMeshFrame.View(meshCamera(portal), shaderCamera.getViewRotationMatrix(new Matrix4f()), frameProjection,
             portal.environment.fogData().color, PortalProjection.clipDistance(frameProjection, camera.viewRotationMatrix, cameraPlane(portal)),
@@ -1595,7 +1630,7 @@ public final class ClientPortalRenderer {
                 features.closeFrame();
                 portal.environment.endFrame();
             } finally {
-                if (reflected) {
+                if (featurePipelines != null) {
                     RenderSystem.setCurrentPipelineCache(previousPipelines);
                 }
                 RenderSystem.setProjectionMatrix(previousProjection, projectionType);
@@ -1699,7 +1734,7 @@ public final class ClientPortalRenderer {
         }
         portal.target = portal.scene.fullWorld() ? targets.travel(portal.key, dimensions.width(), dimensions.height())
             : targets.scratch(dimensions.depth(), dimensions.width(), dimensions.height());
-        materialContext(portal, shadedMaterials == null ? PortalTerrainMaterials.VANILLA : shadedMaterials);
+        materialContext(portal, shadedMaterials != null ? shadedMaterials : shadingActive ? PortalTerrainMaterials.PER_PIXEL : PortalTerrainMaterials.VANILLA);
         restoreRetainedMeshes(portal);
         if (portal.compositeUniform == null) {
             portal.compositeUniform = compositeUniform(new PortalViewport(0, 0,
@@ -1714,6 +1749,8 @@ public final class ClientPortalRenderer {
             portal.environment = new PortalEnvironmentRenderer();
         }
         portal.environment.prepare(portal.scene.environment(), camera);
+        prepareShading(portal, dimensions);
+        writeViewUniform(portal);
         portal.drawSections.clear();
         for (Section section : orderedSections(portal)) {
             section.transform = null;
@@ -1735,7 +1772,100 @@ public final class ClientPortalRenderer {
         try (RenderPass clear = destinationPass(portal, Optional.of(portal.environment.fogData().color))) {
         }
         RenderSystem.setProjectionMatrix(targets.projection(dimensions.depth()).getBuffer(frameProjection), projectionType);
+        if (portal.skyKind != StreamedShading.SKY_NONE) {
+            if (portal.environment.skybox()) {
+                try (RenderPass pass = destinationPass(portal, Optional.empty())) {
+                    drawSky(pass, portal);
+                }
+            }
+            return;
+        }
         portal.environment.renderSky(portal.scene.fullWorld() ? targets.travelSky(portal.key) : targets.sky(dimensions.depth()));
+        // the game's sky may write depth (the End's sky is a cube); the aperture must publish sky depth for what is sky, or a
+        // temporal renderer drags the sky with the camera
+        RenderSystem.getDevice().createCommandEncoder().clearDepthTexture(portal.target.getDepthTexture(), 0.0D);
+    }
+
+    /**
+     * The shading renderer's sky over the whole view: the quad's transform slot carries the portal camera's inverse
+     * view-projection and its texture slot the source-to-destination rotation, which the renderer's sky stage reads.
+     */
+    private void drawSky(RenderPass pass, Portal portal) {
+        Matrix4f inverseViewProjection = new Matrix4f(frameProjection).mul(camera.viewRotationMatrix).invert();
+        Matrix4f rotation = new Matrix4f(portal.shadeTransform).setTranslation(0.0f, 0.0f, 0.0f);
+        GpuBufferSlice transform = RenderSystem.getDynamicUniforms().writeTransform(
+            new DynamicGpuData.Transform(inverseViewProjection, WHITE, new Vector3f(), rotation));
+        pass.setPipeline(pipelines.sky());
+        RenderSystem.bindDefaultUniforms(pass);
+        pass.setUniform("DynamicTransforms", transform);
+        pass.setUniform("Portal", portal.viewUniform);
+        shading.bindSky(pass);
+        layerMesh.draw(pass);
+    }
+
+    /**
+     * What the shading renderer may do with this view, and the map from the mesh's camera-relative source position to
+     * the block's real destination position relative to the main camera: {@code R * p + (R * contentCamera + t - mainCamera)}
+     * for the portal's source-to-destination transform {@code (R, t)}. The terrain's texture matrix slot carries it.
+     */
+    private void prepareShading(Portal portal, RenderDimensions dimensions) {
+        int mode = StreamedShading.SHADE_VANILLA;
+        if (shadingActive) {
+            EnvironmentState environment = portal.scene.environment();
+            Matrix4d sourceToDestination = PortalProjection.destinationToSource(environment.transform()).invert();
+            Vector3d shift = sourceToDestination.transformPosition(new Vector3d(camera.pos.x, camera.pos.y, camera.pos.z))
+                .sub(rootCamera.pos.x, rootCamera.pos.y, rootCamera.pos.z);
+            portal.shadeTransform.set(sourceToDestination).setTranslation((float) shift.x, (float) shift.y, (float) shift.z);
+            portal.shadeDeterminant = sourceToDestination.determinant3x3() < 0.0D ? -1.0f : 1.0f;
+            boolean sameLevel = frameLevel != null && portal.affine == null && environment.scale() == 1.0f
+                && environment.world().dimensionKey().equals(frameLevel.dimension().identifier().toString());
+            DimensionType.Skybox cameraSkybox = frameLevel == null ? DimensionType.Skybox.NONE : frameLevel.dimensionType().skybox();
+            DimensionType.Skybox destinationSkybox = portal.environment.skyboxKind();
+            mode = shading.shadeMode(sameLevel, cameraSkybox, destinationSkybox, dimensions.depth());
+            portal.skyKind = shading.skyKind(cameraSkybox, destinationSkybox);
+        } else {
+            portal.shadeTransform.identity();
+            portal.shadeDeterminant = 1.0f;
+            portal.skyKind = StreamedShading.SKY_NONE;
+        }
+        portal.shadeMode = mode;
+    }
+
+    /**
+     * The view's Portal block for this frame: the clip plane relative to the view's camera, the viewport, the depth
+     * transform, the shade mode with the destination rotation's handedness, and the shading renderer's frame re-based on
+     * the view's camera in the destination.
+     */
+    private void writeViewUniform(Portal portal) {
+        if (portal.viewUniform == null) {
+            portal.viewUniform = RenderSystem.getDevice().createBuffer(() -> "Portal view", GpuBuffer.USAGE_UNIFORM | GpuBuffer.USAGE_COPY_DST, VIEW_UNIFORM_BYTES);
+        }
+        Vector4f plane = portal.scene.fullWorld() ? new Vector4f(0.0f) : cameraPlane(portal);
+        PortalViewport viewport = portal.viewport;
+        boolean zeroToOne = ClientRenderAccess.zeroToOneDepth();
+        ByteBuffer data = MemoryUtil.memAlloc(VIEW_UNIFORM_BYTES);
+        try {
+            data.putFloat(plane.x).putFloat(plane.y).putFloat(plane.z).putFloat(plane.w);
+            data.putFloat(viewport.width()).putFloat(viewport.height()).putFloat(viewport.x()).putFloat(viewport.y());
+            data.putFloat(zeroToOne ? 1.0f : 0.5f).putFloat(zeroToOne ? 0.0f : 0.5f).putFloat(0.0f).putFloat(0.0f);
+            data.putFloat(portal.shadeMode).putFloat(portal.shadeDeterminant).putFloat(portal.skyKind != StreamedShading.SKY_NONE ? 1.0f : 0.0f)
+                .putFloat(portal.skyKind);
+            if (shadingActive) {
+                Vector3d destinationCamera = new Matrix4d(portal.shadeTransform).transformPosition(new Vector3d())
+                    .add(rootCamera.pos.x, rootCamera.pos.y, rootCamera.pos.z);
+                shading.writeFrame(data, camera.viewRotationMatrix, frameProjection, destinationCamera.x, destinationCamera.y, destinationCamera.z,
+                    portal.target.width, portal.target.height, portal.environment.skyboxKind());
+                shading.writeClouds(data, destinationCamera.x, destinationCamera.y, destinationCamera.z);
+            } else {
+                for (int offset = 0; offset < StreamedShading.FRAME_BYTES + StreamedShading.CLOUD_BYTES; offset += Float.BYTES) {
+                    data.putFloat(0.0f);
+                }
+            }
+            data.flip();
+            RenderSystem.getDevice().createCommandEncoder().writeToBuffer(portal.viewUniform.slice(), data);
+        } finally {
+            MemoryUtil.memFree(data);
+        }
     }
 
     private Matrix4f clippedProjection(Portal portal) {
@@ -1764,15 +1894,33 @@ public final class ClientPortalRenderer {
         }
     }
 
-    private void drawNestedDestinations(Portal portal, RenderDimensions dimensions) {
+    /**
+     * The portals seen through this one, each rendered as its own tree and composited into this view. A child prepares
+     * its own environment on the way (its lightmap renders into an 8-bit texture) and chooses its own feature pipelines,
+     * so the parent's pipeline cache, whose pipelines target the view's colour format, steps aside while the child renders.
+     */
+    private void drawNestedDestinations(Portal portal, RenderDimensions dimensions, PipelineCache featurePipelines, PipelineCache previousPipelines) {
         int previousCeiling = recursionCeiling;
         recursionCeiling = branchCeiling(previousCeiling, dimensions.depth(), portal.scene.geometry().recursionDepth());
         try {
             Matrix4d childSpace = new Matrix4d(portal.contentToRoot)
                 .mul(PortalProjection.destinationToSource(portal.scene.environment().transform()));
             for (Portal child : portals.values()) {
-                if (child.scene.geometry().parentPortalKey() == portal.key && renderTree(child, childSpace, childViewport(portal, dimensions),
-                    childDimensions(dimensions))) {
+                if (child.scene.geometry().parentPortalKey() != portal.key) {
+                    continue;
+                }
+                if (featurePipelines != null) {
+                    RenderSystem.setCurrentPipelineCache(previousPipelines);
+                }
+                boolean drawn;
+                try {
+                    drawn = renderTree(child, childSpace, childViewport(portal, dimensions), childDimensions(dimensions));
+                } finally {
+                    if (featurePipelines != null) {
+                        RenderSystem.setCurrentPipelineCache(featurePipelines);
+                    }
+                }
+                if (drawn) {
                     try (RenderPass pass = destinationPass(portal, Optional.empty())) {
                         composite(child, portal, pass);
                     }
@@ -1787,9 +1935,14 @@ public final class ClientPortalRenderer {
 
     private void drawDestinationTranslucent(Portal portal, PortalFeatureRenderer features) {
         try (RenderPass pass = destinationPass(portal, Optional.empty())) {
+            if (shadingActive && shading.shadesWater()) {
+                shading.captureScene();
+            }
             drawTerrain(portal, ChunkSectionLayer.TRANSLUCENT, pass);
             features.executeTranslucent(pass);
-            portal.environment.renderClouds(pass);
+            if (portal.skyKind == StreamedShading.SKY_NONE) {
+                portal.environment.renderClouds(pass);
+            }
         }
     }
 
@@ -1807,23 +1960,16 @@ public final class ClientPortalRenderer {
         pass.setUniform("Sampler0", Minecraft.getInstance().getTextureManager().getTexture(TextureAtlas.LOCATION_BLOCKS).getTextureView(),
             terrainSampler);
         pass.setUniform("Sampler2", portal.environment.lightmap(), RenderSystem.getSamplerCache().getClampToEdge(FilterMode.LINEAR));
+        pass.setUniform("Portal", portal.viewUniform);
         for (Section section : portal.drawSections) {
             PortalGpuMesh mesh = section.layers.get(layer);
             if (mesh == null) {
                 continue;
             }
-            if (section.clip == null) {
-                AperturePolygon.Plane plane = portal.contentPlane();
-                float side = portal.scene.geometry().frontSide() ? 1.0f : -1.0f;
-                section.clip = uniform(portal.scene.fullWorld() ? new Vector4f(0.0f) : new Vector4f(side * (float) plane.x(), side * (float) plane.y(), side * (float) plane.z(),
-                    side * (float) (plane.offset() + plane.x() * (SectionPos.x(section.key) << 4)
-                        + plane.y() * (SectionPos.y(section.key) << 4) + plane.z() * (SectionPos.z(section.key) << 4))), portal.viewport);
-            }
             if (section.transform == null) {
-                section.transform = RenderSystem.getDynamicUniforms().writeTransform(terrainTransform(camera, section.key));
+                section.transform = RenderSystem.getDynamicUniforms().writeTransform(terrainTransform(camera, section.key, portal.shadeTransform));
             }
             pass.setUniform("DynamicTransforms", section.transform);
-            pass.setUniform("Portal", section.clip);
             mesh.draw(pass);
             terrainDraws++;
             frameTerrainDraws++;
@@ -1950,10 +2096,11 @@ public final class ClientPortalRenderer {
         return RenderSystem.getDynamicUniforms().writeTransform(modelView);
     }
 
-    static DynamicGpuData.Transform terrainTransform(CameraRenderState camera, long sectionKey) {
+    /** The section's transform; the portal block pipelines sample through no texture matrix, so that slot carries the shading transform. */
+    static DynamicGpuData.Transform terrainTransform(CameraRenderState camera, long sectionKey, Matrix4fc shadeTransform) {
         Vector3f offset = new Vector3f((float) ((SectionPos.x(sectionKey) << 4) - camera.pos.x),
             (float) ((SectionPos.y(sectionKey) << 4) - camera.pos.y), (float) ((SectionPos.z(sectionKey) << 4) - camera.pos.z));
-        return new DynamicGpuData.Transform(camera.viewRotationMatrix, WHITE, offset, IDENTITY_TEXTURE);
+        return new DynamicGpuData.Transform(camera.viewRotationMatrix, WHITE, offset, shadeTransform);
     }
 
     static DynamicGpuData.Transform shaderTerrainTransform(CameraRenderState camera, long sectionKey) {
@@ -1965,16 +2112,18 @@ public final class ClientPortalRenderer {
     }
 
     static GpuBuffer compositeUniform(PortalViewport viewport) {
-        return uniform(new Vector4f(0.0f), viewport);
+        return uniform(new Vector4f(0.0f), viewport, StreamedShading.SHADE_VANILLA, 1.0f);
     }
 
-    private static GpuBuffer uniform(Vector4f plane, PortalViewport viewport) {
-        ByteBuffer data = MemoryUtil.memAlloc(48);
+    /** The Portal block: clip plane, target size and origin, depth transform, and the shade mode with the destination rotation's handedness. */
+    private static GpuBuffer uniform(Vector4f plane, PortalViewport viewport, int shadeMode, float shadeDeterminant) {
+        ByteBuffer data = MemoryUtil.memAlloc(64);
         try {
             data.putFloat(plane.x).putFloat(plane.y).putFloat(plane.z).putFloat(plane.w);
             data.putFloat(viewport.width()).putFloat(viewport.height()).putFloat(viewport.x()).putFloat(viewport.y());
             boolean zeroToOne = ClientRenderAccess.zeroToOneDepth();
-            data.putFloat(zeroToOne ? 1.0f : 0.5f).putFloat(zeroToOne ? 0.0f : 0.5f).putFloat(0.0f).putFloat(0.0f).flip();
+            data.putFloat(zeroToOne ? 1.0f : 0.5f).putFloat(zeroToOne ? 0.0f : 0.5f).putFloat(0.0f).putFloat(0.0f);
+            data.putFloat(shadeMode).putFloat(shadeDeterminant).putFloat(0.0f).putFloat(0.0f).flip();
             return RenderSystem.getDevice().createBuffer(() -> "Portal parameters", GpuBuffer.USAGE_UNIFORM, data);
         } finally {
             MemoryUtil.memFree(data);
@@ -2065,6 +2214,10 @@ public final class ClientPortalRenderer {
             portal.compositeUniform.close();
             portal.compositeUniform = null;
         }
+        if (portal.viewUniform != null) {
+            portal.viewUniform.close();
+            portal.viewUniform = null;
+        }
         if (portal.parentClip != null) {
             portal.parentClip.close();
             portal.parentClip = null;
@@ -2082,10 +2235,6 @@ public final class ClientPortalRenderer {
         if (previous != null) {
             removeMeshProof(previous.identity);
             closeSection(previous);
-        }
-        if (section.clip != null) {
-            section.clip.close();
-            section.clip = null;
         }
         section.identity.references((reference, bytes) -> {
             int references = retainedProofReferences.getOrDefault(reference, 0);
@@ -2233,9 +2382,6 @@ public final class ClientPortalRenderer {
             gpuBytes -= mesh.bytes();
             mesh.close();
         }
-        if (section.clip != null) {
-            section.clip.close();
-        }
     }
 
     private record MeshCompletion(Portal portal, long key, long revision, int generation, PortalScene.MeshIdentity identity, PortalSectionMesh mesh, Throwable failure) {
@@ -2297,6 +2443,10 @@ public final class ClientPortalRenderer {
         private long retryAt;
         private int generation;
         private PortalTerrainMaterials materials = PortalTerrainMaterials.VANILLA;
+        private int shadeMode = StreamedShading.SHADE_VANILLA;
+        private int skyKind = StreamedShading.SKY_NONE;
+        private float shadeDeterminant = 1.0f;
+        private final Matrix4f shadeTransform = new Matrix4f();
         private TextureTarget target;
         private PortalEnvironmentRenderer environment;
         private PortalGpuMesh apertureMesh;
@@ -2308,6 +2458,7 @@ public final class ClientPortalRenderer {
         private EnvironmentState.Color featherColor;
         private float featherWidth;
         private GpuBuffer compositeUniform;
+        private GpuBuffer viewUniform;
 
         private Portal(int key, PortalScene scene) {
             this.key = key;
@@ -2347,12 +2498,6 @@ public final class ClientPortalRenderer {
             } else {
                 bounds = affine.bounds();
             }
-            for (Section section : sections.values()) {
-                if (section.clip != null) {
-                    section.clip.close();
-                    section.clip = null;
-                }
-            }
         }
 
         private void updateGeometry() {
@@ -2372,7 +2517,6 @@ public final class ClientPortalRenderer {
         private double sortDistance;
         private final AABB bounds;
         private final EnumMap<ChunkSectionLayer, PortalGpuMesh> layers = new EnumMap<>(ChunkSectionLayer.class);
-        private GpuBuffer clip;
         private GpuBufferSlice transform;
 
         private Section(long key, long revision) {

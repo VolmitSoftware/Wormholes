@@ -37,6 +37,7 @@ sourceSets {
     }
     test {
         java.srcDir('../modded-common/src/test/java')
+        resources.srcDir('../modded-common/src/test/resources')
     }
 }
 

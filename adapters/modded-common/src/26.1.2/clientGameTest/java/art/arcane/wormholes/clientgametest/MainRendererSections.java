@@ -18,6 +18,10 @@ final class MainRendererSections {
     private MainRendererSections() {
     }
 
+    static int rendered(Minecraft minecraft) {
+        return minecraft.levelRenderer.countRenderedSections();
+    }
+
     static int visible(Minecraft minecraft) {
         if (!WormholesRenderers.installed(WormholesRenderers.SODIUM)) {
             return minecraft.levelRenderer.getVisibleSections().size();

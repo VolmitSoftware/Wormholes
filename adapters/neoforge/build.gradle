@@ -73,6 +73,7 @@ sourceSets {
     }
     test {
         java.srcDir('../modded-common/src/test/java')
+        resources.srcDir('../modded-common/src/test/resources')
         for (String testClass : forgeCoveredClientTestClasses) {
             java.exclude(testClass.replace('.', '/') + '.java')
         }
