@@ -1,0 +1,24 @@
+{
+  "required": true,
+  "plugin": "art.arcane.wormholes.modded.PortalMixinPlugin",
+  "minVersion": "0.8",
+  "package": "art.arcane.wormholes.modded.mixin",
+  "compatibilityLevel": "JAVA_17",
+  "mixins": [],
+  "client": [
+    "client.SodiumArrivalRendererAccess",
+    "client.SodiumArrivalSectionsAccess",
+    "client.SodiumPortalRegionMixin",
+    "client.SodiumPortalRendererMixin",
+    "client.SodiumPortalSectionsMixin",
+    "client.SodiumPortalShaderMixin",
+    "client.SodiumPortalShaderSourceMixin",
+    "client.SodiumPortalVertexTypeAccess",
+    "client.DhPortalClientApiMixin",
+    "client.IrisPortalCompositeMixin",
+    "client.IrisPortalPipelineAccess"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

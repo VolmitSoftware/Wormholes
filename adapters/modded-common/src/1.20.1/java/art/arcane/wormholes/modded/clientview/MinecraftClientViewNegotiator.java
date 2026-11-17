@@ -1,0 +1,158 @@
+package art.arcane.wormholes.modded.clientview;
+
+import art.arcane.wormholes.modded.MinecraftClientProfiles;
+import art.arcane.optics.stream.ViewStreamInbound;
+import art.arcane.optics.stream.ViewStreamPhase;
+import art.arcane.optics.stream.ViewStreamSession;
+import art.arcane.optics.stream.ViewStreamSessionRegistry;
+import art.arcane.optics.stream.ViewStreamSessionState;
+import net.minecraft.network.Connection;
+import net.minecraft.world.level.block.state.BlockState;
+
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.BooleanSupplier;
+
+public final class MinecraftClientViewNegotiator {
+    private final ViewStreamSessionRegistry<MinecraftClientViewPeer, BlockState> registry;
+    private final ConcurrentHashMap<Connection, MinecraftClientViewPeer> peers;
+
+    public MinecraftClientViewNegotiator(ViewStreamSessionRegistry<MinecraftClientViewPeer, BlockState> registry) {
+        this.registry = Objects.requireNonNull(registry, "registry");
+        this.peers = new ConcurrentHashMap<>();
+    }
+
+    public Object configurationTask(UUID id, String name, Connection connection, BooleanSupplier channelPresent) {
+        Objects.requireNonNull(id, "id");
+        Objects.requireNonNull(connection, "connection");
+        Objects.requireNonNull(channelPresent, "channelPresent");
+        return null;
+    }
+
+    public boolean offerPlay(UUID id, String name, Connection connection) {
+        Objects.requireNonNull(id, "id");
+        Objects.requireNonNull(connection, "connection");
+        if (!registry.enabled()) {
+            peers.putIfAbsent(connection, new MinecraftClientViewPeer(id, name, connection));
+            return false;
+        }
+        ViewStreamSession<MinecraftClientViewPeer, BlockState> session = registry.session(id);
+        if (session != null && session.player().connection() == connection && session.player().offered()) {
+            return false;
+        }
+        if (session == null || session.player().connection() != connection) {
+            session = open(id, name, connection);
+            if (session == null) {
+                return false;
+            }
+        }
+        return offer(session, ViewStreamPhase.PLAY);
+    }
+
+    public int reoffer() {
+        if (!registry.enabled()) {
+            return 0;
+        }
+        int offered = 0;
+        for (MinecraftClientViewPeer peer : List.copyOf(peers.values())) {
+            ViewStreamSession<MinecraftClientViewPeer, BlockState> session = registry.session(peer.id());
+            if (!peer.connected() || (session != null && session.state() != ViewStreamSessionState.VANILLA)) {
+                continue;
+            }
+            ViewStreamSession<MinecraftClientViewPeer, BlockState> opened = open(peer.id(), peer.name(), peer.connection());
+            if (opened != null && offer(opened, ViewStreamPhase.PLAY)) {
+                offered++;
+            }
+        }
+        return offered;
+    }
+
+    public ViewStreamInbound receive(Connection connection, byte[] payload) {
+        return receiveAt(connection, payload, System.nanoTime());
+    }
+
+    public ViewStreamInbound receiveAt(Connection connection, byte[] payload, long receivedNanos) {
+        MinecraftClientViewPeer peer = peers.get(connection);
+        if (peer == null) {
+            return ViewStreamInbound.IGNORED;
+        }
+        ViewStreamSession<MinecraftClientViewPeer, BlockState> session = registry.session(peer.id());
+        if (session == null || session.player() != peer) {
+            return ViewStreamInbound.IGNORED;
+        }
+        return session.receiveAt(payload, 0, payload.length, receivedNanos / 1_000_000L);
+    }
+
+    public ViewStreamSession<MinecraftClientViewPeer, BlockState> session(UUID id) {
+        return registry.session(id);
+    }
+
+    public MinecraftClientViewPeer peer(Connection connection) {
+        return peers.get(connection);
+    }
+
+    public void disconnected(UUID id, Connection connection) {
+        MinecraftClientViewPeer peer = peers.remove(connection);
+        ViewStreamSession<MinecraftClientViewPeer, BlockState> session = registry.session(id);
+        if (session != null && (session.player() == peer || session.player().connection() == connection)) {
+            registry.forget(id);
+        }
+    }
+
+    public int prune() {
+        int pruned = 0;
+        Iterator<Map.Entry<Connection, MinecraftClientViewPeer>> iterator = peers.entrySet().iterator();
+        while (iterator.hasNext()) {
+            MinecraftClientViewPeer peer = iterator.next().getValue();
+            if (peer.connected()) {
+                continue;
+            }
+            iterator.remove();
+            ViewStreamSession<MinecraftClientViewPeer, BlockState> session = registry.session(peer.id());
+            if (session != null && session.player() == peer) {
+                registry.forget(peer.id());
+            }
+            pruned++;
+        }
+        return pruned;
+    }
+
+    public int peers() {
+        return peers.size();
+    }
+
+    public void clear() {
+        peers.clear();
+    }
+
+    private ViewStreamSession<MinecraftClientViewPeer, BlockState> open(UUID id, String name, Connection connection) {
+        ViewStreamSession<MinecraftClientViewPeer, BlockState> existing = registry.session(id);
+        if (existing != null && existing.player().connection() != connection && existing.player().connected()) {
+            return null;
+        }
+        if (existing != null) {
+            peers.remove(existing.player().connection(), existing.player());
+        }
+        MinecraftClientViewPeer peer = new MinecraftClientViewPeer(id, name, connection);
+        long nonce = connection.isMemoryConnection() ? LocalPlateHandles.nonce() : 0L;
+        ViewStreamSession<MinecraftClientViewPeer, BlockState> session = registry.open(id, peer, nonce);
+        peers.put(connection, peer);
+        return session;
+    }
+
+    private static boolean offer(ViewStreamSession<MinecraftClientViewPeer, BlockState> session, ViewStreamPhase phase) {
+        String brand = MinecraftClientProfiles.brand(session.player().connection());
+        if (brand != null) {
+            session.brand(brand);
+        }
+        if (!session.offer(phase)) {
+            return false;
+        }
+        session.player().markOffered();
+        return true;
+    }
+}

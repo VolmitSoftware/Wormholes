@@ -277,13 +277,13 @@ public final class MenuService implements MenuServiceApi {
         MenuViewer viewer = found.get();
         long tick = ticks.get();
         switch (message) {
-            case MenuClientMessage.Hello _ -> {
+            case MenuClientMessage.Hello ignored -> {
             }
             case MenuClientMessage.Action action -> session.act(viewer, action.action(), MenuActionOrigin.NATIVE, false, null, tick);
             case MenuClientMessage.Back back -> session.back(viewer, back.revision(), tick);
             case MenuClientMessage.Page page -> session.page(viewer, page.revision(), page.page(), tick);
             case MenuClientMessage.Confirm confirm -> session.confirm(viewer, confirm.revision(), confirm.accepted(), tick);
-            case MenuClientMessage.Closed _ -> session.clientClosed();
+            case MenuClientMessage.Closed ignored -> session.clientClosed();
         }
         prune(viewerId, session);
     }

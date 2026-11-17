@@ -45,12 +45,15 @@ public final class ChestClicks {
 
     private static Map<ChestClick, MenuInteraction> defaults(MenuElement element) {
         return switch (element) {
-            case NumberElement _ -> NUMBER;
-            case TextElement _ -> TEXT;
-            case ItemCaptureElement _ -> ITEM;
-            case LookCaptureElement _ -> LOOK;
-            case LabelElement _ -> Map.of();
-            case ButtonElement _, ToggleElement _, CycleElement _, ListEntryElement _ -> PRESS;
+            case NumberElement ignored -> NUMBER;
+            case TextElement ignored -> TEXT;
+            case ItemCaptureElement ignored -> ITEM;
+            case LookCaptureElement ignored -> LOOK;
+            case LabelElement ignored -> Map.of();
+            case ButtonElement ignored -> PRESS;
+            case ToggleElement ignored -> PRESS;
+            case CycleElement ignored -> PRESS;
+            case ListEntryElement ignored -> PRESS;
         };
     }
 }

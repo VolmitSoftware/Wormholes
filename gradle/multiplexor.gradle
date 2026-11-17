@@ -60,4 +60,19 @@ gradle.projectsEvaluated {
             ])
         }
     }
+    [[loader: 'fabric', label: 'Fabric', pin: '0.16.14', platforms: ['fabric']],
+        [loader: 'forge', label: 'Forge', pin: '47.4.5', platforms: ['forge', 'neoforge']]].each { Map<String, Object> legacy ->
+        String directory = "adapters/${legacy.loader}-1.20.1"
+        buildTargets.add([
+            id: "${legacy.loader}-1.20.1".toString(),
+            tasks: [':build'],
+            arguments: ['-p', directory, "-PwormholesVersion=${project.version}".toString()],
+            java: 25,
+            memoryMiB: 6144,
+            workers: 2,
+            dependsOn: ['wormholes:core'],
+            artifacts: [[path: "${directory}/build/libs/Wormholes v${project.version} [${legacy.label}] 1.20.1+${legacy.pin}.jar".toString(),
+                role: 'runtime', platforms: legacy.platforms, minecraftVersions: ['1.20.1']]]
+        ])
+    }
 }

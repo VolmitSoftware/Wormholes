@@ -114,7 +114,7 @@ public final class BukkitNetworkMenuHost implements NetworkMenuHost {
                 state.setAddress(join.address());
                 state.setLabel(join.label());
             }
-            case NetworkEdit.Leave _ -> {
+            case NetworkEdit.Leave ignored -> {
                 state.setNetworkId(null);
                 state.setAddress("");
                 state.setDial(DialState.idle());

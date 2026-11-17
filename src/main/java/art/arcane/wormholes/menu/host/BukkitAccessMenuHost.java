@@ -68,7 +68,7 @@ public final class BukkitAccessMenuHost implements AccessMenuHost {
                 yield true;
             }
             case AccessEdit.AddGroup group -> access.addGroup(group.node());
-            case AccessEdit.ClearGroups _ -> access.clearGroups();
+            case AccessEdit.ClearGroups ignored -> access.clearGroups();
         };
         if (changed) {
             found.get().invalidateMenus();

@@ -284,13 +284,13 @@ public final class MinecraftPortalMenuHost implements PortalMenuHost, AutoClosea
 
     private Optional<PortalEditOutcome> refusal(MinecraftPortal portal, PortalEdit edit) {
         return switch (edit) {
-            case PortalEdit.Projection _ when portal.getDimensionalKind().isReceiverOnly(twoWayEnd()) ->
+            case PortalEdit.Projection ignored when portal.getDimensionalKind().isReceiverOnly(twoWayEnd()) ->
                 refused(WormholesMessages.PORTAL_PROJECTION_RECEIVER_INACTIVE, MessageArgs.empty());
-            case PortalEdit.MirrorRotation _ when !portal.isMirrorMode() ->
+            case PortalEdit.MirrorRotation ignored when !portal.isMirrorMode() ->
                 refused(WormholesMessages.PORTAL_MIRROR_SELECT_FIRST, MessageArgs.empty());
-            case PortalEdit.TravelMode _ when portal.getDimensionalKind().isManagedPortal() ->
+            case PortalEdit.TravelMode ignored when portal.getDimensionalKind().isManagedPortal() ->
                 refused(WormholesMessages.PORTAL_TRAVEL_MANAGED, MessageArgs.empty());
-            case PortalEdit.TravelMode _ when portal.isMirrorMode() ->
+            case PortalEdit.TravelMode ignored when portal.isMirrorMode() ->
                 refused(WormholesMessages.PORTAL_TRAVEL_MIRROR_LOCKED, MessageArgs.empty());
             case PortalEdit.ApertureShape shape when !portal.acceptsApertureShape(shape.shape()) ->
                 refused(WormholesMessages.PORTAL_APERTURE_SHAPE_TOO_SMALL, MinecraftPortalText.arguments("shape", shape.shape().format()));

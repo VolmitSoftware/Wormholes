@@ -1,0 +1,28 @@
+{
+  "required": true,
+  "plugin": "art.arcane.wormholes.modded.PortalMixinPlugin",
+  "minVersion": "0.8",
+  "package": "art.arcane.wormholes.modded.mixin",
+  "compatibilityLevel": "JAVA_17",
+  "mixins": [],
+  "client": [
+    "client.AvatarDataAccessor",
+    "client.ClientViewDebugOverlayMixin",
+    "client.LivingEntityUseAccessor",
+    "client.LocalMeshBlockEntityMixin",
+    "client.LocalMeshChunkMixin",
+    "client.MeshEntityFluidMixin",
+    "client.MeshEntityRendererMixin",
+    "client.MeshEntityTickMixin",
+    "client.MeshInteractionMixin",
+    "client.MeshLevelExtractorMixin",
+    "client.MeshLevelMixin",
+    "client.MeshLivingEntityMixin",
+    "client.ProjectedEntitySelectorMixin",
+    "client.ProjectedEntitySpawnMixin",
+    "client.WalkAnimationAccessor"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

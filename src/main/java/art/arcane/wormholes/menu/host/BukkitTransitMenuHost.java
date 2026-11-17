@@ -43,7 +43,7 @@ public final class BukkitTransitMenuHost implements TransitMenuHost {
         LocalPortal portal = found.get();
         TransitPortalExtension transit = portal.extension(TransitPortalExtension.class);
         switch (edit) {
-            case TransitEdit.Gravity _ -> throw new IllegalArgumentException("directional gravity is not available on this platform");
+            case TransitEdit.Gravity ignored -> throw new IllegalArgumentException("directional gravity is not available on this platform");
             case TransitEdit.Momentum momentum -> transit.setMomentum(momentum.policy());
             case TransitEdit.Orientation orientation -> transit.setOrientation(orientation.policy());
             case TransitEdit.Membrane membrane -> transit.setMembrane(membrane.enabled());

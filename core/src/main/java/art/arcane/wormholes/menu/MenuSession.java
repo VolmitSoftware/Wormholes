@@ -357,7 +357,7 @@ public final class MenuSession {
                 pages.put(top(), requested.page());
                 rebuild(viewer, false, true, tick);
             }
-            case MenuResult.Suspend _ -> {
+            case MenuResult.Suspend ignored -> {
                 suspended = true;
                 renderer.close(viewer);
             }
@@ -587,7 +587,7 @@ public final class MenuSession {
 
     private void refuse(MenuViewer viewer, MenuDecision decision, long tick) {
         switch (decision) {
-            case MenuDecision.Allow _ -> {
+            case MenuDecision.Allow ignored -> {
             }
             case MenuDecision.Deny deny when deny.close() -> closeWith(viewer, deny.notice());
             case MenuDecision.Deny deny -> notice(viewer, deny.notice());
@@ -610,7 +610,7 @@ public final class MenuSession {
 
     private boolean permitted(MenuViewer viewer, long tick) {
         switch (admit(viewer, top())) {
-            case MenuDecision.Allow _ -> {
+            case MenuDecision.Allow ignored -> {
                 return true;
             }
             case MenuDecision.Deny deny -> closeWith(viewer, deny.notice());

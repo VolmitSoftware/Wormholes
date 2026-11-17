@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "id": "wormholes_gametest",
+  "version": "${version}",
+  "name": "Wormholes GameTest",
+  "description": "Server GameTests for Wormholes.",
+  "authors": [
+    "Volmit Software"
+  ],
+  "license": "GPL-3.0",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "art.arcane.wormholes.gametest.FabricGameTestAttach"
+    ],
+    "fabric-gametest": [
+      "art.arcane.wormholes.gametest.FabricGameTests"
+    ]
+  },
+  "mixins": [
+    "wormholes_gametest.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=${fabricLoaderVersion}",
+    "minecraft": "${minecraftVersion}",
+    "wormholes": "${version}"
+  }
+}

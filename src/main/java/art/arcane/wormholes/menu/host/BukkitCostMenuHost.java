@@ -35,7 +35,7 @@ public final class BukkitCostMenuHost implements CostMenuHost {
         LocalPortal portal = found.get();
         try {
             return switch (edit) {
-                case CostEdit.Clear _ -> applied(portal::clearTravelCost);
+                case CostEdit.Clear ignored -> applied(portal::clearTravelCost);
                 case CostEdit.Item item -> item.item() instanceof BukkitCapturedItem captured
                     && applied(() -> portal.setVanillaTravelCostItem(captured.stack()));
                 case CostEdit.Quantity quantity -> applied(() -> portal.setVanillaTravelCostQuantity(quantity.quantity()));

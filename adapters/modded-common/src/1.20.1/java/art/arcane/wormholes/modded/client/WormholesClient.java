@@ -1,0 +1,457 @@
+package art.arcane.wormholes.modded.client;
+
+import art.arcane.wormholes.WormholesBuild;
+import art.arcane.wormholes.modded.client.menu.ClientMenus;
+import art.arcane.wormholes.modded.client.render.ClientPortalRenderer;
+import art.arcane.wormholes.modded.client.render.stencil.PortalStencilRenderer;
+import art.arcane.wormholes.modded.client.render.stencil.PortalViews;
+
+import art.arcane.optics.stream.ViewStreamCapability;
+import art.arcane.optics.stream.ViewStreamMessage;
+import art.arcane.optics.stream.ViewStreamProtocolException;
+import art.arcane.optics.fidelity.BlockEntitySample;
+import net.minecraft.SharedConstants;
+import net.minecraft.client.Camera;
+import net.minecraft.client.ClientBrandRetriever;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.SectionPos;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.chunk.LevelChunk;
+import net.minecraft.world.level.chunk.LevelChunkSection;
+import net.minecraft.world.level.levelgen.Heightmap;
+import net.minecraft.world.phys.Vec3;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.nio.file.Path;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.function.Consumer;
+import art.arcane.wormholes.modded.clientview.MinecraftClientViewExtensions;
+import art.arcane.wormholes.network.client.ArrivalExtension;
+import art.arcane.wormholes.network.client.ArrivalMessage;
+import art.arcane.wormholes.network.client.ClientViewExtensions;
+import art.arcane.wormholes.network.client.TravelExtension;
+import art.arcane.wormholes.network.client.TravelMessage;
+import art.arcane.optics.aperture.ApertureDescriptor;
+
+public final class WormholesClient {
+    private static final Logger LOGGER = LoggerFactory.getLogger("Wormholes");
+    private static volatile WormholesClient instance;
+
+    private final WormholesClientConfig config;
+    private final ClientViewStats stats;
+    private final Consumer<byte[]> sender;
+    private final ClientViewOutbound outbound;
+    private final int dataVersion;
+    private final String brandTag;
+    private final ClientSeamlessTravel seamlessTravel;
+    private final ClientArrivalPreparation arrivals;
+    private final PortalViews portalViews;
+    private final ClientLocalMeshSources localMeshes = new ClientLocalMeshSources(this::send);
+    private final ClientMeshViews meshViews = new ClientMeshViews();
+    private final ClientReflectionEntity reflections = new ClientReflectionEntity();
+    private volatile ClientViewSession session;
+    private volatile ClientViewReceiver receiver;
+    private ClientViewTick tick;
+    private Object attachedLevel;
+    private ClientLevelSurface attachedSurface;
+    private final WormholesDebugScreen debugScreen = new WormholesDebugScreen(this::debugStatus, this::detailLines);
+    private long ticks;
+
+    private WormholesClient(WormholesClientConfig config, Consumer<byte[]> sender) {
+        this.config = Objects.requireNonNull(config, "config");
+        this.sender = Objects.requireNonNull(sender, "sender");
+        this.outbound = new ClientViewOutbound(this::sendNow, System::nanoTime);
+        this.stats = new ClientViewStats();
+        Consumer<TravelMessage> travel = message -> send(TravelExtension.INSTANCE.wrap(message));
+        this.seamlessTravel = new ClientSeamlessTravel(travel, new ResidentLevels(travel, config.residentLevelMemoryBytes()));
+        Consumer<ArrivalMessage> arrivalReplies = message -> send(ArrivalExtension.INSTANCE.wrap(message));
+        this.arrivals = new ClientArrivalPreparation(arrivalReplies, config.residentLevelMemoryBytes());
+        this.arrivals.otherMemory(() -> seamlessTravel.residents().bytes());
+        this.seamlessTravel.residents().otherMemory(arrivals::bytes);
+        this.portalViews = new PortalViews(seamlessTravel.residents());
+        PortalStencilRenderer.instance().inputs(new PortalStencilRenderer.FrameInputs() {
+            @Override
+            public PortalViews views() {
+                return portalViews;
+            }
+
+            @Override
+            public Collection<TravelMessage.TravelBegin> arms() {
+                return seamlessTravel.arms();
+            }
+
+            @Override
+            public PortalViews.Crossing crossing() {
+                return seamlessTravel.crossing();
+            }
+
+            @Override
+            public boolean travelViewActive() {
+                return seamlessTravel.view().active();
+            }
+        });
+        this.dataVersion = SharedConstants.getCurrentVersion().getDataVersion().getVersion();
+        this.brandTag = ClientBrandRetriever.getClientModName();
+        freshSession();
+    }
+
+    public static WormholesClient initialize(Path configDirectory, Consumer<byte[]> sender) {
+        WormholesClient client = new WormholesClient(WormholesClientConfig.load(configDirectory), sender);
+        instance = client;
+        ClientViewSession.Readiness.remoteView = true;
+        ClientViewSession.Readiness.meshRender = true;
+        ClientViewDebugEntry.register(ClientViewDebugEntry.STATUS_ID, new ClientViewDebugEntry(client::debugSummary));
+        ClientViewDebugEntry.register(ClientViewDebugEntry.DETAIL_ID, new ClientViewDebugEntry(client::debugDetail));
+        ClientViewDebugEntry.setShown(ClientViewDebugEntry.STATUS_ID, true);
+        ClientViewDebugEntry.setShown(ClientViewDebugEntry.DETAIL_ID, client.config.showDebugOverlay);
+        ClientViewSession.Readiness.seamlessTravel = true;
+        ClientViewSession.Readiness.arrivalPreparation = true;
+        LOGGER.info("Wormholes ClientView client ready (renderer={}, plate budget {} MiB, bulk writes {})",
+            client.config.renderer, client.config.maxPlateMemoryMb, client.config.bulkWrite);
+        return client;
+    }
+
+    public static WormholesClient instance() {
+        return instance;
+    }
+
+    public static void chunkReplaced(LevelChunk chunk) {
+        WormholesClient client = instance;
+        if (client != null) {
+            client.reapplyChunk(chunk);
+        }
+    }
+
+    public static boolean activeLevel(ClientLevel level) {
+        WormholesClient client = instance;
+        return (client == null ? Minecraft.getInstance().level : client.seamlessTravel.residents().activeLevel()) == level;
+    }
+
+    public static void reconfiguring() {
+        WormholesClient client = instance;
+        if (client != null) {
+            client.disconnected();
+        }
+    }
+
+    public static void chunkBlockEntitiesReplaced(LevelChunk chunk) {
+        WormholesClient client = instance;
+        if (client != null) {
+            client.rebuildBlockEntities(chunk);
+        }
+    }
+
+    public static void blockChanged(Object level, BlockPos position) {
+        WormholesClient client = instance;
+        if (client != null) {
+            client.tick.blockChanged(level, position.getX(), position.getY(), position.getZ());
+            client.localMeshes.blockChanged(level, position);
+        }
+    }
+
+    public static void localChunkChanged(ClientLevel level, int x, int z) {
+        WormholesClient client = instance;
+        if (client != null) {
+            client.localMeshes.chunkChanged(level, x, z);
+        }
+    }
+
+    public static void localLightChanged(ClientLevel level, SectionPos position) {
+        Minecraft minecraft = Minecraft.getInstance();
+        if (!minecraft.isSameThread()) {
+            minecraft.execute(() -> localLightChanged(level, position));
+            return;
+        }
+        WormholesClient client = instance;
+        if (client != null) {
+            client.localMeshes.blockChanged(level, position.origin());
+        }
+    }
+
+    public ClientSeamlessTravel seamlessTravel() {
+        return seamlessTravel;
+    }
+
+    public ClientArrivalPreparation arrivals() {
+        return arrivals;
+    }
+
+    public PortalViews portalViews() {
+        return portalViews;
+    }
+
+    public ClientLocalMeshSources localMeshes() {
+        return localMeshes;
+    }
+
+    public ClientMeshViews meshViews() {
+        return meshViews;
+    }
+
+    public ClientReflectionEntity reflections() {
+        return reflections;
+    }
+
+    public boolean viewsAttachedTo(ClientLevel level) {
+        return attachedLevel == level;
+    }
+
+    public boolean managesVanillaPortal(ClientLevel level, BlockPos position) {
+        return attachedLevel == level && session.managesVanillaPortal(position.getX(), position.getY(), position.getZ());
+    }
+
+    public void dropProjectedEntities(ApertureDescriptor geometry) {
+        ClientProjectedEntities entities = tick == null ? null : tick.entities();
+        if (entities == null) {
+            return;
+        }
+        for (ClientPortal portal : session.portals().values()) {
+            if (!portal.nested() && portal.geometry().sameSurface(geometry)) {
+                entities.drop(portal.portalKey());
+            }
+        }
+    }
+
+    public void receive(byte[] payload, Consumer<byte[]> reply) {
+        receiver.receive(payload, reply == null ? sender : reply);
+    }
+
+    public void connected() {
+        seamlessTravel.clear();
+        arrivals.clear();
+        if (session.state() == ClientViewSession.State.VANILLA || session.state() == ClientViewSession.State.DECLINED) {
+            return;
+        }
+        if (attachedLevel != null) {
+            detach();
+        }
+    }
+
+    public void disconnected() {
+        Minecraft minecraft = Minecraft.getInstance();
+        if (!minecraft.isSameThread()) {
+            minecraft.execute(this::disconnected);
+            return;
+        }
+        seamlessTravel.clear();
+        portalViews.clear();
+        PortalStencilRenderer.instance().clear();
+        arrivals.clear();
+        reflections.clear();
+        detach();
+        meshViews.clear();
+        freshSession();
+    }
+
+    public void tick(Minecraft minecraft) {
+        ticks++;
+        outbound.flush();
+        ClientPortalRenderer.instance().finishBuilds();
+        seamlessTravel.tick();
+        arrivals.tick();
+        tick.effectsActive(!minecraft.isPaused() && minecraft.isWindowActive());
+        ClientLevel level = minecraft.level;
+        if (level == null) {
+            reflections.clear();
+            if (attachedLevel != null) {
+                detach();
+            }
+            tick.tick(0.0D, 0.0D, 0.0D, 0.0D, 0.0D, 0.0D, System.currentTimeMillis());
+            return;
+        }
+        if (attachedLevel != level) {
+            ClientLevelSurface surface = new ClientLevelSurface(level, config.bulkWrite);
+            tick.attach(level, surface, new ClientLevelScene(level, minecraft::getConnection));
+            attachedLevel = level;
+            attachedSurface = surface;
+        }
+        attachedSurface.refreshLight();
+        Entity player = minecraft.player;
+        Camera camera = minecraft.gameRenderer.getMainCamera();
+        Vec3 eye = camera.isInitialized() ? camera.getPosition() : player == null ? Vec3.ZERO : player.getEyePosition();
+        Vec3 velocity = player == null ? Vec3.ZERO : player.getDeltaMovement();
+        tick.tick(eye.x, eye.y, eye.z, velocity.x, velocity.y, velocity.z, System.currentTimeMillis());
+        try {
+            localMeshes.update(session, level, eye.x, eye.y, eye.z);
+        } catch (ViewStreamProtocolException failure) {
+            LOGGER.warn("Unable to capture local mirror sections", failure);
+        }
+        meshViews.update(session, level);
+        reflections.tick(level, minecraft.player, minecraft.getConnection(), session, tick,
+            config.selfReflection && session.active() && session.has(ViewStreamCapability.CLIENT_MIRROR));
+    }
+
+    public String debugLine() {
+        return String.join(" ", detailSections());
+    }
+
+    public List<String> debugSummary() {
+        return debugScreen.summary(ticks);
+    }
+
+    public List<String> debugDetail() {
+        return debugScreen.detail(ticks);
+    }
+
+    public WormholesClientConfig config() {
+        return config;
+    }
+
+    public ClientViewSession session() {
+        return session;
+    }
+
+    public ClientViewReceiver receiver() {
+        return receiver;
+    }
+
+    public ClientViewTick tickState() {
+        return tick;
+    }
+
+    public ClientViewStats stats() {
+        return stats;
+    }
+
+    public int outboundPending() {
+        return outbound.pending();
+    }
+
+    private WormholesDebugStatus debugStatus() {
+        ClientViewSession current = session;
+        WormholesDebugStatus.Protocols protocols = new WormholesDebugStatus.Protocols(current.offeredWire(), current.active(),
+            current.active() && current.has(ClientViewExtensions.SEAMLESS_TRAVEL), ClientMenus.version());
+        WormholesDebugStatus.Activity activity = new WormholesDebugStatus.Activity(seamlessTravel.armedCount(),
+            ClientPortalRenderer.instance().drawnViews(), current.portals().size(), seamlessTravel.residents().count(),
+            seamlessTravel.travelState());
+        return new WormholesDebugStatus(current.connectionStatus(), WormholesBuild.version(), ClientMenus.server().orElse(null),
+            protocols, activity);
+    }
+
+    private List<String> detailLines() {
+        return WormholesDebugLines.wrap(detailSections());
+    }
+
+    private List<String> detailSections() {
+        ClientViewSession current = session;
+        ClientViewTick state = tick;
+        ProjectionOverlay overlay = state == null ? null : state.overlay();
+        String view = "ClientView: " + current.state()
+            + " plates=" + current.memoryMb() + "MiB memoryUnavailable=" + current.unavailableMeshes()
+            + " overlay=" + (overlay == null ? 0 : overlay.size()) + " outbound=" + outbound.pending();
+        String stream = "Stream: frames=" + stats.framesReceived() + " bytes=" + stats.bytesReceived()
+            + " sweep=" + stats.sweepMicrosP50() + "us apply=" + stats.applyMicrosP50() + "us"
+            + " unknown=" + current.palette().unknownStates()
+            + " entities=" + (state == null || state.entities() == null ? 0 : state.entities().spawned())
+            + " fx=" + (state == null || state.fx() == null ? 0 : state.fx().emitters());
+        String render = "Render: " + ClientPortalRenderer.instance().debugLine() + " residentMiB=" + (seamlessTravel.residents().bytes() >> 20);
+        String stencil = PortalStencilRenderer.instance().debugLine();
+        return List.of(view, stream, render, stencil);
+    }
+
+    private void detach() {
+        meshViews.detach();
+        tick.detach();
+        attachedLevel = null;
+        attachedSurface = null;
+    }
+
+    private void freshSession() {
+        outbound.clear();
+        localMeshes.clear();
+        ClientViewSession next = new ClientViewSession(config, new ClientPalette(BuiltInRegistries.BLOCK.asLookup()), dataVersion, brandTag);
+        next.meshes().otherMemory(() -> next.plates().bytes() + localMeshes.bytes());
+        ClientViewReceiver nextReceiver = new ClientViewReceiver(next);
+        nextReceiver.travel(seamlessTravel::deliver);
+        nextReceiver.arrivals(arrivals::deliver);
+        nextReceiver.arrivalReset(arrivals::reset);
+        nextReceiver.negotiationReset(() -> {
+            outbound.clear();
+            arrivals.clear();
+        });
+        ClientViewTick nextTick = new ClientViewTick(next, nextReceiver, config, stats);
+        nextTick.sender(this::send);
+        session = next;
+        receiver = nextReceiver;
+        tick = nextTick;
+        stats.reset();
+    }
+
+    private void send(ViewStreamMessage message) {
+        outbound.send(message);
+    }
+
+    private void sendNow(ViewStreamMessage message) {
+        try {
+            sender.accept(MinecraftClientViewExtensions.CODEC.encodeC2S(message));
+        } catch (ViewStreamProtocolException failure) {
+            LOGGER.warn("Wormholes ClientView could not encode {}", MinecraftClientViewExtensions.CODEC.name(message), failure);
+        }
+    }
+
+    private void reapplyChunk(LevelChunk chunk) {
+        int chunkX = chunk.getPos().x;
+        int chunkZ = chunk.getPos().z;
+        ProjectionOverlay overlay = ProjectionOverlay.forLevel(chunk.getLevel());
+        if (overlay != null) {
+            overlay.reapply(chunkX, chunkZ, new ChunkSectionWriter(chunk, attachedSurface));
+        }
+        if (chunk.getLevel() == attachedLevel) {
+            tick.chunkReloaded(chunkX, chunkZ);
+        }
+    }
+
+    private void rebuildBlockEntities(LevelChunk chunk) {
+        ProjectionOverlay overlay = ProjectionOverlay.forLevel(chunk.getLevel());
+        if (overlay != null) {
+            overlay.reapplyBlockEntities(chunk.getPos().x, chunk.getPos().z, new ChunkSectionWriter(chunk, attachedSurface));
+        }
+    }
+
+    private static final class ChunkSectionWriter implements ProjectionOverlay.ChunkSections {
+        private final LevelChunk chunk;
+        private final ClientLevelSurface surface;
+
+        private ChunkSectionWriter(LevelChunk chunk, ClientLevelSurface surface) {
+            this.chunk = chunk;
+            this.surface = surface;
+        }
+
+        @Override
+        public BlockState state(int x, int y, int z) {
+            int sectionIndex = chunk.getSectionIndex(y);
+            if (sectionIndex < 0 || sectionIndex >= chunk.getSectionsCount()) {
+                return null;
+            }
+            return chunk.getSection(sectionIndex).getBlockState(x & 15, y & 15, z & 15);
+        }
+
+        @Override
+        public void write(int x, int y, int z, BlockState state) {
+            int sectionIndex = chunk.getSectionIndex(y);
+            if (sectionIndex < 0 || sectionIndex >= chunk.getSectionsCount()) {
+                return;
+            }
+            LevelChunkSection section = chunk.getSection(sectionIndex);
+            section.setBlockState(x & 15, y & 15, z & 15, state, false);
+            for (Map.Entry<Heightmap.Types, Heightmap> heightmap : chunk.getHeightmaps()) {
+                heightmap.getValue().update(x & 15, y, z & 15, state);
+            }
+        }
+
+        @Override
+        public void blockEntity(int x, int y, int z, BlockEntitySample sample) {
+            if (surface != null) {
+                surface.rebuildBlockEntity(chunk, x, y, z, sample);
+            }
+        }
+    }
+}

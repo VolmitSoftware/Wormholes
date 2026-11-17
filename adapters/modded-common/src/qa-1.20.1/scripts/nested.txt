@@ -1,0 +1,148 @@
+# Wormholes nested QA: a portal seen through another portal, and recursion between two facing portals.
+# Nested: F (overworld) shows the orange nether room G, which holds portal H facing the viewer; H shows the yellow
+# room I. The centre sample lands on H as seen through F and must be I's yellow. Recursion: J and K are linked both
+# ways with K behind the viewer, so looking through J shows J again; it must draw nested layers and log nothing.
+# Geometry is in nested-world.txt.
+
+include portals.txt
+commands nested-world.txt
+wait_ticks 40
+
+# G: the nether room's portal.
+command execute in minecraft:the_nether run tp @s 33.5 70 3.5 180 0
+wait_ticks 40
+wait_world 30
+wait_terrain 60
+command setblock 29 70 0 minecraft:stone
+command setblock 31 72 0 minecraft:stone
+wait_ticks 10
+attack 29 70 0
+wait_ticks 5
+use 31 72 0
+wait_ticks 5
+command wormholes build
+wait_ticks 10
+command setblock 29 70 0 minecraft:air
+command setblock 31 72 0 minecraft:air
+capture_portal G 30 71 0
+
+# H: inside G's room, three blocks north of G. G and H are built standing east of the apertures: a wand click
+# while looking at a portal opens that portal's menu instead of selecting a corner.
+command execute in minecraft:the_nether run tp @s 33.5 70 -0.5 180 0
+wait_ticks 40
+wait_world 30
+wait_terrain 60
+command setblock 29 70 -3 minecraft:stone
+command setblock 31 72 -3 minecraft:stone
+wait_ticks 10
+attack 29 70 -3
+wait_ticks 5
+use 31 72 -3
+wait_ticks 5
+command wormholes build
+wait_ticks 10
+command setblock 29 70 -3 minecraft:air
+command setblock 31 72 -3 minecraft:air
+capture_portal H 30 71 -3
+
+# I: inside the yellow overworld room.
+command execute in minecraft:overworld run tp @s 120.5 100 3.5 180 0
+wait_ticks 40
+wait_world 30
+wait_terrain 60
+command setblock 119 100 0 minecraft:stone
+command setblock 121 102 0 minecraft:stone
+wait_ticks 10
+attack 119 100 0
+wait_ticks 5
+use 121 102 0
+wait_ticks 5
+command wormholes build
+wait_ticks 10
+command setblock 119 100 0 minecraft:air
+command setblock 121 102 0 minecraft:air
+capture_portal I 120 101 0
+
+# F: overworld source.
+command execute in minecraft:overworld run tp @s 90.5 100 3.5 180 0
+wait_ticks 40
+wait_world 30
+wait_terrain 60
+command setblock 89 100 0 minecraft:stone
+command setblock 91 102 0 minecraft:stone
+wait_ticks 10
+attack 89 100 0
+wait_ticks 5
+use 91 102 0
+wait_ticks 5
+command wormholes build
+wait_ticks 10
+command setblock 89 100 0 minecraft:air
+command setblock 91 102 0 minecraft:air
+capture_portal F 90 101 0
+
+# K: behind the recursion viewer.
+command tp @s 150.5 100 13.5 180 0
+wait_ticks 40
+wait_world 30
+wait_terrain 60
+command setblock 149 100 10 minecraft:stone
+command setblock 151 102 10 minecraft:stone
+wait_ticks 10
+attack 149 100 10
+wait_ticks 5
+use 151 102 10
+wait_ticks 5
+command wormholes build
+wait_ticks 10
+command setblock 149 100 10 minecraft:air
+command setblock 151 102 10 minecraft:air
+capture_portal K 150 101 10
+
+# J: faces the viewer, linked to K.
+command tp @s 150.5 100 3.5 180 0
+wait_ticks 40
+wait_world 30
+wait_terrain 60
+command setblock 149 100 0 minecraft:stone
+command setblock 151 102 0 minecraft:stone
+wait_ticks 10
+attack 149 100 0
+wait_ticks 5
+use 151 102 0
+wait_ticks 5
+command wormholes build
+wait_ticks 10
+command setblock 149 100 0 minecraft:air
+command setblock 151 102 0 minecraft:air
+capture_portal J 150 101 0
+
+command wormholes portals retarget ${F} ${G}
+command wormholes portals retarget ${H} ${I}
+command wormholes portals retarget ${J} ${K}
+command wormholes portals retarget ${K} ${J}
+
+# Nested view: 6.5 blocks south of F. The centre sees H through F (yellow); right of H sees G's wall (orange).
+mark
+command tp @s 90.5 100 6.5 180 0
+wait_ticks 40
+wait_terrain 30
+wait_views 2 30
+wait_ticks 20
+dump_views
+screenshot nested
+sample nested_inner 0.5 0.5 cbad31 70
+sample nested_outer 0.578 0.5 c76617 70
+expect_no_errors
+
+# Recursion: 6.5 blocks south of J, K 3.5 blocks behind.
+mark
+command tp @s 150.5 100 6.5 180 0
+wait_ticks 40
+wait_terrain 30
+wait_views 2 30
+wait_ticks 20
+screenshot recursion
+expect_no_errors
+
+quit

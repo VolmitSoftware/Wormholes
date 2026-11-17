@@ -5,11 +5,14 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.IDN;
 import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.Locale;
 import java.util.List;
 import java.util.Objects;
+import java.util.regex.Pattern;
 
 public record GameEndpoint(String host, int port) {
+    private static final Pattern LITERAL = Pattern.compile("\\d{1,3}(\\.\\d{1,3}){3}|[0-9A-Fa-f:.]*:[0-9A-Fa-f:.]*");
     public GameEndpoint {
         host = normalizeHost(host);
         if (port < 1 || port > 65_535) {
@@ -75,9 +78,12 @@ public record GameEndpoint(String host, int port) {
         if (host.equalsIgnoreCase("localhost") || host.equalsIgnoreCase("localhost.")) {
             return InetAddress.getLoopbackAddress();
         }
+        if (!LITERAL.matcher(host).matches()) {
+            return null;
+        }
         try {
-            return InetAddress.ofLiteral(host);
-        } catch (IllegalArgumentException ignored) {
+            return InetAddress.getByName(host);
+        } catch (UnknownHostException ignored) {
             return null;
         }
     }

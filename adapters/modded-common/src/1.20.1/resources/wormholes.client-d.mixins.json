@@ -1,0 +1,32 @@
+{
+  "required": true,
+  "plugin": "art.arcane.wormholes.modded.PortalMixinPlugin",
+  "minVersion": "0.8",
+  "package": "art.arcane.wormholes.modded.mixin",
+  "compatibilityLevel": "JAVA_17",
+  "mixins": [],
+  "client": [
+    "client.ArrivalPacketMixin",
+    "client.CameraPoseAccess",
+    "client.CrossingCameraMixin",
+    "client.CrossingEntityAccess",
+    "client.CrossingMinecraftAccess",
+    "client.CrossingPacketAccess",
+    "client.CrossingPacketMixin",
+    "client.CrossingWorldPacketsMixin",
+    "client.EntityCrossingLerpAccess",
+    "client.EntityCrossingMixin",
+    "client.GravityAvatarRendererMixin",
+    "client.GravityCameraMixin",
+    "client.GravityCapeLayerMixin",
+    "client.GravityEntityRendererMixin",
+    "client.GravityLivingRendererMixin",
+    "client.GravityLocalPlayerMixin",
+    "client.StraddleLocalPlayerMixin",
+    "client.StraddleOverlayForgeMixin",
+    "client.StraddleOverlayMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

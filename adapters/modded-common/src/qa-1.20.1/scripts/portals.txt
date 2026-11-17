@@ -1,0 +1,88 @@
+# Shared setup for crossing.txt and nested.txt: opens the QA world, builds setup-world.txt and portals A-D
+# exactly as visual.txt does (A overworld -> B nether, C -> D same dimension). Included with "include portals.txt".
+
+# Open (or create as superflat creative with cheats) the world and settle.
+world qa_world 240
+wait_world 120
+wait_terrain 60
+gui off
+command gamemode creative
+command wormholes admin deleteallportals
+command forceload add -48 -16 80 16
+command execute in minecraft:the_nether run forceload add -16 -16 16 16
+wait_ticks 100
+commands setup-world.txt
+wait_ticks 40
+command item replace entity @s weapon.mainhand with minecraft:blaze_rod{"wormholes:wand":1b}
+
+# B: nether destination.
+command execute in minecraft:the_nether run tp @s 0.5 70 3.5 180 0
+wait_ticks 60
+wait_world 30
+wait_terrain 60
+command setblock -1 70 0 minecraft:stone
+command setblock 1 72 0 minecraft:stone
+wait_ticks 10
+attack -1 70 0
+wait_ticks 5
+use 1 72 0
+wait_ticks 5
+command wormholes build
+wait_ticks 10
+command setblock -1 70 0 minecraft:air
+command setblock 1 72 0 minecraft:air
+capture_portal B 0 71 0
+
+# A: overworld source, linked across dimensions to B.
+command execute in minecraft:overworld run tp @s 0.5 100 3.5 180 0
+wait_ticks 60
+wait_world 30
+wait_terrain 60
+command setblock -1 100 0 minecraft:stone
+command setblock 1 102 0 minecraft:stone
+wait_ticks 10
+attack -1 100 0
+wait_ticks 5
+use 1 102 0
+wait_ticks 5
+command wormholes build
+wait_ticks 10
+command setblock -1 100 0 minecraft:air
+command setblock 1 102 0 minecraft:air
+capture_portal A 0 101 0
+command wormholes portals retarget ${A} ${B}
+
+# D: same-dimension destination.
+command tp @s 60.5 100 3.5 180 0
+wait_ticks 20
+wait_terrain 30
+command setblock 59 100 0 minecraft:stone
+command setblock 61 102 0 minecraft:stone
+wait_ticks 10
+attack 59 100 0
+wait_ticks 5
+use 61 102 0
+wait_ticks 5
+command wormholes build
+wait_ticks 10
+command setblock 59 100 0 minecraft:air
+command setblock 61 102 0 minecraft:air
+capture_portal D 60 101 0
+
+# C: same-dimension source, linked to D.
+command tp @s 30.5 100 3.5 180 0
+wait_ticks 20
+wait_terrain 30
+command setblock 29 100 0 minecraft:stone
+command setblock 31 102 0 minecraft:stone
+wait_ticks 10
+attack 29 100 0
+wait_ticks 5
+use 31 102 0
+wait_ticks 5
+command wormholes build
+wait_ticks 10
+command setblock 29 100 0 minecraft:air
+command setblock 31 102 0 minecraft:air
+capture_portal C 30 101 0
+command wormholes portals retarget ${C} ${D}

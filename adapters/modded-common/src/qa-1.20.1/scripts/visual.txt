@@ -1,0 +1,136 @@
+# Wormholes visual QA script for the dev harness (-Dwormholes.qa=<this file>).
+# Steps: world, wait_world, wait_terrain, wait_ticks, wait_views, command, commands, attack, use,
+# capture_portal, mirror, gui, screenshot, sample, quit. ${NAME} expands variables set by capture_portal.
+# Sample colours are wool and concrete under face shading; the tolerance is per channel.
+
+# Open (or create as superflat creative with cheats) the world and settle.
+world qa_world 240
+wait_world 120
+wait_terrain 60
+gui off
+command gamemode creative
+command wormholes admin deleteallportals
+command forceload add -48 -16 80 16
+command execute in minecraft:the_nether run forceload add -16 -16 16 16
+wait_ticks 100
+commands setup-world.txt
+wait_ticks 40
+command item replace entity @s weapon.mainhand with minecraft:blaze_rod{"wormholes:wand":1b}
+
+# B: nether destination.
+command execute in minecraft:the_nether run tp @s 0.5 70 3.5 180 0
+wait_ticks 60
+wait_world 30
+wait_terrain 60
+command setblock -1 70 0 minecraft:stone
+command setblock 1 72 0 minecraft:stone
+wait_ticks 10
+attack -1 70 0
+wait_ticks 5
+use 1 72 0
+wait_ticks 5
+command wormholes build
+wait_ticks 10
+command setblock -1 70 0 minecraft:air
+command setblock 1 72 0 minecraft:air
+capture_portal B 0 71 0
+
+# A: overworld source, linked across dimensions to B.
+command execute in minecraft:overworld run tp @s 0.5 100 3.5 180 0
+wait_ticks 60
+wait_world 30
+wait_terrain 60
+command setblock -1 100 0 minecraft:stone
+command setblock 1 102 0 minecraft:stone
+wait_ticks 10
+attack -1 100 0
+wait_ticks 5
+use 1 102 0
+wait_ticks 5
+command wormholes build
+wait_ticks 10
+command setblock -1 100 0 minecraft:air
+command setblock 1 102 0 minecraft:air
+capture_portal A 0 101 0
+command wormholes portals retarget ${A} ${B}
+
+# D: same-dimension destination.
+command tp @s 60.5 100 3.5 180 0
+wait_ticks 20
+wait_terrain 30
+command setblock 59 100 0 minecraft:stone
+command setblock 61 102 0 minecraft:stone
+wait_ticks 10
+attack 59 100 0
+wait_ticks 5
+use 61 102 0
+wait_ticks 5
+command wormholes build
+wait_ticks 10
+command setblock 59 100 0 minecraft:air
+command setblock 61 102 0 minecraft:air
+capture_portal D 60 101 0
+
+# C: same-dimension source, linked to D.
+command tp @s 30.5 100 3.5 180 0
+wait_ticks 20
+wait_terrain 30
+command setblock 29 100 0 minecraft:stone
+command setblock 31 102 0 minecraft:stone
+wait_ticks 10
+attack 29 100 0
+wait_ticks 5
+use 31 102 0
+wait_ticks 5
+command wormholes build
+wait_ticks 10
+command setblock 29 100 0 minecraft:air
+command setblock 31 102 0 minecraft:air
+capture_portal C 30 101 0
+command wormholes portals retarget ${C} ${D}
+
+# E: mirror.
+command tp @s -29.5 100 3.5 180 0
+wait_ticks 20
+wait_terrain 30
+command setblock -32 100 0 minecraft:stone
+command setblock -28 103 0 minecraft:stone
+wait_ticks 10
+attack -32 100 0
+wait_ticks 5
+use -28 103 0
+wait_ticks 5
+command wormholes build
+wait_ticks 10
+command setblock -32 100 0 minecraft:air
+command setblock -28 103 0 minecraft:air
+capture_portal E -30 101 0
+mirror ${E} true
+
+# Views. Each stands 6.5 blocks south of the aperture, facing north at it.
+command tp @s 0.5 100 6.5 180 0
+wait_ticks 40
+wait_terrain 30
+wait_views 1 20
+wait_ticks 10
+screenshot cross_dimension
+sample cross_dimension 0.5 0.5 82201c 70
+
+command tp @s 30.5 100 6.5 180 0
+wait_ticks 40
+wait_terrain 30
+wait_views 1 20
+wait_ticks 10
+screenshot same_dimension
+sample same_dimension 0.5 0.5 2a2e7e 70
+
+# Sampled right of centre so the reflected player is not under the sample.
+command tp @s -29.5 100 6.5 180 0
+wait_ticks 40
+wait_terrain 30
+wait_views 1 20
+wait_ticks 10
+screenshot mirror
+sample mirror 0.58 0.5 5a9414 70
+
+quit

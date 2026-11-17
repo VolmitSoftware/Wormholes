@@ -163,7 +163,7 @@ public final class MenuCodec {
                     out.u8(S2C_UPDATE);
                     writeScreen(out, wireScreen(update.screen()));
                 }
-                case MenuServerMessage.Close _ -> out.u8(S2C_CLOSE);
+                case MenuServerMessage.Close ignored -> out.u8(S2C_CLOSE);
                 case MenuServerMessage.Feedback feedback -> {
                     out.u8(S2C_FEEDBACK);
                     writeFeedback(out, feedback.feedback());
@@ -228,7 +228,7 @@ public final class MenuCodec {
             .nativeHidden(false)
             .build();
         return switch (element) {
-            case ButtonElement _ -> new ButtonElement(common);
+            case ButtonElement ignored -> new ButtonElement(common);
             case ToggleElement toggle -> new ToggleElement(common, toggle.value());
             case CycleElement cycle -> new CycleElement(common, cycle.options(), cycle.index());
             case NumberElement number -> new NumberElement(common, number.value(), number.min(), number.max(), number.step(),
@@ -236,9 +236,9 @@ public final class MenuCodec {
             case TextElement text -> new TextElement(common, text.value(), text.maxLength(), text.placeholder(), List.of(), ChestReopen.ALWAYS,
                 null);
             case ListEntryElement entry -> new ListEntryElement(common, entry.selected());
-            case LabelElement _ -> new LabelElement(common);
-            case ItemCaptureElement _ -> new ItemCaptureElement(common, List.of());
-            case LookCaptureElement _ -> new LookCaptureElement(common);
+            case LabelElement ignored -> new LabelElement(common);
+            case ItemCaptureElement ignored -> new ItemCaptureElement(common, List.of());
+            case LookCaptureElement ignored -> new LookCaptureElement(common);
         };
     }
 
@@ -373,13 +373,13 @@ public final class MenuCodec {
                 writeString(out, text.placeholder());
             }
             case ListEntryElement entry -> out.u8(entry.selected() ? 1 : 0);
-            case ButtonElement _ -> {
+            case ButtonElement ignored -> {
             }
-            case LabelElement _ -> {
+            case LabelElement ignored -> {
             }
-            case ItemCaptureElement _ -> {
+            case ItemCaptureElement ignored -> {
             }
-            case LookCaptureElement _ -> {
+            case LookCaptureElement ignored -> {
             }
         }
     }
@@ -405,15 +405,15 @@ public final class MenuCodec {
 
     private static int kind(MenuElement element) {
         return switch (element) {
-            case ButtonElement _ -> KIND_BUTTON;
-            case ToggleElement _ -> KIND_TOGGLE;
-            case CycleElement _ -> KIND_CYCLE;
-            case NumberElement _ -> KIND_NUMBER;
-            case TextElement _ -> KIND_TEXT;
-            case ListEntryElement _ -> KIND_LIST_ENTRY;
-            case LabelElement _ -> KIND_LABEL;
-            case ItemCaptureElement _ -> KIND_ITEM_CAPTURE;
-            case LookCaptureElement _ -> KIND_LOOK_CAPTURE;
+            case ButtonElement ignored -> KIND_BUTTON;
+            case ToggleElement ignored -> KIND_TOGGLE;
+            case CycleElement ignored -> KIND_CYCLE;
+            case NumberElement ignored -> KIND_NUMBER;
+            case TextElement ignored -> KIND_TEXT;
+            case ListEntryElement ignored -> KIND_LIST_ENTRY;
+            case LabelElement ignored -> KIND_LABEL;
+            case ItemCaptureElement ignored -> KIND_ITEM_CAPTURE;
+            case LookCaptureElement ignored -> KIND_LOOK_CAPTURE;
         };
     }
 

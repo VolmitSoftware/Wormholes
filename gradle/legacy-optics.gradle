@@ -1,0 +1,12 @@
+// The 1.20.1 builds target Java 21 bytecode. Optics uses Java 22 unnamed pattern variables (`case Type _ ->`),
+// so these builds compile a copy of its sources with each unnamed binding renamed.
+project(':optics') {
+    afterEvaluate {
+        TaskProvider<Sync> legacySources = tasks.register('legacyJavaSources', Sync) {
+            from('src/main/java')
+            into(layout.buildDirectory.dir('legacy-java'))
+            filter { String line -> line.replaceAll(/(case [\w.<>]+) _ ->/, '$1 ignored ->') }
+        }
+        sourceSets.main.java.setSrcDirs([legacySources])
+    }
+}

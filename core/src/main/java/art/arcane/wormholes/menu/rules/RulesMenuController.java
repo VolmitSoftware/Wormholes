@@ -410,7 +410,7 @@ public final class RulesMenuController implements MenuController {
 
     private MenuResult outcome(MenuViewer viewer, RulesStoreOutcome outcome, MenuNotice success) {
         return switch (outcome) {
-            case RulesStoreOutcome.Stored _ -> MenuResult.stay(success);
+            case RulesStoreOutcome.Stored ignored -> MenuResult.stay(success);
             case RulesStoreOutcome.Invalid invalid -> MenuResult.stay(invalid(viewer, String.join("; ", invalid.problems())));
         };
     }

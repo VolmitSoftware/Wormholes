@@ -119,7 +119,7 @@ final class FakeNexusHost implements NetworkMenuHost, DialMenuHost {
         portal = switch (edit) {
             case NetworkEdit.Join join -> new NexusPortalView(current.id(), current.name(), current.type(), current.mirror(), current.routerTitle(),
                 join.networkId(), join.address(), current.reciprocal(), current.policy(), current.frameIo(), current.dial());
-            case NetworkEdit.Leave _ -> new NexusPortalView(current.id(), current.name(), current.type(), current.mirror(), current.routerTitle(),
+            case NetworkEdit.Leave ignored -> new NexusPortalView(current.id(), current.name(), current.type(), current.mirror(), current.routerTitle(),
                 null, "", current.reciprocal(), current.policy(), current.frameIo(), DialState.idle());
             case NetworkEdit.Address address -> new NexusPortalView(current.id(), current.name(), current.type(), current.mirror(),
                 current.routerTitle(), current.networkId(), address.address(), current.reciprocal(), current.policy(), current.frameIo(), current.dial());

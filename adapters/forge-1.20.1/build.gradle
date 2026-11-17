@@ -1,0 +1,297 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+import groovy.json.JsonOutput
+import groovy.json.JsonSlurper
+
+plugins {
+    id 'java'
+    id 'net.neoforged.moddev.legacyforge' version '2.0.148'
+    id 'com.gradleup.shadow' version '9.5.1'
+}
+
+Properties rootProperties = new Properties()
+file('../../gradle.properties').withInputStream { InputStream stream -> rootProperties.load(stream) }
+String minecraftVersion = '1.20.1'
+String forgeVersion = '47.4.5'
+// Dev client runs can target NeoForge's 1.20.1 fork instead with -PqaLoader=neoforge; the shipped jar always builds against Forge.
+String qaLoader = (String) project.findProperty('qaLoader') ?: 'forge'
+String neoForgeVersion = '47.1.106'
+if (!(qaLoader in ['forge', 'neoforge'])) {
+    throw new GradleException("Unknown qaLoader '${qaLoader}', expected forge or neoforge")
+}
+
+project(':core') {
+    layout.buildDirectory.set(rootProject.layout.buildDirectory.dir('core'))
+}
+project(':optics') {
+    layout.buildDirectory.set(rootProject.layout.buildDirectory.dir('optics'))
+}
+apply from: '../../gradle/legacy-optics.gradle'
+
+evaluationDependsOn(':core')
+evaluationDependsOn(':optics')
+
+group = 'art.arcane'
+version = rootProperties.getProperty('wormholesVersion')
+ext.minecraftTargetVersion = minecraftVersion
+ext.minecraftTarget = [overlays: [minecraftVersion]]
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(25)
+    }
+}
+
+sourceSets {
+    main {
+        java.srcDir('../modded-common/src/main/java')
+        resources.srcDir('../modded-common/src/main/resources')
+        java.exclude(file('../legacy-excludes.txt').readLines().findAll { String line -> !line.isBlank() && !line.startsWith('#') })
+    }
+    qa {
+        java.srcDirs = ['../modded-common/src/qa-1.20.1/java']
+        resources.srcDirs = []
+        compileClasspath += main.output + main.compileClasspath
+        runtimeClasspath += main.output + main.runtimeClasspath
+    }
+    gameTest {
+        java.srcDir('../modded-common/src/gameTest/java')
+        resources.srcDir('../modded-common/src/gameTest/resources')
+        compileClasspath += main.output + main.compileClasspath
+        runtimeClasspath += main.output + main.runtimeClasspath
+    }
+}
+
+repositories {
+    mavenCentral()
+    maven { url = uri('https://api.modrinth.com/maven') }
+}
+
+String qaWorld = (String) project.findProperty('qaWorld')
+String qaScript = (String) project.findProperty('qaScript')
+String qaTimeout = (String) project.findProperty('qaTimeout')
+// Opt-in render mods for dev client runs, e.g. -PqaMods=embeddium,oculus
+Map<String, String> qaModCoordinates = [
+    embeddium: 'maven.modrinth:embeddium:UTbfe5d1',
+    oculus: 'maven.modrinth:oculus:iQ1SwGc3',
+]
+List<String> qaMods = ((String) project.findProperty('qaMods') ?: '').split(',').collect { String mod -> mod.trim() }.findAll { String mod -> !mod.isEmpty() }
+qaMods.each { String mod ->
+    if (!qaModCoordinates.containsKey(mod)) {
+        throw new GradleException("Unknown qaMods entry '${mod}', expected one of ${qaModCoordinates.keySet()}")
+    }
+}
+
+legacyForge {
+    if (qaLoader == 'neoforge') {
+        enable { settings -> settings.neoForgeVersion = "${minecraftVersion}-${neoForgeVersion}".toString() }
+    } else {
+        version = "${minecraftVersion}-${forgeVersion}"
+    }
+    mods {
+        wormholes {
+            sourceSet sourceSets.main
+            sourceSet sourceSets.qa
+            // Mixins reference core and optics types, which the dev launcher's legacy classpath hides from Mixin.
+            sourceSet project(':core').sourceSets.main
+            sourceSet project(':optics').sourceSets.main
+            // GameTests share packages with the production classes, so they load inside the same mod module.
+            sourceSet sourceSets.gameTest
+        }
+    }
+    runs {
+        client {
+            client()
+            sourceSet = sourceSets.qa
+            if (qaLoader == 'neoforge') {
+                gameDirectory = file('run-neoforge')
+            }
+            if (qaWorld) {
+                programArguments.addAll('--quickPlaySingleplayer', qaWorld)
+            }
+            if (qaScript) {
+                systemProperty('wormholes.qa', file(qaScript).absolutePath)
+            }
+            if (qaTimeout) {
+                systemProperty('wormholes.qa.timeout', qaTimeout)
+            }
+        }
+        gameTestServer {
+            type = 'gameTestServer'
+            sourceSet = sourceSets.gameTest
+            gameDirectory = file('build/gametest')
+            systemProperty('wormholes.gametest.report-file', file('build/gametest/report.xml').absolutePath)
+            if (project.hasProperty('gametestOnly')) {
+                systemProperty('wormholes.gametest.only', (String) project.property('gametestOnly'))
+            }
+            programArgument('--nogui')
+            disableIdeRun()
+        }
+    }
+}
+
+// Forge runs GameTests on its dedicated server path, so the run directory supplies the world settings the vanilla
+// GameTestServer would otherwise bake in: a fresh flat creative world without structures.
+tasks.named('runGameTestServer').configure {
+    dependsOn(tasks.named('gameTestClasses'))
+    doFirst {
+        File runDirectory = file('build/gametest')
+        project.delete(runDirectory)
+        runDirectory.mkdirs()
+        new File(runDirectory, 'eula.txt').text = 'eula=true\n'
+        new File(runDirectory, 'server.properties').text = [
+            'level-name=world',
+            'level-seed=0',
+            'level-type=minecraft\\:flat',
+            'generate-structures=false',
+            'gamemode=creative',
+            'difficulty=normal',
+            'online-mode=false',
+            'spawn-protection=0',
+            'spawn-monsters=false',
+            'spawn-animals=false',
+            'spawn-npcs=false'
+        ].join('\n') + '\n'
+    }
+}
+
+List<String> mixinConfigs = ['wormholes.mixins.json'] + ['a', 'b', 'c', 'd', 'e'].collect { String lane -> "wormholes.client-${lane}.mixins.json".toString() }
+
+mixin {
+    add(sourceSets.main, 'wormholes.refmap.json')
+    mixinConfigs.each { String name -> config(name) }
+}
+
+configurations {
+    bundle {
+        canBeConsumed = false
+        canBeResolved = true
+        exclude(group: 'it.unimi.dsi', module: 'fastutil')
+    }
+}
+
+dependencies {
+    annotationProcessor('org.spongepowered:mixin:0.8.5:processor')
+    compileOnly(annotationProcessor('io.github.llamalad7:mixinextras-common:0.5.4'))
+    jarJar(implementation('io.github.llamalad7:mixinextras-forge:0.5.4'))
+    modCompileOnly('maven.modrinth:embeddium:UTbfe5d1')
+    modCompileOnly('maven.modrinth:oculus:iQ1SwGc3')
+    modCompileOnly('maven.modrinth:distanthorizons:6UnEfsRQ')
+    qaMods.each { String mod -> modRuntimeOnly(qaModCoordinates[mod]) }
+    implementation(project(':core'))
+    bundle(project(':core'))
+    implementation(project(':optics'))
+    bundle(project(':optics'))
+    implementation('com.github.VolmitSoftware.VolmLib:volmlib-web:master-SNAPSHOT')
+    bundle('com.github.VolmitSoftware.VolmLib:volmlib-web:master-SNAPSHOT')
+}
+
+// Forge's boot layer ships night-config 3.6.4; core's 3.9.0 is a multi-release jar the dev launcher rejects.
+// The shipped jar still bundles core's version, relocated.
+configurations.matching { Configuration configuration -> configuration.name.endsWith('untimeClasspath') && configuration.name != 'additionalRuntimeClasspath' }.configureEach {
+    resolutionStrategy.force('com.electronwill.night-config:core:3.6.4', 'com.electronwill.night-config:toml:3.6.4')
+}
+
+// Dev runs: core and optics join the wormholes mod above, as they do when shaded into the shipped jar. Their libraries
+// go on Forge's legacy classpath, minus the ones Minecraft and Forge already provide.
+Set<String> providedLibraries = ['it.unimi.dsi', 'com.electronwill.night-config', 'com.google.code.gson'] as Set<String>
+Configuration devLibraries = configurations.create('devLibraries') {
+    canBeConsumed = false
+    canBeResolved = true
+    attributes {
+        attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage, Usage.JAVA_RUNTIME))
+        attribute(Category.CATEGORY_ATTRIBUTE, objects.named(Category, Category.LIBRARY))
+        attribute(LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE, objects.named(LibraryElements, LibraryElements.JAR))
+    }
+}
+dependencies {
+    add('devLibraries', project(':core'))
+    add('devLibraries', 'com.github.VolmitSoftware.VolmLib:volmlib-web:master-SNAPSHOT')
+    additionalRuntimeClasspath(files(provider {
+        devLibraries.incoming.artifactView {
+            componentFilter { ComponentIdentifier id ->
+                if (id instanceof ProjectComponentIdentifier) {
+                    return !(((ProjectComponentIdentifier) id).buildTreePath in [':core', ':optics'])
+                }
+                return !(id instanceof ModuleComponentIdentifier && ((ModuleComponentIdentifier) id).group in providedLibraries)
+            }
+        }.files
+    }))
+}
+
+tasks.matching { Task task -> task.name in ['runClient', 'runGameTestServer'] }.configureEach { Task task ->
+    ((JavaExec) task).javaLauncher.set(javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(21) })
+}
+
+allprojects {
+    tasks.withType(JavaCompile).configureEach {
+        options.encoding = 'UTF-8'
+        options.compilerArgs.addAll(['-parameters', '-Xmaxerrs', '100000'])
+    }
+}
+
+gradle.projectsEvaluated {
+    allprojects { Project candidate ->
+        candidate.tasks.withType(JavaCompile).configureEach { options.release.set(21) }
+    }
+}
+
+processResources {
+    inputs.property('version', project.version)
+    filesMatching(['META-INF/mods.toml', 'wormholes-build.properties']) {
+        expand('version': project.version, 'minecraftVersion': minecraftVersion, 'forgeLoaderRange': '[47,)')
+    }
+    from('../modded-common/src/1.20.1/pockets-pack') {
+        include('data/**')
+    }
+    doLast {
+        mixinConfigs.each { String name ->
+            File mixins = new File(destinationDir, name)
+            if (mixins.isFile()) {
+                Map<String, Object> config = (Map<String, Object>) new JsonSlurper().parse(mixins)
+                config.putIfAbsent('refmap', 'wormholes.refmap.json')
+                mixins.text = JsonOutput.prettyPrint(JsonOutput.toJson(config))
+            }
+        }
+    }
+}
+
+tasks.named('shadowJar', ShadowJar).configure {
+    archiveClassifier.set('dev')
+    configurations = [project.configurations.bundle]
+    manifest.attributes('MixinConfigs': mixinConfigs.join(','))
+    mergeServiceFiles()
+    addMultiReleaseAttribute.set(false)
+    relocate('net.kyori', 'art.arcane.wormholes.shadow.kyori')
+    relocate('art.arcane.volmlib', 'art.arcane.wormholes.shadow.volmlib')
+    relocate('org.yaml.snakeyaml', 'art.arcane.wormholes.shadow.snakeyaml')
+    relocate('com.electronwill.nightconfig', 'art.arcane.wormholes.shadow.nightconfig')
+    relocate('com.moandjiezana.toml', 'art.arcane.wormholes.shadow.toml')
+    dependencies {
+        exclude(dependency('com.google.code.gson:gson:.*'))
+    }
+    exclude('META-INF/*.SF', 'META-INF/*.DSA', 'META-INF/*.RSA', 'META-INF/versions/**', 'module-info.class')
+    from('../../LICENSE.md')
+    from('../../THIRD-PARTY-NOTICES.md')
+    from(tasks.named('jarJar'))
+    from(tasks.named('compileJava').map { Task task -> layout.buildDirectory.file('mixin/wormholes.refmap.json') })
+}
+
+TaskProvider<Jar> reobfShadowJar = obfuscation.reobfuscate(tasks.named('shadowJar', ShadowJar), sourceSets.main) {
+    archiveFileName.set("Wormholes v${project.version} [Forge] ${minecraftVersion}+${forgeVersion}.jar")
+}
+
+tasks.named('reobfJar').configure {
+    enabled = false
+}
+
+tasks.named('assemble').configure {
+    dependsOn(reobfShadowJar)
+}
+
+if (qaLoader == 'neoforge') {
+    tasks.named(reobfShadowJar.name).configure {
+        doFirst { throw new GradleException('The shipped jar builds against Forge; drop -PqaLoader=neoforge') }
+    }
+}
+
+apply from: '../../gradle/modded-sources.gradle'

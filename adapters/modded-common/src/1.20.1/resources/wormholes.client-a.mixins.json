@@ -1,0 +1,29 @@
+{
+  "required": true,
+  "plugin": "art.arcane.wormholes.modded.PortalMixinPlugin",
+  "minVersion": "0.8",
+  "package": "art.arcane.wormholes.modded.mixin",
+  "compatibilityLevel": "JAVA_17",
+  "mixins": [],
+  "client": [
+    "client.EndPortalSurfaceMixin",
+    "client.PortalClipReloadMixin",
+    "client.PortalClipShaderMixin",
+    "client.PortalClipUniformMixin",
+    "client.PortalFogRendererAccess",
+    "client.PortalGameRendererAccess",
+    "client.PortalLevelRendererAccess",
+    "client.PortalLevelRendererMixin",
+    "client.PortalProjectionMixin",
+    "client.PortalShaderGameRendererMixin",
+    "client.PortalSkyRendererMixin",
+    "client.PortalStencilMainTargetMixin",
+    "client.PortalStencilTargetMixin",
+    "client.VanillaPortalEffectMixin",
+    "client.VanillaTerrainRendererAccess",
+    "client.VanillaTerrainRendererMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

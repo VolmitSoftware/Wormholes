@@ -1,0 +1,19 @@
+pluginManagement {
+    repositories {
+        maven { url = uri('https://maven.neoforged.net/releases') }
+        gradlePluginPortal()
+        mavenCentral()
+    }
+}
+
+plugins {
+    id 'org.gradle.toolchains.foojay-resolver-convention' version '1.0.0'
+}
+
+rootProject.name = 'wormholes-forge-1.20.1'
+include(':core')
+project(':core').projectDir = file('../../core')
+include(':optics')
+project(':optics').projectDir = file('../../optics')
+
+apply from: file('../../gradle/localization-settings.gradle')

@@ -1,0 +1,578 @@
+package art.arcane.wormholes.modded;
+
+import art.arcane.wormholes.menu.MenuScope;
+import art.arcane.wormholes.menu.destination.DestinationRoutes;
+import art.arcane.wormholes.menu.portal.PortalRoutes;
+import art.arcane.optics.crossing.ScaleRule;
+import art.arcane.optics.crossing.GravityFrame;
+import art.arcane.wormholes.modded.gravity.MinecraftGravity;
+import art.arcane.optics.shape.Shapes;
+import art.arcane.volmlib.util.localization.MessageArgs;
+import art.arcane.volmlib.util.localization.TextKey;
+import art.arcane.wormholes.WandSelectionGeometry;
+import art.arcane.wormholes.portal.ApertureShapeChange;
+import art.arcane.wormholes.portal.PortalType;
+import art.arcane.wormholes.localization.TransitMessages;
+import art.arcane.wormholes.transit.ScaleResetRequest;
+import art.arcane.wormholes.transit.ScaleRuleChange;
+import art.arcane.wormholes.transit.ScaleRuleSettings;
+import art.arcane.wormholes.transit.TravellerScale;
+import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.arguments.StringArgumentType;
+import com.mojang.brigadier.arguments.BoolArgumentType;
+import com.mojang.brigadier.arguments.IntegerArgumentType;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.commands.Commands;
+import net.minecraft.commands.arguments.UuidArgument;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.NonNullList;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.NbtUtils;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.item.crafting.CraftingBookCategory;
+import net.minecraft.world.item.crafting.Ingredient;
+import net.minecraft.world.item.crafting.ShapedRecipe;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.Vec3;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Locale;
+import art.arcane.wormholes.localization.WormholesMessages;
+import java.util.UUID;
+
+public final class MinecraftPortalTools implements AutoCloseable {
+    private static final Logger LOGGER = LoggerFactory.getLogger("Wormholes");
+    private static final TravellerScale<Entity> TRAVELLER_SCALE = new TravellerScale<>(MinecraftScaleAccess.scaleAttribute());
+    static final CompoundTag WAND_IDENTITY = wandIdentity();
+    public static final ResourceLocation WAND_RECIPE = new ResourceLocation("wormholes", "portal_wand");
+
+    private final WormholesModRuntime runtime;
+    private final Map<UUID, Selection> selections = new HashMap<>();
+    private final Map<UUID, Long> blockInputs = new HashMap<>();
+
+    public MinecraftPortalTools(WormholesModRuntime runtime) {
+        this.runtime = runtime;
+    }
+
+    public void registerCommands(CommandDispatcher<CommandSourceStack> dispatcher) {
+        dispatcher.register(Commands.literal("wormholes")
+            .then(Commands.literal("edit").executes(context -> select(context.getSource().getPlayerOrException()))
+                .then(Commands.argument("portal", UuidArgument.uuid()).executes(context ->
+                    edit(context.getSource().getPlayerOrException(), UuidArgument.getUuid(context, "portal")))))
+            .then(Commands.literal("transfer").then(Commands.argument("portal", UuidArgument.uuid())
+                .then(Commands.argument("owner", UuidArgument.uuid()).executes(context -> transfer(
+                    context.getSource().getPlayerOrException(), UuidArgument.getUuid(context, "portal"), UuidArgument.getUuid(context, "owner")) ? 1 : 0))))
+            .then(Commands.literal("wand").requires(source -> runtime.access().permission(source, "wormholes.admin.items"))
+                .executes(context -> giveWand(context.getSource(), true))
+                .then(Commands.argument("rune", BoolArgumentType.bool()).executes(context ->
+                    giveWand(context.getSource(), BoolArgumentType.getBool(context, "rune")))))
+            .then(Commands.literal("build").requires(this::canBuild)
+                .executes(context -> build(context.getSource().getPlayerOrException(), PortalType.PORTAL))
+                .then(Commands.argument("type", StringArgumentType.word()).suggests((context, suggestions) -> {
+                    for (PortalType type : PortalType.values()) {
+                        suggestions.suggest(type.name().toLowerCase(Locale.ROOT));
+                    }
+                    return suggestions.buildFuture();
+                }).executes(context -> buildType(context.getSource().getPlayerOrException(), StringArgumentType.getString(context, "type")))))
+            .then(Commands.literal("portals").requires(source -> source.hasPermission(Commands.LEVEL_ADMINS))
+                .then(Commands.literal("list").executes(context -> list(context.getSource())))
+                .then(Commands.literal("info").then(Commands.argument("portal", UuidArgument.uuid())
+                    .executes(context -> info(context.getSource(), UuidArgument.getUuid(context, "portal")))))
+                .then(Commands.literal("retarget").then(Commands.argument("portal", UuidArgument.uuid())
+                    .then(Commands.argument("destination", UuidArgument.uuid()).executes(context ->
+                        link(context.getSource(), UuidArgument.getUuid(context, "portal"), UuidArgument.getUuid(context, "destination"))))))
+                .then(Commands.literal("unlink").then(Commands.argument("portal", UuidArgument.uuid())
+                    .executes(context -> link(context.getSource(), UuidArgument.getUuid(context, "portal"), null))))
+                .then(Commands.literal("remove").then(Commands.argument("portal", UuidArgument.uuid())
+                    .executes(context -> remove(context.getSource(), UuidArgument.getUuid(context, "portal")))))
+                .then(Commands.literal("name").then(Commands.argument("portal", UuidArgument.uuid())
+                    .then(Commands.argument("name", StringArgumentType.greedyString()).executes(context ->
+                        rename(context.getSource(), UuidArgument.getUuid(context, "portal"), StringArgumentType.getString(context, "name"))))))
+                .then(Commands.literal("shape").then(Commands.argument("portal", UuidArgument.uuid())
+                    .executes(context -> shape(context.getSource(), UuidArgument.getUuid(context, "portal"), ""))
+                    .then(Commands.argument("shape", StringArgumentType.greedyString()).suggests((context, suggestions) -> {
+                        for (String name : Shapes.presetNames()) {
+                            suggestions.suggest(name);
+                        }
+                        return suggestions.buildFuture();
+                    }).executes(context -> shape(context.getSource(), UuidArgument.getUuid(context, "portal"),
+                        StringArgumentType.getString(context, "shape"))))))
+                .then(Commands.literal("gravity").then(Commands.argument("portal", UuidArgument.uuid())
+                    .executes(context -> gravity(context.getSource(), UuidArgument.getUuid(context, "portal"), null))
+                    .then(Commands.argument("enabled", BoolArgumentType.bool()).executes(context -> gravity(context.getSource(),
+                        UuidArgument.getUuid(context, "portal"), BoolArgumentType.getBool(context, "enabled"))))))
+                .then(Commands.literal("scale").then(Commands.argument("portal", UuidArgument.uuid())
+                    .executes(context -> scale(context.getSource(), UuidArgument.getUuid(context, "portal"), "", "", ""))
+                    .then(Commands.argument("mode", StringArgumentType.word()).suggests((context, suggestions) -> {
+                        for (ScaleRule.Mode mode : ScaleRule.Mode.values()) {
+                            suggestions.suggest(ScaleRuleSettings.format(mode));
+                        }
+                        return suggestions.buildFuture();
+                    }).executes(context -> scale(context.getSource(), UuidArgument.getUuid(context, "portal"),
+                        StringArgumentType.getString(context, "mode"), "", ""))
+                        .then(Commands.argument("min", StringArgumentType.word()).executes(context -> scale(context.getSource(),
+                            UuidArgument.getUuid(context, "portal"), StringArgumentType.getString(context, "mode"), StringArgumentType.getString(context, "min"), ""))
+                            .then(Commands.argument("max", StringArgumentType.word()).executes(context -> scale(context.getSource(),
+                                UuidArgument.getUuid(context, "portal"), StringArgumentType.getString(context, "mode"), StringArgumentType.getString(context, "min"),
+                                StringArgumentType.getString(context, "max")))))))))
+            .then(Commands.literal("gravity").requires(source -> source.hasPermission(Commands.LEVEL_ADMINS))
+                .then(Commands.literal("reset")
+                    .executes(context -> resetGravity(context.getSource(), context.getSource().getPlayerOrException()))
+                    .then(Commands.literal("player").then(Commands.argument("name", StringArgumentType.word()).executes(context ->
+                        resetGravity(context.getSource(), runtime.server().getPlayerList().getPlayerByName(StringArgumentType.getString(context, "name"))))))))
+            .then(Commands.literal("scale").requires(source -> runtime.access().permission(source, "wormholes.admin.scale"))
+                .then(Commands.literal("reset")
+                    .executes(context -> resetScale(context.getSource(), List.of(context.getSource().getPlayerOrException())))
+                    .then(Commands.literal("self").executes(context -> resetScale(context.getSource(), List.of(context.getSource().getPlayerOrException()))))
+                    .then(Commands.literal("player").then(Commands.argument("name", StringArgumentType.word())
+                        .executes(context -> resetPlayer(context.getSource(), StringArgumentType.getString(context, "name")))))
+                    .then(Commands.literal("all").then(Commands.argument("radius", IntegerArgumentType.integer(1, ScaleResetRequest.MAX_RADIUS))
+                        .executes(context -> resetNear(context.getSource(), IntegerArgumentType.getInteger(context, "radius"))))))));
+    }
+
+    public void suppressSwing(ServerPlayer player) {
+        blockInputs.put(player.getUUID(), player.level().getGameTime() + 2L);
+    }
+
+    public boolean attackAir(ServerPlayer player) {
+        Long until = blockInputs.remove(player.getUUID());
+        if (until != null && player.level().getGameTime() <= until) {
+            return true;
+        }
+        if (!isWand(player.getMainHandItem())) {
+            return false;
+        }
+        if (MinecraftPortalInteractions.wand(runtime, player, InteractionHand.MAIN_HAND)) {
+            return true;
+        }
+        Selection selection = selections.get(player.getUUID());
+        if (selection != null && selection.level == player.level() && selection.complete() && buildClick(player, selection, null)) {
+            build(player, PortalType.PORTAL);
+            return true;
+        }
+        return false;
+    }
+
+    public boolean attackBlock(ServerPlayer player, BlockPos position) {
+        runtime.requireServerThread();
+        if (!isWand(player.getMainHandItem())) {
+            return false;
+        }
+        if (!canUse(player)) {
+            return true;
+        }
+        Selection selection = selections.get(player.getUUID());
+        if (selection != null && selection.level == player.level() && selection.complete() && buildClick(player, selection, position)) {
+            build(player, PortalType.PORTAL);
+        } else {
+            select(player, position, true);
+        }
+        return true;
+    }
+
+    public boolean useBlock(ServerPlayer player, InteractionHand hand, BlockHitResult hit) {
+        runtime.requireServerThread();
+        if (hand != InteractionHand.MAIN_HAND || !isWand(player.getMainHandItem())) {
+            return false;
+        }
+        if (canUse(player)) {
+            select(player, hit.getBlockPos(), false);
+        }
+        return true;
+    }
+
+    public void playerDisconnected(ServerPlayer player) {
+        runtime.requireServerThread();
+        clear(player);
+        blockInputs.remove(player.getUUID());
+    }
+
+    public void tick() {
+        runtime.requireServerThread();
+        Iterator<Map.Entry<UUID, Selection>> iterator = selections.entrySet().iterator();
+        while (iterator.hasNext()) {
+            Map.Entry<UUID, Selection> entry = iterator.next();
+            ServerPlayer player = runtime.server().getPlayerList().getPlayer(entry.getKey());
+            Selection selection = entry.getValue();
+            if (player == null || player.hasDisconnected() || player.level() != selection.level || !isWand(player.getMainHandItem())) {
+                if (player != null) {
+                    selection.preview.remove(player);
+                }
+                iterator.remove();
+            }
+        }
+    }
+
+    @Override
+    public void close() {
+        runtime.requireServerThread();
+        for (Map.Entry<UUID, Selection> entry : selections.entrySet()) {
+            ServerPlayer player = runtime.server().getPlayerList().getPlayer(entry.getKey());
+            if (player != null) {
+                entry.getValue().preview.remove(player);
+            }
+        }
+        selections.clear();
+        blockInputs.clear();
+    }
+
+    static ShapedRecipe wandRecipe(MinecraftPortalItems items) {
+        Ingredient dust = Ingredient.of(Items.GLOWSTONE_DUST);
+        NonNullList<Ingredient> pattern = NonNullList.of(Ingredient.EMPTY,
+            dust, Ingredient.EMPTY, dust,
+            Ingredient.EMPTY, Ingredient.of(Items.BLAZE_ROD), Ingredient.EMPTY,
+            Ingredient.EMPTY, dust, Ingredient.EMPTY);
+        return new ShapedRecipe(WAND_RECIPE, "", CraftingBookCategory.MISC, 3, 3, pattern, items.wand(), true);
+    }
+
+    static boolean isWand(ItemStack item) {
+        return item.is(Items.BLAZE_ROD)
+            && NbtUtils.compareNbt(WAND_IDENTITY, item.getTag(), true);
+    }
+
+    static boolean isPortalTool(ItemStack item) {
+        return isWand(item) || MinecraftPortalConstruction.runeType(item).isPresent();
+    }
+
+    private static CompoundTag wandIdentity() {
+        CompoundTag tag = new CompoundTag();
+        tag.putBoolean("wormholes:wand", true);
+        return tag;
+    }
+
+    private boolean canBuild(CommandSourceStack source) {
+        return runtime.access().permission(source, PortalType.PORTAL.permission())
+            || runtime.access().permission(source, PortalType.WORMHOLE.permission()) || runtime.access().permission(source, PortalType.GATEWAY.permission());
+    }
+
+    private boolean canUse(ServerPlayer player) {
+        if (canBuild(player.createCommandSourceStack())) {
+            return true;
+        }
+        player.sendSystemMessage(Component.literal("You do not have permission to use the Wormholes wand."));
+        return false;
+    }
+
+    private int giveWand(CommandSourceStack source, boolean rune) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        MinecraftPortalItems items = MinecraftPortalItems.of(runtime);
+        if (!player.getInventory().add(items.wand())) {
+            source.sendFailure(Component.literal("Your inventory is full."));
+            return 0;
+        }
+        if (rune) {
+            ItemStack item = items.wormholeRune();
+            if (!player.getInventory().add(item)) {
+                MinecraftItemDelivery.drop(player, item);
+            }
+        }
+        source.sendSuccess(() -> Component.literal(rune ? "Wormholes wand and rune added to your inventory." : "Wormholes wand added to your inventory."), false);
+        return 1;
+    }
+
+    private void select(ServerPlayer player, BlockPos position, boolean primary) {
+        Selection previous = selections.get(player.getUUID());
+        int[] clicked = new int[] {position.getX(), position.getY(), position.getZ()};
+        boolean sameWorld = previous != null && previous.level == player.level();
+        int[] a = primary ? clicked : sameWorld ? previous.a : null;
+        int[] b = primary ? sameWorld ? previous.b : null : clicked;
+        clear(player);
+        Selection selection = new Selection(player.serverLevel(), a, b, new MinecraftWandPreview(player, a, b));
+        selections.put(player.getUUID(), selection);
+        String message = primary ? "First corner selected." : "Second corner selected.";
+        if (selection.complete()) {
+            String failure = invalid(selection);
+            message = failure == null ? "Selected " + count(selection) + " blocks. Left click the selection to open a portal." : failure;
+        }
+        player.sendSystemMessage(Component.literal(message));
+    }
+
+    private int buildType(ServerPlayer player, String type) {
+        PortalType selected;
+        try {
+            selected = PortalType.valueOf(type.toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException error) {
+            player.sendSystemMessage(Component.literal("Portal type must be portal, wormhole, gateway, or rtp."));
+            return 0;
+        }
+        return build(player, selected);
+    }
+
+    private int build(ServerPlayer player, PortalType type) {
+        runtime.requireServerThread();
+        if (!runtime.access().permission(player, type.permission())) {
+            player.sendSystemMessage(MinecraftMenuText.text(player, WormholesMessages.COMMAND_NO_PERMISSION, Map.of()));
+            return 0;
+        }
+        Selection selection = selections.get(player.getUUID());
+        if (selection == null || selection.level != player.level() || !selection.complete()) {
+            player.sendSystemMessage(Component.literal("Select both corners with the Wormholes wand first."));
+            return 0;
+        }
+        String failure = invalid(selection);
+        if (failure != null) {
+            player.sendSystemMessage(Component.literal(failure));
+            return 0;
+        }
+        int[] min = WandSelectionGeometry.selectionMin(selection.a, selection.b);
+        int[] max = WandSelectionGeometry.selectionMax(selection.a, selection.b);
+        List<BlockPos> cells = new ArrayList<>((int) count(selection));
+        for (int x = min[0]; x <= max[0]; x++) {
+            for (int y = min[1]; y <= max[1]; y++) {
+                for (int z = min[2]; z <= max[2]; z++) {
+                    cells.add(new BlockPos(x, y, z));
+                }
+            }
+        }
+        if (!runtime.access().canConstruct(player) || !runtime.access().canPlace(new MinecraftAccessService.Placement(
+            player, player.serverLevel(), cells, MinecraftAccessService.PlacementKind.WAND))) {
+            return 0;
+        }
+        MinecraftPortal portal;
+        try {
+            portal = runtime.portals().create(player.getUUID(), player.serverLevel(), cells, type, player.getLookAngle());
+        } catch (IllegalArgumentException error) {
+            LOGGER.warn("Portal selection rejected for player {}", player.getUUID(), error);
+            player.sendSystemMessage(Component.literal("The portal could not be opened: " + error.getMessage()));
+            return 0;
+        }
+        if (portal == null) {
+            player.sendSystemMessage(Component.literal("The portal could not be opened at this selection."));
+            return 0;
+        }
+        runtime.effects().created(portal, Map.of());
+        clear(player);
+        player.sendSystemMessage(Component.literal("Opened portal " + portal.getId() + "."));
+        return 1;
+    }
+
+    private int list(CommandSourceStack source) {
+        List<MinecraftPortal> portals = runtime.portals().snapshot();
+        for (MinecraftPortal portal : portals) {
+            source.sendSuccess(() -> Component.literal(portal.getId() + " " + portal.getName() + " [" + portal.getWorldKey() + "]"), false);
+        }
+        source.sendSuccess(() -> Component.literal(portals.size() + " portals."), false);
+        return portals.size();
+    }
+
+    private int info(CommandSourceStack source, UUID id) {
+        MinecraftPortal portal = runtime.portals().get(id);
+        if (portal == null) {
+            source.sendFailure(Component.literal("Portal not found."));
+            return 0;
+        }
+        source.sendSuccess(() -> Component.literal(portal.getName() + " (" + id + ")\nWorld: " + portal.getWorldKey()
+            + "\nType: " + portal.getType() + "\nDestination: " + portal.getDestinationId()), false);
+        return 1;
+    }
+
+    private int link(CommandSourceStack source, UUID id, UUID destination) throws CommandSyntaxException {
+        boolean changed = runtime.portals().link(source.getPlayerOrException(), id, destination);
+        return changed(source, changed, destination == null ? "Portal unlinked." : "Portal destination updated.");
+    }
+
+    private int remove(CommandSourceStack source, UUID id) throws CommandSyntaxException {
+        return changed(source, runtime.portals().remove(source.getPlayerOrException(), id), "Portal removed.");
+    }
+
+    private int rename(CommandSourceStack source, UUID id, String name) throws CommandSyntaxException {
+        return changed(source, runtime.portals().update(source.getPlayerOrException(), id, portal -> portal.setName(name)), "Portal renamed.");
+    }
+
+    private int shape(CommandSourceStack source, UUID id, String text) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        MinecraftPortal portal = runtime.portals().get(id);
+        if (portal == null || !runtime.portals().canManage(player, portal)) {
+            return changed(source, false, "");
+        }
+        ApertureShapeChange change = ApertureShapeChange.request(text, portal.getApertureShape(),
+            shape -> portal.acceptsApertureShape(shape) && runtime.portals().update(player, id, target -> target.setApertureShape(shape)));
+        TextKey message = switch (change.status()) {
+            case SHOWN -> WormholesMessages.PORTAL_APERTURE_SHAPE_CURRENT;
+            case SET -> WormholesMessages.PORTAL_APERTURE_SHAPE_SET;
+            case INVALID -> WormholesMessages.PORTAL_APERTURE_SHAPE_INVALID;
+            case TOO_SMALL -> WormholesMessages.PORTAL_APERTURE_SHAPE_TOO_SMALL;
+        };
+        MessageArgs arguments = switch (change.status()) {
+            case SHOWN, SET -> MinecraftPortalText.arguments("portal", portal.getName(), "shape", change.shape().format(),
+                "cells", Integer.valueOf(portal.getGeometry().getBlockPositions().size()));
+            case INVALID -> MinecraftPortalText.arguments("reason", change.reason());
+            case TOO_SMALL -> MinecraftPortalText.arguments("shape", change.shape().format());
+        };
+        Component reply = MinecraftMenuText.text(player, message, arguments);
+        boolean succeeded = change.status() == ApertureShapeChange.Status.SHOWN || change.status() == ApertureShapeChange.Status.SET;
+        if (!succeeded) {
+            source.sendFailure(reply);
+            return 0;
+        }
+        source.sendSuccess(() -> reply, change.status() == ApertureShapeChange.Status.SET);
+        return 1;
+    }
+
+    private int select(ServerPlayer player) {
+        runtime.menus().open(player.getUUID(), DestinationRoutes.select());
+        return 1;
+    }
+
+    private int edit(ServerPlayer player, UUID portalId) {
+        runtime.menus().open(player.getUUID(), PortalRoutes.home(portalId));
+        return runtime.portals().canManage(player, runtime.portals().get(portalId)) ? 1 : 0;
+    }
+
+    private boolean transfer(ServerPlayer actor, UUID portalId, UUID newOwner) {
+        MinecraftPortal portal = runtime.portals().get(portalId);
+        boolean administrator = actor.createCommandSourceStack().hasPermission(Commands.LEVEL_ADMINS);
+        if (portal == null || !administrator && !portal.getOwner().equals(actor.getUUID())) {
+            actor.sendSystemMessage(MinecraftMenuText.text(actor, WormholesMessages.PORTAL_EDIT_DENIED, MessageArgs.empty()));
+            return false;
+        }
+        if (!runtime.portals().update(actor, portalId, target -> target.setOwner(newOwner))) {
+            return false;
+        }
+        runtime.menus().invalidate(new MenuScope.Portal(portalId));
+        return true;
+    }
+
+    private int gravity(CommandSourceStack source, UUID id, Boolean enabled) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        MinecraftPortal portal = runtime.portals().get(id);
+        if (portal == null || !runtime.portals().canManage(player, portal)) {
+            return changed(source, false, "");
+        }
+        if (enabled != null && !runtime.portals().update(player, id, target -> target.setGravityRotationEnabled(enabled))) {
+            return changed(source, false, "");
+        }
+        runtime.menus().invalidate(new MenuScope.Portal(id));
+        Component reply = runtime.localization().text(player, TransitMessages.GRAVITY_CURRENT,
+            Map.of("portal", portal.getName(), "state", portal.isGravityRotationEnabled() ? "on" : "off"));
+        source.sendSuccess(() -> reply, enabled != null);
+        return 1;
+    }
+
+    private int resetGravity(CommandSourceStack source, ServerPlayer target) {
+        if (target == null) {
+            source.sendFailure(Component.literal("No online player with that name."));
+            return 0;
+        }
+        MinecraftGravity.reset(target);
+        source.sendSuccess(() -> runtime.localization().text(source.getPlayer(), TransitMessages.GRAVITY_RESET,
+            Map.of("name", target.getScoreboardName())), true);
+        return 1;
+    }
+
+    private int scale(CommandSourceStack source, UUID id, String mode, String min, String max) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        MinecraftPortal portal = runtime.portals().get(id);
+        if (portal == null || !runtime.portals().canManage(player, portal)) {
+            return changed(source, false, "");
+        }
+        ScaleRuleChange change = ScaleRuleChange.request(mode, min, max, portal.getScaleRule());
+        if (change.status() == ScaleRuleChange.Status.INVALID) {
+            source.sendFailure(runtime.localization().text(player, TransitMessages.SCALE_INVALID, Map.of("reason", change.reason())));
+            return 0;
+        }
+        boolean set = change.status() == ScaleRuleChange.Status.SET;
+        if (set && !runtime.portals().update(player, id, target -> target.setScaleRule(change.rule()))) {
+            return changed(source, false, "");
+        }
+        if (set) {
+            runtime.menus().invalidate(new MenuScope.Portal(id));
+        }
+        Component reply = runtime.localization().text(player, set ? TransitMessages.SCALE_SET : TransitMessages.SCALE_CURRENT,
+            Map.of("portal", portal.getName(), "mode", ScaleRuleChange.mode(change.rule()), "value", ScaleRuleChange.range(change.rule())));
+        source.sendSuccess(() -> reply, set);
+        return 1;
+    }
+
+    private int resetPlayer(CommandSourceStack source, String name) {
+        ServerPlayer target = runtime.server().getPlayerList().getPlayerByName(name);
+        if (target == null) {
+            source.sendFailure(runtime.localization().text(source.getPlayer(), TransitMessages.SCALE_RESET_PLAYER, Map.of("name", name)));
+            return 0;
+        }
+        return resetScale(source, List.of(target));
+    }
+
+    private int resetNear(CommandSourceStack source, int radius) {
+        Vec3 center = source.getPosition();
+        double limit = (double) radius * radius;
+        List<Entity> nearby = source.getLevel().getEntities((Entity) null, AABB.ofSize(center, radius * 2.0D, radius * 2.0D, radius * 2.0D),
+            entity -> entity.distanceToSqr(center) <= limit);
+        return resetScale(source, nearby);
+    }
+
+    private int resetScale(CommandSourceStack source, List<? extends Entity> targets) {
+        int restored = TRAVELLER_SCALE.resetAll(targets, new ArrayList<>(targets.size()));
+        Component reply = runtime.localization().text(source.getPlayer(), TransitMessages.SCALE_RESET, Map.of("count", restored));
+        source.sendSuccess(() -> reply, true);
+        return restored;
+    }
+
+    private static int changed(CommandSourceStack source, boolean changed, String message) {
+        if (!changed) {
+            source.sendFailure(Component.literal("Portal operation failed. Check the portal IDs and your access."));
+            return 0;
+        }
+        source.sendSuccess(() -> Component.literal(message), true);
+        return 1;
+    }
+
+    private void clear(ServerPlayer player) {
+        Selection previous = selections.remove(player.getUUID());
+        if (previous != null) {
+            previous.preview.remove(player);
+        }
+    }
+
+    private static String invalid(Selection selection) {
+        int[] min = WandSelectionGeometry.selectionMin(selection.a, selection.b);
+        int[] max = WandSelectionGeometry.selectionMax(selection.a, selection.b);
+        if (WandSelectionGeometry.flatAxis(min, max) < 0) {
+            return "The selection must be flat on one axis.";
+        }
+        if (WandSelectionGeometry.cellCount(min, max) > WandSelectionGeometry.MAX_DRAWN_CELLS) {
+            return "The selection exceeds " + WandSelectionGeometry.MAX_DRAWN_CELLS + " blocks.";
+        }
+        return null;
+    }
+
+    private static long count(Selection selection) {
+        return WandSelectionGeometry.cellCount(WandSelectionGeometry.selectionMin(selection.a, selection.b),
+            WandSelectionGeometry.selectionMax(selection.a, selection.b));
+    }
+
+    private static boolean buildClick(ServerPlayer player, Selection selection, BlockPos position) {
+        int[] min = WandSelectionGeometry.selectionMin(selection.a, selection.b);
+        int[] max = WandSelectionGeometry.selectionMax(selection.a, selection.b);
+        if (position != null && position.getX() >= min[0] && position.getX() <= max[0]
+            && position.getY() >= min[1] && position.getY() <= max[1]
+            && position.getZ() >= min[2] && position.getZ() <= max[2]) {
+            return true;
+        }
+        Vec3 eye = player.getEyePosition();
+        Vec3 look = player.getLookAngle();
+        return WandSelectionGeometry.rayIntersectsBox(eye.x, eye.y, eye.z, look.x, look.y, look.z,
+            min[0], min[1], min[2], max[0] + 1.0, max[1] + 1.0, max[2] + 1.0, 64);
+    }
+
+    private record Selection(ServerLevel level, int[] a, int[] b, MinecraftWandPreview preview) {
+        boolean complete() {
+            return a != null && b != null;
+        }
+    }
+}

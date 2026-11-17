@@ -1,0 +1,139 @@
+package art.arcane.wormholes.modded;
+
+import art.arcane.optics.entity.EntityVisualMetadata;
+import art.arcane.wormholes.modded.gravity.MinecraftGravity;
+import art.arcane.wormholes.modded.mixin.MapDataAccess;
+import art.arcane.wormholes.modded.mixin.EntityDataAccess;
+import art.arcane.optics.entity.EntitySnapshot;
+import art.arcane.optics.entity.MapSnapshot;
+import art.arcane.wormholes.network.view.ViewEntityState;
+import com.mojang.authlib.properties.Property;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.network.syncher.SynchedEntityData;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.Pose;
+import net.minecraft.world.entity.decoration.HangingEntity;
+import net.minecraft.world.entity.decoration.ItemFrame;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.MapItem;
+import net.minecraft.world.level.saveddata.maps.MapItemSavedData;
+import net.minecraft.world.phys.Vec3;
+
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+import java.util.Objects;
+import java.util.UUID;
+
+public final class MinecraftEntityVisualCapture {
+    private static final EquipmentSlot[] EQUIPMENT = EquipmentSlot.values();
+    private final MinecraftPacketBlobs blobs;
+
+    public MinecraftEntityVisualCapture(MinecraftPacketBlobs blobs) {
+        this.blobs = blobs;
+    }
+
+    public EntitySnapshot capture(Entity entity, ViewEntityState<Pose> state, long tick) {
+        UUID id = entity.getUUID();
+        EntitySnapshot previous = state.lastCapturedSnapshots().get(id);
+        ViewEntityState.BlobCaptureState<Pose> previousBlob = state.blobCaptureStates().get(id);
+        int signature = signature(entity);
+        long metadataRevision = ((EntityDataRevision) entity.getEntityData()).wormholesRevision();
+        long interval = entity instanceof ItemFrame ? 10L : 40L;
+        boolean capture = previous == null || previousBlob == null || tick - previousBlob.lastCaptureTick() >= interval
+            || previousBlob.pose() != entity.getPose() || previousBlob.onFire() != entity.isOnFire()
+            || previousBlob.stateSignature() != signature || previousBlob.metadataRevision() != metadataRevision;
+        byte[] metadata = capture ? metadata(entity) : previous.metadata();
+        byte[] equipment = capture ? equipment(entity) : previous.equipment();
+        byte[] map = capture ? map(entity) : previous.mapData();
+        if (capture) {
+            state.blobCaptureStates().put(id, new ViewEntityState.BlobCaptureState<>(tick, entity.getPose(), entity.isOnFire(), signature, metadataRevision));
+        }
+        String name = "";
+        String texture = "";
+        String textureSignature = "";
+        if (entity instanceof ServerPlayer player) {
+            name = player.getGameProfile().getName();
+            if (state.sentProfiles().add(id)) {
+                for (Property property : player.getGameProfile().getProperties().get("textures")) {
+                    texture = property.getValue();
+                    textureSignature = property.getSignature() == null ? "" : property.getSignature();
+                    break;
+                }
+            }
+        }
+        Vec3 position = entity.position();
+        Vec3 velocity = entity.getDeltaMovement();
+        Vec3 look = entity instanceof HangingEntity hanging
+            ? Vec3.atLowerCornerOf(hanging.getDirection().getNormal())
+            : entity instanceof LivingEntity ? Vec3.directionFromRotation(entity.getXRot(), entity.getYHeadRot()) : entity.getLookAngle();
+        Entity vehicle = entity.getVehicle();
+        Entity leash = entity instanceof Mob mob ? mob.getLeashHolder() : null;
+        EntitySnapshot visual = EntitySnapshot.full(id, BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType()).toString(),
+            position.x, position.y, position.z, entity.getBbHeight(), look.x, look.y, look.z,
+            entity instanceof LivingEntity living ? living.yBodyRot : entity.getYRot(), entity.getXRot(), velocity.x, velocity.y, velocity.z, entity.onGround(),
+            name, texture, textureSignature, vehicle == null ? null : vehicle.getUUID(), leash == null ? null : leash.getUUID(),
+            metadata, equipment, map, 0);
+        state.lastCapturedSnapshots().put(id, visual);
+        return visual;
+    }
+
+    private byte[] metadata(Entity entity) {
+        Collection<SynchedEntityData.DataItem<?>> items = ((EntityDataAccess) entity.getEntityData()).wormholesItems().values();
+        List<SynchedEntityData.DataValue<?>> values = new ArrayList<>(items.size());
+        for (SynchedEntityData.DataItem<?> item : items) {
+            values.add(item.value());
+        }
+        return blobs.writeMetadata(values, new EntityVisualMetadata(MinecraftGravity.frame(entity),
+            entity instanceof LivingEntity living ? living.getScale() : 1.0D, EntitySnapshot.EMPTY));
+    }
+
+    private byte[] equipment(Entity entity) {
+        if (!(entity instanceof LivingEntity living)) {
+            return EntitySnapshot.EMPTY;
+        }
+        List<MinecraftPacketBlobs.Equipment> items = new ArrayList<>(EQUIPMENT.length);
+        for (EquipmentSlot slot : EQUIPMENT) {
+            items.add(new MinecraftPacketBlobs.Equipment(slot, living.getItemBySlot(slot)));
+        }
+        return blobs.writeEquipment(items);
+    }
+
+    private static int signature(Entity entity) {
+        int signature = 31 + MinecraftGravity.frame(entity).orientation().index();
+        if (entity instanceof ItemFrame frame) {
+            return 31 * signature + 31 * hashItemAndTag(frame.getItem()) + frame.getRotation();
+        }
+        if (!(entity instanceof LivingEntity living)) {
+            return signature;
+        }
+        signature = 31 * signature + Float.hashCode(living.getScale());
+        for (EquipmentSlot slot : EQUIPMENT) {
+            ItemStack item = living.getItemBySlot(slot);
+            signature = 31 * signature + 31 * hashItemAndTag(item) + item.getCount();
+        }
+        return signature;
+    }
+
+    private static int hashItemAndTag(ItemStack item) {
+        return item.isEmpty() ? 0 : 31 * item.getItem().hashCode() + Objects.hashCode(item.getTag());
+    }
+
+    private static byte[] map(Entity entity) {
+        if (!(entity instanceof ItemFrame frame)) {
+            return EntitySnapshot.EMPTY;
+        }
+        ItemStack item = frame.getItem();
+        Integer id = MapItem.getMapId(item);
+        MapItemSavedData data = MapItem.getSavedData(item, entity.level());
+        if (id == null || data == null) {
+            return EntitySnapshot.EMPTY;
+        }
+        return new MapSnapshot(id, data.scale, ((MapDataAccess) data).wormholesTrackingPosition(),
+            data.locked, data.colors).encode();
+    }
+}

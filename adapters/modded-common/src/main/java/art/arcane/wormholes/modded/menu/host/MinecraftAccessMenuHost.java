@@ -64,7 +64,7 @@ public final class MinecraftAccessMenuHost implements AccessMenuHost {
             case AccessEdit.Listed listed -> target -> target.setListed(listed.listed());
             case AccessEdit.AddGroup group -> group.node().isEmpty() || portal.getGroups().contains(group.node())
                 ? null : target -> target.addGroup(group.node());
-            case AccessEdit.ClearGroups _ -> portal.getGroups().isEmpty() ? null : MinecraftPortal::clearGroups;
+            case AccessEdit.ClearGroups ignored -> portal.getGroups().isEmpty() ? null : MinecraftPortal::clearGroups;
         };
         return mutation != null && update(MinecraftMenuViewer.player(viewer), portalId, mutation);
     }

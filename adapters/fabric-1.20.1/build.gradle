@@ -1,0 +1,229 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+
+plugins {
+    id 'java'
+    id 'fabric-loom' version '1.17.21'
+    id 'com.gradleup.shadow' version '9.5.1'
+}
+
+Properties rootProperties = new Properties()
+file('../../gradle.properties').withInputStream { InputStream stream -> rootProperties.load(stream) }
+String minecraftVersion = '1.20.1'
+String loaderVersion = '0.16.14'
+String fabricApiVersion = '0.92.6+1.20.1'
+
+project(':core') {
+    layout.buildDirectory.set(rootProject.layout.buildDirectory.dir('core'))
+}
+project(':optics') {
+    layout.buildDirectory.set(rootProject.layout.buildDirectory.dir('optics'))
+}
+apply from: '../../gradle/legacy-optics.gradle'
+
+group = 'art.arcane'
+version = rootProperties.getProperty('wormholesVersion')
+ext.minecraftTargetVersion = minecraftVersion
+ext.minecraftTarget = [overlays: [minecraftVersion]]
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(25)
+    }
+}
+
+sourceSets {
+    main {
+        java.srcDir('../modded-common/src/main/java')
+        resources.srcDir('../modded-common/src/main/resources')
+        java.exclude(file('../legacy-excludes.txt').readLines().findAll { String line -> !line.isBlank() && !line.startsWith('#') })
+    }
+    qa {
+        java.srcDirs = ['../modded-common/src/qa-1.20.1/java']
+        resources.srcDirs = []
+        compileClasspath += main.output + main.compileClasspath
+        runtimeClasspath += main.output + main.runtimeClasspath
+    }
+}
+
+repositories {
+    mavenCentral()
+    maven { url = uri('https://api.modrinth.com/maven') }
+    maven { url = uri('https://maven.fabricmc.net/') }
+}
+
+configurations {
+    bundle {
+        canBeConsumed = false
+        canBeResolved = true
+        exclude(group: 'it.unimi.dsi', module: 'fastutil')
+    }
+}
+
+dependencies {
+    minecraft("com.mojang:minecraft:${minecraftVersion}")
+    mappings(loom.officialMojangMappings())
+    modImplementation("net.fabricmc:fabric-loader:${loaderVersion}")
+    modImplementation("net.fabricmc.fabric-api:fabric-api:${fabricApiVersion}")
+    modCompileOnly('maven.modrinth:sodium:OihdIimA')
+    modCompileOnly('maven.modrinth:iris:s5eFLITc')
+    modCompileOnly('maven.modrinth:distanthorizons:6UnEfsRQ')
+    String qaMods = (String) project.findProperty('qaMods')
+    Set<String> runtimeMods = qaMods ? qaMods.split(',').collect { String mod -> mod.trim().toLowerCase() }.findAll { String mod -> !mod.isEmpty() }.toSet() : [] as Set<String>
+    if (runtimeMods.contains('iris')) {
+        runtimeMods.add('sodium')
+    }
+    if (runtimeMods.contains('dh') && runtimeMods.contains('sodium')) {
+        // Distant Horizons refuses to start beside Sodium 0.5 without Indium.
+        runtimeMods.add('indium')
+    }
+    Map<String, String> runtimeModCoordinates = [
+            sodium: 'maven.modrinth:sodium:OihdIimA',
+            iris  : 'maven.modrinth:iris:s5eFLITc',
+            dh    : 'maven.modrinth:distanthorizons:6UnEfsRQ',
+            indium: 'maven.modrinth:indium:nQHYSjxO'
+    ]
+    runtimeMods.each { String mod ->
+        String coordinate = runtimeModCoordinates[mod]
+        if (coordinate == null) {
+            throw new GradleException("Unknown qaMods entry '${mod}'; expected ${runtimeModCoordinates.keySet()}")
+        }
+        modLocalRuntime(coordinate)
+    }
+    if (runtimeMods.contains('iris')) {
+        // Loom does not load Iris's nested libraries in the dev run, so they go on the class path directly.
+        localRuntime('org.anarres:jcpp:1.4.14')
+        localRuntime('io.github.douira:glsl-transformer:2.0.1')
+        localRuntime('org.antlr:antlr4-runtime:4.13.1')
+    }
+    implementation(project(':core'))
+    bundle(project(':core'))
+    implementation(project(':optics'))
+    bundle(project(':optics'))
+    implementation('com.github.VolmitSoftware.VolmLib:volmlib-web:master-SNAPSHOT')
+    bundle('com.github.VolmitSoftware.VolmLib:volmlib-web:master-SNAPSHOT')
+}
+
+String qaWorld = (String) project.findProperty('qaWorld')
+String qaScript = (String) project.findProperty('qaScript')
+String qaTimeout = (String) project.findProperty('qaTimeout')
+
+loom {
+    mods {
+        wormholes {
+            sourceSet sourceSets.main
+            sourceSet sourceSets.qa
+        }
+    }
+    runs {
+        client {
+            source sourceSets.qa
+            if (qaWorld) {
+                programArgs('--quickPlaySingleplayer', qaWorld)
+            }
+            if (qaScript) {
+                property('wormholes.qa', file(qaScript).absolutePath)
+            }
+            if (qaTimeout) {
+                property('wormholes.qa.timeout', qaTimeout)
+            }
+            if (project.findProperty('qaMods')) {
+                // Loom runs 1.20.1 on LWJGL 3.3.2 on Apple silicon; Sodium refuses anything but 3.3.1 unless told otherwise.
+                property('sodium.checks.issue2561', 'false')
+            }
+        }
+    }
+}
+
+allprojects {
+    tasks.withType(JavaCompile).configureEach {
+        options.encoding = 'UTF-8'
+        options.compilerArgs.addAll(['-parameters', '-Xmaxerrs', '100000'])
+    }
+}
+
+gradle.projectsEvaluated {
+    allprojects { Project candidate ->
+        candidate.tasks.withType(JavaCompile).configureEach { options.release.set(21) }
+    }
+}
+
+processResources {
+    inputs.property('version', project.version)
+    filesMatching(['fabric.mod.json', 'wormholes-build.properties']) {
+        expand('version': project.version, 'minecraftVersion': minecraftVersion, 'fabricLoaderVersion': loaderVersion)
+    }
+    from('../modded-common/src/1.20.1/pockets-pack') {
+        include('data/**')
+    }
+}
+
+tasks.named('shadowJar', ShadowJar).configure {
+    archiveClassifier.set('dev')
+    configurations = [project.configurations.bundle]
+    mergeServiceFiles()
+    relocate('net.kyori', 'art.arcane.wormholes.shadow.kyori')
+    relocate('art.arcane.volmlib', 'art.arcane.wormholes.shadow.volmlib')
+    relocate('org.yaml.snakeyaml', 'art.arcane.wormholes.shadow.snakeyaml')
+    relocate('com.electronwill.nightconfig', 'art.arcane.wormholes.shadow.nightconfig')
+    relocate('com.moandjiezana.toml', 'art.arcane.wormholes.shadow.toml')
+    dependencies {
+        exclude(dependency('com.google.code.gson:gson:.*'))
+    }
+    exclude('META-INF/*.SF', 'META-INF/*.DSA', 'META-INF/*.RSA', 'META-INF/versions/**', 'module-info.class')
+    from('../../LICENSE.md')
+    from('../../THIRD-PARTY-NOTICES.md')
+}
+
+tasks.named('remapJar').configure {
+    inputFile.set(tasks.named('shadowJar', ShadowJar).flatMap { ShadowJar task -> task.archiveFile })
+    archiveFileName.set("Wormholes v${project.version} [Fabric] ${minecraftVersion}+${loaderVersion}.jar")
+}
+
+sourceSets {
+    gameTest {
+        java.srcDir('../modded-common/src/gameTest/java')
+        resources.srcDir('../modded-common/src/gameTest/resources')
+        compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
+        runtimeClasspath += sourceSets.main.output + sourceSets.main.runtimeClasspath
+    }
+}
+
+tasks.named('processGameTestResources').configure {
+    inputs.property('version', project.version)
+    filesMatching('fabric.mod.json') {
+        expand('version': project.version, 'minecraftVersion': minecraftVersion, 'fabricLoaderVersion': loaderVersion)
+    }
+}
+
+loom {
+    mods {
+        wormholes {
+            sourceSet(sourceSets.main)
+            modFiles.from(provider { project(':core').sourceSets.main.output })
+            modFiles.from(provider { project(':optics').sourceSets.main.output })
+        }
+        wormholes_gametest {
+            sourceSet(sourceSets.gameTest)
+        }
+    }
+    runs {
+        gametest {
+            server()
+            name('Game Test')
+            source(sourceSets.gameTest)
+            vmArg('-Dfabric-api.gametest')
+            vmArg("-Dfabric-api.gametest.report-file=${project.layout.buildDirectory.file('gametest/report.xml').get().asFile}")
+            if (project.hasProperty('gametestOnly')) {
+                vmArg("-Dwormholes.gametest.only=${project.property('gametestOnly')}")
+            }
+            runDir('build/gametest')
+            ideConfigGenerated(false)
+        }
+    }
+}
+
+tasks.named('runGametest').configure {
+    dependsOn(tasks.named('gameTestClasses'))
+}
+
+apply from: '../../gradle/modded-sources.gradle'

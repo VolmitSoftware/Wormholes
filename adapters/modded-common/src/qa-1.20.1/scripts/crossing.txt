@@ -1,0 +1,75 @@
+# Wormholes crossing QA: the player walks through a cross-dimension portal (A -> B) and a same-dimension portal
+# (C -> D), then turns round and walks back. Each crossing must switch levels without a loading screen, land the
+# player at the destination portal, render the destination (wall sample) and log no errors.
+# Extra steps: walk <ticks> [forward|back|left|right], look <yaw> <pitch>, turn <degrees>, mark, expect_dimension <id>,
+# expect_position <x> <y> <z> <radius>, expect_no_loading_screen, expect_no_errors.
+
+include portals.txt
+command wormholes portals retarget ${B} ${A}
+command wormholes portals retarget ${D} ${C}
+
+# Cross-dimension: start 3 blocks south of A facing north and walk through it into the red nether room.
+command tp @s 0.5 100 3.5 180 0
+wait_ticks 40
+wait_terrain 30
+wait_views 1 20
+wait_ticks 20
+mark
+walk 30
+wait_ticks 2
+expect_dimension minecraft:the_nether
+expect_position 0.5 70 0.5 4.5
+expect_no_loading_screen
+screenshot cross_arrival
+sample cross_arrival 0.5 0.5 82201c 70
+wait_ticks 20
+wait_terrain 30
+screenshot cross_arrival_settled
+sample cross_arrival_settled 0.5 0.5 82201c 70
+expect_no_errors
+
+# And back through B into the overworld at A.
+mark
+turn 180
+wait_ticks 20
+walk 30
+wait_ticks 2
+expect_dimension minecraft:overworld
+expect_position 0.5 100 0.5 4.5
+expect_no_loading_screen
+screenshot cross_return
+expect_no_errors
+
+# Same dimension: start 3 blocks south of C and walk through it into the blue room at D.
+command tp @s 30.5 100 3.5 180 0
+wait_ticks 40
+wait_terrain 30
+wait_views 1 20
+wait_ticks 20
+mark
+walk 30
+wait_ticks 2
+expect_dimension minecraft:overworld
+expect_position 60.5 100 0.5 4.5
+expect_no_loading_screen
+screenshot same_arrival
+sample same_arrival 0.5 0.5 2a2e7e 70
+wait_ticks 20
+wait_terrain 30
+screenshot same_arrival_settled
+sample same_arrival_settled 0.5 0.5 2a2e7e 70
+expect_no_errors
+
+# And back through D to C.
+mark
+turn 180
+wait_ticks 20
+walk 30
+wait_ticks 2
+expect_dimension minecraft:overworld
+expect_position 30.5 100 0.5 4.5
+expect_no_loading_screen
+screenshot same_return
+expect_no_errors
+
+quit

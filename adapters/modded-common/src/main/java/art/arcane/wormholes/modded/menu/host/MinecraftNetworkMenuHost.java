@@ -96,7 +96,7 @@ public final class MinecraftNetworkMenuHost implements NetworkMenuHost {
                 portal.setNexusValue("address", join.address());
                 portal.setNexusValue("label", join.label());
             };
-            case NetworkEdit.Leave _ -> portal -> {
+            case NetworkEdit.Leave ignored -> portal -> {
                 portal.setNexusValue("networkId", null);
                 portal.setNexusValue("address", null);
                 portal.setNexusValue("dial", null);

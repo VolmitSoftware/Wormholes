@@ -32,7 +32,7 @@ final class FakeCostMenuHost implements CostMenuHost {
         PortalMenuView view = portals.views.get(portalId);
         PortalMenuView.Cost cost = view.cost();
         PortalMenuView.Cost next = switch (edit) {
-            case CostEdit.Clear _ -> PortalMenuView.Cost.FREE;
+            case CostEdit.Clear ignored -> PortalMenuView.Cost.FREE;
             case CostEdit.Item item -> item.item().itemId().equals("minecraft:air") ? null : new PortalMenuView.Cost(PortalMenuView.CostMode.VANILLA,
                 item.item().itemId(), item.item().label(), cost.mode() == PortalMenuView.CostMode.VANILLA ? cost.quantity() : 1, null, "cost-template");
             case CostEdit.Quantity quantity -> cost.mode() != PortalMenuView.CostMode.VANILLA ? cost : new PortalMenuView.Cost(PortalMenuView.CostMode.VANILLA,

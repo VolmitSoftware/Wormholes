@@ -120,7 +120,7 @@ public final class NetworkMenuController implements MenuController {
         UUID portalId = NexusRoutes.portalId(route);
         return switch (scope) {
             case MenuScope.Portal portal -> portal.portalId().equals(portalId);
-            case MenuScope.Network _ -> true;
+            case MenuScope.Network ignored -> true;
             default -> false;
         };
     }

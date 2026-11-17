@@ -1,0 +1,44 @@
+# Wormholes QA world geometry: one command per line, no leading slash.
+# Run in a superflat creative world with cheats. The harness sends these with the "commands" step.
+# Run manually, wait a few seconds after the forceload lines so the chunks exist before the fills.
+#
+# Portals themselves are not created here: there is no command that opens a portal at given coordinates.
+# Opening one needs a wand selection (left click and right click on two corner blocks) followed by
+# "wormholes build"; visual.txt drives those clicks with its attack/use steps. Mirror mode has no command
+# either (only the portal settings menu sets it); visual.txt sets it with its "mirror" step.
+#
+# Layout (aperture cells, all on the plane z=0, every portal faces north towards a black backdrop):
+#   A  overworld  x -1..1    y 100..102  cross-dimension source, linked to B
+#   B  nether     x -1..1    y 70..72    inside a red wool room
+#   C  overworld  x 29..31   y 100..102  same-dimension source, linked to D
+#   D  overworld  x 59..61   y 100..102  inside a blue wool room
+#   E  overworld  x -32..-28 y 100..103  mirror, inside a lime wool room with a black wall behind it
+# Each room also has a light row at aperture height along the wall the samples land on, so it reads at full block light.
+gamerule doDaylightCycle false
+gamerule doWeatherCycle false
+gamerule doMobSpawning false
+time set noon
+weather clear
+forceload add -48 -16 80 16
+execute in minecraft:the_nether run forceload add -16 -16 16 16
+# (a) cross-dimension: overworld viewing platform and backdrop
+fill -8 99 -4 8 99 10 minecraft:smooth_stone
+fill -8 100 -4 8 108 -4 minecraft:black_concrete
+fill -8 100 -3 8 108 10 minecraft:air
+# (a) cross-dimension: nether destination room, lit by invisible light blocks
+execute in minecraft:the_nether run fill -6 69 -6 6 79 6 minecraft:red_wool hollow
+execute in minecraft:the_nether run fill -5 78 -5 5 78 5 minecraft:light[level=15]
+execute in minecraft:the_nether run fill -5 71 -5 5 71 -5 minecraft:light[level=15]
+# (b) same-dimension: source platform and backdrop
+fill 22 99 -4 38 99 10 minecraft:smooth_stone
+fill 22 100 -4 38 108 -4 minecraft:black_concrete
+fill 22 100 -3 38 108 10 minecraft:air
+# (b) same-dimension: destination room
+fill 54 99 -6 66 109 6 minecraft:blue_wool hollow
+fill 55 108 -5 65 108 5 minecraft:light[level=15]
+fill 55 101 -5 65 101 -5 minecraft:light[level=15]
+# (c) mirror: lime room, black wall behind the mirror so an unrendered mirror reads as black
+fill -38 99 -4 -22 109 12 minecraft:lime_wool hollow
+fill -37 100 -4 -23 108 -4 minecraft:black_concrete
+fill -37 108 -3 -23 108 11 minecraft:light[level=15]
+fill -37 101 11 -23 101 11 minecraft:light[level=15]

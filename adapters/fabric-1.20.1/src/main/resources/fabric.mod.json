@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "id": "wormholes",
+  "version": "${version}",
+  "name": "Wormholes",
+  "description": "Through-portal projection and traversal.",
+  "authors": [
+    "Volmit Software"
+  ],
+  "license": "GPL-3.0",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "art.arcane.wormholes.fabric.WormholesFabric"
+    ],
+    "client": [
+      "art.arcane.wormholes.fabric.WormholesFabricClient"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=${fabricLoaderVersion}",
+    "fabric-api": "*",
+    "minecraft": "${minecraftVersion}",
+    "java": ">=21"
+  },
+  "mixins": [
+    "wormholes.mixins.json",
+    "wormholes.client-a.mixins.json",
+    "wormholes.client-b.mixins.json",
+    "wormholes.client-c.mixins.json",
+    "wormholes.client-d.mixins.json",
+    "wormholes.client-e.mixins.json"
+  ]
+}

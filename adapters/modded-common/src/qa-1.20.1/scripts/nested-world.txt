@@ -1,0 +1,26 @@
+# Geometry for nested.txt, sent with its "commands" step after setup-world.txt. All apertures sit on z=0 (K on z=10)
+# and are built looking north, like setup-world.txt's portals.
+#   F  overworld  x 89..91   y 100..102  source, linked to G
+#   G  nether     x 29..31   y 70..72    inside an orange wool room
+#   H  nether     x 29..31   y 70..72    z=-3, inside G's room facing G, linked to I
+#   I  overworld  x 119..121 y 100..102  inside a yellow wool room
+#   J  overworld  x 149..151 y 100..102  linked to K
+#   K  overworld  x 149..151 y 100..102  z=10, behind the viewer, linked to J (looking through J shows J again)
+forceload add 80 -16 160 16
+execute in minecraft:the_nether run forceload add 16 -16 48 16
+# F: overworld viewing platform and backdrop
+fill 82 99 -4 98 99 10 minecraft:smooth_stone
+fill 82 100 -4 98 108 -4 minecraft:black_concrete
+fill 82 100 -3 98 108 10 minecraft:air
+# G: nether orange room, lit by invisible light blocks
+execute in minecraft:the_nether run fill 24 69 -6 36 79 6 minecraft:orange_wool hollow
+execute in minecraft:the_nether run fill 25 78 -5 35 78 5 minecraft:light[level=15]
+execute in minecraft:the_nether run fill 25 71 -5 35 71 -5 minecraft:light[level=15]
+# I: overworld yellow room
+fill 114 99 -6 126 109 6 minecraft:yellow_wool hollow
+fill 115 108 -5 125 108 5 minecraft:light[level=15]
+fill 115 101 -5 125 101 -5 minecraft:light[level=15]
+# J and K: a stone corridor with a black backdrop north of J
+fill 142 99 -4 158 99 14 minecraft:smooth_stone
+fill 142 100 -4 158 108 -4 minecraft:black_concrete
+fill 142 100 -3 158 108 14 minecraft:air

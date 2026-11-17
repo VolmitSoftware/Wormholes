@@ -29,7 +29,7 @@ public final class MinecraftCostMenuHost implements CostMenuHost {
     @Override
     public boolean edit(MenuViewer viewer, UUID portalId, CostEdit edit) {
         Consumer<MinecraftPortal> mutation = switch (edit) {
-            case CostEdit.Clear _ -> MinecraftPortal::clearTravelCost;
+            case CostEdit.Clear ignored -> MinecraftPortal::clearTravelCost;
             case CostEdit.Item item -> item.item() instanceof MinecraftCapturedItem captured ? template(captured) : null;
             case CostEdit.Quantity quantity -> portal -> portal.setTravelCostQuantity(quantity.quantity());
             case CostEdit.Currency currency -> portal -> portal.setCurrencyTravelCost(currency.amount());

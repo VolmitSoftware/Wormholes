@@ -8,6 +8,7 @@ libs/
 
 .idea/
 run/
+run-neoforge/
 
 .DS_Store
 
@@ -47,3 +48,9 @@ BUILDS/
 /handoff.md
 
 /.jqwik-database
+
+/adapters/fabric-1.20.1/gradle/wrapper/
+/adapters/fabric-1.20.1/gradlew
+/adapters/forge-1.20.1/gradle/wrapper/
+/adapters/forge-1.20.1/gradlew
+/*.log

@@ -1,0 +1,371 @@
+package art.arcane.wormholes.modded;
+
+import art.arcane.volmlib.util.localization.MessageArgs;
+import art.arcane.volmlib.util.localization.TextKey;
+import art.arcane.wormholes.door.DoorAccessRecord;
+import art.arcane.wormholes.door.DoorAccessState;
+import art.arcane.wormholes.door.DoorOpenState;
+import art.arcane.wormholes.door.DoorProjectionState;
+import art.arcane.wormholes.door.PlacedDoorEndpoint;
+import art.arcane.wormholes.localization.DoorViewMessages;
+import art.arcane.wormholes.localization.WormholesMessages;
+import com.mojang.authlib.GameProfile;
+import io.netty.channel.embedded.EmbeddedChannel;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.network.Connection;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.protocol.PacketFlow;
+import net.minecraft.network.protocol.game.ClientboundAddEntityPacket;
+import net.minecraft.network.protocol.game.ClientboundRemoveEntitiesPacket;
+import net.minecraft.network.protocol.game.ClientboundSetEntityDataPacket;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.Services;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.network.ServerGamePacketListenerImpl;
+import net.minecraft.server.players.GameProfileCache;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.inventory.ClickType;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.level.block.DoorBlock;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.item.DyeColor;
+import org.slf4j.LoggerFactory;
+
+import java.io.File;
+import java.io.IOException;
+import java.lang.reflect.Field;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.BooleanSupplier;
+
+public final class MinecraftDoorMenuGameTest {
+    private static final int PLACARD_SLOT = 3;
+    private static final int OPEN_STATE_SLOT = 4;
+    private static final int ADD_SLOT = 5;
+    private static final int PROJECTION_SLOT = 6;
+    private static final int FIRST_ENTRY_SLOT = 9;
+    private static final String ADMINISTRATOR = "wormholes.admin";
+
+    private final Options options;
+    private final MinecraftDoorService doors;
+    private final UUID itemId;
+    private final ServerPlayer stranger;
+    private final EmbeddedChannel strangerChannel;
+    private final boolean projectionEnabled;
+    private final MinecraftGameTestPlayer manager;
+    private final AutoCloseable administration;
+
+    private MinecraftDoorMenuGameTest(Options options) {
+        this.options = options;
+        doors = options.runtime().doors();
+        itemId = options.endpoint().identity().itemId();
+        projectionEnabled = options.runtime().configuration().settings().getDoors().projectionEnabled;
+        stranger = new ServerPlayer(options.player().serverLevel().getServer(), options.player().serverLevel(), new GameProfile(UUID.randomUUID(), "door-visitor"));
+        Connection connection = new Connection(PacketFlow.SERVERBOUND);
+        strangerChannel = new EmbeddedChannel(connection);
+        stranger.connection = new ServerGamePacketListenerImpl(options.player().serverLevel().getServer(), connection, stranger);
+        stranger.initInventoryMenu();
+        stranger.setPos(options.player().position());
+        manager = MinecraftGameTestPlayer.connect(options.runtime(), options.player().serverLevel(), "door-manager");
+        UUID managerId = manager.player().getUUID();
+        administration = options.runtime().access().register((candidate, node) -> candidate.getUUID().equals(managerId) && node.equals(ADMINISTRATOR)
+            ? MinecraftAccessService.Decision.ALLOW : MinecraftAccessService.Decision.UNSET);
+    }
+
+    public static CompletableFuture<Boolean> verify(Options options) {
+        return new MinecraftDoorMenuGameTest(options).run();
+    }
+
+    private CompletableFuture<Boolean> run() {
+        ServerPlayer owner = options.player();
+        ServerPlayer viewer = manager.player();
+        viewer.setItemInHand(InteractionHand.MAIN_HAND, ItemStack.EMPTY);
+        viewer.setShiftKeyDown(true);
+        options.helper().assertTrue(options.runtime().useBlock(viewer, InteractionHand.MAIN_HAND, hit()),
+            "Manager sneak interaction did not open door access controls");
+        viewer.setShiftKeyDown(false);
+        return await(() -> window() != null && viewer.containerMenu instanceof MinecraftWindowMenu).thenCompose(ignored -> openState())
+            .thenCompose(ignored -> projection()).thenCompose(ignored -> surface())
+            .thenCompose(ignored -> prompt("cancel")).thenCompose(ignored -> {
+                header(1);
+                GameProfileCache profiles = profileCache(options.runtime().server());
+                profiles.add(owner.getGameProfile());
+                profiles.add(stranger.getGameProfile());
+                return prompt(owner.getGameProfile().getName());
+            }).thenCompose(ignored -> await(() -> chatted(WormholesMessages.DOOR_ACCESS_OWNER_ALWAYS, MessageArgs.empty())))
+            .thenCompose(ignored -> {
+                header(1);
+                options.helper().assertTrue(record().players().isEmpty(), "Owner name prompt listed the owner");
+                return prompt(stranger.getGameProfile().getName());
+            }).thenCompose(ignored -> await(() -> listedState() == DoorAccessState.NEUTRAL && rows() == 2
+                && item(FIRST_ENTRY_SLOT).is(MinecraftDyedItems.pane(DyeColor.BLACK))
+                && item(FIRST_ENTRY_SLOT).getHoverName().getString().equals(stranger.getGameProfile().getName())))
+            .thenCompose(ignored -> {
+                header(2);
+                options.helper().assertTrue(chatted(WormholesMessages.DOOR_ACCESS_ADDED,
+                    MinecraftPortalText.arguments("name", stranger.getGameProfile().getName())), "Added player notice was not sent to chat");
+                for (int slot = FIRST_ENTRY_SLOT + 1; slot < 18; slot++) {
+                    options.helper().assertTrue(item(slot).is(MinecraftDyedItems.pane(DyeColor.GRAY)), "Empty access entry slot " + slot + " is not a gray pane");
+                }
+                click(FIRST_ENTRY_SLOT, 0, ClickType.PICKUP);
+                return await(() -> listedState() == DoorAccessState.WHITELIST && item(FIRST_ENTRY_SLOT).is(MinecraftDyedItems.pane(DyeColor.GREEN)));
+            }).thenCompose(ignored -> {
+                click(FIRST_ENTRY_SLOT, 1, ClickType.PICKUP);
+                return await(() -> listedState() == DoorAccessState.BLACKLIST && item(FIRST_ENTRY_SLOT).is(MinecraftDyedItems.pane(DyeColor.RED)));
+            }).thenCompose(ignored -> {
+                options.helper().assertTrue(options.runtime().useBlock(stranger, InteractionHand.MAIN_HAND, hit()),
+                    "Blacklisted player door interaction was not denied");
+                click(FIRST_ENTRY_SLOT, 0, ClickType.QUICK_MOVE);
+                return await(() -> listedState() == null && window() != null && rows() == 1);
+            }).thenApply(ignored -> {
+                header(1);
+                options.helper().assertTrue(viewer.containerMenu.getCarried().isEmpty(), "Door menu click moved a control item into player cursor");
+                LoggerFactory.getLogger("WormholesGameTest").info("WORMHOLES_GAME_TEST_PASS door_menu sneak_open title gray_pane header_layout owner_guard open_state projection_master_guard projection_cycle private_surface animated_metadata surface_cleanup prompt_cancel prompt_owner prompt_add list_height whitelist blacklist interaction_deny shift_remove item_safety");
+                return true;
+            }).whenCompleteAsync((passed, failure) -> {
+                options.runtime().configuration().settings().getDoors().projectionEnabled = projectionEnabled;
+                viewer.closeContainer();
+                manager.close();
+                close(administration);
+                if (!stranger.isRemoved()) {
+                    stranger.discard();
+                }
+                strangerChannel.finishAndReleaseAll();
+            }, owner.level().getServer());
+    }
+
+    private CompletableFuture<Boolean> openState() {
+        header(1);
+        options.helper().assertTrue(!doors.canManage(stranger, itemId), "Unprivileged stranger can manage dimensional door");
+        DoorOpenState original = endpoint().openState();
+        click(OPEN_STATE_SLOT, 0, ClickType.PICKUP);
+        return await(() -> endpoint().openState() == original.flipped() && item(OPEN_STATE_SLOT).is(openIcon(original.flipped())))
+            .thenCompose(ignored -> {
+                click(OPEN_STATE_SLOT, 0, ClickType.PICKUP);
+                return await(() -> endpoint().openState() == original && item(OPEN_STATE_SLOT).is(openIcon(original)));
+            });
+    }
+
+    private void header(int rows) {
+        ServerPlayer viewer = manager.player();
+        MinecraftWindow window = window();
+        options.helper().assertTrue(window != null && window.isVisible(), "Door access window is not open");
+        options.helper().assertTrue(rows() == rows, "Door access window has " + rows() + " rows instead of " + rows);
+        String kind = MinecraftMenuText.text(viewer, WormholesMessages.DOOR_ACCESS_KIND_PAIR, MessageArgs.empty()).getString();
+        options.helper().assertTrue(window.getTitle().equals(MinecraftLegacyText.text(viewer, WormholesMessages.DOOR_MENU_ACCESS_TITLE,
+            MinecraftPortalText.arguments("kind", kind))), "Door access title differs from the localized title");
+        options.helper().assertTrue(item(PLACARD_SLOT).is(MinecraftDoorItems.material(options.endpoint().identity()))
+            && item(PLACARD_SLOT).getHoverName().getString().equals(placardName(kind)),
+            "Door access placard is not at the header left of center");
+        options.helper().assertTrue(item(OPEN_STATE_SLOT).is(openIcon(endpoint().openState())), "Open state control is not centered");
+        options.helper().assertTrue(item(ADD_SLOT).is(Items.WRITABLE_BOOK), "Add player control is not right of center");
+        options.helper().assertTrue(item(PROJECTION_SLOT).is(Items.SPYGLASS), "Projection control is not beside the add control");
+        for (int slot : List.of(0, 1, 2, 7, 8)) {
+            options.helper().assertTrue(item(slot).is(MinecraftDyedItems.pane(DyeColor.GRAY)), "Header slot " + slot + " is not a gray pane");
+        }
+    }
+
+    private String placardName(String kind) {
+        List<String> lines = MinecraftLegacyText.lines(manager.player(), WormholesMessages.DOOR_MENU_ACCESS_PLACARD, MinecraftPortalText.arguments(
+            "kind", kind, "owner", options.player().getGameProfile().getName(), "whitelisted", 0, "blacklisted", 0, "count", record().players().size()));
+        return MinecraftLegacyText.component(lines.getFirst()).getString();
+    }
+
+    private CompletableFuture<Boolean> prompt(String input) {
+        click(ADD_SLOT, 0, ClickType.PICKUP);
+        return await(() -> window() == null && !(manager.player().containerMenu instanceof MinecraftWindowMenu)).thenCompose(ignored -> {
+            options.helper().assertTrue(chatted(WormholesMessages.DOOR_ACCESS_PROMPT_PLAYER, MinecraftPortalText.arguments("cancel",
+                MinecraftMenuText.text(manager.player(), WormholesMessages.PORTAL_INPUT_CANCEL, MessageArgs.empty()).getString())),
+                "Door access prompt was not sent to chat");
+            options.helper().assertTrue(MinecraftChatInput.chat(manager.player(), input), "Door access prompt did not consume chat input");
+            return await(() -> window() != null && manager.player().containerMenu instanceof MinecraftWindowMenu);
+        });
+    }
+
+    private boolean chatted(TextKey key, MessageArgs arguments) {
+        String expected = MinecraftMenuText.text(manager.player(), key, arguments).getString();
+        for (Component message : manager.messages()) {
+            if (message.getString().equals(expected)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private CompletableFuture<Boolean> surface() {
+        BlockPos position = hit().getBlockPos();
+        BlockState original = stranger.serverLevel().getBlockState(position);
+        stranger.serverLevel().addNewPlayer(stranger);
+        strangerChannel.outboundMessages().clear();
+        ((DoorBlock) original.getBlock()).setOpen(null, stranger.serverLevel(), original, position, true);
+        Set<Integer> displays = new HashSet<>();
+        return await(() -> {
+            strangerChannel.runPendingTasks();
+            int metadata = 0;
+            for (Object packet : strangerChannel.outboundMessages()) {
+                if (packet instanceof ClientboundAddEntityPacket spawn && spawn.getType() == MinecraftEntityTypes.BLOCK_DISPLAY) {
+                    displays.add(spawn.getId());
+                    options.helper().assertTrue(stranger.serverLevel().getEntity(spawn.getId()) == null, "Door surface entity entered shared world");
+                } else if (packet instanceof ClientboundSetEntityDataPacket update && displays.contains(update.id())) {
+                    metadata++;
+                }
+            }
+            return displays.size() == 2 && metadata > 2;
+        }).thenCompose(ignored -> {
+            strangerChannel.outboundMessages().clear();
+            BlockState active = stranger.serverLevel().getBlockState(position);
+            ((DoorBlock) active.getBlock()).setOpen(null, stranger.serverLevel(), active, position, false);
+            return await(() -> {
+                strangerChannel.runPendingTasks();
+                Set<Integer> removed = new HashSet<>();
+                for (Object packet : strangerChannel.outboundMessages()) {
+                    if (packet instanceof ClientboundRemoveEntitiesPacket destroy) {
+                        for (int id : displays) {
+                            if (MinecraftGameTestAccess.removed(destroy).contains(id)) {
+                                removed.add(id);
+                            }
+                        }
+                    }
+                }
+                return removed.equals(displays);
+            });
+        }).whenComplete((passed, failure) -> {
+            BlockState current = stranger.serverLevel().getBlockState(position);
+            ((DoorBlock) current.getBlock()).setOpen(null, stranger.serverLevel(), current, position, original.getValue(DoorBlock.OPEN));
+        });
+    }
+
+    private CompletableFuture<Boolean> projection() {
+        DoorProjectionState original = endpoint().projection();
+        options.runtime().configuration().settings().getDoors().projectionEnabled = false;
+        click(PROJECTION_SLOT, 0, ClickType.PICKUP);
+        return await(() -> chatted(DoorViewMessages.DISABLED, MessageArgs.empty())).thenCompose(ignored -> {
+            options.helper().assertTrue(endpoint().projection() == original, "Disabled global projection allowed an endpoint override");
+            options.runtime().configuration().settings().getDoors().projectionEnabled = true;
+            return projectionStep(DoorProjectionState.ON);
+        }).thenCompose(ignored -> projectionStep(DoorProjectionState.OFF))
+            .thenCompose(ignored -> projectionStep(DoorProjectionState.INHERIT));
+    }
+
+    private CompletableFuture<Boolean> projectionStep(DoorProjectionState expected) {
+        TextKey key = switch (expected) {
+            case INHERIT -> DoorViewMessages.STATE_INHERIT;
+            case ON -> DoorViewMessages.STATE_ON;
+            case OFF -> DoorViewMessages.STATE_OFF;
+        };
+        String state = MinecraftMenuText.text(manager.player(), key, MessageArgs.empty()).getString();
+        String label = MinecraftLegacyText.component(MinecraftLegacyText.lines(manager.player(), DoorViewMessages.MENU_PROJECTION,
+            MinecraftPortalText.arguments("state", state)).getFirst()).getString();
+        click(PROJECTION_SLOT, 0, ClickType.PICKUP);
+        return await(() -> endpoint().projection() == expected && item(PROJECTION_SLOT).getHoverName().getString().equals(label));
+    }
+
+    private void click(int slot, int button, ClickType input) {
+        manager.player().containerMenu.clicked(slot, button, input, manager.player());
+    }
+
+    private MinecraftWindow window() {
+        return MinecraftWindow.active(manager.player());
+    }
+
+    private int rows() {
+        return manager.player().containerMenu instanceof MinecraftWindowMenu menu ? menu.getRowCount() : 0;
+    }
+
+    private ItemStack item(int slot) {
+        return manager.player().containerMenu instanceof MinecraftWindowMenu menu && slot < menu.size() ? menu.item(slot) : ItemStack.EMPTY;
+    }
+
+    private static Item openIcon(DoorOpenState state) {
+        return state == DoorOpenState.OPEN ? MinecraftDyedItems.dye(DyeColor.LIME) : MinecraftDyedItems.dye(DyeColor.GRAY);
+    }
+
+    private PlacedDoorEndpoint endpoint() {
+        return doors.state().findEndpointByItem(itemId).orElseThrow();
+    }
+
+    private DoorAccessRecord record() {
+        return doors.state().accessRecord(itemId).orElseThrow();
+    }
+
+    private DoorAccessState listedState() {
+        return record().stateOf(stranger.getUUID());
+    }
+
+    private BlockHitResult hit() {
+        BlockPos block = new BlockPos(options.endpoint().position().x(), options.endpoint().position().y(), options.endpoint().position().z());
+        return new BlockHitResult(Vec3.atCenterOf(block), Direction.NORTH, block, false);
+    }
+
+    private static void close(AutoCloseable registration) {
+        try {
+            registration.close();
+        } catch (Exception failure) {
+            throw new IllegalStateException("the door manager permission could not be removed", failure);
+        }
+    }
+
+    private CompletableFuture<Boolean> await(BooleanSupplier condition) {
+        return await(condition, 0);
+    }
+
+    private CompletableFuture<Boolean> await(BooleanSupplier condition, int ticks) {
+        CompletableFuture<Boolean> result = new CompletableFuture<>();
+        if (!options.runtime().schedule(() -> {
+            try {
+                if (condition.getAsBoolean()) {
+                    result.complete(true);
+                } else if (ticks >= 100) {
+                    result.completeExceptionally(new IllegalStateException("Door menu change did not persist within 100 ticks"));
+                } else {
+                    await(condition, ticks + 1).whenComplete((value, failure) -> {
+                        if (failure == null) {
+                            result.complete(value);
+                        } else {
+                            result.completeExceptionally(failure);
+                        }
+                    });
+                }
+            } catch (RuntimeException failure) {
+                result.completeExceptionally(failure);
+            }
+        }, 1L)) {
+            result.completeExceptionally(new IllegalStateException("Door menu test scheduler stopped"));
+        }
+        return result;
+    }
+
+    public record Options(GameTestHelper helper, WormholesModRuntime runtime, ServerPlayer player, PlacedDoorEndpoint endpoint) {
+    }
+
+    // The 1.20.1 GameTestServer has no profile cache, so install an offline one for the name prompts.
+    private static GameProfileCache profileCache(MinecraftServer server) {
+        GameProfileCache existing = server.getProfileCache();
+        if (existing != null) {
+            return existing;
+        }
+        try {
+            File file = File.createTempFile("wormholes-usercache-", ".json");
+            file.deleteOnExit();
+            GameProfileCache cache = new GameProfileCache((names, agent, callback) -> {
+            }, file);
+            cache.setExecutor(server);
+            Field field = MinecraftServer.class.getDeclaredField("services");
+            field.setAccessible(true);
+            Services services = (Services) field.get(server);
+            field.set(server, new Services(services.sessionService(), services.servicesKeySet(), services.profileRepository(), cache));
+            return cache;
+        } catch (IOException | ReflectiveOperationException failure) {
+            throw new IllegalStateException("Could not install an offline profile cache", failure);
+        }
+    }
+}

@@ -1,0 +1,19 @@
+# Client renderer sources left out of the 1.20.1 build until their lane ports them.
+# Each group belongs to one lane. A lane enables a file by overlaying it under src/1.20.1/java and deleting
+# its line here (or by replacing the line with a .removed marker when the file is dropped). Never edit another
+# lane's group. Contract stubs already overlaid under src/1.20.1/java are not listed; their owner edits the overlay.
+# Lines are Gradle exclude patterns matched against every source root, overlays included.
+# Client package classes such as ResidentLevel or ClientSeamlessTravel are dropped by .removed markers under
+# src/1.20.1/java/.../client instead; the owning lane deletes its marker when it overlays the class.
+
+# Lane B: client worlds and residency
+# Lane B mixins
+
+# Lane C: streamed mesh path
+# Lane C mixins
+
+# Lane D: seamless travel, crossing, client gravity
+# Lane D mixins
+
+# Lane E: mod compatibility (Sodium/Embeddium, Iris/Oculus, Distant Horizons)
+# Lane E mixins

@@ -101,7 +101,7 @@ final class FakeAccessHost implements AccessMenuHost {
                 yield true;
             }
             case AccessEdit.AddGroup add -> !groups.contains(add.node()) && groups.add(add.node());
-            case AccessEdit.ClearGroups _ -> {
+            case AccessEdit.ClearGroups ignored -> {
                 boolean had = !groups.isEmpty();
                 groups.clear();
                 yield had;
