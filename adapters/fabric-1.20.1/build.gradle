@@ -60,6 +60,13 @@ configurations {
     }
 }
 
+// Minecraft 1.20.1 ships fastutil 8.5.9 and the mod runs against that copy, so core and optics compile against it too.
+allprojects {
+    configurations.configureEach {
+        resolutionStrategy.force('it.unimi.dsi:fastutil:8.5.9')
+    }
+}
+
 dependencies {
     minecraft("com.mojang:minecraft:${minecraftVersion}")
     mappings(loom.officialMojangMappings())
