@@ -4,6 +4,7 @@ plugins {
     id 'java'
     id 'fabric-loom' version '1.17.21'
     id 'com.gradleup.shadow' version '9.5.1'
+    id 'xyz.wagyourtail.jvmdowngrader' version '2.0.1'
 }
 
 Properties rootProperties = new Properties()
@@ -174,9 +175,65 @@ tasks.named('shadowJar', ShadowJar).configure {
     from('../../THIRD-PARTY-NOTICES.md')
 }
 
-tasks.named('remapJar').configure {
+jvmdg.downgradeTo = JavaVersion.VERSION_17
+
+tasks.named('downgradeJar').configure {
     inputFile.set(tasks.named('shadowJar', ShadowJar).flatMap { ShadowJar task -> task.archiveFile })
+    archiveClassifier.set('dev-downgraded')
+}
+
+tasks.named('shadeDowngradedApi').configure {
+    inputFile.set(tasks.named('downgradeJar').flatMap { task -> task.archiveFile })
+    shadePath.set('art/arcane/wormholes/shadow/jvmdg/')
+    archiveClassifier.set('dev-java17')
+}
+
+tasks.named('remapJar').configure {
+    inputFile.set(tasks.named('shadeDowngradedApi').flatMap { task -> task.archiveFile })
     archiveFileName.set("Wormholes v${project.version} [Fabric] ${minecraftVersion}+${loaderVersion}.jar")
+}
+
+if (project.hasProperty('qaJava17')) {
+    // Dev-only check of the shipped Java 17 jar: packs the QA harness into it and runs it on a Java 17 client
+    // with none of the Java 21 build output on the class path.
+    tasks.named('shadowJar', ShadowJar).configure {
+        from(sourceSets.qa.output)
+    }
+    sourceSets {
+        java17Qa {
+        }
+    }
+    sourceSets.java17Qa.runtimeClasspath = configurations.runtimeClasspath.filter { File file ->
+        String path = file.path
+        !(path.contains('/build/core/') || path.contains('/build/optics/') || path.contains('/build/volmlib/'))
+    }
+    loom.runs.register('java17Client') {
+        client()
+        source(sourceSets.java17Qa)
+        runDir('build/run-java17')
+        ideConfigGenerated(false)
+        if (qaWorld) {
+            programArgs('--quickPlaySingleplayer', qaWorld)
+        }
+        if (qaScript) {
+            property('wormholes.qa', file(qaScript).absolutePath)
+        }
+        if (qaTimeout) {
+            property('wormholes.qa.timeout', qaTimeout)
+        }
+    }
+    tasks.matching { Task task -> task.name == 'runJava17Client' }.configureEach { JavaExec task ->
+        task.dependsOn(tasks.named('remapJar'))
+        task.javaLauncher.set(javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(17) })
+        task.doFirst {
+            File mods = file('build/run-java17/mods')
+            project.delete(mods)
+            project.copy {
+                from(tasks.named('remapJar'))
+                into(mods)
+            }
+        }
+    }
 }
 
 sourceSets {

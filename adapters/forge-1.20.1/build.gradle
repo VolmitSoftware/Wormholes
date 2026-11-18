@@ -6,6 +6,7 @@ plugins {
     id 'java'
     id 'net.neoforged.moddev.legacyforge' version '2.0.148'
     id 'com.gradleup.shadow' version '9.5.1'
+    id 'xyz.wagyourtail.jvmdowngrader' version '2.0.1'
 }
 
 Properties rootProperties = new Properties()
@@ -276,7 +277,20 @@ tasks.named('shadowJar', ShadowJar).configure {
     from(tasks.named('compileJava').map { Task task -> layout.buildDirectory.file('mixin/wormholes.refmap.json') })
 }
 
-TaskProvider<Jar> reobfShadowJar = obfuscation.reobfuscate(tasks.named('shadowJar', ShadowJar), sourceSets.main) {
+jvmdg.downgradeTo = JavaVersion.VERSION_17
+
+tasks.named('downgradeJar').configure {
+    inputFile.set(tasks.named('shadowJar', ShadowJar).flatMap { ShadowJar task -> task.archiveFile })
+    archiveClassifier.set('dev-downgraded')
+}
+
+TaskProvider<Jar> java17Jar = tasks.named('shadeDowngradedApi', Jar) {
+    inputFile.set(tasks.named('downgradeJar', Jar).flatMap { Jar task -> task.archiveFile })
+    shadePath.set('art/arcane/wormholes/shadow/jvmdg/')
+    archiveClassifier.set('dev-java17')
+}
+
+TaskProvider<Jar> reobfShadowJar = obfuscation.reobfuscate(java17Jar, sourceSets.main) {
     archiveFileName.set("Wormholes v${project.version} [Forge] ${minecraftVersion}+${forgeVersion}.jar")
 }
 

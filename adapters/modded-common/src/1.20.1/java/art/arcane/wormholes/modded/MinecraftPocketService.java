@@ -90,7 +90,11 @@ public final class MinecraftPocketService implements AutoCloseable {
     private final DoorStateService state;
     private final MinecraftPocketRooms rooms;
     private final Executor storage;
-    private final ExecutorService profiles = Executors.newVirtualThreadPerTaskExecutor();
+    private final ExecutorService profiles = Executors.newCachedThreadPool(runnable -> {
+        Thread thread = new Thread(runnable, "Wormholes-Pocket-Profiles");
+        thread.setDaemon(true);
+        return thread;
+    });
     private final MinecraftStructureIo io;
     private final MinecraftPocketTemplates templates;
     private final PocketSnapshots<StructureTemplate> snapshots;

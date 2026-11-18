@@ -477,7 +477,11 @@ public class NetworkManager implements PeerConnection.Listener, PeerConnection.C
                 listener.bind(active);
             }
 
-            statusPollExecutor = Executors.newVirtualThreadPerTaskExecutor();
+            statusPollExecutor = Executors.newCachedThreadPool(runnable -> {
+                Thread thread = new Thread(runnable, "Wormholes-Net-Status");
+                thread.setDaemon(true);
+                return thread;
+            });
             ScheduledExecutorService executor = Executors.newScheduledThreadPool(3, runnable -> {
                 Thread thread = new Thread(runnable, "Wormholes-Net-Timer");
                 thread.setDaemon(true);

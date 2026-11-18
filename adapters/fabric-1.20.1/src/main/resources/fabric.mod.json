@@ -21,7 +21,7 @@
     "fabricloader": ">=${fabricLoaderVersion}",
     "fabric-api": "*",
     "minecraft": "${minecraftVersion}",
-    "java": ">=21"
+    "java": ">=17"
   },
   "mixins": [
     "wormholes.mixins.json",
